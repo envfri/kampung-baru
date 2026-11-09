@@ -48,7 +48,7 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
     const u = req.user!;
     const s = await getSettings(db);
     if (!s.features.payments) throw forbidden('Pembelian Mutiara sedang tidak tersedia.');
-    if (u.is_guest) throw bad('guest', 'Simpan progres dulu (masuk dengan Google atau email) sebelum membeli Mutiara.');
+    if (u.is_guest && config.paymentProvider !== 'mock') throw bad('guest', 'Simpan progres dulu (masuk dengan Google atau email) sebelum membeli Mutiara.');
     const pkgId = str(req.body?.packageId, 'Paket', { max: 64 })!;
     const cat = await getCatalog(db);
     const pkg = cat.packages.find((p) => p.id === pkgId && p.active);

@@ -174,7 +174,9 @@ test('hadiah harian hanya sekali', async () => {
 
 test('beli Mutiara (mock): tamu ditolak, akun email berhasil, kredit tidak dobel', async () => {
   const { c } = await newPlayer();
+  config.paymentProvider = 'midtrans';
   assert.equal((await c.post('/api/pearls/checkout', { packageId: 'p-kecil' })).body.error.code, 'guest');
+  config.paymentProvider = 'mock';
   const start = await c.post('/api/auth/email/start', { email: 'pemain@contoh.id' });
   assert.equal(start.status, 200);
   const v = await c.post('/api/auth/email/verify', { email: 'pemain@contoh.id', code: start.body.devCode });
@@ -337,4 +339,21 @@ test('push: server mengirim Web Push terenkripsi dan menghapus langganan yang ma
     setPushAgent(undefined);
     srv.close();
   }
+});
+
+test('audit: nama tampilan tamu memakai nama pet, bukan "Tamu"', async () => {
+  const c = client();
+  await c.post('/api/auth/guest');
+  await c.post('/api/pet', { name: 'Gethuk', color: '#F6B7A8', ear: 'tunas' });
+  assert.equal((await c.get('/api/me')).body.user.display_name, 'Gethuk');
+  const d = client();
+  await d.post('/api/auth/guest');
+  await d.post('/api/pet', { name: 'Onde', color: '#F6B7A8', ear: 'tunas', ownerName: 'Rina' });
+  assert.equal((await d.get('/api/me')).body.user.display_name, 'Rina');
+});
+
+test('audit: mode simulasi mengizinkan tamu mencoba beli Mutiara', async () => {
+  const { c } = await newPlayer('Simu');
+  const co = await c.post('/api/pearls/checkout', { packageId: 'p-kecil' });
+  assert.equal(co.status, 200, JSON.stringify(co.body));
 });

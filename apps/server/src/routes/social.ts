@@ -141,7 +141,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       await track(t, me.id, 'gift_sent', { itemId });
       return { ok: true, ...(await patch(t, me.id, ['inventory'])) };
     }).then((res) => {
-      if (s.notify.giftsAndFriends) void notify(db, to, { kind: 'social', title: 'Kamu dapat hadiah', body: `${me.display_name} mengirim hadiah${message ? `: “${message}”` : '.'} Buka di menu Teman.`, url: '/#friends', tag: 'gift' }, req.log);
+      if (s.notify.giftsAndFriends) void notify(db, to, { kind: 'social', title: 'Kamu dapat hadiah', body: `${me.display_name} mengirim hadiah${message ? `: “${message}”.` : '.'} Buka di menu Teman.`, url: '/#friends', tag: 'gift' }, req.log);
       return res;
     });
   });

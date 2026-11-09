@@ -89,7 +89,8 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       [u.id, name, color, ear, st.kenyang, st.bersih, st.ceria, st.energi],
     );
     if (!r) throw new HttpError(409, 'pet_exists', 'Kamu sudah punya pet.');
-    if (owner) await db.query(`update users set display_name = $2 where id = $1`, [u.id, owner]);
+    // tanpa nama pemilik, pakai nama pet (bukan "Tamu") supaya mudah dikenali teman
+    await db.query(`update users set display_name = $2 where id = $1 and ($3::boolean or display_name = 'Tamu')`, [u.id, owner ?? name, !!owner]);
     await track(db, u.id, 'pet_created', { color, ear });
     return { ok: true, state: await playerState(db, u.id) };
   });

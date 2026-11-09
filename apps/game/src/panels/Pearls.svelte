@@ -27,7 +27,7 @@
   <p class="intro">Mutiara dipakai untuk barang kosmetik di Toko Mutiara. Tidak ada barang yang membuat pemain lebih kuat.</p>
   {#if G.catalog?.settings?.features?.payments === false}
     <p class="muted">Pembelian Mutiara sedang ditutup.</p>
-  {:else if G.me.user.is_guest}
+  {:else if G.me.user.is_guest && G.config?.payments !== 'mock'}
     <div class="guest">
       <b>Simpan progres dulu</b>
       <p>Supaya Mutiara yang dibeli tidak hilang, sambungkan akun Google atau email.</p>
@@ -36,6 +36,7 @@
   {:else if !data}
     <p class="muted">Memuat…</p>
   {:else}
+    {#if G.config?.payments === 'mock'}<p class="mock">Mode uji: pembayaran hanya simulasi, tidak ada uang sungguhan.</p>{/if}
     <div class="packs">
       {#each data.packages as p (p.id)}
         <button class="pack" disabled={busy} onclick={() => buy(p.id)}>
@@ -58,6 +59,7 @@
 
 <style>
   .intro { margin: 0; font-weight: 600; }
+  .mock { margin: 0; font-weight: 700; font-size: 13.5px; background: #FBEFD2; border-radius: 10px; padding: 6px 10px; }
   .packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
   .pack { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); background: #F4F0FB; padding: 12px 8px; cursor: pointer; }
   .pack:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }

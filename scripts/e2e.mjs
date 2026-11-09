@@ -37,7 +37,8 @@ try {
   await step('08-lomba', async () => {
     await p.click('.bar .btn:has-text("Kampung")'); await p.click('[data-loc="lapangan"]');
     await p.click('.btn:has-text("Mulai lomba")'); await p.waitForTimeout(3300);
-    for (let i = 0; i < 60 && (await p.locator('.pad').count()); i++) await p.click(`.pad >> nth=${i % 2}`, { timeout: 1500 }).catch(() => {});
+    // ritme ketukan manusia (±8 per detik); lebih cepat dari batas akan ditolak anti-curang
+    for (let i = 0; i < 60 && (await p.locator('.pad').count()); i++) { await p.click(`.pad >> nth=${i % 2}`, { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(70); }
     await p.waitForSelector('text=Waktumu');
   });
   await step('09-mancing', async () => {

@@ -42,7 +42,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
     return {
       login: {
         guest: f.guestLogin,
-        email: f.emailLogin,
+        email: f.emailLogin && (!!config.smtpUrl || !config.isProd),
         google: f.googleLogin && config.googleClientId ? config.googleClientId : null,
         facebook: f.facebookLogin && config.facebookAppId ? config.facebookAppId : null,
       },
@@ -63,7 +63,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
 
   app.post('/api/auth/email/start', { config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req: any) => {
     const s = await getSettings(db);
-    if (!s.features.emailLogin) throw forbidden('Login email sedang tidak tersedia.');
+    if (!s.features.emailLogin || (config.isProd && !config.smtpUrl)) throw forbidden('Login email sedang tidak tersedia.');
     const mail = vEmail(req.body?.email);
     const prev = await db.one<{ created_at: Date }>(`select created_at from email_otps where email = $1`, [mail]);
     if (prev && Date.now() - new Date(prev.created_at).getTime() < 60_000) throw bad('otp_wait', 'Kode baru saja dikirim. Tunggu 1 menit sebelum meminta lagi.');
