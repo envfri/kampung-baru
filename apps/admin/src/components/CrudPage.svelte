@@ -5,7 +5,7 @@
   import { can, err, toast, getPath, setPath, toLocal, fromLocal } from '../lib/store.svelte';
   import Drawer from './Drawer.svelte';
 
-  export interface Field { key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'checkbox' | 'select' | 'datetime' | 'color'; options?: [string, string][]; help?: string; step?: string; required?: boolean }
+  export interface Field { key: string; label: string; type?: 'text' | 'textarea' | 'number' | 'checkbox' | 'select' | 'datetime' | 'color' | 'json'; options?: [string, string][]; help?: string; step?: string; required?: boolean }
   export interface Col { key: string; label: string; fmt?: (v: any, row: any) => string; num?: boolean }
 
   let { title, desc = '', endpoint, listKey, idKey = 'id', idOnCreate = true, columns, fields, blank, editMin = 'admin', deleteLabel = 'Hapus', preview, extra }: {
@@ -26,7 +26,10 @@
   function open(row: any | null) {
     creating = !row;
     form = JSON.parse(JSON.stringify(row ?? blank()));
-    for (const f of fields) if (f.type === 'datetime') setPath(form, f.key, toLocal(getPath(form, f.key)));
+    for (const f of fields) {
+      if (f.type === 'datetime') setPath(form, f.key, toLocal(getPath(form, f.key)));
+      if (f.type === 'json') setPath(form, f.key, JSON.stringify(getPath(form, f.key) ?? {}));
+    }
   }
   async function save() {
     busy = true;
@@ -35,6 +38,10 @@
       for (const f of fields) {
         if (f.type === 'datetime') setPath(body, f.key, fromLocal(getPath(form, f.key)));
         if (f.type === 'number') { const v = getPath(form, f.key); setPath(body, f.key, v === '' || v == null ? null : Number(v)); }
+        if (f.type === 'json') {
+          try { setPath(body, f.key, JSON.parse(getPath(form, f.key) || '{}')); }
+          catch { throw new Error(`${f.label}: format JSON tidak valid, contoh {"type":"mandi"}`); }
+        }
       }
       if (creating) await api.post(endpoint, body);
       else await api.put(`${endpoint}/${encodeURIComponent(form[idKey])}`, body);
@@ -80,7 +87,8 @@
         <label class="inline"><input type="checkbox" checked={!!getPath(form, f.key)} onchange={(e) => setPath(form, f.key, (e.target as HTMLInputElement).checked)} disabled={!editable} />{f.label}</label>
       {:else}
         <label>{f.label}
-          {#if f.type === 'textarea'}<textarea value={getPath(form, f.key) ?? ''} oninput={(e) => setPath(form, f.key, (e.target as HTMLTextAreaElement).value)} disabled={!editable}></textarea>
+          {#if f.type === 'json'}<input class="mono" value={getPath(form, f.key) ?? '{}'} oninput={(e) => setPath(form, f.key, (e.target as HTMLInputElement).value)} disabled={!editable} />
+          {:else if f.type === 'textarea'}<textarea value={getPath(form, f.key) ?? ''} oninput={(e) => setPath(form, f.key, (e.target as HTMLTextAreaElement).value)} disabled={!editable}></textarea>
           {:else if f.type === 'select'}<select value={getPath(form, f.key) ?? ''} onchange={(e) => setPath(form, f.key, (e.target as HTMLSelectElement).value)} disabled={!editable}>{#each f.options ?? [] as [v, l]}<option value={v}>{l}</option>{/each}</select>
           {:else if f.type === 'color'}<span class="row"><input type="color" value={getPath(form, f.key) ?? '#000000'} oninput={(e) => setPath(form, f.key, (e.target as HTMLInputElement).value)} disabled={!editable} /><span class="mono">{getPath(form, f.key) ?? ''}</span></span>
           {:else}<input type={f.type === 'number' ? 'number' : f.type === 'datetime' ? 'datetime-local' : 'text'} step={f.step} value={getPath(form, f.key) ?? ''} oninput={(e) => setPath(form, f.key, (e.target as HTMLInputElement).value)} disabled={!editable} />{/if}

@@ -189,6 +189,12 @@ export async function cooldown(db: Db, userId: string, key: string, seconds: num
   );
 }
 
+type TrackHook = (db: Db, userId: string | null, name: string, props?: Record<string, unknown>) => Promise<void>;
+let trackHook: TrackHook | null = null;
+/** Dipasang oleh app: setiap peristiwa juga memajukan progres tugas. */
+export function setTrackHook(fn: TrackHook) { trackHook = fn; }
+
 export async function track(db: Db, userId: string | null, name: string, props?: Record<string, unknown>) {
   await db.query(`insert into analytics_events (user_id, name, props) values ($1,$2,$3)`, [userId, name, props ?? null]).catch(() => {});
+  if (trackHook) await trackHook(db, userId, name, props);
 }

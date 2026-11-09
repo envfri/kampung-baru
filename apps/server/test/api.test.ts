@@ -357,3 +357,44 @@ test('audit: mode simulasi mengizinkan tamu mencoba beli Mutiara', async () => {
   const co = await c.post('/api/pearls/checkout', { packageId: 'p-kecil' });
   assert.equal(co.status, 200, JSON.stringify(co.body));
 });
+
+test('tugas: pemula maju dari aksi nyata, hadiah diambil sekali, harian 3 per hari', async () => {
+  const { c } = await newPlayer('Tugas');
+  let q = (await c.get('/api/quests')).body;
+  assert.equal(q.starter.length, 12);
+  assert.equal(q.daily.length, 3);
+  assert.equal(q.summary.next.id, 'p-elus');
+  // elus 3x (jeda cooldown 2 detik di antaranya)
+  for (let i = 0; i < 3; i++) {
+    const r = await c.post('/api/action', { type: 'elus' });
+    assert.equal(r.status, 200);
+    if (i < 2) await new Promise((res) => setTimeout(res, 2100));
+  }
+  await c.post('/api/action', { type: 'makan', itemId: 'pisang-goreng' });
+  q = (await c.get('/api/quests')).body;
+  const elus = q.starter.find((x: any) => x.id === 'p-elus');
+  assert.equal(elus.progress, 3);
+  assert.equal(elus.done, true);
+  assert.equal(q.starter.find((x: any) => x.id === 'p-makan').done, true);
+  assert.equal(q.summary.ready >= 2, true);
+  const before = (await c.get('/api/me')).body.wallet.coin;
+  const cl = await c.post('/api/quests/p-elus/claim');
+  assert.equal(cl.status, 200, JSON.stringify(cl.body));
+  assert.equal(cl.body.wallet.coin, before + 20);
+  assert.equal((await c.post('/api/quests/p-elus/claim')).status, 400);
+  assert.equal((await c.post('/api/quests/p-lomba/claim')).status, 400);
+  // ringkasan ikut di respons aksi
+  const act = await c.post('/api/action', { type: 'mandi' });
+  assert.ok(act.body.quests.ready >= 2);
+});
+
+test('tugas: admin bisa menambah tugas harian baru', async () => {
+  const owner = client();
+  await owner.post('/api/admin/login', { email: 'owner@test.local', password: 'rahasia-sekali-123' });
+  const list = (await owner.get('/api/admin/quests')).body;
+  assert.ok(list.quests.length >= 23);
+  const r = await owner.post('/api/admin/quests', { id: 'h-jual', kind: 'daily', title: 'Pedagang', description: 'Jual 2 barang.', event: 'sell', filter: {}, target: 2, reward_coin: 20, url: '/#shop' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const bad = await owner.post('/api/admin/quests', { id: 'h-x', kind: 'daily', title: 'X', event: 'tidak-ada', target: 1 });
+  assert.equal(bad.status, 400);
+});

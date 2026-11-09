@@ -1,6 +1,7 @@
 import { decayNeeds, NEED_KEYS, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { getCatalog, getSettings, activeEvents, today, counter, type Catalog } from './core';
+import { questSummary } from './quests';
 
 export const J = (v: unknown) => JSON.stringify(v ?? null);
 
@@ -82,6 +83,7 @@ export async function playerState(db: Db, userId: string) {
     announcements,
     events: activeEvents(cat),
     notificationsUnread: unread?.c ?? 0,
+    quests: await questSummary(db, userId),
     notifyPrefs: prefs?.notify_prefs ?? {},
   };
 }

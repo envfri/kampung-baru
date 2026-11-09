@@ -5,7 +5,7 @@ import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
 export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit';
-export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs';
+export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -71,7 +71,9 @@ export function toast(text: string, kind: 'info' | 'error' | 'good' = 'info') {
 
 export function merge(p: any) {
   if (!p || !G.me) return;
-  for (const k of ['pet', 'wallet', 'inventory', 'room', 'garden', 'limits', 'daily', 'notificationsUnread']) if (p[k] !== undefined) G.me[k] = p[k];
+  const readyBefore = G.me.quests?.ready ?? 0;
+  for (const k of ['pet', 'wallet', 'inventory', 'room', 'garden', 'limits', 'daily', 'notificationsUnread', 'quests']) if (p[k] !== undefined) G.me[k] = p[k];
+  if ((G.me.quests?.ready ?? 0) > readyBefore) setTimeout(() => toast('Tugas selesai! Ambil hadiahnya di Tugas.', 'good'), 900);
   if (p.serverNow) G.offset = p.serverNow - Date.now();
 }
 

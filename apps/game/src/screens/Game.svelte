@@ -22,6 +22,8 @@
   import Collection from '../panels/Collection.svelte';
   import Picker from '../panels/Picker.svelte';
   import Notifs from '../panels/Notifs.svelte';
+  import Quests from '../panels/Quests.svelte';
+  import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
   import { openLink } from '../lib/links';
@@ -133,6 +135,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1} · koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
+    <QuestChip />
     <div class="acts">
       {#each ACTS as a}
         {@const cd = G.now && cdLeft(a.k)}
@@ -182,6 +185,7 @@
   {:else if G.sheet === 'collection'}<Collection />
   {:else if G.sheet === 'seed' || G.sheet === 'gift'}<Picker />
   {:else if G.sheet === 'notifs'}<Notifs />
+  {:else if G.sheet === 'quests'}<Quests />
   {/if}
 </div>
 

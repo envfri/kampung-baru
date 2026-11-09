@@ -19,12 +19,14 @@
   import Audit from './pages/Audit.svelte';
   import Admins from './pages/Admins.svelte';
   import Account from './pages/Account.svelte';
+  import Quests from './pages/Quests.svelte';
 
   const NAV = [
     { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', min: 'moderator', C: Dashboard }] },
     { group: 'Konten game', items: [
       { k: 'items', label: 'Item & harga', min: 'moderator', C: Items },
       { k: 'events', label: 'Event', min: 'moderator', C: Events },
+      { k: 'quests', label: 'Tugas', min: 'moderator', C: Quests },
       { k: 'locations', label: 'Peta & toko', min: 'moderator', C: Locations },
       { k: 'settings', label: 'Ekonomi & fitur', min: 'moderator', C: Settings },
       { k: 'media', label: 'Media', min: 'moderator', C: Media },

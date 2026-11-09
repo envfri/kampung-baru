@@ -53,6 +53,9 @@ export const DEFAULT_SETTINGS = {
     size: 6,
     maxItems: 40,
   },
+  quests: {
+    dailyCount: 3,
+  },
   starter: {
     inventory: { 'pisang-goreng': 3, klepon: 2, 'bibit-tomat': 2, 'wp-garis': 1, 'fl-papan': 1 } as Record<string, number>,
     layout: [
@@ -75,6 +78,7 @@ export const DEFAULT_SETTINGS = {
     giftsAndFriends: true,
   },
   features: {
+    quests: true,
     guestLogin: true,
     emailLogin: true,
     googleLogin: true,
@@ -101,6 +105,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   garden: 'Jumlah petak kebun dan XP panen.',
   room: 'Ukuran ruangan (petak) dan batas jumlah barang terpasang.',
   notify: 'Notifikasi otomatis ke HP: kebun siap panen, pet butuh perhatian (ambang & jeda jam), pengingat hadiah harian (jam WIB), kunjungan & hadiah teman.',
+  quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',
   starter: 'Barang awal pemain baru: isi tas, susunan ruangan, dinding, dan lantai (pakai ID item).',
   features: 'Nyalakan atau matikan fitur dan metode login.',
 };

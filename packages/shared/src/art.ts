@@ -379,7 +379,7 @@ export interface RoomOpts {
   wall?: ItemLike | null;
   floor?: ItemLike | null;
   size?: number;
-  pet?: { look: PetLook; wear: ItemLike[]; pos?: [number, number] } | null;
+  pet?: { look: PetLook; wear: ItemLike[]; pos?: [number, number]; flip?: boolean } | null;
   edit?: boolean;
   sel?: number;
 }
@@ -515,7 +515,7 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   for (let i = 0; i < W; i++)
     for (let j = 0; j < W; j++) {
       const fill = floor.key === 'tegel' ? ((i + j) % 2 ? floor.main : floor.accent) : (i + j) % 2 ? floor.main : floor.accent;
-      const attrs = edit ? `class="tile" data-x="${i}" data-y="${j}"` : '';
+      const attrs = `class="${edit ? 'tile' : 'fl'}" data-x="${i}" data-y="${j}"`;
       o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, -0.22)}" stroke-width="1"/>`;
       if (floor.key === 'papan' && !edit) {
         const a = g.iso(i + 0.5, j), b = g.iso(i + 0.5, j + 1);
@@ -530,6 +530,13 @@ function hash(s: string) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return h;
+}
+
+/** Geometri ruangan: titik layar untuk koordinat petak & skala pet. Dipakai untuk animasi pet berjalan. */
+export function roomGeom(size = 6) {
+  const t = Math.round((34 * 6) / size);
+  const g = G({ ox: 400, oy: 150, t, h: t / 2 });
+  return { t, point: (x: number, y: number) => g.iso(x, y), petScale: Math.round(((0.82 * t) / 34) * 100) / 100 };
 }
 
 export function renderRoom(o: RoomOpts) {
@@ -547,7 +554,7 @@ export function renderRoom(o: RoomOpts) {
   if (o.pet) {
     const pos = o.pet.pos ?? petSpot(o.layout, o.items, W);
     const c = g.iso(pos[0], pos[1]);
-    draws.push({ d: pos[0] + pos[1] + 0.01, h: `<g class="pet" transform="translate(${f1(c[0])} ${f1(c[1])}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-bob">${renderPet(o.pet.look, o.pet.wear)}</g></g></g>` });
+    draws.push({ d: pos[0] + pos[1] + 0.01, h: `<g class="pet" transform="translate(${f1(c[0])} ${f1(c[1])}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-face"${o.pet.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(o.pet.look, o.pet.wear)}</g></g></g></g>` });
   }
   draws.sort((a, b) => a.d - b.d).forEach((d) => (out += d.h));
   return out;

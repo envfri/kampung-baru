@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
 import { seed } from './db/seed';
-import { HttpError, sha256 } from './lib/core';
+import { HttpError, sha256, setTrackHook } from './lib/core';
+import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
 import socialRoutes from './routes/social';
@@ -36,6 +37,8 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   const db = opts.db ?? (await openDb({ url: config.databaseUrl, dir: config.pgliteDir, memory: opts.memoryDb }));
   await migrate(db);
   if (await seed(db)) app.log.info('Data awal (katalog, lokasi, event) dibuat');
+  if (await seedQuests(db)) app.log.info('Tugas pemula & harian dibuat');
+  setTrackHook(questEvent);
   await ensureAdmin(db, app.log);
   await initPush(db);
 

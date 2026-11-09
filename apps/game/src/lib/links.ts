@@ -18,6 +18,8 @@ export function openLink(url: string) {
     case 'news': G.view = 'home'; G.sheet = 'news'; break;
     case 'pearls': G.view = 'home'; G.sheet = 'pearls'; break;
     case 'notifs': G.view = 'home'; G.sheet = 'notifs'; break;
+    case 'quests': G.view = 'home'; G.sheet = 'quests'; break;
+    case 'bag': G.view = 'home'; G.sheet = 'bag'; break;
     default: G.view = 'home';
   }
 }

@@ -8,6 +8,7 @@ import {
 import { requireUser } from '../lib/auth';
 import { J, lockPet, petView, playerState, publicCatalog, savePet, currentNeeds } from '../lib/state';
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
+import { claimQuest, questEvent, questList, questSummary } from '../lib/quests';
 
 /** Jalankan mutasi sekali saja per requestId (aman dari klik ganda / retry di sinyal lemah). */
 export async function once<T>(db: Db, userId: string, requestId: string | undefined, fn: (t: Db) => Promise<T>): Promise<T> {
@@ -49,6 +50,7 @@ export async function patch(db: Db, userId: string, parts: ('pet' | 'wallet' | '
     const [k, f] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing')]);
     out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f) };
   }
+  out.quests = await questSummary(db, userId);
   out.serverNow = Date.now();
   return out;
 }
@@ -119,7 +121,22 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
         }
       }
       await t.query(`update pets set color = $2, ear = $3, wear = $4::text::jsonb where user_id = $1`, [u.id, color, ear, J(wear)]);
+      if (body.wear !== undefined && Object.values(obj(body.wear, 'wear')).some((v) => v)) await track(t, u.id, 'wear');
       return { ok: true, ...(await patch(t, u.id, ['pet'])) };
+    });
+  });
+
+  /* ---------------- tugas ---------------- */
+
+  app.get('/api/quests', auth, async (req: any) => questList(db, req.user!.id));
+
+  app.post('/api/quests/:id/claim', auth, async (req: any) => {
+    const u = req.user!;
+    const id = String(req.params.id);
+    if (!/^[a-z0-9-]{1,48}$/.test(id)) throw bad('invalid', 'Tugas tidak valid.');
+    return db.tx(async (t) => {
+      const r = await claimQuest(t, u.id, id);
+      return { ok: true, ...r, list: await questList(t, u.id), ...(await patch(t, u.id, ['wallet', 'pet'])) };
     });
   });
 
@@ -191,6 +208,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       if (coins) await credit(t, u.id, 'coin', coins, 'action:' + type);
       await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp });
       if (type !== 'elus') await track(t, u.id, 'action', { type });
+      else if (xp || Object.keys(delta).length) await questEvent(t, u.id, 'action', { type });
       return { ok: true, result: { type, coins, xp, levelUp: lv.levelsGained > 0 ? lv.level : null }, ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])) };
     });
   });
@@ -210,7 +228,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     return once(db, u.id, reqId(req.body?.requestId), async (t) => {
       await credit(t, u.id, currency, -price * qty, 'buy', `${itemId}x${qty}`);
       await addItem(t, u.id, itemId, qty);
-      await track(t, u.id, 'purchase', { itemId, currency, total: price * qty });
+      await track(t, u.id, 'purchase', { itemId, kind: item!.kind, currency, total: price * qty });
       return { ok: true, ...(await patch(t, u.id, ['wallet', 'inventory'])) };
     });
   });
@@ -225,6 +243,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     return once(db, u.id, reqId(req.body?.requestId), async (t) => {
       await addItem(t, u.id, itemId, -qty);
       await credit(t, u.id, 'coin', item.sell_coin * qty, 'sell', `${itemId}x${qty}`);
+      await track(t, u.id, 'sell', { itemId, qty });
       return { ok: true, earned: item.sell_coin * qty, ...(await patch(t, u.id, ['wallet', 'inventory'])) };
     });
   });
@@ -277,6 +296,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       const wall = await theme('wall', 'wallpaper');
       const floor = await theme('floor', 'floor');
       await t.query(`update rooms set layout = $2::text::jsonb, wall = $3, floor = $4, version = version + 1, updated_at = now() where user_id = $1`, [u.id, J(layout), wall, floor]);
+      await track(t, u.id, 'room_save', { items: layout.length });
       return { ok: true, ...(await patch(t, u.id, ['room', 'inventory'])) };
     });
   });

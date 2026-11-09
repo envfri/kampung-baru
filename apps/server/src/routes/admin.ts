@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes } from 'node:crypto';
-import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP } from '@kb/shared';
+import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS } from '@kb/shared';
+import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
 import {
@@ -581,8 +582,54 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     return { ok: true };
   });
 
+  /* ---------------- tugas ---------------- */
+
+  app.get('/api/admin/quests', mod, async () => ({
+    quests: await db.query(
+      `select q.*, (select count(*)::int from quest_progress p where p.quest_id = q.id and p.claimed_at is not null) as claimed_total
+         from quests q order by q.kind desc, q.sort, q.id`,
+    ),
+    events: QUEST_EVENTS,
+    links: QUEST_LINKS,
+  }));
+  async function writeQuest(req: any, id: string, creating: boolean) {
+    const b = obj(req.body, 'body');
+    const event = oneOf(b.event, 'Peristiwa', Object.keys(QUEST_EVENTS));
+    const filter: Record<string, string> = {};
+    for (const [k, v] of Object.entries(obj(b.filter, 'Filter'))) {
+      if (!/^[a-zA-Z]{1,20}$/.test(k) || v === '' || v === null || typeof v === 'object') throw bad('invalid_filter', 'Filter harus berupa pasangan nama: nilai sederhana.');
+      filter[k] = String(v).slice(0, 48);
+    }
+    const vals = [
+      id, oneOf(b.kind, 'Jenis', ['starter', 'daily'] as const), str(b.title, 'Judul', { min: 2, max: 50 }), str(b.description, 'Deskripsi', { max: 160, optional: true }) ?? '',
+      event, J(filter), int(Number(b.target), 'Target', { min: 1, max: 1000 }),
+      int(Number(b.reward_coin ?? 0), 'Hadiah koin', { min: 0, max: 100000 }), int(Number(b.reward_pearl ?? 0), 'Hadiah Mutiara', { min: 0, max: 1000 }), int(Number(b.reward_xp ?? 0), 'Hadiah XP', { min: 0, max: 10000 }),
+      oneOf(b.url ?? '/', 'Tujuan', QUEST_LINKS.map((l) => l[0])), int(Number(b.sort ?? 0), 'Urutan', { min: -10000, max: 10000 }), bool(b.active, true),
+    ];
+    if (creating) {
+      if (await db.one('select 1 from quests where id = $1', [id])) throw bad('exists', 'ID tugas sudah dipakai.');
+      await db.query(`insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_pearl, reward_xp, url, sort, active) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7,$8,$9,$10,$11,$12,$13)`, vals);
+    } else {
+      const r = await db.one(`update quests set kind=$2, title=$3, description=$4, event=$5, filter=$6::text::jsonb, target=$7, reward_coin=$8, reward_pearl=$9, reward_xp=$10, url=$11, sort=$12, active=$13 where id=$1 returning id`, vals);
+      if (!r) throw notFound('Tugas tidak ditemukan.');
+    }
+    invalidateQuests();
+    await audit(db, req, creating ? 'quest_create' : 'quest_update', id, b);
+    return { ok: true };
+  }
+  app.post('/api/admin/quests', adm, async (req: any) => writeQuest(req, slug(req.body?.id), true));
+  app.put('/api/admin/quests/:id', adm, async (req: any) => writeQuest(req, slug(req.params.id), false));
+  app.delete('/api/admin/quests/:id', adm, async (req: any) => {
+    const id = slug(req.params.id);
+    await db.query(`update quests set active = false where id = $1`, [id]);
+    invalidateQuests();
+    await audit(db, req, 'quest_deactivate', id);
+    return { ok: true, message: 'Tugas dinonaktifkan (riwayat progres pemain tetap tersimpan).' };
+  });
+
   app.post('/api/admin/cache/clear', adm, async (req) => {
     invalidateCaches();
+    invalidateQuests();
     await bumpCatalog(db);
     await audit(db, req, 'cache_clear');
     return { ok: true };

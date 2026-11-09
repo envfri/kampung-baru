@@ -23,6 +23,7 @@ export const I = {
   calendar: s('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   book: s('<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>'),
   bell: s('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'),
+  quest: s('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12l2 2 4-4"/><path d="M9 17h6"/>'),
   plus: s('<path d="M12 5v14M5 12h14"/>'),
   down: s('<path d="M12 4v12M6 11l6 6 6-6"/><path d="M5 20h14"/>'),
 };
