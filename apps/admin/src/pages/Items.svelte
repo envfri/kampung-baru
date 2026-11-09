@@ -140,7 +140,7 @@
             </div>
             <label class="inline"><input type="checkbox" bind:checked={form.data.flat} />Barang datar (karpet): bisa dilewati & ditumpuki</label>
           {:else if form.kind === 'wear'}
-            <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option></select></label>
+            <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option><option value="back">Punggung (di belakang badan)</option></select></label>
           {:else if form.kind === 'seed'}
             <div class="grid2">
               <label>Lama tumbuh (menit)<input type="number" min="1" bind:value={form.data.growMinutes} /></label>
@@ -163,7 +163,7 @@
         <h3>Pratinjau</h3>
         <div class="icon">{@html itemIcon(previewItem)}</div>
         {#if roomPreview}<div class="room"><svg viewBox={ROOM_VIEWBOX}>{@html roomPreview}</svg></div>{/if}
-        {#if form.kind === 'wear'}<div class="pet"><svg viewBox="-58 -116 116 122">{@html renderPet({ color: '#F6B7A8', ear: 'tunas' }, [previewItem])}</svg></div>{/if}
+        {#if form.kind === 'wear'}<div class="pet"><svg viewBox="-70 -124 140 130">{@html renderPet({ color: '#F6B7A8', ear: 'tunas' }, [previewItem])}</svg></div>{/if}
         {#if !creating}<p class="muted">Dimiliki pemain: <b>{num(form.owned ?? 0)}</b></p>{/if}
       </div>
     </div>

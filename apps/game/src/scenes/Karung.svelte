@@ -48,11 +48,11 @@
     rivals.forEach((r, i) => {
       const x = rivalX(r);
       const hopping = phase === 'race' && x < FINISH && Math.floor(t / 180 + i) % 2 === 0;
-      s += sackPet({ color: r.color, ear: r.ear }, [], x, laneY(i), hopping);
+      s += sackPet(r, [], x, laneY(i), hopping);
       s += `<text x="${x}" y="${laneY(i) - 52}" text-anchor="middle" class="nm">${r.name}</text>`;
     });
     const me = G.me.pet;
-    s += sackPet({ color: me.color, ear: me.ear }, wearItems(me.wear), playerX, laneY(3), hopAnim);
+    s += sackPet(me, wearItems(me.wear).filter((w) => w.data?.slot !== 'back'), playerX, laneY(3), hopAnim);
     s += `<text x="${playerX}" y="${laneY(3) - 52}" text-anchor="middle" class="nm me">${me.name}</text>`;
     return s;
   });

@@ -2,6 +2,8 @@
 
 Game pet sosial untuk browser dan HP (PWA). Pemain merawat pet "Bulu", menghias rumah isometrik, berkebun, ikut lomba karung, memancing, mengunjungi teman, dan menerima notifikasi walau game sedang ditutup. Semua karakter, gambar, nama, dan tata letak dibuat orisinal. **Kampung Bulu** masih nama kerja; cek dulu ketersediaan mereknya di PDKI (DJKI) sebelum peluncuran.
 
+Pet bisa diubah lewat Lemari: 16 warna, 9 telinga, 6 motif, 5 gaya mata, 4 ekor (sebagian terbuka saat naik level), serta 30+ aksesori di kepala, wajah, leher, dan punggung. Katalog berisi puluhan makanan, mebel, dinding, lantai, bibit, dan ikan, semuanya bisa ditambah dari admin.
+
 Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar sebagai SVG dari kode, jadi tidak ada file gambar besar. Muat awal game ±60 KB JavaScript (gzip) ditambah font.
 
 ## Fitur per fase

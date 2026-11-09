@@ -34,7 +34,7 @@ export async function savePet(db: Db, userId: string, fields: Partial<{ needs: N
 export function petView(p: PetRow, s: Settings) {
   const needs = currentNeeds(p, s);
   for (const k of NEED_KEYS) needs[k] = Math.round(needs[k] * 10) / 10;
-  return { name: p.name, color: p.color, ear: p.ear, wear: p.wear ?? {}, level: p.level, xp: p.xp, needs, needsAt: Date.now() };
+  return { name: p.name, color: p.color, ear: p.ear, pattern: (p as any).pattern ?? 'polos', eyes: (p as any).eyes ?? 'bulat', tail: (p as any).tail ?? 'bulat', wear: p.wear ?? {}, level: p.level, xp: p.xp, needs, needsAt: Date.now() };
 }
 
 /** Semua yang dibutuhkan client setelah masuk. */

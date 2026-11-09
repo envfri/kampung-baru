@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { PET_COLORS, PET_EARS, petSVG } from '@kb/shared';
+  import { PET_COLORS, PET_PARTS, petSVG } from '@kb/shared';
+  const EARS = PET_PARTS.ear.filter((p) => p[2] <= 1);
   import { G, setState, toast, fail, track } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { sfx } from '../lib/sfx';
@@ -48,7 +49,7 @@
     </div>
     <span class="lbl">Telinga</span>
     <div class="ears">
-      {#each PET_EARS as [k, l]}
+      {#each EARS as [k, l]}
         <button type="button" class="btn sm" class:on={ear === k} onclick={() => { ear = k; sfx.tap(); }}>{l}</button>
       {/each}
     </div>

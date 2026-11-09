@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
-import { seed } from './db/seed';
+import { seed, seedPacks } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
@@ -38,6 +38,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await migrate(db);
   if (await seed(db)) app.log.info('Data awal (katalog, lokasi, event) dibuat');
   if (await seedQuests(db)) app.log.info('Tugas pemula & harian dibuat');
+  if (await seedPacks(db)) app.log.info('Paket konten v2 (aksesori, mebel, makanan, ikan) ditambahkan');
   setTrackHook(questEvent);
   await ensureAdmin(db, app.log);
   await initPush(db);

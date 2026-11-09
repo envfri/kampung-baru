@@ -23,7 +23,7 @@
     s += `<path d="M120 280q10 -6 20 0M260 340q10 -6 20 0M300 260q8 -5 16 0M170 360q8 -5 16 0" stroke="#FFFFFF" stroke-width="2.5" fill="none" opacity=".8"/>`;
     s += `<ellipse cx="90" cy="200" rx="40" ry="16" fill="#5DA05A" stroke="#2B2F4A" stroke-width="2.5"/>`;
     s += `<rect x="0" y="176" width="120" height="22" fill="#B98B4E" stroke="#2B2F4A" stroke-width="2.5"/><path d="M20 198v40M60 198v44M100 198v40" stroke="#8A5A36" stroke-width="6"/>`;
-    s += `<g transform="translate(70 180) scale(.62)">${renderPet({ color: me.color, ear: me.ear }, wearItems(me.wear))}</g>`;
+    s += `<g transform="translate(70 180) scale(.62)">${renderPet(me, wearItems(me.wear))}</g>`;
     if (phase !== 'idle') {
       s += `<path d="M96 140Q200 60 250 ${bobY - 8}" fill="none" stroke="#2B2F4A" stroke-width="1.6"/>`;
       s += `<g class="bob ${phase}"><ellipse cx="250" cy="${bobY}" rx="9" ry="6" fill="#FFFFFF" stroke="#2B2F4A" stroke-width="2"/><path d="M241 ${bobY}h18" stroke="#E0583F" stroke-width="5"/><path d="M250 ${bobY - 6}v-8" stroke="#2B2F4A" stroke-width="2"/></g>`;

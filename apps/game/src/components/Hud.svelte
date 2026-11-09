@@ -4,11 +4,11 @@
   import { I, COIN, PEARL } from '../lib/icons';
   const pet = $derived(G.me.pet);
   const need = $derived(xpToNext(pet.level, settings().economy ?? { xpBase: 40, xpStep: 20 }));
-  const ava = $derived(petSVG({ color: pet.color, ear: pet.ear }, wearItems(pet.wear)));
+  const ava = $derived(petSVG(pet, wearItems(pet.wear)));
 </script>
 
 <div class="hud">
-  <button class="card" onclick={() => (G.sheet = 'settings')} aria-label="Profil dan pengaturan">
+  <button class="card" onclick={() => (G.sheet = 'wardrobe')} aria-label="Lemari: ubah penampilan {pet.name}">
     <span class="ava">{@html ava}</span>
     <span class="id">
       <span class="name">{pet.name} <span class="lv">Lv {pet.level}</span></span>

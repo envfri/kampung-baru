@@ -5,7 +5,7 @@ import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
 export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit';
-export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests';
+export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe';
 
 export interface CatalogItem extends ItemLike {
   description: string;

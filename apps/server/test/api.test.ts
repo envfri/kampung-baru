@@ -398,3 +398,20 @@ test('tugas: admin bisa menambah tugas harian baru', async () => {
   const bad = await owner.post('/api/admin/quests', { id: 'h-x', kind: 'daily', title: 'X', event: 'tidak-ada', target: 1 });
   assert.equal(bad.status, 400);
 });
+
+test('jenis pet: bagian terkunci sesuai level, paket konten v2 tersedia, slot punggung', async () => {
+  const { c } = await newPlayer('Gaya');
+  const locked = await c.post('/api/pet/look', { ear: 'bunga' });
+  assert.equal(locked.status, 400);
+  assert.equal(locked.body.error.code, 'locked');
+  const ok = await c.post('/api/pet/look', { pattern: 'totol', eyes: 'senyum', ear: 'anjing' });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.pet.pattern, 'totol');
+  assert.equal(ok.body.pet.eyes, 'senyum');
+  const cat = (await c.get('/api/catalog')).body;
+  for (const id of ['blangkon', 'akuarium', 'es-krim', 'ikan-koi', 'wp-bata', 'sayap-kupu']) assert.ok(cat.items.find((i: any) => i.id === id), id);
+  const buy = await c.post('/api/shop/buy', { itemId: 'ransel-jalan' });
+  assert.equal(buy.status, 200, JSON.stringify(buy.body));
+  const wear = await c.post('/api/pet/look', { wear: { back: 'ransel-jalan' } });
+  assert.equal(wear.body.pet.wear.back, 'ransel-jalan');
+});

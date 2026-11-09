@@ -56,7 +56,7 @@ function cleanItemData(kind: string, v: any) {
     case 'furniture':
       return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}) };
     case 'wear':
-      return { slot: oneOf(d.slot ?? 'head', 'Bagian', ['head', 'face', 'neck'] as const) };
+      return { slot: oneOf(d.slot ?? 'head', 'Bagian', ['head', 'face', 'neck', 'back'] as const) };
     case 'seed':
       return { growMinutes: num(d.growMinutes, 'Lama tumbuh', 1, 10080, 30), yieldItem: slug(d.yieldItem, 'Hasil panen'), yieldQty: num(d.yieldQty, 'Jumlah panen', 1, 50, 1) };
     case 'fish':

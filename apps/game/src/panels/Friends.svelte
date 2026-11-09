@@ -78,7 +78,7 @@
     <div class="list">
       {#each friends ?? [] as f (f.id)}
         <div class="friend">
-          <span class="ava">{@html petSVG({ color: f.color ?? '#F2EEE3', ear: f.ear ?? 'tunas' }, wearItems(f.wear))}</span>
+          <span class="ava">{@html petSVG({ color: f.color ?? '#F2EEE3', ear: f.ear ?? 'tunas', pattern: f.pattern, eyes: f.eyes, tail: f.tail }, wearItems(f.wear))}</span>
           <div class="info">
             <b>{f.display_name}</b>
             <span>{f.pet_name ?? 'Belum punya pet'}{f.level ? ` · Lv ${f.level}` : ''}</span>

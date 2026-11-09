@@ -23,6 +23,7 @@
   import Picker from '../panels/Picker.svelte';
   import Notifs from '../panels/Notifs.svelte';
   import Quests from '../panels/Quests.svelte';
+  import Wardrobe from '../panels/Wardrobe.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
@@ -186,6 +187,7 @@
   {:else if G.sheet === 'seed' || G.sheet === 'gift'}<Picker />
   {:else if G.sheet === 'notifs'}<Notifs />
   {:else if G.sheet === 'quests'}<Quests />
+  {:else if G.sheet === 'wardrobe'}<Wardrobe />
   {/if}
 </div>
 

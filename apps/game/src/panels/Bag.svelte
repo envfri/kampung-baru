@@ -3,7 +3,7 @@
   import ItemCard from '../components/ItemCard.svelte';
   import { G, item, effText, run, post, fx, toast, startEdit, draftAvail, items } from '../lib/game.svelte';
   import { api } from '../lib/api';
-  import { fits, PET_COLORS, PET_EARS } from '@kb/shared';
+  import { fits } from '@kb/shared';
   import { sfx } from '../lib/sfx';
 
   const TABS = [
@@ -68,10 +68,6 @@
     const r = await run(() => api.post('/api/pet/look', { wear: { [slot]: on ? null : id } }));
     if (r) { sfx.pop(); fx('hearts'); }
   }
-  async function look(patch: any) {
-    const r = await run(() => api.post('/api/pet/look', patch));
-    if (r) sfx.tap();
-  }
 </script>
 
 <Sheet title={feedOnly ? `Beri makan ${G.me.pet.name}` : 'Tas'}>
@@ -82,16 +78,7 @@
   {/if}
 
   {#if tab.k === 'wear'}
-    <div class="look">
-      <span class="lbl">Warna bulu</span>
-      <div class="sw-row">
-        {#each PET_COLORS as c}<button class="sw" class:on={G.me.pet.color === c} style="--c:{c}" aria-label="Warna {c}" onclick={() => look({ color: c })}></button>{/each}
-      </div>
-      <span class="lbl">Telinga</span>
-      <div class="sw-row">
-        {#each PET_EARS as [k, l]}<button class="btn sm" class:on={G.me.pet.ear === k} onclick={() => look({ ear: k })}>{l}</button>{/each}
-      </div>
-    </div>
+    <button class="btn block wardrobe" onclick={() => (G.sheet = 'wardrobe')}>Buka Lemari: ubah warna, telinga, motif, mata, ekor</button>
   {/if}
 
   {#if list.length === 0}
@@ -133,9 +120,5 @@
   .tabs button.on { background: var(--ink); color: var(--paper); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
   .empty { margin: 0; font-weight: 600; color: var(--muted); }
-  .look { display: flex; flex-direction: column; gap: 6px; border: 2px dashed var(--ink); border-radius: 14px; padding: 10px; }
-  .lbl { font-weight: 800; font-size: 14.5px; }
-  .sw-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sw { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--c); cursor: pointer; padding: 0; }
-  .sw.on { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }
+  .wardrobe { background: #ECE6F6; }
 </style>

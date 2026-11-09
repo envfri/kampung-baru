@@ -20,6 +20,7 @@ export function openLink(url: string) {
     case 'notifs': G.view = 'home'; G.sheet = 'notifs'; break;
     case 'quests': G.view = 'home'; G.sheet = 'quests'; break;
     case 'bag': G.view = 'home'; G.sheet = 'bag'; break;
+    case 'wardrobe': G.view = 'home'; G.sheet = 'wardrobe'; break;
     default: G.view = 'home';
   }
 }

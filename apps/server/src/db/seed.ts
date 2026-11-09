@@ -70,6 +70,44 @@ export const SEED_ITEMS: SeedItem[] = [
   { id: 'karpet-merahputih', kind: 'furniture', name: 'Karpet Merah Putih', price_coin: 90, shop: 'mebel', event_id: 'pekan-ceria', art: b('karpet', { main: '#E0583F', accent: '#FFFFFF' }), data: { w: 2, d: 2, flat: true } },
 ];
 
+// Paket konten v2: aksesori, mebel, dekor, makanan, bibit, ikan baru.
+export const SEED_ITEMS_V2: SeedItem[] = [
+  { id: 'blangkon', kind: 'wear', name: 'Blangkon Cokelat', price_coin: 45, sell_coin: 18, shop: 'butik', art: b('blangkon'), data: { slot: 'head' } },
+  { id: 'topi-koki', kind: 'wear', name: 'Topi Koki', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('topikoki'), data: { slot: 'head' } },
+  { id: 'topi-pesta', kind: 'wear', name: 'Topi Pesta', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('topipesta'), data: { slot: 'head' } },
+  { id: 'pita-rambut', kind: 'wear', name: 'Pita Merah Jambu', price_coin: 25, sell_coin: 10, shop: 'butik', art: b('pita'), data: { slot: 'head' } },
+  { id: 'headphone', kind: 'wear', name: 'Headphone Biru', price_coin: 60, sell_coin: 24, shop: 'butik', art: b('headphone'), data: { slot: 'head' } },
+  { id: 'baret-merah', kind: 'wear', name: 'Baret Merah', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('baret'), data: { slot: 'head' } },
+  { id: 'kumis-tebal', kind: 'wear', name: 'Kumis Tebal', price_coin: 20, sell_coin: 8, shop: 'butik', art: b('kumis'), data: { slot: 'face' } },
+  { id: 'kacamata-renang', kind: 'wear', name: 'Kacamata Renang', price_coin: 35, sell_coin: 14, shop: 'butik', art: b('kacamatarenang'), data: { slot: 'face' } },
+  { id: 'kalung-bunga', kind: 'wear', name: 'Kalung Bunga', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('kalungbunga'), data: { slot: 'neck' } },
+  { id: 'dasi-panjang', kind: 'wear', name: 'Dasi Panjang', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('dasi'), data: { slot: 'neck' } },
+  { id: 'kerah-lonceng', kind: 'wear', name: 'Kerah Lonceng', price_coin: 35, sell_coin: 14, shop: 'butik', art: b('lonceng'), data: { slot: 'neck' } },
+  { id: 'ransel-jalan', kind: 'wear', name: 'Ransel Jalan-jalan', price_coin: 70, sell_coin: 28, shop: 'butik', art: b('ransel'), data: { slot: 'back' } },
+  { id: 'jubah-merah', kind: 'wear', name: 'Jubah Pahlawan', price_coin: 90, sell_coin: 36, shop: 'butik', art: b('jubah'), data: { slot: 'back' } },
+  { id: 'sayap-kupu', kind: 'wear', name: 'Sayap Kupu-kupu', price_pearl: 6, shop: 'mutiara', art: b('sayapkupu'), data: { slot: 'back' } },
+  { id: 'mahkota-emas', kind: 'wear', name: 'Mahkota Emas', price_pearl: 8, shop: 'mutiara', art: b('mahkotaemas'), data: { slot: 'head' } },
+  { id: 'kacamata-bintang', kind: 'wear', name: 'Kacamata Bintang', price_pearl: 3, shop: 'mutiara', art: b('kacamatabintang'), data: { slot: 'face' } },
+  { id: 'tv-tabung', kind: 'furniture', name: 'TV Tabung', price_coin: 140, sell_coin: 56, shop: 'mebel', art: b('tv'), data: { w: 1, d: 1 } },
+  { id: 'kulkas-mini', kind: 'furniture', name: 'Kulkas', price_coin: 160, sell_coin: 64, shop: 'mebel', art: b('kulkas'), data: { w: 1, d: 1 } },
+  { id: 'beanbag-oranye', kind: 'furniture', name: 'Bean Bag Oranye', price_coin: 75, sell_coin: 30, shop: 'mebel', art: b('beanbag'), data: { w: 1, d: 1 } },
+  { id: 'kaktus-pot', kind: 'furniture', name: 'Kaktus Berbunga', price_coin: 40, sell_coin: 16, shop: 'mebel', art: b('kaktus'), data: { w: 1, d: 1 } },
+  { id: 'akuarium', kind: 'furniture', name: 'Akuarium Ikan Hias', price_coin: 220, sell_coin: 88, shop: 'mebel', art: b('akuarium'), data: { w: 2, d: 1 } },
+  { id: 'wp-kotak', kind: 'wallpaper', name: 'Dinding Kotak Persik', price_coin: 90, shop: 'mebel', art: b('kotak'), data: {} },
+  { id: 'wp-bata', kind: 'wallpaper', name: 'Dinding Bata Ekspos', price_coin: 110, shop: 'mebel', art: b('bata'), data: {} },
+  { id: 'fl-teraso', kind: 'floor', name: 'Lantai Teraso', price_coin: 120, shop: 'mebel', art: b('teraso'), data: {} },
+  { id: 'fl-karpet', kind: 'floor', name: 'Karpet Biru Lembut', price_coin: 100, shop: 'mebel', art: b('karpet'), data: {} },
+  { id: 'es-krim', kind: 'food', name: 'Es Krim Dua Rasa', description: 'Manis dan dingin.', price_coin: 12, sell_coin: 5, shop: 'pasar', art: b('eskrim'), data: { effects: { ceria: 15, kenyang: 5 } } },
+  { id: 'donat', kind: 'food', name: 'Donat Meses', price_coin: 9, sell_coin: 4, shop: 'pasar', art: b('donat'), data: { effects: { kenyang: 10, ceria: 6 } } },
+  { id: 'sate', kind: 'food', name: 'Sate Bumbu Kacang', price_coin: 20, sell_coin: 8, shop: 'pasar', art: b('sate'), data: { effects: { kenyang: 30, energi: 5 } } },
+  { id: 'martabak', kind: 'food', name: 'Martabak Manis', price_coin: 25, sell_coin: 10, shop: 'pasar', art: b('martabak'), data: { effects: { kenyang: 40 } } },
+  { id: 'roti', kind: 'food', name: 'Roti Sobek', price_coin: 7, sell_coin: 3, shop: 'pasar', art: b('roti'), data: { effects: { kenyang: 12 } } },
+  { id: 'stroberi', kind: 'food', name: 'Stroberi Kebun', description: 'Dipetik sendiri dari kebun.', sell_coin: 7, shop: null, art: b('stroberi'), data: { effects: { kenyang: 6, ceria: 8 } } },
+  { id: 'bibit-stroberi', kind: 'seed', name: 'Bibit Stroberi', description: 'Panen 3 stroberi dalam 45 menit.', price_coin: 18, shop: 'pasar', art: b('bibit', { main: '#E0583F', accent: '#5DB36A' }), data: { growMinutes: 45, yieldItem: 'stroberi', yieldQty: 3 } },
+  { id: 'ikan-koi', kind: 'fish', name: 'Ikan Koi', description: 'Langka! Bercak jingga di sisik putih.', sell_coin: 45, art: b('ikan', { main: '#FFFDF7', accent: '#F2994A' }, { spots: 1 }), data: { fishWeight: 4, minCm: 20, maxCm: 40 } },
+  { id: 'ikan-sapu', kind: 'fish', name: 'Ikan Sapu-sapu', sell_coin: 5, art: b('ikan', { main: '#6B6255', accent: '#3B382F' }, { stripes: 1 }), data: { fishWeight: 10, minCm: 10, maxCm: 25 } },
+];
+
 export const SEED_LOCATIONS = [
   { id: 'rumah', name: 'Rumahku', kind: 'home', x: 80, y: 205, style: { body: '#F8EBCF', roof: '#C0603A', w: 96 }, sort: 1 },
   { id: 'pasar', name: 'Pasar Pagi', kind: 'shop', x: 225, y: 205, style: { body: '#FDF1D6', roof: '#3FA06A', w: 104 }, sort: 2, sells_back: true },
@@ -89,6 +127,27 @@ export const SEED_PACKAGES = [
 ];
 
 export const SEED_BANNED = ['bangsat', 'kontol', 'memek', 'ngentot', 'jancok', 'goblok', 'tolol', 'fuck', 'shit', 'bitch'];
+
+/** Paket konten tambahan: masuk sekali ke database baru maupun lama (tanpa menimpa ubahan admin). */
+export async function seedPacks(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  const ver = Number(row?.value ?? 1);
+  if (ver >= 2) return false;
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V2) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, event_id, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11,$12) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), it.event_id ?? null, (sort += 10)],
+    );
+  }
+  await db.query(
+    `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_xp, url, sort)
+     values ('h-gaya', 'daily', 'Tampil beda', 'Ganti aksesori pet sekali.', 'wear', '{}'::jsonb, 1, 15, 3, '/#bag', 120) on conflict (id) do nothing`,
+  ).catch(() => {});
+  await db.query(`insert into settings (key, value) values ('content_pack', '2'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}
 
 export async function seed(db: Db) {
   const n = (await db.one<{ c: number }>('select count(*)::int as c from items'))!.c;

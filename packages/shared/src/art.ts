@@ -219,6 +219,72 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       return o;
     },
   },
+  tv: {
+    label: 'TV tabung',
+    colors: { main: '#4A4E69', accent: '#B98B4E' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x + 0.1, y + 0.1, 0, 0.8, 0.8, 18, C3(c.accent));
+      o += g.box(x + 0.18, y + 0.22, 18, 0.64, 0.5, 30, C3(c.main));
+      o += g.quadY(y + 0.72, x + 0.25, x + 0.76, 21, 44, '#7FC4E8', 1.4);
+      o += g.quadY(y + 0.72, x + 0.3, x + 0.42, 37, 42, '#D7F0FB', 0);
+      const top = g.iso(x + 0.5, y + 0.47);
+      return o + `<path d="M${f1(top[0])} ${f1(top[1] - 48 * s)}l${f1(-9 * s)} ${f1(-16 * s)}M${f1(top[0])} ${f1(top[1] - 48 * s)}l${f1(9 * s)} ${f1(-16 * s)}" stroke="${INK}" stroke-width="${f1(2 * s)}" stroke-linecap="round"/>`;
+    },
+  },
+  akuarium: {
+    label: 'Akuarium',
+    colors: { main: '#BFE3F5', accent: '#8A5A36' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x, y, 0, w, d, 16, C3(c.accent));
+      o += g.box(x + 0.1, y + 0.1, 16, w - 0.2, d - 0.2, 32, C3(c.main));
+      const P = (xx: number, v: number) => { const p = g.iso(xx, y + d - 0.1); return [p[0], p[1] - v * s]; };
+      const fish = (xx: number, v: number, colr: string) => { const [fx, fy] = P(xx, v); return `<ellipse cx="${f1(fx)}" cy="${f1(fy)}" rx="${f1(6 * s)}" ry="${f1(3.6 * s)}" fill="${colr}" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/><path d="M${f1(fx + 5 * s)} ${f1(fy)}l${f1(5 * s)} ${f1(-4 * s)}v${f1(8 * s)}Z" fill="${colr}" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`; };
+      const [px, py] = P(x + 0.35, 18);
+      o += `<path d="M${f1(px)} ${f1(py)}q${f1(-4 * s)} ${f1(-10 * s)} 0 ${f1(-20 * s)}M${f1(px + 5 * s)} ${f1(py)}q${f1(4 * s)} ${f1(-8 * s)} 0 ${f1(-15 * s)}" stroke="#3FA06A" stroke-width="${f1(2.4 * s)}" fill="none"/>`;
+      o += fish(x + 0.8, 34, '#F2994A') + fish(x + w - 0.6, 26, '#E0583F');
+      const [bx, by] = P(x + w - 0.45, 40);
+      return o + `<circle cx="${f1(bx)}" cy="${f1(by)}" r="${f1(2 * s)}" fill="#FFFFFF" opacity=".8"/><circle cx="${f1(bx + 3 * s)}" cy="${f1(by - 6 * s)}" r="${f1(1.5 * s)}" fill="#FFFFFF" opacity=".8"/>`;
+    },
+  },
+  kulkas: {
+    label: 'Kulkas',
+    colors: { main: '#EEF3F5', accent: '#E0583F' },
+    draw(g, x, y, w, d, c) {
+      let o = g.box(x + 0.12, y + 0.12, 0, 0.76, 0.76, 92, C3(c.main));
+      const Y = y + 0.88;
+      o += g.quadY(Y, x + 0.12, x + 0.88, 58, 60, shade(c.main, -0.35), 0);
+      o += g.quadY(Y, x + 0.72, x + 0.79, 66, 84, '#9AA7B8', 1);
+      o += g.quadY(Y, x + 0.72, x + 0.79, 30, 50, '#9AA7B8', 1);
+      const m = g.iso(x + 0.35, Y);
+      return o + `<circle cx="${f1(m[0])}" cy="${f1(m[1] - 76 * g.s)}" r="${f1(3 * g.s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(g.s)}"/>`;
+    },
+  },
+  beanbag: {
+    label: 'Bean bag',
+    colors: { main: '#E07A5F' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + 0.5, y + 0.5), cx = ctr[0], cy = ctr[1];
+      const P = (dx: number, dy: number) => `${f1(cx + dx * s)} ${f1(cy + dy * s)}`;
+      return `<path d="M${P(-28, -2)}Q${P(-32, -30)} ${P(-6, -34)}Q${P(24, -38)} ${P(28, -10)}Q${P(22, 6)} ${P(0, 4)}Q${P(-22, 6)} ${P(-28, -2)}Z" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}" stroke-linejoin="round"/><path d="M${P(-14, -22)}Q${P(0, -14)} ${P(16, -22)}" fill="none" stroke="${shade(c.main, -0.25)}" stroke-width="${f1(1.6 * s)}"/><path d="M${P(-20, -24)}q${f1(4 * s)} ${f1(-6 * s)} ${f1(10 * s)} ${f1(-7 * s)}" stroke="#FFFFFF" stroke-width="${f1(2 * s)}" opacity=".6" fill="none" stroke-linecap="round"/>`;
+    },
+  },
+  kaktus: {
+    label: 'Kaktus pot',
+    colors: { main: '#5DA05A', accent: '#C66B3D' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x + 0.32, y + 0.32, 0, 0.36, 0.36, 16, C3(c.accent));
+      const ctr = g.iso(x + 0.5, y + 0.5), cx = ctr[0], base = ctr[1] - 18 * s;
+      const arm = (dir: number) => `M${f1(cx + dir * 6 * s)} ${f1(base - 18 * s)}h${f1(dir * 9 * s)}v${f1(-12 * s)}`;
+      o += `<path d="${arm(-1)}${arm(1)}" fill="none" stroke="${INK}" stroke-width="${f1(10 * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      o += `<path d="${arm(-1)}${arm(1)}" fill="none" stroke="${c.main}" stroke-width="${f1(6.5 * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      o += `<rect x="${f1(cx - 7 * s)}" y="${f1(base - 40 * s)}" width="${f1(14 * s)}" height="${f1(42 * s)}" rx="${f1(7 * s)}" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/>`;
+      o += `<path d="M${f1(cx)} ${f1(base - 34 * s)}v${f1(30 * s)}" stroke="${shade(c.main, -0.25)}" stroke-width="${f1(1.4 * s)}"/>`;
+      return o + `<circle cx="${f1(cx)}" cy="${f1(base - 41 * s)}" r="${f1(4 * s)}" fill="#FF8FA3" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+    },
+  },
   kotak: {
     label: 'Kotak (umum)',
     colors: { main: '#E9B23A' },
@@ -232,78 +298,185 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
 /* Pet (karakter orisinal "Bulu")                                      */
 /* ------------------------------------------------------------------ */
 
-export const PET_COLORS = ['#F6B7A8', '#F4D58D', '#A8D8A0', '#9FD0E8', '#C9B6E8', '#B98A64', '#F2EEE3', '#FFB86B', '#8FD3C1', '#E7A1C9'];
-export const PET_EARS: [string, string][] = [['tunas', 'Tunas'], ['kucing', 'Kucing'], ['kelinci', 'Kelinci'], ['bulat', 'Bulat']];
+export const PET_COLORS = [
+  '#F6B7A8', '#F4D58D', '#A8D8A0', '#9FD0E8', '#C9B6E8', '#B98A64', '#F2EEE3', '#FFB86B', '#8FD3C1', '#E7A1C9',
+  '#FF8A80', '#7FA7D9', '#B5E08D', '#D9C2A3', '#9E9AC8', '#FFD6E7',
+];
 
+/** Bagian tubuh pet: [kunci, label, level minimum]. Bagian tertentu terbuka saat pet naik level. */
+export type PetPart = [string, string, number];
+export const PET_PARTS: { ear: PetPart[]; pattern: PetPart[]; eyes: PetPart[]; tail: PetPart[] } = {
+  ear: [['tunas', 'Tunas', 1], ['kucing', 'Kucing', 1], ['kelinci', 'Kelinci', 1], ['bulat', 'Bulat', 1], ['anjing', 'Terkulai', 1], ['tanduk', 'Tanduk', 3], ['rubah', 'Runcing', 4], ['antena', 'Antena', 5], ['bunga', 'Bunga', 6]],
+  pattern: [['polos', 'Polos', 1], ['totol', 'Totol', 1], ['belang', 'Belang', 2], ['topeng', 'Topeng', 3], ['ujung', 'Dua warna', 4], ['bintang', 'Bintang', 6]],
+  eyes: [['bulat', 'Bulat', 1], ['senyum', 'Senyum', 1], ['berbinar', 'Berbinar', 2], ['sayu', 'Sayu', 3], ['bintang', 'Bintang', 5]],
+  tail: [['bulat', 'Bulat', 1], ['keriting', 'Keriting', 2], ['lebat', 'Lebat', 3], ['daun', 'Daun', 4]],
+};
+/** Kompatibel dengan versi lama: daftar telinga [kunci, label]. */
+export const PET_EARS: [string, string][] = PET_PARTS.ear.map(([k, l]) => [k, l]);
+export function partLevel(kind: keyof typeof PET_PARTS, key: string) {
+  return PET_PARTS[kind].find((p) => p[0] === key)?.[2] ?? Infinity;
+}
+
+type WearSlot = 'head' | 'face' | 'neck' | 'back';
 type WearFn = (c: Record<string, string>) => string;
-const WEAR: Record<string, { label: string; slot: 'head' | 'face' | 'neck'; colors: Record<string, string>; draw: WearFn }> = {
+// draw: digambar di depan tubuh; back: di belakang tubuh (sayap, ransel, jubah)
+const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<string, string>; draw: WearFn; back?: WearFn }> = {
   caping: { label: 'Topi caping', slot: 'head', colors: { main: '#E3C16F' }, draw: (c) => `<path d="M-50 -64L0 -102 50 -64Q0 -55 -50 -64Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-27 -76Q0 -72 27 -76M-14 -88Q0 -86 14 -88" stroke="${shade(c.main, -0.3)}" stroke-width="2" fill="none"/>` },
   peci: { label: 'Peci', slot: 'head', colors: { main: '#2B2F4A' }, draw: (c) => `<path d="M-26 -70L-23 -92Q0 -97 23 -92L26 -70Q0 -75 -26 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-24 -84Q0 -89 24 -84" stroke="${shade(c.main, 0.25)}" stroke-width="1.6" fill="none"/>` },
   mahkota: { label: 'Mahkota bunga', slot: 'head', colors: { main: '#FFFFFF', accent: '#F2B632' }, draw: (c) => [-30, -15, 0, 15, 30].map((x) => { const y = -76 - (30 - Math.abs(x)) * 0.25; return `<g transform="translate(${x} ${y})"><circle r="6.5" fill="${c.main}" stroke="${INK}" stroke-width="2"/><circle r="2.6" fill="${c.accent}"/></g>`; }).join('') },
   kupluk: { label: 'Kupluk rajut', slot: 'head', colors: { main: '#E0583F', accent: '#FFFFFF' }, draw: (c) => `<path d="M-38 -66Q-36 -104 0 -104Q36 -104 38 -66Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><rect x="-40" y="-72" width="80" height="10" rx="5" fill="${c.accent}" stroke="${INK}" stroke-width="2.5"/><circle cx="0" cy="-106" r="7" fill="${c.accent}" stroke="${INK}" stroke-width="2.5"/>` },
+  blangkon: { label: 'Blangkon', slot: 'head', colors: { main: '#6B4A2B', accent: '#E9C46A' }, draw: (c) => `<path d="M-34 -68Q-34 -96 0 -97Q34 -96 34 -68Q0 -76 -34 -68Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-30 -80Q0 -88 30 -80M-24 -90Q0 -95 24 -90" stroke="${c.accent}" stroke-width="2" fill="none" stroke-dasharray="3 3"/><ellipse cx="0" cy="-70" rx="9" ry="5" fill="${shade(c.main, -0.2)}" stroke="${INK}" stroke-width="2"/>` },
+  topikoki: { label: 'Topi koki', slot: 'head', colors: { main: '#FFFFFF' }, draw: (c) => `<rect x="-24" y="-82" width="48" height="14" rx="3" fill="${c.main}" stroke="${INK}" stroke-width="3"/><path d="M-24 -82C-40 -86 -38 -112 -18 -108C-14 -122 14 -122 18 -108C38 -112 40 -86 24 -82Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-10 -82V-98M10 -82V-98" stroke="${shade(c.main, -0.15)}" stroke-width="2"/>` },
+  mahkotaemas: { label: 'Mahkota emas', slot: 'head', colors: { main: '#F2B632', accent: '#E0583F' }, draw: (c) => `<path d="M-28 -70L-30 -98L-15 -84L0 -104L15 -84L30 -98L28 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="-80" r="4.5" fill="${c.accent}" stroke="${INK}" stroke-width="2"/><circle cx="-17" cy="-76" r="3" fill="#7FA7D9" stroke="${INK}" stroke-width="1.6"/><circle cx="17" cy="-76" r="3" fill="#7FA7D9" stroke="${INK}" stroke-width="1.6"/>` },
+  topipesta: { label: 'Topi pesta', slot: 'head', colors: { main: '#9A6FC0', accent: '#F2B632' }, draw: (c) => `<path d="M-18 -72L4 -114L22 -72Q2 -66 -18 -72Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-12 -82L14 -88M-6 -94L12 -98" stroke="${c.accent}" stroke-width="3"/><circle cx="4" cy="-115" r="6" fill="${c.accent}" stroke="${INK}" stroke-width="2.5"/>` },
+  pita: { label: 'Pita rambut', slot: 'head', colors: { main: '#FF8FA3' }, draw: (c) => `<g transform="translate(18 -76) rotate(-15)"><path d="M0 0L-16 -10V10Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 0L16 -10V10Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle r="5" fill="${shade(c.main, -0.2)}" stroke="${INK}" stroke-width="2"/></g>` },
+  headphone: { label: 'Headphone', slot: 'head', colors: { main: '#3F7FBF', accent: '#2B2F4A' }, draw: (c) => `<path d="M-42 -50Q-44 -96 0 -96Q44 -96 42 -50" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M-42 -50Q-44 -96 0 -96Q44 -96 42 -50" fill="none" stroke="${c.accent}" stroke-width="5" stroke-linecap="round"/><rect x="-54" y="-62" width="16" height="26" rx="7" fill="${c.main}" stroke="${INK}" stroke-width="3"/><rect x="38" y="-62" width="16" height="26" rx="7" fill="${c.main}" stroke="${INK}" stroke-width="3"/>` },
+  baret: { label: 'Baret', slot: 'head', colors: { main: '#E0583F' }, draw: (c) => `<path d="M-36 -70Q-44 -96 -6 -98Q34 -100 34 -76Q20 -66 -36 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-2 -98l2 -7" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` },
   kacamata: { label: 'Kacamata bulat', slot: 'face', colors: { main: '#2B2F4A' }, draw: (c) => `<g stroke="${c.main}" stroke-width="2.6"><circle cx="-15" cy="-46" r="10" fill="rgba(255,255,255,.28)"/><circle cx="15" cy="-46" r="10" fill="rgba(255,255,255,.28)"/><path d="M-5 -47q5 -4 10 0" fill="none"/></g>` },
   kacamatahitam: { label: 'Kacamata hitam', slot: 'face', colors: { main: '#2B2F4A' }, draw: (c) => `<g stroke="${INK}" stroke-width="2.4"><path d="M-27 -52H-4L-6 -42Q-15 -36 -24 -42Z" fill="${c.main}"/><path d="M27 -52H4L6 -42Q15 -36 24 -42Z" fill="${c.main}"/><path d="M-4 -50H4" fill="none"/></g>` },
+  kacamatabintang: { label: 'Kacamata bintang', slot: 'face', colors: { main: '#F2B632' }, draw: (c) => { const star = (x: number) => `<path d="M${x} -58l3.5 7.5 8 1-6 5.5 1.6 8-7.1-4-7.1 4 1.6-8-6-5.5 8-1Z" fill="${c.main}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>`; return star(-15) + star(15) + `<path d="M-6 -48h12" stroke="${INK}" stroke-width="2.2"/>`; } },
+  kacamatarenang: { label: 'Kacamata renang', slot: 'face', colors: { main: '#3FA06A', accent: '#BFE3F5' }, draw: (c) => `<path d="M-44 -48H44" stroke="${c.main}" stroke-width="5"/><ellipse cx="-15" cy="-47" rx="12" ry="9" fill="${c.accent}" stroke="${INK}" stroke-width="2.6"/><ellipse cx="15" cy="-47" rx="12" ry="9" fill="${c.accent}" stroke="${INK}" stroke-width="2.6"/><path d="M-20 -50l4 -3M10 -50l4 -3" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>` },
+  kumis: { label: 'Kumis', slot: 'face', colors: { main: '#2B2F4A' }, draw: (c) => `<path d="M0 -41C-6 -45 -16 -44 -22 -38C-14 -38 -8 -36 0 -39C8 -36 14 -38 22 -38C16 -44 6 -45 0 -41Z" fill="${c.main}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>` },
   syal: { label: 'Syal motif', slot: 'neck', colors: { main: '#33508C', accent: '#F3E3B5' }, draw: (c) => `<path d="M-40 -30Q0 -14 40 -30L39 -21Q0 -5 -39 -21Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M20 -19L29 -1 19 1 14 -15Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><g fill="${c.accent}"><circle cx="-26" cy="-22" r="2"/><circle cx="-12" cy="-18" r="2"/><circle cx="2" cy="-17" r="2"/><circle cx="16" cy="-19" r="2"/><circle cx="30" cy="-23" r="2"/><circle cx="22" cy="-8" r="1.8"/></g>` },
   dasikupu: { label: 'Dasi kupu-kupu', slot: 'neck', colors: { main: '#E0583F' }, draw: (c) => `<path d="M0 -22L-16 -30V-14Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 -22L16 -30V-14Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="0" cy="-22" r="4" fill="${shade(c.main, -0.2)}" stroke="${INK}" stroke-width="2"/>` },
   kalung: { label: 'Kalung manik', slot: 'neck', colors: { main: '#F2B632' }, draw: (c) => `<path d="M-30 -27Q0 -12 30 -27" fill="none" stroke="${INK}" stroke-width="1.5"/>` + [-24, -12, 0, 12, 24].map((x) => `<circle cx="${x}" cy="${-19 - Math.abs(x) * 0.25}" r="4" fill="${c.main}" stroke="${INK}" stroke-width="1.8"/>`).join('') },
+  kalungbunga: { label: 'Kalung bunga', slot: 'neck', colors: { main: '#FF8FA3', accent: '#F2B632' }, draw: (c) => [-30, -18, -6, 6, 18, 30].map((x, i) => { const y = -24 + (30 - Math.abs(x)) * 0.22; return `<g transform="translate(${x} ${y})">${[0, 72, 144, 216, 288].map((r) => `<ellipse cx="0" cy="-4" rx="3" ry="4.2" transform="rotate(${r})" fill="${i % 2 ? c.main : '#FFFFFF'}" stroke="${INK}" stroke-width="1.2"/>`).join('')}<circle r="2" fill="${c.accent}"/></g>`; }).join('') },
+  dasi: { label: 'Dasi panjang', slot: 'neck', colors: { main: '#33508C', accent: '#E0583F' }, draw: (c) => `<path d="M-6 -26H6L4 -20L8 -4L0 4L-8 -4L-4 -20Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M-5 -14L5 -10M-6 -6L6 -2" stroke="${c.accent}" stroke-width="2"/>` },
+  lonceng: { label: 'Kerah lonceng', slot: 'neck', colors: { main: '#E0583F', accent: '#F2B632' }, draw: (c) => `<path d="M-38 -30Q0 -16 38 -30" fill="none" stroke="${INK}" stroke-width="8" stroke-linecap="round"/><path d="M-38 -30Q0 -16 38 -30" fill="none" stroke="${c.main}" stroke-width="4.5" stroke-linecap="round"/><circle cx="0" cy="-14" r="7" fill="${c.accent}" stroke="${INK}" stroke-width="2.4"/><path d="M-4 -12H4M0 -12V-8" stroke="${INK}" stroke-width="1.6"/>` },
+  sayapkupu: { label: 'Sayap kupu-kupu', slot: 'back', colors: { main: '#9FD0E8', accent: '#F2B632' }, draw: () => '', back: (c) => [-1, 1].map((s) => `<g transform="scale(${s} 1)"><path d="M20 -50C40 -96 84 -80 70 -54C62 -40 40 -42 26 -44Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M24 -40C46 -40 66 -30 56 -16C48 -6 34 -18 24 -30Z" fill="${shade(c.main, -0.12)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="54" cy="-66" r="6" fill="${c.accent}" stroke="${INK}" stroke-width="2"/></g>`).join('') },
+  ransel: { label: 'Ransel', slot: 'back', colors: { main: '#E9A23B', accent: '#8A5A36' }, draw: (c) => `<path d="M-30 -62Q-36 -40 -32 -18M30 -62Q36 -40 32 -18" fill="none" stroke="${c.accent}" stroke-width="5" stroke-linecap="round"/>`, back: (c) => `<rect x="26" y="-70" width="34" height="50" rx="10" fill="${c.main}" stroke="${INK}" stroke-width="3"/><rect x="34" y="-52" width="22" height="18" rx="5" fill="${shade(c.main, -0.15)}" stroke="${INK}" stroke-width="2.4"/><rect x="-60" y="-70" width="34" height="50" rx="10" fill="${c.main}" stroke="${INK}" stroke-width="3"/>` },
+  jubah: { label: 'Jubah', slot: 'back', colors: { main: '#C0392B', accent: '#F2B632' }, draw: (c) => `<circle cx="0" cy="-26" r="5" fill="${c.accent}" stroke="${INK}" stroke-width="2.2"/>`, back: (c) => `<path d="M-38 -44Q-60 -10 -54 0L54 0Q60 -10 38 -44Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` },
 };
 
 const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
   head: [-48, -112, 96, 52],
   face: [-34, -60, 68, 30],
   neck: [-44, -36, 88, 40],
+  back: [-66, -100, 132, 100],
 };
 
 export interface PetLook {
   color: string;
   ear: string;
+  pattern?: string;
+  eyes?: string;
+  tail?: string;
 }
 
-function wearSVG(item: ItemLike) {
+function wearParts(item: ItemLike): { front: string; behind: string } {
   const a = item.art;
+  const slot = item.data?.slot ?? (a.type === 'builtin' ? WEAR[a.key]?.slot : 'head');
   if (a.type === 'image') {
     const url = safeUrl(a.url);
-    if (!url) return '';
-    const [x, y, w, h] = WEAR_IMG_BOX[item.data?.slot] ?? WEAR_IMG_BOX.head;
-    return `<image href="${esc(url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`;
+    if (!url) return { front: '', behind: '' };
+    const [x, y, w, h] = WEAR_IMG_BOX[slot] ?? WEAR_IMG_BOX.head;
+    const img = `<image href="${esc(url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`;
+    return slot === 'back' ? { front: '', behind: img } : { front: img, behind: '' };
   }
   const def = WEAR[a.key];
-  if (!def) return '';
+  if (!def) return { front: '', behind: '' };
   const c: Record<string, string> = {};
   for (const k of Object.keys(def.colors)) c[k] = col(a.colors?.[k], def.colors[k]);
-  return def.draw(c);
+  return { front: def.draw(c), behind: def.back ? def.back(c) : '' };
+}
+
+const BODY = 'M0 -78C30 -78 46 -56 46 -34C46 -14 28 -6 0 -6C-28 -6 -46 -14 -46 -34C-46 -56 -30 -78 0 -78Z';
+
+function earsSVG(ear: string | undefined, color: string, dk: string): { behind: string; front: string } {
+  const sw = `stroke="${INK}" stroke-width="3" stroke-linejoin="round"`;
+  const pair = (s: string) => s + `<g transform="scale(-1 1)">${s}</g>`;
+  switch (ear) {
+    case 'kucing':
+      return { behind: pair(`<path d="M-32 -60L-25 -94-5 -73Z" fill="${color}" ${sw}/><path d="M-25 -70L-23 -85-12 -73Z" fill="#FF9FB2"/>`), front: '' };
+    case 'kelinci':
+      return { behind: pair(`<ellipse cx="-15" cy="-92" rx="8.5" ry="25" transform="rotate(-12 -15 -92)" fill="${color}" ${sw}/><ellipse cx="-15" cy="-90" rx="3.6" ry="15" transform="rotate(-12 -15 -90)" fill="#FF9FB2"/>`), front: '' };
+    case 'bulat':
+      return { behind: pair(`<circle cx="-30" cy="-68" r="13" fill="${color}" ${sw}/><circle cx="-30" cy="-68" r="6" fill="#FF9FB2"/>`), front: '' };
+    case 'anjing':
+      return { behind: '', front: pair(`<path d="M-30 -70C-52 -72 -58 -44 -48 -30C-42 -24 -34 -32 -32 -44Z" fill="${dk}" ${sw}/>`) };
+    case 'tanduk':
+      return { behind: pair(`<path d="M-30 -66Q-36 -96 -24 -112Q-22 -94 -10 -76Z" fill="#F3E3B5" ${sw}/><path d="M-29 -84l8 2M-28 -94l6 2" stroke="${shade('#F3E3B5', -0.35)}" stroke-width="2"/>`), front: '' };
+    case 'rubah':
+      return { behind: pair(`<path d="M-38 -56L-30 -108L-6 -74Z" fill="${color}" ${sw}/><path d="M-31 -98L-27 -108L-22 -96Z" fill="${INK}"/><path d="M-30 -72L-28 -94L-14 -76Z" fill="${shade(color, 0.5)}"/>`), front: '' };
+    case 'antena':
+      return { behind: pair(`<path d="M-10 -76Q-14 -96 -26 -104" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><circle cx="-27" cy="-105" r="6" fill="${dk}" stroke="${INK}" stroke-width="2.5"/>`), front: '' };
+    case 'bunga':
+      return {
+        behind: `<path d="M2 -76C2 -86 4 -90 6 -94" stroke="#3E8E4E" stroke-width="3.5" fill="none" stroke-linecap="round"/>` +
+          [0, 72, 144, 216, 288].map((r) => `<ellipse cx="6" cy="-109" rx="6" ry="9" transform="rotate(${r} 6 -100)" fill="#FFFFFF" stroke="${INK}" stroke-width="2.2"/>`).join('') +
+          `<circle cx="6" cy="-100" r="5" fill="#F2B632" stroke="${INK}" stroke-width="2"/>`,
+        front: '',
+      };
+    default:
+      return { behind: `<path d="M0 -76C0 -86 2 -92 4 -98" stroke="#3E8E4E" stroke-width="3.5" fill="none" stroke-linecap="round"/><ellipse cx="-8" cy="-100" rx="11" ry="6" transform="rotate(-25 -8 -100)" fill="#7CC57D" stroke="${INK}" stroke-width="2.5"/><ellipse cx="14" cy="-104" rx="12" ry="6.5" transform="rotate(20 14 -104)" fill="#5DB36A" stroke="${INK}" stroke-width="2.5"/>`, front: '' };
+  }
+}
+
+function patternSVG(pattern: string | undefined, color: string) {
+  const d = shade(color, -0.2), l = shade(color, 0.55);
+  let inner = '';
+  switch (pattern) {
+    case 'totol': inner = [[-30, -60, 6], [24, -66, 5], [34, -40, 7], [-36, -36, 5], [-8, -70, 4], [12, -52, 3.5]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${d}"/>`).join(''); break;
+    case 'belang': inner = `<path d="M-14 -80Q-10 -70 -18 -62M0 -82Q4 -72 -2 -64M14 -80Q18 -70 12 -62" fill="none" stroke="${d}" stroke-width="5" stroke-linecap="round"/><path d="M-48 -44Q-38 -42 -36 -34M48 -44Q38 -42 36 -34" fill="none" stroke="${d}" stroke-width="5" stroke-linecap="round"/>`; break;
+    case 'topeng': inner = `<path d="M-38 -54Q-15 -64 0 -54Q15 -64 38 -54Q40 -40 26 -38Q15 -44 0 -42Q-15 -44 -26 -38Q-40 -40 -38 -54Z" fill="${d}"/>`; break;
+    case 'ujung': inner = `<path d="M-50 -48Q0 -40 50 -48V-90H-50Z" fill="${d}"/>`; break;
+    case 'bintang': inner = [[-30, -62, 1.6], [28, -60, 1.3], [-36, -32, 1.1], [36, -34, 1.4], [6, -70, 1]].map(([x, y, s]) => `<path d="M0 -6L1.8 -1.8 6 0 1.8 1.8 0 6 -1.8 1.8 -6 0 -1.8 -1.8Z" transform="translate(${x} ${y}) scale(${s})" fill="#FFF6C9" stroke="${shade(color, -0.25)}" stroke-width="0.8"/>`).join(''); break;
+    default: return '';
+  }
+  return `<g clip-path="url(#kb-body)">${inner}</g>`;
+}
+
+function eyesSVG(eyes: string | undefined, color: string) {
+  switch (eyes) {
+    case 'senyum':
+      return `<g class="eyes"><path d="M-21 -45q6 -8 12 0M9 -45q6 -8 12 0" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></g>`;
+    case 'berbinar':
+      return `<g class="eyes"><circle cx="-15" cy="-46" r="7.5" fill="${INK}"/><circle cx="15" cy="-46" r="7.5" fill="${INK}"/><circle cx="-12.5" cy="-49" r="2.8" fill="#fff"/><circle cx="17.5" cy="-49" r="2.8" fill="#fff"/><circle cx="-17" cy="-43" r="1.4" fill="#fff"/><circle cx="13" cy="-43" r="1.4" fill="#fff"/></g>`;
+    case 'sayu':
+      return `<g class="eyes"><circle cx="-15" cy="-45" r="6" fill="${INK}"/><circle cx="15" cy="-45" r="6" fill="${INK}"/><path d="M-22 -46H-8V-53H-22ZM8 -46H22V-53H8Z" fill="${color}"/><path d="M-22 -46H-8M8 -46H22" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/></g>`;
+    case 'bintang':
+      return `<g class="eyes">${[-15, 15].map((x) => `<path d="M${x} -54l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8Z" fill="${INK}"/><circle cx="${x + 1.5}" cy="-48" r="1.4" fill="#fff"/>`).join('')}</g>`;
+    default:
+      return `<g class="eyes"><circle cx="-15" cy="-46" r="6" fill="${INK}"/><circle cx="15" cy="-46" r="6" fill="${INK}"/><circle cx="-13" cy="-48" r="2" fill="#fff"/><circle cx="17" cy="-48" r="2" fill="#fff"/></g>`;
+  }
+}
+
+function tailSVG(tail: string | undefined, lt: string, dk: string) {
+  switch (tail) {
+    case 'keriting': return `<path d="M38 -20C52 -20 56 -34 46 -38C38 -41 34 -32 41 -29" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M38 -20C52 -20 56 -34 46 -38C38 -41 34 -32 41 -29" fill="none" stroke="${lt}" stroke-width="4.5" stroke-linecap="round"/>`;
+    case 'lebat': return `<path d="M38 -16C54 -14 66 -30 62 -52C60 -64 50 -66 48 -56C46 -44 44 -34 34 -28Z" fill="${lt}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M52 -54q4 10 -2 20M44 -40q4 6 0 12" stroke="${dk}" stroke-width="2" fill="none" opacity=".55"/>`;
+    case 'daun': return `<path d="M38 -20Q46 -46 62 -46Q58 -24 38 -20Z" fill="#7CC57D" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M40 -22Q50 -34 58 -42" stroke="#3E8E4E" stroke-width="1.8" fill="none"/>`;
+    default: return `<circle cx="40" cy="-22" r="9" fill="${lt}" stroke="${INK}" stroke-width="3"/>`;
+  }
 }
 
 /** Pet digambar dengan titik (0,0) di bawah kaki. Lebar ±100, tinggi ±110. */
 export function renderPet(look: PetLook, wear: ItemLike[] = []) {
   const color = col(look.color, '#F6B7A8');
   const dk = shade(color, -0.22), lt = shade(color, 0.5);
-  let e = '';
-  if (look.ear === 'kucing')
-    e = `<path d="M-32 -60L-25 -94-5 -73Z" fill="${color}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-25 -70L-23 -85-12 -73Z" fill="#FF9FB2"/><path d="M32 -60L25 -94 5 -73Z" fill="${color}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M25 -70L23 -85 12 -73Z" fill="#FF9FB2"/>`;
-  else if (look.ear === 'kelinci')
-    e = `<ellipse cx="-15" cy="-92" rx="8.5" ry="25" transform="rotate(-12 -15 -92)" fill="${color}" stroke="${INK}" stroke-width="3"/><ellipse cx="-15" cy="-90" rx="3.6" ry="15" transform="rotate(-12 -15 -90)" fill="#FF9FB2"/><ellipse cx="15" cy="-92" rx="8.5" ry="25" transform="rotate(12 15 -92)" fill="${color}" stroke="${INK}" stroke-width="3"/><ellipse cx="15" cy="-90" rx="3.6" ry="15" transform="rotate(12 15 -90)" fill="#FF9FB2"/>`;
-  else if (look.ear === 'bulat')
-    e = `<circle cx="-30" cy="-68" r="13" fill="${color}" stroke="${INK}" stroke-width="3"/><circle cx="-30" cy="-68" r="6" fill="#FF9FB2"/><circle cx="30" cy="-68" r="13" fill="${color}" stroke="${INK}" stroke-width="3"/><circle cx="30" cy="-68" r="6" fill="#FF9FB2"/>`;
-  else
-    e = `<path d="M0 -76C0 -86 2 -92 4 -98" stroke="#3E8E4E" stroke-width="3.5" fill="none" stroke-linecap="round"/><ellipse cx="-8" cy="-100" rx="11" ry="6" transform="rotate(-25 -8 -100)" fill="#7CC57D" stroke="${INK}" stroke-width="2.5"/><ellipse cx="14" cy="-104" rx="12" ry="6.5" transform="rotate(20 14 -104)" fill="#5DB36A" stroke="${INK}" stroke-width="2.5"/>`;
-  const order = { neck: 0, face: 1, head: 2 } as Record<string, number>;
-  const worn = [...wear].sort((a, b) => (order[a.data?.slot] ?? 0) - (order[b.data?.slot] ?? 0)).map(wearSVG).join('');
+  const ears = earsSVG(look.ear, color, dk);
+  const order: Record<string, number> = { back: 0, neck: 1, face: 2, head: 3 };
+  const parts = [...wear].sort((a, b) => (order[a.data?.slot] ?? 1) - (order[b.data?.slot] ?? 1)).map(wearParts);
   return (
+    `<defs><clipPath id="kb-body"><path d="${BODY}"/></clipPath></defs>` +
     `<ellipse cx="0" cy="-2" rx="36" ry="7" fill="#000" opacity=".13"/>` +
-    `<circle cx="40" cy="-22" r="9" fill="${lt}" stroke="${INK}" stroke-width="3"/>` +
-    e +
-    `<path d="M0 -78C30 -78 46 -56 46 -34C46 -14 28 -6 0 -6C-28 -6 -46 -14 -46 -34C-46 -56 -30 -78 0 -78Z" fill="${color}" stroke="${INK}" stroke-width="3.5"/>` +
+    parts.map((p) => p.behind).join('') +
+    tailSVG(look.tail, lt, dk) +
+    ears.behind +
+    `<path d="${BODY}" fill="${color}"/>` +
+    patternSVG(look.pattern, color) +
+    `<path d="${BODY}" fill="none" stroke="${INK}" stroke-width="3.5"/>` +
     `<ellipse cx="0" cy="-23" rx="24" ry="13" fill="${lt}" opacity=".85"/>` +
     `<ellipse cx="-18" cy="-6" rx="12" ry="7" fill="${dk}" stroke="${INK}" stroke-width="3"/><ellipse cx="18" cy="-6" rx="12" ry="7" fill="${dk}" stroke="${INK}" stroke-width="3"/>` +
-    `<g class="eyes"><circle cx="-15" cy="-46" r="6" fill="${INK}"/><circle cx="15" cy="-46" r="6" fill="${INK}"/><circle cx="-13" cy="-48" r="2" fill="#fff"/><circle cx="17" cy="-48" r="2" fill="#fff"/></g>` +
+    ears.front +
+    eyesSVG(look.eyes, look.pattern === 'topeng' || look.pattern === 'ujung' ? shade(color, -0.2) : color) +
     `<ellipse cx="-28" cy="-35" rx="7" ry="4" fill="#FF8FA3" opacity=".7"/><ellipse cx="28" cy="-35" rx="7" ry="4" fill="#FF8FA3" opacity=".7"/>` +
     `<path d="M-7 -37q3.5 4 7 0q3.5 4 7 0" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>` +
-    worn
+    parts.map((p) => p.front).join('')
   );
 }
 
-export const PET_VIEWBOX = '-58 -116 116 122';
+export const PET_VIEWBOX = '-66 -124 132 130';
 export function petSVG(look: PetLook, wear: ItemLike[] = [], cls = '') {
   return `<svg viewBox="${PET_VIEWBOX}" class="${cls}" aria-hidden="true">${renderPet(look, wear)}</svg>`;
 }
@@ -323,8 +496,14 @@ const ICONS: Record<string, { label: string; kinds: ItemKind[]; colors: Record<s
   buah: { label: 'Buah bulat', kinds: ['food'], colors: { main: '#E0583F', accent: '#3FA06A' }, draw: (c) => `<circle cx="32" cy="30" r="16" fill="${c.main}" stroke="${INK}" stroke-width="2.5"/><path d="M32 14q4 -6 10 -5q-2 7 -10 5Z" fill="${c.accent}" stroke="${INK}" stroke-width="2"/><ellipse cx="26" cy="24" rx="4" ry="2.5" fill="#fff" opacity=".6"/>` },
   jagung: { label: 'Jagung', kinds: ['food'], colors: { main: '#F2C94C', accent: '#7CC57D' }, draw: (c) => `<ellipse cx="32" cy="27" rx="9" ry="19" fill="${c.main}" stroke="${INK}" stroke-width="2.4"/><path d="M27 18h10M26 25h12M26 32h12M27 39h10" stroke="${shade(c.main, -0.25)}" stroke-width="1.6"/><path d="M32 47C18 44 16 30 20 22Q26 34 32 47Z" fill="${c.accent}" stroke="${INK}" stroke-width="2.2"/><path d="M32 47C46 44 48 30 44 22Q38 34 32 47Z" fill="${shade(c.accent, -0.12)}" stroke="${INK}" stroke-width="2.2"/>` },
   kue: { label: 'Potongan kue', kinds: ['food'], colors: { main: '#F7DCE4', accent: '#E0583F' }, draw: (c) => plate + `<path d="M14 38L50 38 50 24 14 30Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M14 30L50 24 40 18 14 26Z" fill="${shade(c.main, 0.4)}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><circle cx="38" cy="19" r="4" fill="${c.accent}" stroke="${INK}" stroke-width="1.8"/>` },
+  eskrim: { label: 'Es krim cone', kinds: ['food'], colors: { main: '#FF8FA3', accent: '#8FD3C1' }, draw: (c) => `<path d="M22 26L32 50L42 26Z" fill="#E3B370" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M26 32l10 8M30 28l8 6M28 40l4 -6" stroke="#B98B4E" stroke-width="1.4"/><circle cx="27" cy="22" r="8" fill="${c.accent}" stroke="${INK}" stroke-width="2.2"/><circle cx="37" cy="20" r="8.5" fill="${c.main}" stroke="${INK}" stroke-width="2.2"/><circle cx="35" cy="10" r="3" fill="#E0583F" stroke="${INK}" stroke-width="1.5"/>` },
+  donat: { label: 'Donat', kinds: ['food'], colors: { main: '#D9A066', accent: '#F7A8C4' }, draw: (c) => plate + `<ellipse cx="32" cy="32" rx="19" ry="12" fill="${c.main}" stroke="${INK}" stroke-width="2.4"/><path d="M15 30Q16 20 32 20Q48 20 49 30Q45 36 40 33Q36 38 32 34Q27 38 23 33Q18 36 15 30Z" fill="${c.accent}" stroke="${INK}" stroke-width="2"/><ellipse cx="32" cy="29" rx="6" ry="3.2" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/><path d="M22 26l2 -1M40 25l2 1M28 23l1 2M37 32l2 -1" stroke="#3F7FBF" stroke-width="2" stroke-linecap="round"/>` },
+  sate: { label: 'Sate', kinds: ['food'], colors: { main: '#A8622C', accent: '#6B3E1E' }, draw: (c) => plate + [0, 1, 2].map((i) => `<g transform="translate(${i * 7 - 7} ${i * 2})"><path d="M14 40L50 18" stroke="#C8955A" stroke-width="2.4" stroke-linecap="round"/>${[0, 1, 2, 3].map((k) => `<rect x="${20 + k * 7}" y="${30 - k * 4.4}" width="7" height="7" rx="2" transform="rotate(-31 ${23.5 + k * 7} ${33.5 - k * 4.4})" fill="${k % 2 ? c.accent : c.main}" stroke="${INK}" stroke-width="1.4"/>`).join('')}</g>`).join('') },
+  martabak: { label: 'Martabak', kinds: ['food'], colors: { main: '#E3B370', accent: '#6B3E1E' }, draw: (c) => plate + `<path d="M14 36L20 22H44L50 36Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M17 29H47" stroke="${c.accent}" stroke-width="3"/><path d="M26 22L24 36M38 22L40 36" stroke="${INK}" stroke-width="1.6"/><path d="M22 25l1 -1M33 25l1 1M42 26l1 -1" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>` },
+  roti: { label: 'Roti', kinds: ['food'], colors: { main: '#E3B370' }, draw: (c) => plate + `<path d="M12 38Q10 18 32 16Q54 18 52 38Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M22 24l4 6M30 21l4 6M38 22l4 6" stroke="${shade(c.main, -0.3)}" stroke-width="2" stroke-linecap="round"/>` },
+  stroberi: { label: 'Stroberi', kinds: ['food'], colors: { main: '#E0583F', accent: '#3FA06A' }, draw: (c) => `<path d="M32 48C18 40 14 26 20 20Q32 14 44 20C50 26 46 40 32 48Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 18L28 22L32 14L36 22L42 18L38 24H26Z" fill="${c.accent}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><g fill="#FCE3A3"><circle cx="26" cy="28" r="1.4"/><circle cx="34" cy="27" r="1.4"/><circle cx="40" cy="31" r="1.4"/><circle cx="29" cy="35" r="1.4"/><circle cx="36" cy="38" r="1.4"/></g>` },
   bibit: { label: 'Bungkus bibit', kinds: ['seed'], colors: { main: '#C8955A', accent: '#3FA06A' }, draw: (c) => `<path d="M18 12H46L44 46H20Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M18 12L22 18 26 12 30 18 34 12 38 18 42 12 46 12" fill="none" stroke="${INK}" stroke-width="2"/><path d="M32 40V28" stroke="${INK}" stroke-width="2.5"/><ellipse cx="26" cy="28" rx="6" ry="3.5" transform="rotate(-25 26 28)" fill="${c.accent}" stroke="${INK}" stroke-width="2"/><ellipse cx="38" cy="26" rx="6" ry="3.5" transform="rotate(25 38 26)" fill="${shade(c.accent, -0.15)}" stroke="${INK}" stroke-width="2"/>` },
-  ikan: { label: 'Ikan', kinds: ['fish'], colors: { main: '#F2994A', accent: '#E0583F' }, draw: (c, p) => `<path d="M48 26L60 16V36Z" fill="${c.accent}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="30" cy="26" rx="21" ry="12" fill="${c.main}" stroke="${INK}" stroke-width="2.5"/><path d="M28 14q6 -6 12 0" fill="${c.accent}" stroke="${INK}" stroke-width="2"/>${p.stripes ? `<path d="M26 16v20M34 15v22" stroke="${shade(c.main, -0.3)}" stroke-width="2.4"/>` : ''}<circle cx="16" cy="23" r="3" fill="${INK}"/><circle cx="15" cy="22" r="1" fill="#fff"/>` },
+  ikan: { label: 'Ikan', kinds: ['fish'], colors: { main: '#F2994A', accent: '#E0583F' }, draw: (c, p) => `<path d="M48 26L60 16V36Z" fill="${c.accent}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="30" cy="26" rx="21" ry="12" fill="${c.main}" stroke="${INK}" stroke-width="2.5"/><path d="M28 14q6 -6 12 0" fill="${c.accent}" stroke="${INK}" stroke-width="2"/>${p.stripes ? `<path d="M26 16v20M34 15v22" stroke="${shade(c.main, -0.3)}" stroke-width="2.4"/>` : ''}${p.spots ? `<path d="M22 18q6 -2 9 4q-4 5 -10 1Z M34 26q6 -3 8 3q-3 5 -9 2Z M26 31q4 -1 5 3q-3 2 -6 0Z" fill="${c.accent}"/>` : ''}<circle cx="16" cy="23" r="3" fill="${INK}"/><circle cx="15" cy="22" r="1" fill="#fff"/>` },
   bunga: { label: 'Bunga', kinds: ['material'], colors: { main: '#FFFFFF', accent: '#F2B632' }, draw: (c) => `<path d="M32 46V30" stroke="#3E8E4E" stroke-width="3"/>` + [0, 72, 144, 216, 288].map((r) => `<ellipse cx="32" cy="14" rx="5.5" ry="9" transform="rotate(${r} 32 24)" fill="${c.main}" stroke="${INK}" stroke-width="2"/>`).join('') + `<circle cx="32" cy="24" r="4.5" fill="${c.accent}" stroke="${INK}" stroke-width="1.8"/>` },
   sandal: { label: 'Sandal jepit', kinds: ['material'], colors: { main: '#3F7FBF' }, draw: (c) => `<ellipse cx="32" cy="28" rx="13" ry="21" transform="rotate(-20 32 28)" fill="${c.main}" stroke="${INK}" stroke-width="2.5"/><path d="M28 14L24 30M28 14L38 26" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>` },
   koin: { label: 'Kantong koin', kinds: ['material'], colors: { main: '#F2B632' }, draw: (c) => `<path d="M20 22Q14 44 32 46Q50 44 44 22Z" fill="#C8955A" stroke="${INK}" stroke-width="2.5"/><path d="M24 22L28 14H36L40 22" fill="#C8955A" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="32" cy="34" r="7" fill="${c.main}" stroke="${INK}" stroke-width="2"/>` },
@@ -338,10 +517,14 @@ const WALLS: Record<string, { label: string; colors: Record<string, string> }> =
   garis: { label: 'Garis tegak', colors: { main: '#F3DFB8', accent: '#E6CFA2' } },
   titik: { label: 'Titik-titik', colors: { main: '#DCE9F5', accent: '#B9CFE6' } },
   polos: { label: 'Polos', colors: { main: '#EEF7E8', accent: '#D6E9CB' } },
+  kotak: { label: 'Kotak-kotak', colors: { main: '#FBE3D3', accent: '#EBC2A8' } },
+  bata: { label: 'Bata ekspos', colors: { main: '#D98E6A', accent: '#B5694A' } },
 };
 const FLOORS: Record<string, { label: string; colors: Record<string, string> }> = {
   papan: { label: 'Papan kayu', colors: { main: '#C48A55', accent: '#B47B48' } },
   tegel: { label: 'Tegel catur', colors: { main: '#E9E4D6', accent: '#C9C2B0' } },
+  teraso: { label: 'Teraso', colors: { main: '#E6E1D8', accent: '#A9A196' } },
+  karpet: { label: 'Karpet lembut', colors: { main: '#9FB8D9', accent: '#8AA6CC' } },
 };
 
 export const DEFAULT_WALL: ArtSpec = { type: 'builtin', key: 'garis', colors: WALLS.garis.colors };
@@ -486,6 +669,23 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
         const q = g.iso(yy + ((v / 22) % 2) * 0.27, 0);
         if (yy + ((v / 22) % 2) * 0.27 < W - 0.1) o += `<circle cx="${f1(q[0])}" cy="${f1(q[1] - v)}" r="3" fill="${shade(wall.accent, 0.3)}"/>`;
       }
+  } else if (wall.key === 'kotak' || wall.key === 'bata') {
+    const brick = wall.key === 'bata';
+    const step = brick ? 18 : 30;
+    const lineL = (v: number, a: number, b: number) => { const p = g.iso(0, a), q = g.iso(0, b); return `<line x1="${f1(p[0])}" y1="${f1(p[1] - v)}" x2="${f1(q[0])}" y2="${f1(q[1] - v)}" stroke="${wall.accent}" stroke-width="2"/>`; };
+    const lineR = (v: number, a: number, b: number) => { const p = g.iso(a, 0), q = g.iso(b, 0); return `<line x1="${f1(p[0])}" y1="${f1(p[1] - v)}" x2="${f1(q[0])}" y2="${f1(q[1] - v)}" stroke="${shade(wall.accent, 0.25)}" stroke-width="2"/>`; };
+    let row = 0;
+    for (let v = 30 + step; v < WH - 4; v += step, row++) {
+      o += lineL(v, 0, W) + lineR(v, 0, W);
+      const off = brick ? (row % 2) * 0.35 : 0;
+      const gap = brick ? 0.7 : 1;
+      for (let u = off + gap / 2; u < W; u += gap) {
+        const top = Math.min(v + step, WH - 4);
+        const pl = g.iso(0, u), pr = g.iso(u, 0);
+        o += `<line x1="${f1(pl[0])}" y1="${f1(pl[1] - v)}" x2="${f1(pl[0])}" y2="${f1(pl[1] - top)}" stroke="${wall.accent}" stroke-width="2"/>`;
+        o += `<line x1="${f1(pr[0])}" y1="${f1(pr[1] - v)}" x2="${f1(pr[0])}" y2="${f1(pr[1] - top)}" stroke="${shade(wall.accent, 0.25)}" stroke-width="2"/>`;
+      }
+    }
   } else if (wall.key === 'image' && wall.url) {
     // pola gambar upload diterapkan sebagai tekstur di dua dinding
     const pid = 'wp' + Math.abs(hash(wall.url));
@@ -514,9 +714,15 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   // lantai
   for (let i = 0; i < W; i++)
     for (let j = 0; j < W; j++) {
-      const fill = floor.key === 'tegel' ? ((i + j) % 2 ? floor.main : floor.accent) : (i + j) % 2 ? floor.main : floor.accent;
+      const solid = floor.key === 'teraso' || floor.key === 'karpet';
+      const fill = solid ? floor.main : (i + j) % 2 ? floor.main : floor.accent;
       const attrs = `class="${edit ? 'tile' : 'fl'}" data-x="${i}" data-y="${j}"`;
-      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, -0.22)}" stroke-width="1"/>`;
+      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, floor.key === 'karpet' ? -0.06 : -0.22)}" stroke-width="1"/>`;
+      if (floor.key === 'teraso')
+        for (const [fx, fy, k] of [[0.25, 0.3, 0], [0.7, 0.2, 1], [0.5, 0.65, 0], [0.2, 0.8, 1], [0.8, 0.75, 0]]) {
+          const q = g.iso(i + ((fx + i * 0.13) % 1), j + ((fy + j * 0.17) % 1));
+          o += `<circle cx="${f1(q[0])}" cy="${f1(q[1])}" r="${f1(1.6 * s)}" fill="${k ? '#FFFFFF' : floor.accent}" pointer-events="none"/>`;
+        }
       if (floor.key === 'papan' && !edit) {
         const a = g.iso(i + 0.5, j), b = g.iso(i + 0.5, j + 1);
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
@@ -574,8 +780,9 @@ export function itemIcon(item: ItemLike) {
   }
   if (item.kind === 'wear') {
     const slot = item.data?.slot ?? (a.type === 'builtin' ? WEAR[a.key]?.slot : 'head') ?? 'head';
-    const vb = { head: '-54 -112 108 58', face: '-32 -62 64 32', neck: '-46 -38 92 44' }[slot as 'head'];
-    return `<svg viewBox="${vb}" aria-hidden="true">${wearSVG(item)}</svg>`;
+    const vb = { head: '-56 -124 112 64', face: '-46 -64 92 42', neck: '-46 -40 92 50', back: '-80 -112 160 116' }[slot as 'head'] ?? '-56 -124 112 64';
+    const p = wearParts(item);
+    return `<svg viewBox="${vb}" aria-hidden="true">${p.behind}${p.front}</svg>`;
   }
   if (item.kind === 'wallpaper' || item.kind === 'floor') {
     if (a.type === 'image') {

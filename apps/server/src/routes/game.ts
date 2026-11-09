@@ -1,5 +1,14 @@
 import type { FastifyInstance } from 'fastify';
-import { addXp, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_EARS, type Needs } from '@kb/shared';
+import { addXp, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
+
+const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
+/** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
+function partFor(kind: keyof typeof PART_LABEL, value: unknown, level: number) {
+  const key = oneOf(value, PART_LABEL[kind], PET_PARTS[kind].map((p) => p[0]));
+  const need = partLevel(kind, key);
+  if (level < need) throw bad('locked', `${PART_LABEL[kind]} ini terbuka di Lv ${need}.`);
+  return key;
+}
 import type { Db } from '../db/index';
 import {
   addItem, bad, checkName, coinMultiplier, cooldown, counter, credit, getCatalog, getSettings,
@@ -82,7 +91,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const name = await checkName(db, str(req.body?.name, 'Nama pet')!);
     const owner = req.body?.ownerName ? await checkName(db, str(req.body.ownerName, 'Nama kamu')!) : null;
     const color = oneOf(req.body?.color, 'Warna', PET_COLORS);
-    const ear = oneOf(req.body?.ear, 'Telinga', PET_EARS.map((e) => e[0]));
+    const ear = partFor('ear', req.body?.ear, 1);
     const s = await getSettings(db);
     const st = s.needs.start;
     const r = await db.one(
@@ -105,11 +114,14 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
       const color = body.color !== undefined ? oneOf(body.color, 'Warna', PET_COLORS) : pet.color;
-      const ear = body.ear !== undefined ? oneOf(body.ear, 'Telinga', PET_EARS.map((e) => e[0])) : pet.ear;
+      const ear = body.ear !== undefined ? partFor('ear', body.ear, pet.level) : pet.ear;
+      const pattern = body.pattern !== undefined ? partFor('pattern', body.pattern, pet.level) : (pet as any).pattern;
+      const eyes = body.eyes !== undefined ? partFor('eyes', body.eyes, pet.level) : (pet as any).eyes;
+      const tail = body.tail !== undefined ? partFor('tail', body.tail, pet.level) : (pet as any).tail;
       const wear: Record<string, string> = { ...(pet.wear ?? {}) };
       if (body.wear !== undefined) {
         const w = obj(body.wear, 'wear');
-        for (const slot of ['head', 'face', 'neck']) {
+        for (const slot of ['head', 'face', 'neck', 'back']) {
           if (!(slot in w)) continue;
           const id = w[slot];
           if (id === null) { delete wear[slot]; continue; }
@@ -120,7 +132,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
           wear[slot] = item.id;
         }
       }
-      await t.query(`update pets set color = $2, ear = $3, wear = $4::text::jsonb where user_id = $1`, [u.id, color, ear, J(wear)]);
+      await t.query(`update pets set color = $2, ear = $3, wear = $4::text::jsonb, pattern = $5, eyes = $6, tail = $7 where user_id = $1`, [u.id, color, ear, J(wear), pattern, eyes, tail]);
       if (body.wear !== undefined && Object.values(obj(body.wear, 'wear')).some((v) => v)) await track(t, u.id, 'wear');
       return { ok: true, ...(await patch(t, u.id, ['pet'])) };
     });

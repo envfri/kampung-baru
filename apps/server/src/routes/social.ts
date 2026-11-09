@@ -26,7 +26,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
   app.get('/api/friends', auth, async (req) => {
     const s = await getSettings(db);
     const rows = await db.query(
-      `select u.id, u.display_name, p.name as pet_name, p.color, p.ear, p.wear, p.level, u.last_seen_at,
+      `select u.id, u.display_name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear, p.level, u.last_seen_at,
               exists(select 1 from visits v where v.visitor_id = $1 and v.host_id = u.id and v.day = $2) as visited_today
          from friendships f join users u on u.id = f.friend_id left join pets p on p.user_id = u.id
         where f.user_id = $1 and u.banned_at is null

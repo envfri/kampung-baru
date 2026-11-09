@@ -57,7 +57,7 @@
 {#if d}
   <Drawer wide title={d.user.display_name} onclose={() => (d = null)}>
     <div class="top">
-      {#if d.pet}<div class="pet">{@html petSVG({ color: d.pet.color, ear: d.pet.ear }, [])}</div>{/if}
+      {#if d.pet}<div class="pet">{@html petSVG(d.pet, [])}</div>{/if}
       <div class="info">
         <p><b>{d.pet?.name ?? 'Belum punya pet'}</b>{#if d.pet} · Lv {d.pet.level}{/if}</p>
         <p class="mono">{d.user.id}</p>
