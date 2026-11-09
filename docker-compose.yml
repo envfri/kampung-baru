@@ -1,4 +1,5 @@
-# Jalankan: cp .env.example .env (isi), lalu: docker compose up -d --build
+# Produksi: sudo bash deploy/install.sh domainmu.com  (membuat .env lalu menjalankan semua layanan)
+# Manual: isi .env (lihat .env.example, tambahkan DOMAIN=...), lalu: docker compose up -d --build
 services:
   db:
     image: postgres:16-alpine
@@ -23,10 +24,23 @@ services:
       DATABASE_URL: postgres://kb:${POSTGRES_PASSWORD:-kb}@db:5432/kampungbulu
       REDIS_URL: redis://redis:6379
       TRUST_PROXY: "1"
-    ports: ["8787:8787"]
+    expose: ["8787"]
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_started }
     restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?Isi DOMAIN di file .env}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    restart: unless-stopped
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

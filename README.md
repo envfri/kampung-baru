@@ -105,21 +105,43 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 
 Tamu harus menautkan akun dulu sebelum membeli, supaya Mutiara tidak hilang.
 
-## Deploy
+## Deploy ke VPS (Ubuntu 22.04/24.04)
 
-Dengan Docker Compose (Postgres + Redis + aplikasi):
+Stack produksi: Caddy (HTTPS otomatis Let's Encrypt) → aplikasi → PostgreSQL + Redis, semuanya lewat Docker Compose. Minimal 1 vCPU, 2 GB RAM (skrip menambah swap otomatis bila RAM kecil).
+
+1. Di panel DNS domain, buat **A record** domain → IP VPS. Di panel VPS, buka port **80** dan **443** (firewall/security group).
+2. Masuk ke VPS lewat SSH, lalu buat deploy key untuk repo privat ini:
 
 ```bash
-cp .env.example .env
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/kampung_deploy -C "vps"
 ```
 
 ```bash
-docker compose up -d --build
+cat ~/.ssh/kampung_deploy.pub
 ```
 
-Pasang reverse proxy HTTPS (Caddy, Nginx, atau Cloudflare) di depan port 8787. HTTPS wajib untuk PWA dan push. Isi `PUBLIC_URL` dengan domain HTTPS dan `TRUST_PROXY=1`. Region server yang dekat (Jakarta atau Singapura) membuat game terasa cepat.
+   Tempel isinya di GitHub: repo → Settings → Deploy keys → Add deploy key (cukup akses baca).
 
-Tanpa Docker: siapkan PostgreSQL 14+, isi `.env`, lalu `npm ci && npm run build && npm start`. Migrasi database berjalan otomatis saat start.
+3. Clone dan pasang (ganti domainnya):
+
+```bash
+GIT_SSH_COMMAND="ssh -i ~/.ssh/kampung_deploy -o StrictHostKeyChecking=accept-new" git clone git@github.com:envfri/kampung-baru.git ~/kampung-bulu
+```
+
+```bash
+cd ~/kampung-bulu && git config core.sshCommand "ssh -i ~/.ssh/kampung_deploy"
+```
+
+```bash
+sudo bash deploy/install.sh amt.ai.id
+```
+
+`install.sh` memasang Docker, menambah swap bila perlu, membuat `.env` dengan password acak, membangun & menjalankan semua layanan, memasang backup database harian (03:15, disimpan 14 hari di `backups/`), lalu mencetak alamat game, admin, dan password admin. HTTPS aktif otomatis beberapa menit setelah DNS mengarah ke VPS.
+
+- Update ke versi terbaru: `bash deploy/update.sh`
+- Lihat log: `docker compose logs -f app`
+- Ubah konfigurasi (Google, SMTP, Midtrans): edit `.env`, lalu `docker compose up -d`
+- Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci Midtrans diisi. Ganti sebelum dibuka untuk umum.
 
 ## Pengujian
 
