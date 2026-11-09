@@ -1,0 +1,117 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { G, setState, toast, fail } from '../lib/game.svelte';
+  import { api } from '../lib/api';
+  import { sfx } from '../lib/sfx';
+
+  let { guest = true, ondone }: { guest?: boolean; ondone?: (r: any) => void } = $props();
+  let mode = $state<'pick' | 'email' | 'code'>('pick');
+  let email = $state('');
+  let code = $state('');
+  let busy = $state(false);
+  let googleEl: HTMLDivElement | undefined = $state();
+  const login = $derived(G.config?.login ?? {});
+
+  function loadScript(src: string) {
+    return new Promise<void>((res, rej) => {
+      if (document.querySelector(`script[src="${src}"]`)) return res();
+      const s = document.createElement('script');
+      s.src = src; s.async = true; s.onload = () => res(); s.onerror = () => rej(new Error('gagal memuat'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function finish(r: any) {
+    if (r?.state) setState(r.state);
+    if (r?.switched) toast('Masuk ke akun yang sudah ada.', 'good');
+    else if (r?.linked) toast('Progres tersimpan ke akunmu.', 'good');
+    sfx.pop();
+    ondone?.(r);
+  }
+
+  async function doGuest() {
+    busy = true;
+    try { await finish(await api.post('/api/auth/guest')); } catch (e) { fail(e); } finally { busy = false; }
+  }
+  async function sendCode(e: Event) {
+    e.preventDefault();
+    busy = true;
+    try {
+      const r = await api.post('/api/auth/email/start', { email });
+      mode = 'code';
+      if (r.devCode) { code = r.devCode; toast(`Mode pengembangan: kode ${r.devCode}`); }
+      else toast('Kode dikirim ke email kamu.', 'good');
+    } catch (e) { fail(e); } finally { busy = false; }
+  }
+  async function verify(e: Event) {
+    e.preventDefault();
+    busy = true;
+    try { await finish(await api.post('/api/auth/email/verify', { email, code })); } catch (e) { fail(e); } finally { busy = false; }
+  }
+  async function facebook() {
+    try {
+      await loadScript('https://connect.facebook.net/id_ID/sdk.js');
+      const FB = (window as any).FB;
+      FB.init({ appId: login.facebook, version: 'v19.0', cookie: false, xfbml: false });
+      FB.login(async (resp: any) => {
+        if (!resp?.authResponse?.accessToken) return;
+        busy = true;
+        try { await finish(await api.post('/api/auth/facebook', { accessToken: resp.authResponse.accessToken })); } catch (e) { fail(e); } finally { busy = false; }
+      }, { scope: 'public_profile,email' });
+    } catch { toast('Login Facebook tidak bisa dimuat.', 'error'); }
+  }
+
+  onMount(async () => {
+    if (!login.google || !googleEl) return;
+    try {
+      await loadScript('https://accounts.google.com/gsi/client');
+      const g = (window as any).google;
+      g.accounts.id.initialize({
+        client_id: login.google,
+        callback: async (resp: any) => {
+          busy = true;
+          try { await finish(await api.post('/api/auth/google', { credential: resp.credential })); } catch (e) { fail(e); } finally { busy = false; }
+        },
+      });
+      g.accounts.id.renderButton(googleEl, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: 'id', width: Math.min(320, googleEl.clientWidth || 300) });
+    } catch { /* tombol google tidak tampil */ }
+  });
+</script>
+
+<div class="auth">
+  {#if mode === 'pick'}
+    {#if guest && login.guest !== false}
+      <button class="btn hot block big" disabled={busy} onclick={doGuest}>Main sekarang</button>
+      <p class="hint">Tanpa daftar. Progres bisa disimpan ke akun kapan saja.</p>
+    {/if}
+    {#if login.google}<div class="google" bind:this={googleEl}></div>{/if}
+    {#if login.facebook}<button class="btn block fb" disabled={busy} onclick={facebook}>Lanjut dengan Facebook</button>{/if}
+    {#if login.email !== false}<button class="btn block" disabled={busy} onclick={() => (mode = 'email')}>Masuk dengan email</button>{/if}
+  {:else if mode === 'email'}
+    <form onsubmit={sendCode}>
+      <label for="kb-email">Email</label>
+      <input id="kb-email" class="input" type="email" inputmode="email" autocomplete="email" required bind:value={email} placeholder="nama@email.com" />
+      <button class="btn hot block" disabled={busy || !email}>Kirim kode</button>
+      <button type="button" class="link" onclick={() => (mode = 'pick')}>Kembali</button>
+    </form>
+  {:else}
+    <form onsubmit={verify}>
+      <label for="kb-code">Kode 6 angka dari email</label>
+      <input id="kb-code" class="input code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required bind:value={code} placeholder="000000" />
+      <button class="btn hot block" disabled={busy || code.length !== 6}>Masuk</button>
+      <button type="button" class="link" onclick={() => (mode = 'email')}>Ganti email</button>
+    </form>
+  {/if}
+</div>
+
+<style>
+  .auth { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+  .big { font-size: 20px; min-height: 54px; }
+  .hint { margin: -2px 0 6px; text-align: center; font-size: 13.5px; color: var(--muted); font-weight: 600; }
+  .google { display: flex; justify-content: center; min-height: 44px; }
+  .fb { background: #E3ECFB; }
+  form { display: flex; flex-direction: column; gap: 10px; }
+  label { font-weight: 700; font-size: 15px; }
+  .code { text-align: center; letter-spacing: 8px; font-size: 24px; }
+  .link { background: none; border: 0; font-weight: 700; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 6px; font-size: 15px; }
+</style>
