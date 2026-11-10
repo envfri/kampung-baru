@@ -4,6 +4,8 @@ import type { Db } from '../db/index';
 import { getCatalog, getSettings, today } from './core';
 import { notify, notifyMany, type Note } from './push';
 import { eventJobs } from './events';
+import { paymentJobs } from './payments';
+import { zepayConfigured } from './zepay';
 
 const LOCK = 7_420_011;
 
@@ -13,9 +15,11 @@ export async function runJobs(db: Db, log?: any) {
   const outbox: { userId: string; n: Note }[] = [];
   let broadcasts: any[] = [];
 
+  let locked = false;
   await db.tx(async (t) => {
     const lock = await t.one<{ ok: boolean }>(`select pg_try_advisory_xact_lock($1) as ok`, [LOCK]);
     if (!lock?.ok) return;
+    locked = true;
 
     // 1) kebun siap panen
     if (s.notify.gardenReady) {
@@ -78,6 +82,11 @@ export async function runJobs(db: Db, log?: any) {
   });
 
   for (const o of outbox) await notify(db, o.userId, o.n, log);
+
+  // QRIS yang lewat batas waktu tanpa kabar webhook: cek status langsung ke ZePay
+  if (locked && zepayConfigured()) {
+    try { await paymentJobs(db, log); } catch (e) { log?.warn?.({ err: String(e) }, 'zepay: pekerjaan latar gagal'); }
+  }
 
   // event musiman: jadwal ulang tahunan & umumkan event yang baru mulai
   const started = await eventJobs(db);

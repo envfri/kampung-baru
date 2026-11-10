@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
@@ -12,6 +12,10 @@ import { audit, createAdminSession, destroyAdminSession, requireAdmin } from '..
 import { J, petView } from '../lib/state';
 import { bool, email as vEmail, int, isoDate, obj, oneOf, str } from '../lib/validate';
 import { markPaid } from './payments';
+import { applyZepay, pick, syncZepay } from '../lib/payments';
+import { zepay, zepayConfigured, zepayMode, zepayWebhookUrl, ZePayError, type ZePayment } from '../lib/zepay';
+
+const zErr = (e: unknown) => (e instanceof ZePayError ? `${e.message} (${e.code})` : String((e as any)?.message ?? e));
 
 const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material'] as const;
 const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games'] as const;
@@ -556,7 +560,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
         order by p.created_at desc limit 200`,
       ['pending', 'paid', 'failed', 'expired'].includes(status) ? [status] : [],
     );
-    return { payments: rows.map((r: any) => ({ ...r, raw: undefined })) };
+    return { payments: rows.map((r: any) => ({ ...r, raw: undefined, qr_string: undefined })) };
   });
   app.post('/api/admin/payments/:id/mark-paid', own, async (req: any) => {
     const id = String(req.params.id);
@@ -564,6 +568,114 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const done = await markPaid(db, id, { manual: true, by: req.admin!.email, reason });
     await audit(db, req, 'payment_mark_paid', id, { reason, done });
     return { ok: true, credited: done };
+  });
+
+  /* ---------------- ZePay (QRIS) ---------------- */
+
+  app.get('/api/admin/zepay', adm, async () => {
+    const hook = await db.one<{ value: any }>(`select value from settings where key = 'zepay_webhook'`);
+    const seen = await db.one<{ value: any }>(`select value from settings where key = 'zepay_seen'`);
+    const out: any = {
+      active: config.paymentProvider === 'zepay',
+      configured: zepayConfigured(),
+      mode: zepayMode(),
+      baseUrl: config.zepayBaseUrl,
+      webhookUrl: zepayWebhookUrl(),
+      secretSource: config.zepayWebhookSecret ? 'env' : hook?.value?.secret ? 'db' : null,
+      lastEvent: seen?.value ?? null,
+      expiresMinutes: config.zepayExpiresMinutes,
+    };
+    if (!out.configured) return out;
+    const [m, eps] = await Promise.allSettled([zepay('GET', '/merchant'), zepay('GET', '/webhook-endpoints')]);
+    if (m.status === 'fulfilled') {
+      const v: any = m.value;
+      const q = v.payment_methods?.find((x: any) => x.method === 'QRIS');
+      out.merchant = { name: v.name, code: v.code, status: v.status, livemode: v.livemode, qris: q ? { enabled: !!q.enabled, channel: q.channels?.[0] ?? null } : null };
+    } else out.error = zErr(m.reason);
+    if (eps.status === 'fulfilled') {
+      out.endpoints = ((eps.value as any).data ?? []).map((e: any) => ({
+        id: e.id, url: e.url, status: e.status, events: e.events, secret_last4: e.secret_last4, ours: e.url === out.webhookUrl,
+      }));
+    } else out.endpointsError = zErr(eps.reason);
+    return out;
+  });
+
+  /* Daftarkan URL webhook game ke ZePay; secret disimpan di database (env ZEPAY_WEBHOOK_SECRET tetap diterima). */
+  app.post('/api/admin/zepay/webhook', own, async (req: any) => {
+    if (!zepayConfigured()) throw bad('zepay_off', 'Isi ZEPAY_KEY_ID dan ZEPAY_SECRET di .env lalu restart server.');
+    const url = zepayWebhookUrl();
+    if (!url.startsWith('https://')) throw bad('zepay_url', 'PUBLIC_URL harus https:// supaya ZePay bisa mengirim webhook.');
+    let ep: any, rotated = false;
+    try {
+      const list: any = await zepay('GET', '/webhook-endpoints');
+      const found = (list.data ?? []).find((e: any) => e.url === url);
+      if (found) {
+        // secret lama tidak bisa dibaca lagi: rotasi supaya kita memegang secret yang baru
+        ep = await zepay('POST', `/webhook-endpoints/${found.id}/rotate-secret`, { previous_secret_valid_hours: 24 }, `kb-rotate-${randomUUID()}`);
+        rotated = true;
+        const covers = (found.events ?? []).some((e: string) => e === '*' || e.startsWith('payment.'));
+        if (found.status !== 'enabled' || !covers) {
+          await zepay('PATCH', `/webhook-endpoints/${found.id}`, { status: 'enabled', ...(covers ? {} : { events: [...(found.events ?? []), 'payment.*'] }) });
+        }
+      } else {
+        ep = await zepay('POST', '/webhook-endpoints', { url, events: ['payment.*'], description: 'Kampung Bulu' }, `kb-hook-${randomUUID()}`);
+      }
+    } catch (e) {
+      throw bad('zepay_error', 'ZePay menolak: ' + zErr(e));
+    }
+    if (!ep?.secret) throw bad('zepay_error', 'ZePay tidak mengembalikan secret webhook.');
+    await db.query(
+      `insert into settings (key, value) values ('zepay_webhook', $1::text::jsonb) on conflict (key) do update set value = excluded.value`,
+      [JSON.stringify({ endpointId: ep.id, secret: ep.secret, url, mode: zepayMode(), at: new Date().toISOString() })],
+    );
+    let testEvent: string | null = null;
+    try { testEvent = ((await zepay('POST', `/webhook-endpoints/${ep.id}/test`)) as any)?.event_id ?? null; } catch { /* tidak wajib */ }
+    await audit(db, req, 'zepay_webhook', ep.id, { url, rotated });
+    return { ok: true, endpointId: ep.id, rotated, testEvent };
+  });
+
+  app.post('/api/admin/zepay/test', adm, async (req: any) => {
+    const hook = await db.one<{ value: any }>(`select value from settings where key = 'zepay_webhook'`);
+    let id: string | undefined = hook?.value?.endpointId;
+    try {
+      if (!id) id = ((await zepay('GET', '/webhook-endpoints')) as any).data?.find((e: any) => e.url === zepayWebhookUrl())?.id;
+      if (!id) throw bad('zepay_hook', 'Webhook belum didaftarkan.');
+      const r: any = await zepay('POST', `/webhook-endpoints/${id}/test`);
+      await audit(db, req, 'zepay_webhook_test', id);
+      return { ok: true, eventId: r?.event_id ?? null };
+    } catch (e) {
+      if (e instanceof HttpError) throw e;
+      throw bad('zepay_error', 'ZePay menolak: ' + zErr(e));
+    }
+  });
+
+  app.post('/api/admin/payments/:id/sync', adm, async (req: any) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) throw bad('invalid', 'Pembayaran tidak valid.');
+    let result: string | null;
+    try { result = await syncZepay(db, id, req.log); } catch (e) { throw bad('zepay_error', 'Cek status gagal: ' + zErr(e)); }
+    if (result === null) throw bad('not_zepay', 'Hanya pembayaran QRIS (ZePay) yang bisa dicek ke gateway.');
+    await audit(db, req, 'payment_sync', id, { result });
+    return { ok: true, result };
+  });
+
+  /* Mode uji (kunci zpk_test_…): tiru hasil pembayaran dari ZePay. */
+  app.post('/api/admin/payments/:id/simulate', own, async (req: any) => {
+    if (zepayMode() !== 'test') throw forbidden('Simulasi hanya bisa dengan kunci uji ZePay (zpk_test_…).');
+    const id = String(req.params.id);
+    if (!UUID.test(id)) throw bad('invalid', 'Pembayaran tidak valid.');
+    const status = oneOf(req.body?.status ?? 'SUCCESS', 'Status', ['SUCCESS', 'FAILED', 'EXPIRED'] as const);
+    const p = await db.one<{ id: string; amount_idr: number; provider: string; provider_ref: string | null }>(
+      `select id, amount_idr, provider, provider_ref from payments where id = $1`,
+      [id],
+    );
+    if (!p || p.provider !== 'zepay' || !p.provider_ref) throw bad('not_zepay', 'Hanya pembayaran QRIS (ZePay) yang bisa disimulasikan.');
+    let zp: ZePayment;
+    try { zp = await zepay<ZePayment>('POST', `/payments/${encodeURIComponent(p.provider_ref)}/simulate`, { status }); }
+    catch (e) { throw bad('zepay_error', 'Simulasi gagal: ' + zErr(e)); }
+    const result = await applyZepay(db, p, zp, { source: 'simulate', payment: pick(zp) }, req.log);
+    await audit(db, req, 'payment_simulate', id, { status, result });
+    return { ok: true, result };
   });
 
   /* ---------------- moderasi kata ---------------- */

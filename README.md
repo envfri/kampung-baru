@@ -13,7 +13,7 @@ Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar
 | 1 · Vertical slice | Pet (warna, 4 tipe telinga), ruangan isometrik + mode atur, 4 kebutuhan yang turun seiring waktu, Pasar Pagi & Mebel Jati, Tas, login tamu / Google / email OTP, simpan di server, ledger dompet | Selesai |
 | 2 · Alpha sosial | Teman lewat kode & link WhatsApp, kunjungan harian berhadiah, kirim & buka hadiah, Peta Kampung, Butik Benang & pakaian, Lomba Karung, Kebun | Selesai |
 | 3 · Beta | Panel admin (katalog, event, ekonomi, peta, pemain, moderasi, audit), event musiman, rate limit & anti-curang, moderasi nama, PWA, analitik & funnel | Selesai |
-| 4 · Soft launch | Mutiara via Midtrans (QRIS, e-wallet, transfer), Toko Mutiara (kosmetik saja), Kolam Pancing & koleksi ikan, kalender event | Selesai, perlu uji sandbox Midtrans |
+| 4 · Soft launch | Mutiara via QRIS (ZePay), Toko Mutiara (kosmetik saja), Kolam Pancing & koleksi ikan, kalender event | Selesai, perlu uji kunci ZePay mode uji lalu live |
 | Mini-game | Balai Main: Panen Buah (tangkap buah, hindari kerikil) dan Ingat Jajanan (cocokkan kartu), plus Lomba Karung & Kolam Pancing. Skor dihitung ulang di server dari seed | Selesai |
 | Event musiman | Diatur penuh dari admin: tanggal, dekorasi kampung & rumah (bendera, lampion, ketupat, kembang api, hujan, bunga), pengali koin, poin event per aktivitas, hadiah bertingkat, barang edisi terbatas, berulang tiap tahun, notifikasi otomatis saat mulai, template Agustusan/Ramadan/Lebaran/Imlek/Tahun Baru/Musim Hujan | Selesai |
 | Notifikasi | Web Push (muncul walau PWA ditutup) + kotak notifikasi di game: kebun siap panen, pet butuh perhatian, pengingat hadiah harian, teman/kunjungan/hadiah, pembayaran, broadcast & jadwal dari admin | Selesai, perlu uji di HP sungguhan |
@@ -101,14 +101,34 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 - **Email OTP**: isi `SMTP_URL` (mis. `smtps://user:pass@smtp.mailgun.org:465`).
 - **Facebook** (opsional): isi `FACEBOOK_APP_ID` dan `FACEBOOK_APP_SECRET`. Sistem teman tetap memakai kode/link, karena Facebook hanya memberi daftar teman yang juga memakai aplikasi.
 
-## Pembayaran (Midtrans)
+## Pembayaran QRIS (ZePay)
 
-1. Daftar Midtrans, ambil Server Key dan Client Key (sandbox dulu).
-2. Isi `PAYMENT_PROVIDER=midtrans`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_PRODUCTION=false`.
-3. Di dashboard Midtrans, set **Payment Notification URL** ke `https://domainmu/api/payments/midtrans/notify`.
-4. Uji beli paket dari game. Mutiara masuk setelah notifikasi Midtrans diterima. Tanda tangan dan nominal diverifikasi, dan kredit hanya terjadi sekali.
+Mutiara dibayar dengan QRIS dinamis dari [ZePay](https://payment.envfri.com/docs). QR tampil langsung di dalam game, jadi pemain tidak meninggalkan aplikasi. Bisa dibayar dari aplikasi bank atau e-wallet apa pun.
+
+1. Minta kunci API ke tim ZePay. Mulai dengan kunci mode uji (`zpk_test_…` / `zsk_test_…`).
+2. Isi di `.env`, lalu `docker compose up -d`:
+   ```
+   PAYMENT_PROVIDER=zepay
+   ZEPAY_KEY_ID=zpk_test_…
+   ZEPAY_SECRET=zsk_test_…
+   ```
+3. Buka admin → **Pembayaran** → **Daftarkan webhook**. Server mendaftarkan `https://domainmu/api/payments/zepay/webhook` ke ZePay, menyimpan secret-nya di database, dan mengirim event uji. Panel itu juga menampilkan status merchant, kanal QRIS, dan event terakhir yang diterima.
+4. Uji dari game: beli paket → QR muncul → di admin klik **Simulasi lunas** (hanya ada di mode uji) → Mutiara masuk dan pemain mendapat notifikasi.
+5. Setelah lancar, ganti ke kunci live (`zpk_live_…`), restart, lalu klik **Daftarkan webhook** sekali lagi (webhook mode uji dan live terpisah).
+
+Cara kerjanya:
+
+- Checkout membuat tagihan `POST /api/v2/payments` (metode QRIS) dengan `Idempotency-Key` per pembayaran. Setiap request ditandatangani HMAC-SHA256 sesuai dokumentasi ZePay.
+- Game menampilkan QR (PNG dari server), hitung mundur, tombol **Simpan QR** (untuk yang main di HP yang sama: simpan, lalu pilih dari galeri di aplikasi bank), dan **Batalkan**. Tagihan yang belum dibayar bisa dilanjutkan dari Riwayat.
+- Mutiara dikredit dari webhook `payment.succeeded`. Tanda tangan dicek dari body mentah, selisih waktu maks. 300 detik, dan nominal harus sama. Kredit hanya terjadi sekali.
+- Cadangan bila webhook terlambat: selama pemain menunggu di layar QR, server menanyakan status ke ZePay setiap ±8 detik. Worker juga mengecek QR yang sudah lewat batas waktu, sehingga pembayaran yang masuk terlambat tetap dikredit.
+- Admin bisa **Cek status** per transaksi dan **Tandai lunas** manual (pemilik, dengan alasan, tercatat di log audit).
+
+Variabel lain: `ZEPAY_EXPIRES_MINUTES` (masa berlaku QR, bawaan 30), `ZEPAY_WEBHOOK_SECRET` (opsional bila webhook didaftarkan manual), `ZEPAY_BASE_URL`.
 
 Tamu harus menautkan akun dulu sebelum membeli, supaya Mutiara tidak hilang.
+
+Midtrans masih didukung sebagai alternatif (`PAYMENT_PROVIDER=midtrans`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, notification URL `https://domainmu/api/payments/midtrans/notify`).
 
 ## Deploy ke VPS (Ubuntu 22.04/24.04)
 
@@ -145,8 +165,8 @@ sudo bash deploy/install.sh amt.ai.id
 
 - Update ke versi terbaru: `bash deploy/update.sh`
 - Lihat log: `docker compose logs -f app`
-- Ubah konfigurasi (Google, SMTP, Midtrans): edit `.env`, lalu `docker compose up -d`
-- Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci Midtrans diisi. Ganti sebelum dibuka untuk umum.
+- Ubah konfigurasi (Google, SMTP, ZePay): edit `.env`, lalu `docker compose up -d`
+- Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
 
 ## Pengujian
 
@@ -154,7 +174,7 @@ sudo bash deploy/install.sh amt.ai.id
 npm test
 ```
 
-19 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
+32 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
 
 Uji alur di viewport HP (butuh server jalan dan Playwright):
 
@@ -175,7 +195,7 @@ npm run test:e2e
 ## Yang perlu dilakukan sebelum peluncuran
 
 - Uji push di HP Android dan iPhone sungguhan setelah deploy HTTPS.
-- Uji Midtrans sandbox dari awal sampai akhir, lalu ganti ke kunci produksi.
+- Uji QRIS ZePay dengan kunci mode uji dari awal sampai akhir, lalu ganti ke kunci live dan bayar satu paket kecil sungguhan.
 - Cek merek "Kampung Bulu" di PDKI, atau pilih nama final.
 - Halaman Kebijakan Privasi dan Syarat Layanan (wajib untuk login Google/Facebook dan pembayaran).
 - Uji beban (mis. k6) dengan target DAU awal, lalu atur `PG_POOL_MAX` dan jumlah instance.

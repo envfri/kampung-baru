@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Db } from '../db/index';
 import { config } from '../config';
+import { zepayMode } from '../lib/zepay';
 import { bad, forbidden, getSettings, sha256, track, HttpError } from '../lib/core';
 import { createSession, createUser, destroySession, loadUser, requireUser } from '../lib/auth';
 import { playerState } from '../lib/state';
@@ -47,6 +48,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
         facebook: f.facebookLogin && config.facebookAppId ? config.facebookAppId : null,
       },
       payments: f.payments ? config.paymentProvider : null,
+      paymentsTest: config.paymentProvider === 'zepay' && zepayMode() === 'test',
       midtransClientKey: config.paymentProvider === 'midtrans' ? config.midtransClientKey : null,
       midtransProduction: config.midtransProduction,
     };

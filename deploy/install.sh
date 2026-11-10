@@ -60,8 +60,13 @@ ADMIN_PASSWORD=$ADMIN_PW
 GOOGLE_CLIENT_ID=
 SMTP_URL=
 MAIL_FROM=Kampung Bulu <noreply@$DOMAIN>
-# PERHATIAN: mock = pembelian Mutiara simulasi (gratis). Ganti ke midtrans + isi kunci sebelum dibuka untuk umum.
+# PERHATIAN: mock = pembelian Mutiara simulasi (gratis). Sebelum dibuka untuk umum: ganti ke zepay,
+# isi kunci ZePay, docker compose up -d, lalu daftarkan webhook dari admin → Pembayaran.
 PAYMENT_PROVIDER=mock
+ZEPAY_KEY_ID=
+ZEPAY_SECRET=
+ZEPAY_WEBHOOK_SECRET=
+ZEPAY_EXPIRES_MINUTES=30
 MIDTRANS_SERVER_KEY=
 MIDTRANS_CLIENT_KEY=
 MIDTRANS_PRODUCTION=false

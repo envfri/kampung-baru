@@ -21,8 +21,13 @@ export const config = {
   facebookAppSecret: env.FACEBOOK_APP_SECRET ?? '',
   smtpUrl: env.SMTP_URL ?? '',
   mailFrom: env.MAIL_FROM ?? 'Kampung Bulu <noreply@kampungbulu.local>',
-  // pembayaran: mock | midtrans
-  paymentProvider: (env.PAYMENT_PROVIDER ?? (env.NODE_ENV === 'production' ? 'midtrans' : 'mock')) as 'mock' | 'midtrans',
+  // pembayaran: zepay (QRIS) | midtrans | mock
+  paymentProvider: (env.PAYMENT_PROVIDER ?? (env.NODE_ENV === 'production' ? 'zepay' : 'mock')) as 'mock' | 'midtrans' | 'zepay',
+  zepayBaseUrl: (env.ZEPAY_BASE_URL ?? 'https://payment.envfri.com').replace(/\/$/, ''),
+  zepayKeyId: env.ZEPAY_KEY_ID ?? '',
+  zepaySecret: env.ZEPAY_SECRET ?? '',
+  zepayWebhookSecret: env.ZEPAY_WEBHOOK_SECRET ?? '',
+  zepayExpiresMinutes: Math.min(1440, Math.max(5, Number(env.ZEPAY_EXPIRES_MINUTES ?? 30) || 30)),
   midtransServerKey: env.MIDTRANS_SERVER_KEY ?? '',
   midtransClientKey: env.MIDTRANS_CLIENT_KEY ?? '',
   midtransProduction: env.MIDTRANS_PRODUCTION === 'true',
