@@ -110,6 +110,10 @@ Pass   : $ADMIN_PASSWORD   (simpan, lalu ganti di menu Akun saya)
 
 DNS    : buat A record  $DOMAIN  ->  $IP
          HTTPS aktif otomatis beberapa menit setelah DNS mengarah ke VPS ini.
+Webhook: semua URL (ZePay, Klik Flow, Mailketing, Google) ada di
+         admin -> Integrasi & URL  dan di file INTEGRASI.md
+         ZePay   : https://$DOMAIN/api/payments/zepay/webhook
+         WhatsApp: https://$DOMAIN/api/wa/klikflow/webhook
 Update : bash deploy/update.sh
 Log    : docker compose logs -f app
 ===========================================================

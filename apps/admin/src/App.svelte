@@ -24,6 +24,7 @@
   import NotifyCenter from './pages/NotifyCenter.svelte';
   import WhatsApp from './pages/WhatsApp.svelte';
   import Versions from './pages/Versions.svelte';
+  import Integrations from './pages/Integrations.svelte';
   import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
@@ -51,6 +52,7 @@
     ] },
     { group: 'Sistem', items: [
       { k: 'audit', label: 'Log audit', min: 'admin', C: Audit },
+      { k: 'integrations', label: 'Integrasi & URL', min: 'admin', C: Integrations },
       { k: 'versions', label: 'Versi & changelog', min: 'moderator', C: Versions },
       { k: 'admins', label: 'Admin', min: 'owner', C: Admins },
       { k: 'account', label: 'Akun saya', min: 'moderator', C: Account },

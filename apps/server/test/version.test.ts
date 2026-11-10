@@ -66,3 +66,25 @@ test('versi: /api/version publik, info sistem admin, riwayat deploy tidak ganda'
   assert.equal(await recordDeploy(db), false);
   assert.equal((await db.one(`select count(*)::int c from deploys`)).c, 1);
 });
+
+test('integrasi: semua URL webhook dari PUBLIC_URL, hanya untuk admin', async () => {
+  const login = await app.inject({ method: 'POST', url: '/api/admin/login', payload: { email: 'owner@test.local', password: 'rahasia-sekali-123' } });
+  const cookie = String(login.headers['set-cookie']).split(';')[0];
+  const r = await app.inject({ method: 'GET', url: '/api/admin/integrations', headers: { cookie } });
+  assert.equal(r.statusCode, 200);
+  const d = JSON.parse(r.body);
+  const url = (key: string) => d.items.find((i: any) => i.key === key).urls[0].url as string;
+  assert.equal(url('zepay'), `${config.publicUrl}/api/payments/zepay/webhook`);
+  assert.equal(url('klikflow'), `${config.publicUrl}/api/wa/klikflow/webhook`);
+  assert.match(url('mailketing'), /\/api\/email\/mailketing\/[\w-]{32}$/);
+  assert.equal(url('midtrans'), `${config.publicUrl}/api/payments/midtrans/notify`);
+  assert.equal(url('google'), config.publicUrl);
+  // URL webhook Mailketing yang tercantum benar-benar diterima server
+  const hook = url('mailketing').replace(config.publicUrl, '');
+  assert.equal((await app.inject({ method: 'POST', url: hook, payload: { type: 'emailopen', email: 'x@contoh.id' } })).statusCode, 200);
+  // moderator tidak boleh melihat (URL Mailketing memuat kunci rahasia)
+  await app.inject({ method: 'POST', url: '/api/admin/admins', headers: { cookie }, payload: { email: 'mod9@test.local', password: 'moderator-123', role: 'moderator' } });
+  const m = await app.inject({ method: 'POST', url: '/api/admin/login', payload: { email: 'mod9@test.local', password: 'moderator-123' } });
+  const mc = String(m.headers['set-cookie']).split(';')[0];
+  assert.equal((await app.inject({ method: 'GET', url: '/api/admin/integrations', headers: { cookie: mc } })).statusCode, 403);
+});

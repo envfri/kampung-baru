@@ -4,6 +4,17 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.10.0 · 2026-11-10 · Integrasi & URL webhook
+
+### Baru
+
+- Admin → Integrasi & URL: semua URL yang perlu didaftarkan (webhook ZePay, Klik Flow, Mailketing, Midtrans; origin login Google/Facebook; health check), status tiap layanan, variabel .env, tempat menempelkan, tombol salin, dan ringkasan teks untuk dibagikan.
+- INTEGRASI.md di repo: daftar URL untuk domain produksi amt.ai.id dan langkah setiap layanan.
+
+### Perubahan
+
+- install.sh menampilkan URL webhook utama di ringkasan akhir instalasi.
+
 ## 0.9.0 · 2026-11-10 · Halaman versi & changelog
 
 _Sekarang kamu bisa melihat apa saja yang baru di setiap pembaruan._
@@ -19,6 +30,8 @@ _Sekarang kamu bisa melihat apa saja yang baru di setiap pembaruan._
 
 - Commit Git ikut tercetak di build (install.sh dan update.sh mengirim GIT_SHA ke Docker).
 - CHANGELOG.md di repo dibuat dari data yang sama (npm run changelog); uji gagal bila versi tidak sinkron.
+
+Commit: [`01aff52`](https://github.com/envfri/kampung-baru/commit/01aff52)
 
 ## 0.8.1 · 2026-11-10 · Perbaikan sebelum instalasi
 

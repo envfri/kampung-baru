@@ -80,7 +80,7 @@ Yang bisa diatur tanpa deploy:
 - **Peta & toko**: nama, posisi, warna bangunan, tampil/sembunyi, toko yang membeli barang pemain.
 - **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran ruangan, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
 - **Notifikasi**: kirim sekarang atau jadwalkan ke semua pemain, yang aktif 7 hari, yang tidak aktif, pembeli, atau tamu.
-- **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Versi & changelog**, **Admin**.
+- **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Integrasi & URL**, **Versi & changelog**, **Admin**.
 
 Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server), lalu disimpan di HP pemain untuk dipakai offline.
 
@@ -100,6 +100,20 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 - **Google**: buat OAuth Client ID tipe Web di Google Cloud Console. Isi Authorized JavaScript origins dengan domain game, lalu isi `GOOGLE_CLIENT_ID`.
 - **Email OTP**: dikirim lewat Mailketing, lihat bagian Email di bawah.
 - **Facebook** (opsional): isi `FACEBOOK_APP_ID` dan `FACEBOOK_APP_SECRET`. Sistem teman tetap memakai kode/link, karena Facebook hanya memberi daftar teman yang juga memakai aplikasi.
+
+## Integrasi & URL webhook
+
+Semua URL yang perlu didaftarkan di layanan luar (webhook ZePay, Klik Flow, Mailketing, Midtrans; origin login Google/Facebook; health check) ada di:
+
+- **[INTEGRASI.md](INTEGRASI.md)**: sudah terisi untuk `amt.ai.id`, lengkap dengan variabel `.env` per layanan dan tempat menempelkannya.
+- **Admin → Integrasi & URL**: dibuat dari `PUBLIC_URL` yang sedang berjalan, dengan status tiap layanan, tombol salin, event terakhir yang diterima, dan URL webhook Mailketing yang memuat kunci rahasia.
+
+| Webhook | URL |
+|---|---|
+| ZePay (QRIS) | `https://<domain>/api/payments/zepay/webhook` |
+| Klik Flow (WhatsApp) | `https://<domain>/api/wa/klikflow/webhook` |
+| Mailketing (bounce & unsubscribe) | `https://<domain>/api/email/mailketing/<kunci>` (lihat admin) |
+| Midtrans (alternatif) | `https://<domain>/api/payments/midtrans/notify` |
 
 ## Notifikasi: Pusat notifikasi, email & WhatsApp
 
