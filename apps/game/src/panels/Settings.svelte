@@ -5,6 +5,7 @@
   import { G, run, toast, fail, track } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { getPrefs, setPref } from '../lib/sfx';
+  import { APP_VERSION } from '@kb/shared';
   import { pushStatus, enablePush, disablePush, type PushStatus } from '../lib/push';
 
   let prefs = $state(getPrefs());
@@ -164,6 +165,12 @@
   </section>
 
   <section>
+    <h3>Tentang</h3>
+    <p class="muted">Kampung Bulu versi {APP_VERSION}</p>
+    <button class="btn" class:hot={!!G.whatsNew} onclick={() => (G.sheet = 'whatsnew')}>Apa yang baru{#if G.whatsNew} <span class="newdot" aria-label="ada pembaruan"></span>{/if}</button>
+  </section>
+
+  <section>
     <button class="btn block" onclick={logout}>Keluar</button>
     {#if G.me.user.is_guest}<p class="muted small">Keluar dari akun tamu akan menghilangkan progres. Sambungkan akun dulu.</p>{/if}
     <button class="link" onclick={() => (showDel = !showDel)}>Hapus akun</button>
@@ -183,6 +190,7 @@
   p { margin: 0; font-weight: 600; }
   .warn { background: #FBEFD2; border-radius: 10px; padding: 8px 10px; }
   .muted { color: var(--muted); } .small { font-size: 13px; }
+  .newdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #E0583F; margin-left: 4px; }
   .wa { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
   .wa .row input { flex: 1; min-width: 0; }
   form { display: flex; flex-direction: column; gap: 4px; }

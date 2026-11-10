@@ -84,6 +84,7 @@ else
 fi
 
 echo "==> 5/6 Build & jalankan (5–10 menit pertama kali)"
+export GIT_SHA="$(git -c safe.directory='*' rev-parse --short HEAD 2>/dev/null || true)"
 docker compose up -d --build
 for i in $(seq 1 60); do
   if docker compose exec -T app wget -qO- http://127.0.0.1:8787/healthz >/dev/null 2>&1; then OK=1; break; fi

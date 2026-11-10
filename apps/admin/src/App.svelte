@@ -23,6 +23,8 @@
   import Email from './pages/Email.svelte';
   import NotifyCenter from './pages/NotifyCenter.svelte';
   import WhatsApp from './pages/WhatsApp.svelte';
+  import Versions from './pages/Versions.svelte';
+  import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
     { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', min: 'moderator', C: Dashboard }] },
@@ -49,6 +51,7 @@
     ] },
     { group: 'Sistem', items: [
       { k: 'audit', label: 'Log audit', min: 'admin', C: Audit },
+      { k: 'versions', label: 'Versi & changelog', min: 'moderator', C: Versions },
       { k: 'admins', label: 'Admin', min: 'owner', C: Admins },
       { k: 'account', label: 'Akun saya', min: 'moderator', C: Account },
     ] },
@@ -87,6 +90,7 @@
       <div class="me">
         <span>{A.me.admin.email}</span>
         <span class="chip mute">{A.me.admin.role}</span>
+        <a class="ver" href="#versions" title="Versi & changelog">v{APP_VERSION}</a>
         <button class="btn sm" onclick={logout}>Keluar</button>
       </div>
     </aside>
@@ -121,4 +125,6 @@
     main { padding: 12px 14px 60px; }
     .mobile { display: flex; justify-content: space-between; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 6px 0; }
   }
+  .me .ver { color: #B9C0D6; font: 600 12px var(--mono); text-decoration: none; }
+  .me .ver:hover { color: #fff; text-decoration: underline; }
 </style>

@@ -20,6 +20,8 @@ import minigameRoutes from './routes/minigames';
 import emailRoutes from './routes/email';
 import waRoutes from './routes/wa';
 import notifyCenterRoutes from './routes/notify-center';
+import systemRoutes from './routes/system';
+import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
 import { initPush } from './lib/push';
@@ -47,6 +49,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPacks(db)) app.log.info('Paket konten v2 (aksesori, mebel, makanan, ikan) ditambahkan');
   if (await seedPackV3(db)) app.log.info('Paket konten v3 (Balai Main, hadiah event) ditambahkan');
   await migrateNotifySettings(db);
+  if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
   setTrackHook(async (d, u, n, p) => { await questEvent(d, u, n, p); await eventPoints(d, u, n, p); });
   await ensureAdmin(db, app.log);
   await initPush(db);
@@ -108,6 +111,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(emailRoutes, { db });
   await app.register(waRoutes, { db });
   await app.register(notifyCenterRoutes, { db });
+  await app.register(systemRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

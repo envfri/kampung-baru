@@ -8,6 +8,9 @@ COPY apps/game/package.json apps/game/
 COPY apps/admin/package.json apps/admin/
 RUN npm ci --no-audit --no-fund
 COPY . .
+# commit Git untuk halaman Versi & changelog (dikirim install.sh/update.sh)
+ARG GIT_SHA=
+ENV GIT_SHA=$GIT_SHA
 RUN npm run build
 
 # --- runtime ---

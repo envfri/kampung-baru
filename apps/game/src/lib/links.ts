@@ -22,6 +22,7 @@ export function openLink(url: string) {
     case 'bag': G.view = 'home'; G.sheet = 'bag'; break;
     case 'wardrobe': G.view = 'home'; G.sheet = 'wardrobe'; break;
     case 'event': G.view = 'home'; G.sheet = 'event'; break;
+    case 'whatsnew': G.view = 'home'; G.sheet = 'whatsnew'; break;
     case 'games': G.view = 'map'; G.sheet = 'games'; break;
     case 'panen': G.view = 'panen'; break;
     case 'memori': G.view = 'memori'; break;

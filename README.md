@@ -80,7 +80,7 @@ Yang bisa diatur tanpa deploy:
 - **Peta & toko**: nama, posisi, warna bangunan, tampil/sembunyi, toko yang membeli barang pemain.
 - **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran ruangan, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
 - **Notifikasi**: kirim sekarang atau jadwalkan ke semua pemain, yang aktif 7 hari, yang tidak aktif, pembeli, atau tamu.
-- **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Admin**.
+- **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Versi & changelog**, **Admin**.
 
 Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server), lalu disimpan di HP pemain untuk dipakai offline.
 
@@ -205,13 +205,29 @@ sudo bash deploy/install.sh amt.ai.id
 - Ubah konfigurasi (Google, Mailketing, Klik Flow, ZePay): edit `.env`, lalu `docker compose up -d`
 - Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
 
+## Versi & changelog
+
+- Versi mengikuti semver: fitur baru menaikkan MINOR (0.8.0 → 0.9.0), perbaikan menaikkan PATCH (0.8.0 → 0.8.1); 1.0.0 untuk peluncuran publik.
+- Sumber tunggal: `packages/shared/src/changelog.ts`. Dari sana dibuat [CHANGELOG.md](CHANGELOG.md), halaman admin **Versi & changelog**, dan menu **Apa yang baru** di game (hanya item bertanda `player: true`).
+- Admin → **Versi & changelog**: versi yang berjalan, commit Git, waktu build, uptime, versi database & migrasi, penyedia (pembayaran/email/WhatsApp/push), **riwayat deploy** (dicatat otomatis tiap versi/commit baru berjalan), dan changelog dengan pencarian & filter.
+- `GET /api/version` (publik) memberi versi, commit, waktu build, dan waktu server mulai. Berguna untuk memastikan update sudah terpasang.
+- Pemain yang sudah pernah main mendapat kabar singkat dan titik merah di Pengaturan setelah game diperbarui (sekali per versi).
+
+Merilis versi baru:
+
+1. Tambahkan entri paling atas di `packages/shared/src/changelog.ts` (tanggal, judul, item `baru`/`ubah`/`perbaikan`/`keamanan`; tandai `player: true` untuk yang perlu tahu pemain, dengan bahasa pemain).
+2. Samakan `"version"` di `package.json` root.
+3. `npm run changelog` untuk menulis ulang `CHANGELOG.md`.
+4. Commit & push. `npm test` gagal bila versi atau `CHANGELOG.md` belum sinkron.
+5. Di VPS: `bash deploy/update.sh` (commit ikut tercetak di build dan tercatat di riwayat deploy).
+
 ## Pengujian
 
 ```bash
 npm test
 ```
 
-43 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), email Mailketing terhadap server Mailketing tiruan (kode masuk, notifikasi & escape isi, berhenti langganan, jenis & batas harian, broadcast email, webhook bounce, kredit habis & kirim ulang), Pusat notifikasi (matikan/ubah teks/saluran/reset, migrasi saklar lama, kunci login), WhatsApp Klik Flow terhadap server tiruan (verifikasi nomor, kunci tes, template Official & OTP, jam tenang, batas harian, nomor dijeda, webhook bertanda tangan, STOP/MULAI, status gagal, broadcast), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
+47 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), email Mailketing terhadap server Mailketing tiruan (kode masuk, notifikasi & escape isi, berhenti langganan, jenis & batas harian, broadcast email, webhook bounce, kredit habis & kirim ulang), Pusat notifikasi (matikan/ubah teks/saluran/reset, migrasi saklar lama, kunci login), WhatsApp Klik Flow terhadap server tiruan (verifikasi nomor, kunci tes, template Official & OTP, jam tenang, batas harian, nomor dijeda, webhook bertanda tangan, STOP/MULAI, status gagal, broadcast), versi & changelog (urutan versi, sinkron package.json/CHANGELOG.md, /api/version, riwayat deploy), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
 
 Uji alur di viewport HP (butuh server jalan dan Playwright):
 

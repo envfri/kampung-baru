@@ -5,3 +5,4 @@ export * from './quests';
 export * from './events';
 export * from './games';
 export * from './notify';
+export * from './changelog';

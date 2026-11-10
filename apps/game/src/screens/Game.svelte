@@ -26,6 +26,8 @@
   import Wardrobe from '../panels/Wardrobe.svelte';
   import Games from '../panels/Games.svelte';
   import EventPanel from '../panels/Event.svelte';
+  import WhatsNew from '../panels/WhatsNew.svelte';
+  import { checkWhatsNew } from '../lib/whatsnew';
   import Panen from '../scenes/Panen.svelte';
   import Memori from '../scenes/Memori.svelte';
   import QuestChip from '../components/QuestChip.svelte';
@@ -86,6 +88,7 @@
     track('session_start', { standalone: matchMedia('(display-mode: standalone)').matches });
     const seen = (() => { try { return JSON.parse(localStorage.getItem('kb-news-seen') ?? '[]'); } catch { return []; } })();
     syncPush();
+    checkWhatsNew();
     // dibuka dari notifikasi / tautan (mis. /#garden)
     const initialHash = location.hash;
     if (initialHash.length > 1) { history.replaceState(null, '', location.pathname + location.search); openLink('/' + initialHash); }
@@ -196,6 +199,7 @@
   {:else if G.sheet === 'wardrobe'}<Wardrobe />
   {:else if G.sheet === 'games'}<Games />
   {:else if G.sheet === 'event'}<EventPanel />
+  {:else if G.sheet === 'whatsnew'}<WhatsNew />
   {/if}
 </div>
 

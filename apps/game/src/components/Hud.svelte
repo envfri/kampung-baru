@@ -25,7 +25,7 @@
       <button class="tool" onclick={() => (G.sheet = 'notifs')} aria-label="Notifikasi{G.me.notificationsUnread ? `, ${G.me.notificationsUnread} belum dibaca` : ''}">{@html I.bell}{#if G.me.notificationsUnread}<span class="cnt">{G.me.notificationsUnread > 9 ? '9+' : G.me.notificationsUnread}</span>{/if}</button>
       <button class="tool" onclick={() => (G.sheet = 'news')} aria-label="Kabar kampung">{@html I.news}</button>
       <button class="tool" onclick={() => (G.sheet = 'daily')} aria-label="Hadiah harian">{@html I.calendar}{#if !G.me.daily.claimedToday}<span class="dot"></span>{/if}</button>
-      <button class="tool" onclick={() => (G.sheet = 'settings')} aria-label="Pengaturan">{@html I.gear}</button>
+      <button class="tool" onclick={() => (G.sheet = 'settings')} aria-label={G.whatsNew ? 'Pengaturan, ada yang baru' : 'Pengaturan'}>{@html I.gear}{#if G.whatsNew}<span class="dot"></span>{/if}</button>
     </div>
   </div>
 </div>

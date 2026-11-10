@@ -5,7 +5,7 @@ import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
 export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori';
-export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event';
+export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -43,6 +43,8 @@ export const G = $state({
   portrait: typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth,
   fx: 0,
   fxKind: 'hearts' as 'hearts' | 'bubbles' | 'coins' | 'zz' | 'food',
+  /** versi terakhir yang dilihat pemain bila ada pembaruan yang belum dibuka */
+  whatsNew: null as string | null,
 });
 
 let itemsCache: { v: string; map: Map<string, CatalogItem> } | null = null;
