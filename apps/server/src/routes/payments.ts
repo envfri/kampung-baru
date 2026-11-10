@@ -27,13 +27,20 @@ const qrisView = (p: QrRow) => ({
   test: zepayMode() === 'test',
 });
 
-// batasi cek status ke ZePay saat game memeriksa pembayaran berulang-ulang
+// Batasi cek status ke ZePay saat game memeriksa pembayaran berulang-ulang.
+// ZePay membatasi 60 request/menit per kunci API: cek status memakai paling banyak 30,
+// sisanya untuk membuat QR baru, pembatalan, dan worker.
 const lastSync = new Map<string, number>();
+const recent: number[] = [];
+const SYNC_PER_MINUTE = 30;
 function syncDue(id: string, everyMs = 8_000) {
   const now = Date.now();
   if (now - (lastSync.get(id) ?? 0) < everyMs) return false;
+  while (recent.length && now - recent[0] > 60_000) recent.shift();
+  if (recent.length >= SYNC_PER_MINUTE) return false;
   if (lastSync.size > 5_000) lastSync.clear();
   lastSync.set(id, now);
+  recent.push(now);
   return true;
 }
 

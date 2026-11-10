@@ -90,7 +90,7 @@ export async function paymentJobs(db: Db, log?: any) {
       where provider = 'zepay' and status = 'pending' and provider_ref is not null
         and expires_at < now() - interval '3 minutes' and created_at > now() - interval '3 days'
         and (synced_at is null or synced_at < now() - interval '10 minutes')
-      order by expires_at limit 20`,
+      order by expires_at limit 8`,
   );
   let synced = 0;
   for (const r of due) {
