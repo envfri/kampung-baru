@@ -54,6 +54,13 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .muted { color: var(--muted); }
 .coin-ic, .pearl-ic { width: 20px; height: 20px; flex: none; display: inline-block; vertical-align: -4px; }
 
+/* deret kategori (Tas, Toko, Lemari): di HP digeser, di layar dengan mouse dibungkus ke baris baru supaya semua terlihat */
+.tabbar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; flex-shrink: 0; }
+.tabbar::-webkit-scrollbar { display: none; }
+.tabbar > button { flex: none; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); border-radius: 12px; padding: 5px 12px; font-weight: 700; font-size: 14.5px; cursor: pointer; min-height: 38px; }
+.tabbar > button.on { background: var(--ink); color: var(--paper); }
+@media (hover: hover) and (pointer: fine) { .tabbar { flex-wrap: wrap; overflow: visible; } }
+
 /* hewan & efek di dalam SVG */
 .pet { cursor: pointer; }
 .pet-bob { animation: bob 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }

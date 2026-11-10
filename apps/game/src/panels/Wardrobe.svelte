@@ -39,7 +39,7 @@
     <div class="who"><b>{pet.name}</b><span>Lv {pet.level}</span></div>
   </div>
 
-  <div class="tabs" role="tablist">
+  <div class="tabbar" role="tablist">
     {#each TABS as [k, l]}<button role="tab" aria-selected={tab === k} class:on={tab === k} onclick={() => (tab = k)}>{l}</button>{/each}
   </div>
 
@@ -94,9 +94,6 @@
   .pv :global(svg) { width: 100%; height: 100%; overflow: visible; }
   .who { display: flex; flex-direction: column; }
   .who b { font-size: 22px; } .who span { font-weight: 700; color: var(--muted); }
-  .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
-  .tabs button { flex: none; border: 2px solid var(--ink); background: var(--paper); border-radius: 12px; padding: 5px 12px; font-weight: 700; font-size: 14.5px; cursor: pointer; min-height: 38px; }
-  .tabs button.on { background: var(--ink); color: var(--paper); }
   .swatches { display: flex; flex-wrap: wrap; gap: 12px; }
   .sw { width: 42px; height: 42px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--c); cursor: pointer; padding: 0; }
   .sw.on { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }

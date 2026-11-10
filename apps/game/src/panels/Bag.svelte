@@ -72,7 +72,7 @@
 
 <Sheet title={feedOnly ? `Beri makan ${G.me.pet.name}` : 'Tas'}>
   {#if !feedOnly}
-    <div class="tabs" role="tablist">
+    <div class="tabbar" role="tablist">
       {#each TABS as t}<button role="tab" aria-selected={G.bagTab === t.k} class:on={G.bagTab === t.k} onclick={() => (G.bagTab = t.k)}>{t.label}</button>{/each}
     </div>
   {/if}
@@ -115,9 +115,6 @@
 </Sheet>
 
 <style>
-  .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
-  .tabs button { flex: none; border: 2px solid var(--ink); background: var(--paper); border-radius: 12px; padding: 5px 12px; font-weight: 700; font-size: 14.5px; cursor: pointer; min-height: 38px; }
-  .tabs button.on { background: var(--ink); color: var(--paper); }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
   .empty { margin: 0; font-weight: 600; color: var(--muted); }
   .wardrobe { background: #ECE6F6; }

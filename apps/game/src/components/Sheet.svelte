@@ -38,7 +38,8 @@
   .body > :global(*) { flex-shrink: 0; }
   .body { overflow-y: auto; padding: 14px 14px 20px; display: flex; flex-direction: column; gap: 14px; overscroll-behavior: contain; padding-left: max(14px, var(--safe-l)); padding-right: max(14px, var(--safe-r)); }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
-    .sheet { left: auto; right: 14px; top: 14px; bottom: 14px; width: 440px; max-height: none; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); animation: slide .25s ease-out; padding-bottom: 0; }
+    /* mulai di bawah HUD supaya koin & Mutiara tetap terlihat saat panel terbuka */
+    .sheet { left: auto; right: 14px; top: calc(var(--safe-t) + 108px); bottom: 14px; width: 440px; max-height: none; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); animation: slide .25s ease-out; padding-bottom: 0; }
     header { border-radius: 19px 19px 0 0; cursor: default; }
     .grip { display: none; }
     .backdrop { background: rgba(43, 47, 74, .12); }

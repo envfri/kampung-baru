@@ -37,13 +37,24 @@
       sfx.tap();
     } catch (e) { fail(e); }
   }
-  async function share() {
-    const text = `Main BUPI bareng aku! Kode temanku ${myCode}. ${link}`;
-    track('share_invite');
-    if (navigator.share) { try { await navigator.share({ title: 'BUPI', text, url: link }); return; } catch { /* batal */ } }
-    try { await navigator.clipboard.writeText(text); toast('Link undangan disalin', 'good'); } catch { toast(link); }
+  const inviteText = $derived(`Main BUPI bareng aku! Kode temanku ${myCode}. ${link}`);
+  // Di HP pakai menu bagikan bawaan. Link ditaruh di dalam teks (bukan field url terpisah) karena beberapa
+  // aplikasi/OS hanya menyalin salah satunya; di desktop langsung salin teks + link lengkap.
+  const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  let linkEl: HTMLInputElement | undefined = $state();
+  async function copy(text: string, msg: string) {
+    try { await navigator.clipboard.writeText(text); toast(msg, 'good'); }
+    catch { linkEl?.focus(); linkEl?.select(); toast('Salin manual dari kotak link di atas.'); }
   }
-  const wa = $derived(`https://wa.me/?text=${encodeURIComponent(`Main BUPI bareng aku! Kode temanku ${myCode}. ${link}`)}`);
+  async function share() {
+    track('share_invite');
+    if (touch && navigator.share) {
+      try { await navigator.share({ title: 'BUPI', text: inviteText }); return; }
+      catch (e) { if ((e as any)?.name === 'AbortError') return; }
+    }
+    await copy(inviteText, 'Ajakan + link undangan disalin. Tinggal tempel ke teman.');
+  }
+  const wa = $derived(`https://wa.me/?text=${encodeURIComponent(inviteText)}`);
   async function open(g: any) {
     const r: any = await run(() => api.post(`/api/gifts/${g.id}/open`));
     if (r) { sfx.level(); toast(`Dapat ${item(r.itemId)?.name ?? 'hadiah'}!`, 'good'); g.opened_at = new Date().toISOString(); G.me.giftsUnread = Math.max(0, G.me.giftsUnread - 1); }
@@ -57,6 +68,10 @@
     <div class="row">
       <a class="btn sm wa" href={wa} target="_blank" rel="noopener" onclick={() => track('share_invite', { via: 'wa' })}>WhatsApp</a>
       <button class="btn sm" onclick={share}>{@html I.share} Bagikan</button>
+    </div>
+    <div class="link">
+      <input class="input" readonly value={link} bind:this={linkEl} aria-label="Link undangan" onfocus={(e) => (e.target as HTMLInputElement).select()} />
+      <button class="btn sm" onclick={() => copy(link, 'Link undangan disalin')}>Salin link</button>
     </div>
   </div>
   <form class="add" onsubmit={add}>
@@ -117,6 +132,8 @@
   .mycode b { font-size: 22px; letter-spacing: 1px; -webkit-user-select: text; user-select: text; }
   .row { display: flex; gap: 6px; }
   .wa { background: #BFEBCB; text-decoration: none; color: var(--ink); }
+  .link { flex: 1 1 100%; display: flex; gap: 6px; }
+  .link .input { flex: 1; min-width: 0; font-size: 13.5px; min-height: 36px; padding: 4px 10px; border-width: 2px; background: var(--paper); }
   .add { display: flex; gap: 8px; }
   .add .input { flex: 1; min-width: 0; text-transform: uppercase; }
   .add .input::placeholder { text-transform: none; }

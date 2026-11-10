@@ -60,4 +60,6 @@
   .cnt { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; border-radius: 10px; background: var(--low); color: #fff; border: 2px solid var(--ink); font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 3px; }
   .dot { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--low); border: 2px solid var(--ink); }
   @media (max-width: 380px) { .xp { width: 84px; } .mood { display: none; } .pill { font-size: 14.5px; } }
+  /* layar lebar: HUD tetap di atas panel samping (panel dimulai di bawahnya) */
+  @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .hud { z-index: 42; } }
 </style>

@@ -2,7 +2,7 @@
   import { PET_COLORS, PET_PARTS, petSVG } from '@kb/shared';
   const EARS = PET_PARTS.ear.filter((p) => p[2] <= 1);
   import { G, setState, toast, fail, track } from '../lib/game.svelte';
-  import { api } from '../lib/api';
+  import { api, ApiError } from '../lib/api';
   import { sfx } from '../lib/sfx';
 
   let name = $state('');
@@ -11,12 +11,25 @@
   let ear = $state('tunas');
   let busy = $state(false);
   const SUGGEST = ['Mochi', 'Onde', 'Cilok', 'Serabi', 'Kopi', 'Tempe', 'Gendhis', 'Getuk'];
+  const A1 = ['Si', 'Mbak', 'Mas', 'Dek', 'Kak', 'Bang', 'Neng', 'Om'];
+  const A2 = ['Bulbul', 'Gembul', 'Pentol', 'Cimol', 'Rengginang', 'Kerupuk', 'Mendoan', 'Wedang', 'Bakpia', 'Lemper', 'Dodol', 'Putu'];
+  const roll = () => { name = `${A1[Math.floor(Math.random() * A1.length)]} ${A2[Math.floor(Math.random() * A2.length)]}`.slice(0, 16); sfx.tap(); };
+  // nama ketik bebas: matikan isi-otomatis browser & pengelola sandi (yang bisa muncul dan meminta "login")
+  const NOFILL = { autocomplete: 'off', 'data-1p-ignore': '', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other' };
 
   async function submit(e: Event) {
     e.preventDefault();
     busy = true;
     try {
-      const r = await api.post('/api/pet', { name, color, ear, ownerName: owner || undefined });
+      const body = { name: name.trim(), color, ear, ownerName: owner.trim() || undefined };
+      let r: any;
+      try { r = await api.post('/api/pet', body); }
+      catch (x) {
+        // sesi tamu hilang (cookie terhapus/kedaluwarsa) sebelum pet dibuat: buat sesi baru lalu coba sekali lagi
+        if (!(x instanceof ApiError) || x.status !== 401 || G.config?.login?.guest === false) throw x;
+        await api.post('/api/auth/guest');
+        r = await api.post('/api/pet', body);
+      }
       setState(r.state);
       sfx.level();
       toast(`Selamat datang, ${name}!`, 'good');
@@ -33,14 +46,15 @@
 <main class="setup">
   <h1>Kenalan dulu, yuk</h1>
   <div class="preview">{@html petSVG({ color, ear }, [], 'pet-bob')}</div>
-  <form onsubmit={submit}>
+  <form onsubmit={submit} autocomplete="off" data-form-type="other">
     <label for="pet-name">Nama pet</label>
-    <input id="pet-name" class="input" maxlength="16" required bind:value={name} placeholder="Misalnya Mochi" autocomplete="off" />
+    <input id="pet-name" name="bupi-pet" class="input" maxlength="16" required bind:value={name} placeholder="Ketik nama bebas, mis. Mochi" {...NOFILL} />
     <div class="chips">
+      <button type="button" class="chip dice" onclick={roll}>Acak</button>
       {#each SUGGEST as s}<button type="button" class="chip" onclick={() => (name = s)}>{s}</button>{/each}
     </div>
     <label for="owner-name">Nama kamu <span class="opt">(boleh dikosongkan)</span></label>
-    <input id="owner-name" class="input" maxlength="16" bind:value={owner} placeholder="Nama panggilan" autocomplete="nickname" />
+    <input id="owner-name" name="bupi-owner" class="input" maxlength="16" bind:value={owner} placeholder="Nama panggilan" {...NOFILL} />
     <span class="lbl">Warna bulu</span>
     <div class="swatches">
       {#each PET_COLORS as c}
@@ -67,6 +81,7 @@
   .opt { font-weight: 600; color: var(--muted); font-size: 13px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { border: 2px solid var(--ink); background: var(--tint); border-radius: 999px; padding: 3px 11px; font-weight: 700; font-size: 14px; cursor: pointer; min-height: 32px; }
+  .chip.dice { background: var(--coin); }
   .swatches { display: flex; flex-wrap: wrap; gap: 10px; }
   .sw { width: 40px; height: 40px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--c); cursor: pointer; padding: 0; }
   .sw.on { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }

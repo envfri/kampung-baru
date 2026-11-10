@@ -87,7 +87,7 @@ export function setState(s: any) {
 }
 
 export function fail(e: unknown) {
-  const msg = e instanceof ApiError ? e.message : 'Terjadi kesalahan. Coba lagi.';
+  const msg = e instanceof ApiError ? (e.status === 401 ? 'Sesimu berakhir. Masuk lagi untuk melanjutkan.' : e.message) : 'Terjadi kesalahan. Coba lagi.';
   sfx.error();
   toast(msg, 'error');
   if (e instanceof ApiError && e.status === 401) {

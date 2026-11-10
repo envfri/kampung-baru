@@ -40,7 +40,7 @@
 </script>
 
 <Sheet title={cur?.name ?? 'Toko'}>
-  <div class="tabs" role="tablist">
+  <div class="tabbar" role="tablist">
     {#each shops as s}
       <button role="tab" aria-selected={s.id === cur?.id} class:on={s.id === cur?.id} onclick={() => { G.shopId = s.id; tab = 'buy'; confirm = ''; }}>{s.name}</button>
     {/each}
@@ -88,9 +88,6 @@
 </Sheet>
 
 <style>
-  .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px; padding: 2px; }
-  .tabs button { flex: none; border: 2px solid var(--ink); background: var(--paper); border-radius: 12px; padding: 5px 12px; font-weight: 700; font-size: 14.5px; cursor: pointer; min-height: 38px; }
-  .tabs button.on { background: var(--ink); color: var(--paper); }
   .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
   .seg button { flex: 1; border: 0; background: var(--paper); font-weight: 800; font-size: 15px; min-height: 38px; cursor: pointer; }
   .seg button.on { background: var(--coin); }
