@@ -32,7 +32,10 @@ const cookieOpts = (maxAgeSec: number, path = '/') => ({
   path,
   httpOnly: true,
   sameSite: 'lax' as const,
-  secure: config.isProd,
+  // Secure hanya bila benar-benar disajikan lewat HTTPS. Memaksa Secure di origin http:// (mis. akses
+  // lewat IP:8787 sebelum domain siap) membuat browser membuang cookie: login tampak berhasil tetapi
+  // semua /api/* berikutnya 401 "Silakan masuk dulu". Ikuti skema PUBLIC_URL, bukan NODE_ENV.
+  secure: config.publicUrl.startsWith('https://'),
   maxAge: maxAgeSec,
 });
 

@@ -197,6 +197,7 @@ Semua perintah dijalankan dari folder `~/bupi`.
 ## 11. Masalah umum
 
 - **HTTPS belum aktif / browser memperingatkan sertifikat**: pastikan `dig +short amt.ai.id` = IP VPS, port 80 & 443 terbuka, Cloudflare dalam mode DNS only. Lihat `docker compose logs caddy`. Setelah DNS benar, sertifikat dibuat dalam beberapa menit.
+- **Login tamu berhasil tapi langsung diminta masuk lagi**: `PUBLIC_URL` di `.env` harus sama dengan alamat yang dibuka pemain. Uji tanpa domain lewat `http://IP:8787` → `PUBLIC_URL=http://IP:8787`; setelah HTTPS aktif → `PUBLIC_URL=https://domain`. Cookie sesi hanya diberi flag Secure bila `PUBLIC_URL` memakai https://.
 - **`install.sh` / `update.sh` berhenti "Server belum sehat"**: `docker compose logs app --tail 100`. Penyebab umum: isi `.env` salah ketik.
 - **Build kehabisan memori di VPS 1–2 GB**: swap dibuat otomatis oleh `install.sh`; cek `free -h`. Bila tetap gagal, tambah RAM atau jalankan ulang `update.sh`.
 - **Kode masuk email tidak sampai**: admin → Email → Kirim email uji; domain pengirim harus aktif di Mailketing → Setup Domain.

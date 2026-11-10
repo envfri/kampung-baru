@@ -4,6 +4,27 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.11.1 · 2026-11-10 · Login lewat http:// & perbaikan tampilan desktop
+
+_Masuk dan main dari browser desktop kini lebih lancar._
+
+### Baru
+
+- Saat kenalan, nama pet bisa diketik bebas atau diacak dengan tombol Acak. _(pemain)_
+
+### Perbaikan
+
+- Main tanpa daftar tidak lagi langsung diminta masuk ulang saat game dibuka lewat alamat http:// (mis. IP server sebelum domain siap). _(pemain)_
+- Di layar komputer, jumlah koin & Mutiara tetap terlihat saat Tas/Toko terbuka, dan semua kategori terlihat tanpa harus digeser. _(pemain)_
+- Bagikan undangan menyalin ajakan lengkap dengan link berisi kode teman. Ada juga tombol Salin link. _(pemain)_
+- Isi-otomatis browser/pengelola sandi dimatikan di form kenalan; sesi tamu yang hilang sebelum pet dibuat dipulihkan otomatis.
+
+### Keamanan
+
+- Cookie sesi memakai flag Secure hanya bila PUBLIC_URL https:// (sebelumnya mengikuti NODE_ENV, sehingga di http:// browser membuang cookie dan semua /api/* 401).
+
+Commit: [`aae0213`](https://github.com/envfri/kampung-baru/commit/aae0213)
+
 ## 0.11.0 · 2026-11-10 · Nama baru: BUPI
 
 _Kampung Bulu sekarang bernama BUPI! Pet-mu, rumahmu, dan teman-temanmu tetap sama._

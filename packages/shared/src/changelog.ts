@@ -39,6 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.11.1',
+    date: '2026-11-10',
+    title: 'Login lewat http:// & perbaikan tampilan desktop',
+    summary: 'Masuk dan main dari browser desktop kini lebih lancar.',
+    commits: ['aae0213'],
+    items: [
+      { kind: 'perbaikan', text: 'Main tanpa daftar tidak lagi langsung diminta masuk ulang saat game dibuka lewat alamat http:// (mis. IP server sebelum domain siap).', player: true },
+      { kind: 'perbaikan', text: 'Di layar komputer, jumlah koin & Mutiara tetap terlihat saat Tas/Toko terbuka, dan semua kategori terlihat tanpa harus digeser.', player: true },
+      { kind: 'perbaikan', text: 'Bagikan undangan menyalin ajakan lengkap dengan link berisi kode teman. Ada juga tombol Salin link.', player: true },
+      { kind: 'baru', text: 'Saat kenalan, nama pet bisa diketik bebas atau diacak dengan tombol Acak.', player: true },
+      { kind: 'keamanan', text: 'Cookie sesi memakai flag Secure hanya bila PUBLIC_URL https:// (sebelumnya mengikuti NODE_ENV, sehingga di http:// browser membuang cookie dan semua /api/* 401).' },
+      { kind: 'perbaikan', text: 'Isi-otomatis browser/pengelola sandi dimatikan di form kenalan; sesi tamu yang hilang sebelum pet dibuat dipulihkan otomatis.' },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-11-10',
     title: 'Nama baru: BUPI',
