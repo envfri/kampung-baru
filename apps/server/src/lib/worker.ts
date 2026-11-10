@@ -10,6 +10,7 @@ import { mailEnabled } from './mail';
 import { waEnabled } from './klikflow';
 import { drainOutbox } from './outbox';
 import { getTemplate } from './notify-config';
+import { settlePet, isAsleep, type PetRow } from './state';
 
 const LOCK = 7_420_011;
 
@@ -52,6 +53,7 @@ export async function runJobs(db: Db, log?: any) {
              greatest(0, p.energi  - $4::float8 * extract(epoch from now() - p.needs_at) / 3600) as energi
            from pets p join users u on u.id = p.user_id
            where u.banned_at is null and u.last_seen_at < now() - interval '30 minutes' and u.last_seen_at > now() - interval '14 days'
+             and p.sleep_from is null
              and (p.needs_notified_at is null or p.needs_notified_at < now() - ($5::int * interval '1 hour'))
          )
          select * from c where least(kenyang, bersih, ceria, energi) < $6 limit 500`,
@@ -62,6 +64,21 @@ export async function runJobs(db: Db, log?: any) {
         await t.query(`update pets set needs_notified_at = now() where user_id = $1`, [p.user_id]);
         outbox.push({ userId: p.user_id, key: `needs_${k}`, vars: {} });
       }
+    }
+
+    // 2b) pet bangun sendiri (energi penuh) & pet mulai sakit karena lama dibiarkan
+    const lifeRows = await t.query<PetRow & { offline: boolean }>(
+      `select p.*, (u.last_seen_at < now() - interval '5 minutes') as offline from pets p join users u on u.id = p.user_id
+        where u.banned_at is null and u.last_seen_at > now() - interval '14 days'
+          and (p.sleep_from is not null or p.sick_at is null)
+        order by p.needs_at limit 1500`,
+    );
+    for (const p of lifeRows) {
+      const wasAsleep = !!p.sleep_from, wasSick = !!p.sick_at;
+      if (wasAsleep && isAsleep(p, s)) continue;
+      await settlePet(t, p, s);
+      if (wasAsleep && !p.sleep_from && p.offline) outbox.push({ userId: p.user_id, key: 'pet_woke', vars: {} });
+      if (!wasSick && p.sick_at) outbox.push({ userId: p.user_id, key: 'pet_sick', vars: {} });
     }
 
     // 3) pengingat hadiah harian (sekali sehari setelah jam tertentu WIB)

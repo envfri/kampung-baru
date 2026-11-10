@@ -1,7 +1,7 @@
-import { decayNeeds, NEED_KEYS, type Needs, type Settings } from '@kb/shared';
+import { GAMES, chubOf, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { maskPhone } from './klikflow';
-import { getCatalog, getSettings, activeEvents, today, counter, type Catalog } from './core';
+import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog } from './core';
 import { questSummary } from './quests';
 
 export const J = (v: unknown) => JSON.stringify(v ?? null);
@@ -9,33 +9,115 @@ export const J = (v: unknown) => JSON.stringify(v ?? null);
 export interface PetRow {
   user_id: string; name: string; color: string; ear: string; wear: Record<string, string>;
   level: number; xp: number; kenyang: number; bersih: number; ceria: number; energi: number; needs_at: Date;
+  sleep_from: Date | null; sick_at: Date | null; weight: number; crumbs_at: Date;
+}
+
+const ms = (d: Date | null | undefined) => (d ? new Date(d).getTime() : 0);
+const stored = (p: PetRow): Needs => ({ kenyang: p.kenyang, bersih: p.bersih, ceria: p.ceria, energi: p.energi });
+const sleepRule = (s: Settings) => (s as any).sleep as { energiPerHour: number; otherDecayMult: number; maxEnergiToSleep: number; badgeMinMinutes: number };
+
+/** Kapan pet yang sedang tidur bangun sendiri (energi penuh); 0 bila tidak tidur. */
+export function petWakeAt(p: PetRow, s: Settings) {
+  return p.sleep_from ? wakeAt(p.energi, ms(p.needs_at), sleepRule(s)) : 0;
 }
 
 export function currentNeeds(p: PetRow, s: Settings, now = Date.now()): Needs {
-  const stored = { kenyang: p.kenyang, bersih: p.bersih, ceria: p.ceria, energi: p.energi };
-  return decayNeeds(stored, new Date(p.needs_at).getTime(), now, s.needs.decayPerHour);
+  return needsWithSleep(stored(p), ms(p.needs_at), now, s.needs.decayPerHour, p.sleep_from ? sleepRule(s) : null);
+}
+export const currentWeight = (p: PetRow, s: Settings, now = Date.now()) => weightNow(p.weight ?? 0, ms(p.needs_at), now, (s as any).weight);
+
+/** Sakit sekarang? (tercatat, atau baru saja melewati batas karena dibiarkan). */
+export function isSick(p: PetRow, s: Settings, now = Date.now()) {
+  if (p.sick_at) return true;
+  if (p.sleep_from && petWakeAt(p, s) > now) return false;
+  return sickOnset(currentNeeds(p, s, Math.max(ms(p.needs_at), petWakeAt(p, s))), Math.max(ms(p.needs_at), petWakeAt(p, s)), s.needs.decayPerHour, (s as any).health) <= now;
+}
+export const isAsleep = (p: PetRow, s: Settings, now = Date.now()) => !!p.sleep_from && petWakeAt(p, s) > now;
+
+/** Remah & bulu rontok di lantai saat ini. */
+export function crumbsNow(p: PetRow, s: Settings, now = Date.now()) {
+  const c = (s as any).crumbs;
+  return Math.max(0, Math.min(c.max, Math.floor((now - ms(p.crumbs_at)) / (c.everyMinutes * 60_000))));
 }
 
+/**
+ * Kunci baris pet untuk diubah. Sekalian merapikan keadaan yang berubah karena waktu:
+ * pet yang sudah waktunya bangun dibangunkan, dan pet yang dibiarkan terlalu lama ditandai sakit.
+ */
 export async function lockPet(db: Db, userId: string) {
-  return db.one<PetRow>(`select * from pets where user_id = $1 for update`, [userId]);
+  const p = await db.one<PetRow>(`select * from pets where user_id = $1 for update`, [userId]);
+  if (!p) return p;
+  const s = await getSettings(db);
+  return settlePet(db, p, s);
 }
 
-export async function savePet(db: Db, userId: string, fields: Partial<{ needs: Needs; level: number; xp: number }>) {
+export async function settlePet(db: Db, p: PetRow, s: Settings, now = Date.now()) {
+  if (p.sleep_from) {
+    const wake = petWakeAt(p, s);
+    if (wake <= now) await wakePet(db, p, s, wake);
+  }
+  if (!p.sick_at && isSick(p, s, now)) {
+    const from = Math.max(ms(p.needs_at), petWakeAt(p, s));
+    const onset = Math.min(now, sickOnset(currentNeeds(p, s, from), from, s.needs.decayPerHour, (s as any).health));
+    await db.query(`update pets set sick_at = $2 where user_id = $1`, [p.user_id, new Date(onset)]);
+    p.sick_at = new Date(onset);
+  }
+  return p;
+}
+
+/** Bangunkan pet: simpan kebutuhan saat bangun, catat tidur (untuk lencana) bila cukup lama. */
+export async function wakePet(db: Db, p: PetRow, s: Settings, at = Date.now()) {
+  const n = currentNeeds(p, s, at);
+  const w = currentWeight(p, s, at);
+  const slept = (at - ms(p.needs_at)) / 60_000;
+  await db.query(
+    `update pets set kenyang = $2, bersih = $3, ceria = $4, energi = $5, weight = $6, needs_at = $7, sleep_from = null where user_id = $1`,
+    [p.user_id, n.kenyang, n.bersih, n.ceria, n.energi, w, new Date(at)],
+  );
+  Object.assign(p, n, { weight: w, needs_at: new Date(at), sleep_from: null });
+  if (slept >= sleepRule(s).badgeMinMinutes) await track(db, p.user_id, 'sleep', { minutes: Math.round(slept) });
+  return n;
+}
+
+/** Tolak aksi yang butuh pet bangun / sehat, dengan pesan yang ramah. */
+export function assertAwake(p: PetRow, s: Settings) {
+  if (isAsleep(p, s)) throw bad('asleep', `${p.name} sedang tidur. Bangunkan dulu, ya.`);
+}
+export function assertHealthy(p: PetRow, s: Settings) {
+  if (isSick(p, s)) throw bad('sick', `${p.name} lagi kurang enak badan. Kasih jamu dulu, ya.`);
+}
+
+export async function savePet(db: Db, userId: string, fields: Partial<{ needs: Needs; level: number; xp: number; weight: number }>) {
   const n = fields.needs;
+  const s = await getSettings(db);
+  const loss = Number((s as any).weight?.lossPerDay ?? 0);
   await db.query(
     `update pets set
+       weight = case when $2::real is null then coalesce($8, weight)
+                     else least(100, greatest(0, coalesce($8, weight - $9::float8 * extract(epoch from now() - needs_at) / 86400))) end,
        kenyang = coalesce($2, kenyang), bersih = coalesce($3, bersih), ceria = coalesce($4, ceria), energi = coalesce($5, energi),
        needs_at = case when $2::real is null then needs_at else now() end,
        level = coalesce($6, level), xp = coalesce($7, xp)
      where user_id = $1`,
-    [userId, n?.kenyang ?? null, n?.bersih ?? null, n?.ceria ?? null, n?.energi ?? null, fields.level ?? null, fields.xp ?? null],
+    [userId, n?.kenyang ?? null, n?.bersih ?? null, n?.ceria ?? null, n?.energi ?? null, fields.level ?? null, fields.xp ?? null, fields.weight ?? null, loss],
   );
 }
 
 export function petView(p: PetRow, s: Settings) {
-  const needs = currentNeeds(p, s);
+  const now = Date.now();
+  const needs = currentNeeds(p, s, now);
   for (const k of NEED_KEYS) needs[k] = Math.round(needs[k] * 10) / 10;
-  return { name: p.name, color: p.color, ear: p.ear, pattern: (p as any).pattern ?? 'polos', eyes: (p as any).eyes ?? 'bulat', tail: (p as any).tail ?? 'bulat', wear: p.wear ?? {}, level: p.level, xp: p.xp, needs, needsAt: Date.now() };
+  const weight = Math.round(currentWeight(p, s, now) * 10) / 10;
+  const asleep = isAsleep(p, s, now);
+  return {
+    name: p.name, color: p.color, ear: p.ear, pattern: (p as any).pattern ?? 'polos', eyes: (p as any).eyes ?? 'bulat', tail: (p as any).tail ?? 'bulat', wear: p.wear ?? {}, level: p.level, xp: p.xp,
+    needs, needsAt: now,
+    // tidur: client menghitung energi naik dari sini sampai wakeAt
+    sleep: asleep ? { from: ms(p.needs_at), wakeAt: petWakeAt(p, s), needs: stored(p) } : null,
+    sick: isSick(p, s, now),
+    weight, chub: Math.round(chubOf(weight, (s as any).weight) * 100) / 100,
+    crumbsAt: ms(p.crumbs_at),
+  };
 }
 
 /** Ukuran & tema ruangan ditentukan item jenis 'room'-nya (kamar awal: ukuran dari pengaturan). */
@@ -74,11 +156,12 @@ export async function playerState(db: Db, userId: string) {
   const announcements = await db.query(
     `select id, title, body, starts_at from announcements where active and starts_at <= now() and (ends_at is null or ends_at > now()) order by starts_at desc limit 5`,
   );
-  const [plays, casts, unread, prefs] = await Promise.all([
+  const [plays, casts, unread, prefs, likes] = await Promise.all([
     counter(db, userId, 'karung'),
     counter(db, userId, 'fishing'),
     db.one<{ c: number }>(`select count(*)::int c from notifications where user_id = $1 and read_at is null`, [userId]),
     db.one<{ notify_prefs: any }>(`select notify_prefs from users where id = $1`, [userId]),
+    db.one<{ c: number }>(`select count(*)::int c from house_likes where host_id = $1 and week = $2`, [userId, weekKey()]),
   ]);
   return {
     serverNow: Date.now(),
@@ -102,16 +185,14 @@ export async function playerState(db: Db, userId: string) {
     limits: {
       karungLeft: Math.max(0, s.karung.playsPerDay - plays),
       fishingLeft: Math.max(0, s.fishing.castsPerDay - casts),
-      games: {
-        panen: Math.max(0, (s as any).games.panen.playsPerDay - (await counter(db, userId, 'game_panen'))),
-        memori: Math.max(0, (s as any).games.memori.playsPerDay - (await counter(db, userId, 'game_memori'))),
-      },
+      games: Object.fromEntries(await Promise.all(Object.keys(GAMES).map(async (id) => [id, Math.max(0, Number((s as any).games?.[id]?.playsPerDay ?? 0) - (await counter(db, userId, 'game_' + id)))]))),
     },
     announcements,
     events: activeEvents(cat),
     notificationsUnread: unread?.c ?? 0,
     quests: await questSummary(db, userId),
     notifyPrefs: prefs?.notify_prefs ?? {},
+    likesWeek: likes?.c ?? 0,
   };
 }
 
@@ -141,6 +222,11 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       karung: s.karung,
       games: (s as any).games,
       fishing: { castsPerDay: s.fishing.castsPerDay, energiCost: s.fishing.energiCost, windowMs: s.fishing.windowMs },
+      sleep: (s as any).sleep,
+      health: (s as any).health,
+      weight: (s as any).weight,
+      crumbs: (s as any).crumbs,
+      speech: (s as any).speech,
       garden: s.garden,
       room: s.room,
       house: (s as any).house,

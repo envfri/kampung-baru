@@ -116,8 +116,8 @@ test('aktivitas: tidur di kasur menambah energi, lalu kena jeda; mebel yang sala
   await db.query(`update pets set energi = 30, needs_at = now() where user_id = $1`, [state.user.id]);
   const r = await c.post('/api/activity', { activityId: 'tidur-kasur', roomId: room.id, index: bed, requestId: 'a1-' + Date.now() });
   assert.equal(r.status, 200, JSON.stringify(r.body));
-  assert.ok(r.body.pet.needs.energi >= 64, String(r.body.pet.needs.energi));
-  assert.match(r.body.result.message, /Gembul tidur nyenyak di Kasur Rotan/);
+  assert.ok(r.body.pet.needs.energi >= 44, String(r.body.pet.needs.energi));
+  assert.match(r.body.result.message, /Gembul rebahan sebentar di Kasur Rotan/);
   const again = await c.post('/api/activity', { activityId: 'tidur-kasur', roomId: room.id, index: bed });
   assert.equal(again.status, 400);
   assert.equal(again.body.error.code, 'cooldown');

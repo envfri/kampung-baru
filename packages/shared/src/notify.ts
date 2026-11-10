@@ -88,6 +88,18 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Kebun siap dipanen', body: '{tanaman} di kebunmu sudah bisa dipanen.', wa: '{tanaman} di kebun {pet} sudah bisa dipanen 🌱\n{link}' },
   },
   {
+    key: 'pet_woke', group: 'Pet', label: 'Pet bangun tidur', kind: 'needs', allowed: ALL, url: '/',
+    desc: 'Pet yang ditidurkan (lampu dimatikan) bangun sendiri dengan energi penuh, saat pemain tidak membuka game.',
+    vars: {},
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{pet} sudah bangun', body: '{pet} bangun dengan energi penuh. Yuk main!', wa: '{pet} sudah bangun dan siap main ☀️\n{link}' },
+  },
+  {
+    key: 'pet_sick', group: 'Pet', label: 'Pet sakit', kind: 'needs', allowed: ALL, url: '/#map',
+    desc: 'Pet mulai sakit karena beberapa kebutuhannya lama dibiarkan rendah. Disembuhkan dengan jamu dari Warung Jamu.',
+    vars: {},
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{pet} kurang enak badan', body: '{pet} sakit. Belikan jamu di Warung Jamu, ya.', wa: '{pet} kurang enak badan 🤒 Belikan jamu di Warung Jamu, ya.\n{link}' },
+  },
+  {
     key: 'needs_kenyang', group: 'Pet', label: 'Pet lapar', kind: 'needs', allowed: ALL, url: '/',
     desc: 'Pemain tidak membuka game dan kenyang pet di bawah ambang (atur ambang di Ekonomi & fitur › Waktu notifikasi otomatis).',
     vars: {},
@@ -128,6 +140,12 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     desc: 'Teman mampir ke rumah (paling banyak sekali per jeda, atur jeda di Ekonomi & fitur › Waktu notifikasi otomatis).',
     vars: { teman: 'Nama teman yang mampir' },
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Ada tamu!', body: '{teman} mampir ke rumahmu.', wa: '{teman} mampir ke rumah {pet} 🏡\n{link}' },
+  },
+  {
+    key: 'house_liked', group: 'Teman', label: 'Rumah disukai', kind: 'social', allowed: ALL, url: '/#friends',
+    desc: 'Teman menyukai rumah pemain (sekali per teman per minggu).',
+    vars: { teman: 'Nama teman yang menyukai', jumlah: 'Total suka minggu ini' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Rumahmu disukai!', body: '{teman} menyukai rumahmu. Sudah {jumlah} suka minggu ini.', wa: '{teman} menyukai rumah {pet} 💛 Sudah {jumlah} suka minggu ini.\n{link}' },
   },
   {
     key: 'gift', group: 'Teman', label: 'Dapat hadiah', kind: 'social', allowed: ALL, url: '/#friends',

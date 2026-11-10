@@ -5,10 +5,10 @@
   const EV: [string, string][] = Object.entries(QUEST_EVENTS).map(([k, v]) => [k, v.label]);
 </script>
 
-<CrudPage title="Tugas" desc="Tugas pemula tampil berurutan untuk pemain baru. Tugas harian: setiap pemain mendapat beberapa tugas acak per hari (jumlahnya di Ekonomi & fitur › quests). Progres dihitung otomatis dari aksi pemain di server."
+<CrudPage title="Tugas & lencana" desc="Tugas pemula tampil berurutan untuk pemain baru. Tugas harian: setiap pemain mendapat beberapa tugas acak per hari (jumlahnya di Ekonomi & fitur › quests). Lencana: pencapaian sekali seumur akun, semua tampil di menu Tugas › Lencana. Progres dihitung otomatis dari aksi pemain di server."
   endpoint="/api/admin/quests" listKey="quests" deleteLabel="Nonaktifkan"
   columns={[
-    { key: 'kind', label: 'Jenis', fmt: (v) => (v === 'starter' ? '<span class="chip">Pemula</span>' : '<span class="chip warn">Harian</span>') },
+    { key: 'kind', label: 'Jenis', fmt: (v) => (v === 'starter' ? '<span class="chip">Pemula</span>' : v === 'badge' ? '<span class="chip">Lencana</span>' : '<span class="chip warn">Harian</span>') },
     { key: 'title', label: 'Judul', fmt: (v, r) => `<b>${v}</b><br><span class="muted">${r.description}</span>` },
     { key: 'event', label: 'Syarat', fmt: (v, r) => `${QUEST_EVENTS[v]?.label ?? v} ×${r.target}${Object.keys(r.filter ?? {}).length ? ` <span class="mono">${JSON.stringify(r.filter)}</span>` : ''}` },
     { key: 'reward_coin', label: 'Hadiah', fmt: (v, r) => [v && `${v} koin`, r.reward_pearl && `${r.reward_pearl} Mutiara`, r.reward_xp && `${r.reward_xp} XP`].filter(Boolean).join(' · ') },
@@ -16,7 +16,7 @@
     { key: 'active', label: 'Status', fmt: (v) => (v ? '<span class="chip">Aktif</span>' : '<span class="chip mute">Nonaktif</span>') },
   ]}
   fields={[
-    { key: 'kind', label: 'Jenis', type: 'select', options: [['starter', 'Pemula (sekali, berurutan)'], ['daily', 'Harian (acak per hari)']] },
+    { key: 'kind', label: 'Jenis', type: 'select', options: [['starter', 'Pemula (sekali, berurutan)'], ['daily', 'Harian (acak per hari)'], ['badge', 'Lencana (sekali, semua tampil)']] },
     { key: 'title', label: 'Judul' },
     { key: 'description', label: 'Petunjuk untuk pemain' },
     { key: 'event', label: 'Syarat (peristiwa)', type: 'select', options: EV },

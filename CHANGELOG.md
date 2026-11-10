@@ -4,6 +4,31 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.13.0 · 2026-11-10 · Pet terasa hidup: rawat dengan sentuhan, jamu, lencana, mini-game Nusantara
+
+_Wajah pet kini ikut perasaannya. Suapi, mandikan, dan tidurkan dengan sentuhan. Ada Warung Jamu, lencana, empat mini-game baru, dan suka rumah teman._
+
+### Baru
+
+- Wajah pet ikut perasaannya: senang tersenyum lebar, lapar berair mata, capek sayu dan menguap, kotor bernoda dan dikerubungi lalat, sakit berkompres. Matanya mengikuti jarimu. _(pemain)_
+- Makan: buka nampan lalu seret makanan ke mulut pet (atau ketuk). Pet mangap dan mengunyah. _(pemain)_
+- Mandi: gosok badan pet dengan sabun sampai berbusa, lalu bilas dengan gayung. _(pemain)_
+- Tidur: matikan lampu, pet naik ke kasur dan energinya terisi pelan-pelan. Pet bangun sendiri saat segar (ada notifikasi), atau bangunkan kapan saja. _(pemain)_
+- Pet suka berceletuk sesuai suasana hatinya. _(pemain)_
+- Pet bisa sakit ringan bila lama dibiarkan lapar dan kotor. Belikan jamu di Warung Jamu (Peta Kampung, sisi kanan) untuk menyembuhkannya. _(pemain)_
+- Kebanyakan makan bikin pet gembul. Olahraga dengan Sepeda Statis atau lompat tali di Matras Senam (Mebel Jati). _(pemain)_
+- Remah dan bulu rontok muncul di lantai. Ketuk untuk menyapu dan dapat koin. _(pemain)_
+- Lencana: 15 pencapaian dengan hadiah (Tugas › Lencana). _(pemain)_
+- Mini-game baru di Balai Main: Balap Bakiak, Gasing, Tangkap Layangan, dan Panjat Pinang (khusus event Agustusan). _(pemain)_
+- Suka rumah teman saat berkunjung (sekali seminggu), dan lihat Rumah terfavorit minggu ini di menu Teman. _(pemain)_
+- Admin → Ekonomi & fitur: bagian Tidur, Kesehatan, Berat badan, Remah, Celetukan pet (satu baris satu kalimat), dan pengaturan 4 mini-game baru. Item makanan bisa ditandai "menyembuhkan"; Aktivitas punya efek "berat"; Tugas punya jenis Lencana.
+- Notifikasi baru di Pusat notifikasi: pet bangun tidur, pet sakit, rumah disukai.
+- Migrasi 011 (pets: sleep_from, sick_at, weight, crumbs_at; quests kind badge; house_likes). API: /api/sleep, /api/sweep, /api/visit/:id/like, /api/houses/top; aksi "tidur" dari PWA lama kini memulai tidur. Paket konten v5: Warung Jamu, 4 jamu, olahraga, 15 lencana, 3 tugas harian. Peta diperlebar ke 1080 (posisi X lokasi sampai 1040).
+
+### Perubahan
+
+- Aktivitas kasur bawaan menjadi "Rebahan" sebentar; tidur sungguhan lewat lampu (tombol Tidur, atau ketuk kasur/lampu). _(pemain)_
+
 ## 0.12.0 · 2026-11-10 · Rumah berkamar-kamar, mebel bisa dipakai, belanja jalan kaki
 
 _Bangun rumahmu: tambah ruang tamu, dapur, sampai halaman. Ketuk mebel untuk tidur, duduk, menyiram, atau membaca. Belanja kini dengan berjalan ke toko di Peta Kampung._
@@ -21,6 +46,8 @@ _Bangun rumahmu: tambah ruang tamu, dapur, sampai halaman. Ketuk mebel untuk tid
 ### Perubahan
 
 - Tombol Toko di bawah diganti Tugas (dengan tanda hadiah siap). Saat berkunjung, kamu bisa melihat semua ruangan rumah teman. _(pemain)_
+
+Commit: [`663e93c`](https://github.com/envfri/kampung-baru/commit/663e93c)
 
 ## 0.11.1 · 2026-11-10 · Login lewat http:// & perbaikan tampilan desktop
 

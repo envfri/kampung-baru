@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { randomInt } from 'node:crypto';
-import { applyNeedDelta, memoriLayout, memoriReplay, memoriStars, panenSchedule, panenScore, GAMES } from '@kb/shared';
+import { applyNeedDelta, memoriLayout, memoriReplay, memoriStars, panenSchedule, panenScore, GAMES, bakiakReplay, BAKIAK, gasingScore, layanganSchedule, layanganScore, pinangReplay } from '@kb/shared';
 import type { Db } from '../db/index';
 import { activeEvents, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { currentNeeds, lockPet, savePet } from '../lib/state';
+import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../lib/state';
 import { claimMilestone, eventList } from '../lib/events';
 import { int } from '../lib/validate';
 import { grantXp, patch } from './game';
@@ -26,15 +26,22 @@ export default async function minigameRoutes(app: FastifyInstance, { db }: { db:
     const cfg: any = (s as any).games[game];
     // benda event muncul di Panen Buah bila ada event aktif berdekorasi yang memberi poin untuknya
     const ev = activeEvents(cat).find((e) => e.decor && Number(e.points?.game_event_drop) > 0);
+    // Panjat Pinang hanya ada saat event berdekorasi bendera (Agustusan / Pekan Ceria)
+    const need = (GAMES as any)[game].event as string | undefined;
+    if (need && !activeEvents(cat).some((e) => e.decor === need)) throw bad('event_only', `${GAMES[game].name} hanya ada saat event Agustusan.`);
     return db.tx(async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      assertAwake(pet, s);
+      assertHealthy(pet, s);
       const needs = currentNeeds(pet, s);
       if (needs.energi < cfg.energiCost) throw bad('tired', `${pet.name} terlalu capek. Tidur dulu.`);
       await bumpCounter(t, u.id, `game_${game}`, cfg.playsPerDay);
       await savePet(t, u.id, { needs: applyNeedDelta(needs, { energi: -cfg.energiCost }) });
       const seed = randomInt(1, 2_000_000_000);
-      const meta = game === 'panen' ? { durationMs: cfg.durationMs, eventDrops: !!ev, decor: ev?.decor ?? '' } : {};
+      const meta = game === 'panen' ? { durationMs: cfg.durationMs, eventDrops: !!ev, decor: ev?.decor ?? '' }
+        : game === 'gasing' ? { rounds: cfg.rounds }
+        : cfg.durationMs ? { durationMs: cfg.durationMs } : {};
       const run = (await t.one<{ id: string }>(`insert into game_runs (user_id, game, seed, meta) values ($1,$2,$3,$4::text::jsonb) returning id`, [u.id, game, seed, JSON.stringify(meta)]))!;
       return { ok: true, runId: run.id, seed, ...meta, ...(await patch(t, u.id, ['pet', 'limits'])) };
     });
@@ -72,6 +79,43 @@ export default async function minigameRoutes(app: FastifyInstance, { db }: { db:
         reward = Math.round(Math.min(cfg.maxCoins, score * cfg.coinPerPoint) * mult);
         extra = { eventDrops: r!.events };
         if (r!.events > 0) await track(t, u.id, 'game_event_drop', { game, count: r!.events });
+      } else if (game === 'bakiak') {
+        const duration = Number(run.meta?.durationMs) || cfg.durationMs;
+        const taps = Array.isArray(req.body?.taps) ? req.body.taps.slice(0, 600) : [];
+        const r = bakiakReplay(run.seed, taps, duration);
+        if (!r) await invalid('ketukan bakiak tidak sah');
+        const last = taps.length ? Number(taps[taps.length - 1][0]) : 0;
+        if (elapsed + 1500 < last) await invalid('waktu tidak wajar');
+        score = Math.min(BAKIAK.finish, r!.steps);
+        reward = Math.round(Math.min(cfg.maxCoins, score * cfg.coinPerStep) * mult);
+        extra = { steps: score, stumbles: r!.stumbles, finished: score >= BAKIAK.finish };
+      } else if (game === 'gasing') {
+        const rounds = Number(run.meta?.rounds) || cfg.rounds;
+        const releases = Array.isArray(req.body?.releases) ? req.body.releases.slice(0, rounds).map(Number) : [];
+        const r = gasingScore(run.seed, releases, rounds);
+        if (!r) await invalid('lepasan gasing tidak sah');
+        if (elapsed + 1500 < releases.reduce((a: number, b: number) => a + b, 0)) await invalid('terlalu cepat');
+        score = Math.round(r!.total);
+        reward = Math.round(Math.min(cfg.maxCoins, r!.total * cfg.coinPerSec) * mult);
+        extra = { spins: r!.spins, total: r!.total };
+      } else if (game === 'layangan') {
+        const duration = Number(run.meta?.durationMs) || cfg.durationMs;
+        if (elapsed < duration - 500) await invalid('terlalu cepat');
+        const caught = Array.isArray(req.body?.caught) ? req.body.caught.slice(0, 300) : [];
+        const r = layanganScore(layanganSchedule(run.seed, duration), caught, duration);
+        if (!r) await invalid('tangkapan layangan tidak sah');
+        score = r!.score;
+        reward = Math.round(Math.min(cfg.maxCoins, score * cfg.coinPerPoint) * mult);
+      } else if (game === 'pinang') {
+        const duration = Number(run.meta?.durationMs) || cfg.durationMs;
+        const taps = Array.isArray(req.body?.taps) ? req.body.taps.slice(0, 500).map(Number) : [];
+        const r = pinangReplay(run.seed, taps, duration);
+        if (!r) await invalid('ketukan pinang tidak sah');
+        if (taps.length && elapsed + 1500 < taps[taps.length - 1]) await invalid('waktu tidak wajar');
+        score = r!.height;
+        reward = r!.tiers ? Math.round((cfg.rewards[r!.tiers - 1] ?? 0) * mult) : 0;
+        extra = { height: r!.height, tiers: r!.tiers };
+        if (r!.tiers >= 4) await track(t, u.id, 'pinang_top');
       } else {
         const flips = Array.isArray(req.body?.flips) ? req.body.flips.slice(0, 200) : [];
         const timeMs = int(req.body?.timeMs, 'Waktu', { min: 1, max: 900_000 });

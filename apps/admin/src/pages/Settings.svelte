@@ -6,7 +6,8 @@
   let busy = $state(false);
   let jsonErr = $state<Record<string, string>>({});
   const editable = $derived(can('admin'));
-  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Waktu notifikasi otomatis', quests: 'Tugas' };
+  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Waktu notifikasi otomatis', quests: 'Tugas', games: 'Mini-game Balai Main', house: 'Rumah', sleep: 'Tidur', health: 'Kesehatan (sakit ringan)', weight: 'Berat badan', crumbs: 'Remah & bulu rontok', speech: 'Celetukan pet' };
+  const isTextList = (v: any) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
   onMount(async () => { try { const r = await api.get('/api/admin/settings'); value = r.value; help = r.help; defaults = r.defaults; } catch (e) { err(e); } });
 
   // daftar field datar untuk satu bagian (angka/boolean), objek kompleks diedit sebagai JSON
@@ -48,6 +49,8 @@
               <label class="inline"><input type="checkbox" checked={v} disabled={!editable} onchange={(e) => set(value[sec], path, (e.target as HTMLInputElement).checked)} />{label(path)}</label>
             {:else if typeof v === 'number'}
               <label>{label(path)}<input type="number" step="any" value={v} disabled={!editable} oninput={(e) => set(value[sec], path, Number((e.target as HTMLInputElement).value))} /><span class="help">bawaan: {get(defaults[sec], path)}</span></label>
+            {:else if isTextList(v)}
+              <label class="wide">{label(path)} <span class="help">satu baris = satu kalimat</span><textarea rows={Math.min(8, v.length + 1)} disabled={!editable} oninput={(e) => set(value[sec], path, (e.target as HTMLTextAreaElement).value.split('\n').map((x) => x.trim()).filter(Boolean))}>{v.join('\n')}</textarea></label>
             {:else}
               <label class="wide">{label(path)}<textarea class="mono" class:bad={jsonErr[sec + path]} disabled={!editable} oninput={(e) => setJson(sec, path, (e.target as HTMLTextAreaElement).value)}>{JSON.stringify(v, null, 1)}</textarea>{#if jsonErr[sec + path]}<span class="help bad">{jsonErr[sec + path]}</span>{/if}</label>
             {/if}

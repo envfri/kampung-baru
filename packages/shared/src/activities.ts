@@ -13,7 +13,12 @@ export const ACTIVITY_ANIMS: Record<string, { label: string; on: boolean; lift: 
   baca: { label: 'Membaca (di dekatnya)', on: false, lift: 0, fx: 'notes', prop: 'baca', ms: 2600 },
   masak: { label: 'Memasak (di dekatnya)', on: false, lift: 0, fx: 'steam', prop: 'masak', ms: 2800 },
   main: { label: 'Bermain (di dekatnya)', on: false, lift: 0, fx: 'coins', prop: 'main', ms: 2400 },
+  olahraga: { label: 'Olahraga lompat tali (di dekatnya)', on: false, lift: 0, fx: 'drops', prop: 'tali', ms: 3000 },
+  gowes: { label: 'Bersepeda statis (naik ke mebel)', on: true, lift: 20, fx: 'drops', ms: 3000 },
 };
+
+/** Efek aktivitas: empat kebutuhan + berat badan (negatif = menurunkan berat). */
+export const ACTIVITY_EFFECTS = ['kenyang', 'bersih', 'ceria', 'energi', 'berat'] as const;
 
 /** Bagian ruangan bawaan yang bisa dipakai aktivitas (hanya di ruangan dalam rumah). */
 export const ACTIVITY_SPOTS: Record<string, string> = { jendela: 'Jendela', lukisan: 'Lukisan dinding' };

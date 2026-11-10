@@ -74,6 +74,17 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .loc { cursor: pointer; }
 .loc .lift { transition: transform .15s; }
 .loc:hover .lift, .loc:focus .lift { transform: translateY(-4px); }
+/* wajah pet: mata mengikuti jari, mulut mangap saat disuapi, menguap saat capek */
+.pet .look { transform: translate(var(--lx, 0px), var(--ly, 0px)); transition: transform .15s ease-out; }
+.mangap .pet .m-base { display: none; }
+.mangap .pet .m-open { display: inline; }
+.chew .pet .m-open { animation: chew .3s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.pm-capek .m-base { animation: yawnHide 7s infinite; }
+.pm-capek .m-yawn { animation: yawnShow 7s infinite; }
+@keyframes chew { from { transform: scaleY(1); } to { transform: scaleY(.3); } }
+@keyframes yawnShow { 0%, 76%, 100% { opacity: 0; } 80%, 94% { opacity: 1; } }
+@keyframes yawnHide { 0%, 76%, 100% { opacity: 1; } 80%, 94% { opacity: 0; } }
+
 /* pose saat beraktivitas di rumah */
 .pet.pose-tidur .pet-bob { animation: snooze 2.4s ease-in-out infinite; }
 .pet.pose-tidur .eyes { animation: none; transform: scaleY(.12); }
@@ -95,6 +106,15 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 @keyframes selPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .pet-bob, .eyes, .pet-hop.go, .furn.sel, .pet[class*='pose-'] .pet-bob { animation: none; }
+  .pet-bob, .eyes, .pet-hop.go, .furn.sel, .pet[class*='pose-'] .pet-bob, .pm-capek .m-base, .pm-capek .m-yawn { animation: none; }
+  .pet .look { transition: none; }
   .fx-up { animation-duration: .01s; }
 }
+
+/* mini-game Balai Main (Bakiak, Gasing, Layangan, Panjat Pinang) */
+.game-bg { position: absolute; inset: 0; background: #BFE3F5; touch-action: none; }
+.game-bg > svg { position: absolute; left: 0; right: 0; top: calc(var(--safe-t) + 10px); width: 100%; height: calc(100% - var(--safe-t) - var(--safe-b) - 20px); touch-action: none; }
+.game-bg .top { position: absolute; top: calc(var(--safe-t) + 10px); left: 12px; right: 12px; display: flex; justify-content: space-between; z-index: 5; pointer-events: none; }
+.game-bg .top span { display: flex; align-items: center; gap: 4px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 17px; box-shadow: 0 2px 0 var(--ink); }
+.game-bg .flash { font: 800 26px var(--font); fill: #1E7A4C; stroke: #FFFDF7; stroke-width: 4px; paint-order: stroke; animation: fxUp .8s ease-out forwards; }
+.game-bg .flash.bad { fill: #A93A27; }

@@ -10,7 +10,9 @@
   let friends = $state<any[] | null>(null);
   let gifts = $state<any[]>([]);
   let code = $state('');
-  let tab = $state<'list' | 'gifts'>(G.me.giftsUnread > 0 ? 'gifts' : 'list');
+  let tab = $state<'list' | 'gifts' | 'top'>(G.me.giftsUnread > 0 ? 'gifts' : 'list');
+  let top = $state<any>(null);
+  async function loadTop() { tab = 'top'; try { top = await api.get('/api/houses/top'); } catch (e) { fail(e); top = { top: [], mine: 0 }; } }
   const myCode = $derived(G.me.user.friend_code);
   const link = $derived(`${location.origin}/?undang=${myCode}`);
 
@@ -82,6 +84,7 @@
   <div class="seg">
     <button class:on={tab === 'list'} onclick={() => (tab = 'list')}>Daftar teman</button>
     <button class:on={tab === 'gifts'} onclick={() => (tab = 'gifts')}>Kotak hadiah {#if G.me.giftsUnread}<i>{G.me.giftsUnread}</i>{/if}</button>
+    <button class:on={tab === 'top'} onclick={loadTop}>Terfavorit</button>
   </div>
 
   {#if tab === 'list'}
@@ -103,6 +106,24 @@
             <button class="btn sm" onclick={() => visit(f)}>Kunjungi</button>
             <button class="btn sm" aria-label="Kirim hadiah ke {f.display_name}" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: f.id, name: f.display_name }; }}>{@html I.gift}</button>
           </div>
+        </div>
+      {/each}
+    </div>
+  {:else if tab === 'top'}
+    <p class="visitors">Rumah yang paling banyak disukai minggu ini. Sukai rumah teman saat berkunjung (sekali seminggu per teman).{#if top} Rumahmu: <b>{top.mine}</b> suka.{/if}</p>
+    {#if top === null}<p class="muted">Memuat…</p>
+    {:else if !top.top.length}<p class="muted">Belum ada rumah yang disukai minggu ini. Jadi yang pertama!</p>{/if}
+    <div class="list">
+      {#each top?.top ?? [] as h (h.id)}
+        <div class="friend" class:me={h.me}>
+          <span class="rank" class:gold={h.rank === 1}>{h.rank}</span>
+          <span class="ava">{@html petSVG({ color: h.color ?? '#F2EEE3', ear: h.ear ?? 'tunas', pattern: h.pattern, eyes: h.eyes, tail: h.tail }, wearItems(h.wear))}</span>
+          <div class="info">
+            <b>Rumah {h.display_name}{h.me ? ' (kamu)' : ''}</b>
+            <span>{h.pet_name ?? ''}{h.level ? ` · Lv ${h.level}` : ''}</span>
+            <em class="hot">♥ {h.likes} suka</em>
+          </div>
+          {#if h.friend}<button class="btn sm" onclick={() => visit(h)}>Kunjungi</button>{/if}
         </div>
       {/each}
     </div>
@@ -156,6 +177,9 @@
     .friend { flex-wrap: wrap; }
     .btns { flex: 1 1 100%; justify-content: flex-end; }
   }
+  .rank { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; font-weight: 800; background: var(--paper); }
+  .rank.gold { background: var(--coin); }
+  .friend.me { background: #FFF8E2; }
   .visitors { margin: 0; font-size: 14px; font-weight: 600; background: #E6F3EC; border-radius: 10px; padding: 6px 10px; }
   .muted { margin: 0; font-weight: 600; }
 </style>

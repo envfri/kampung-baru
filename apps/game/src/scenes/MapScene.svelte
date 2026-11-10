@@ -1,7 +1,7 @@
 <script lang="ts">
   // Peta kampung: pet berjalan menyusuri jalan ke tempat yang diketuk (toko, kebun, kolam, ...), lalu masuk.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { renderMap, renderPet } from '@kb/shared';
+  import { renderMap, renderPet, MAP_VIEWBOX } from '@kb/shared';
   import { G, toast, activeDecor, wearItems } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
@@ -133,7 +133,7 @@
 </script>
 
 <div class="wrap" bind:this={wrap}>
-  <svg bind:this={svgEl} class="map" viewBox="0 -40 960 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Peta Kampung" onclick={click} onkeydown={key}>
+  <svg bind:this={svgEl} class="map" viewBox={MAP_VIEWBOX} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Peta Kampung" onclick={click} onkeydown={key}>
     {@html html}
     <g class="walker" class:walking class:entering pointer-events="none" transform="translate({at[0].toFixed(1)} {at[1].toFixed(1)})">
       <ellipse cx="0" cy="1" rx="20" ry="6" fill="#2B2F4A" opacity=".18" />
@@ -146,7 +146,7 @@
 <style>
   .wrap { position: absolute; inset: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .wrap::-webkit-scrollbar { display: none; }
-  .map { display: block; height: 100%; width: 100%; min-width: calc(100dvh * 1.846 * .78); }
+  .map { display: block; height: 100%; width: 100%; min-width: calc(100dvh * 2.077 * .78); }
   .walker .body { transition: transform .28s ease-in, opacity .28s ease-in; transform-box: fill-box; transform-origin: 50% 100%; }
   .walker.entering .body { transform: translateY(-10px) scale(.4); opacity: 0; }
   .walker.walking .pet-bob { animation: mapwaddle .26s ease-in-out infinite alternate; }

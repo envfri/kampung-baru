@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ACTIVITY_ANIMS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, NEED_KEYS, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
+import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -55,7 +55,7 @@ function cleanItemData(kind: string, v: any) {
       const e = obj(d.effects, 'Efek');
       const effects: Record<string, number> = {};
       for (const k of ['kenyang', 'bersih', 'ceria', 'energi']) if (e[k] !== undefined && e[k] !== '' && Number(e[k]) !== 0) effects[k] = num(e[k], `Efek ${k}`, -100, 100)!;
-      return { effects };
+      return { effects, ...(bool(d.cure) ? { cure: true } : {}) };
     }
     case 'furniture':
       return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}) };
@@ -89,6 +89,7 @@ function sanitizeSettings(def: any, v: any, path = ''): any {
   if (Array.isArray(def)) {
     if (!Array.isArray(v)) throw bad('invalid_settings', `${path} harus berupa daftar.`);
     if (def.length && typeof def[0] === 'number') return v.map((x, i) => { const n = Number(x); if (!Number.isFinite(n)) throw bad('invalid_settings', `${path}[${i}] harus angka.`); return n; });
+    if (def.length && typeof def[0] === 'string') return v.map((x) => String(x ?? '').trim().slice(0, 160)).filter(Boolean).slice(0, 40);
     return v;
   }
   if (def && typeof def === 'object') {
@@ -376,7 +377,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     for (const k of ['body', 'roof']) if (typeof st[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(st[k])) style[k] = st[k];
     if (st.w !== undefined && st.w !== '') style.w = int(Number(st.w), 'Lebar bangunan', { min: 70, max: 140 });
     const kind = oneOf(b.kind, 'Jenis lokasi', LOC_KINDS);
-    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 920 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
+    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 1040 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
       J(style), bool(b.enabled, true), int(Number(b.sort ?? 0), 'Urutan', { min: -1000, max: 1000 }), bool(b.sells_back, false)];
     if (creating) {
       if (await db.one('select 1 from locations where id = $1', [id])) throw bad('exists', 'ID lokasi sudah dipakai.');
@@ -761,7 +762,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
       filter[k] = String(v).slice(0, 48);
     }
     const vals = [
-      id, oneOf(b.kind, 'Jenis', ['starter', 'daily'] as const), str(b.title, 'Judul', { min: 2, max: 50 }), str(b.description, 'Deskripsi', { max: 160, optional: true }) ?? '',
+      id, oneOf(b.kind, 'Jenis', ['starter', 'daily', 'badge'] as const), str(b.title, 'Judul', { min: 2, max: 50 }), str(b.description, 'Deskripsi', { max: 160, optional: true }) ?? '',
       event, J(filter), int(Number(b.target), 'Target', { min: 1, max: 1000 }),
       int(Number(b.reward_coin ?? 0), 'Hadiah koin', { min: 0, max: 100000 }), int(Number(b.reward_pearl ?? 0), 'Hadiah Mutiara', { min: 0, max: 1000 }), int(Number(b.reward_xp ?? 0), 'Hadiah XP', { min: 0, max: 10000 }),
       oneOf(b.url ?? '/', 'Tujuan', QUEST_LINKS.map((l) => l[0])), int(Number(b.sort ?? 0), 'Urutan', { min: -10000, max: 10000 }), bool(b.active, true),
@@ -807,7 +808,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     }
     const e = obj(b.effects, 'Efek');
     const effects: Record<string, number> = {};
-    for (const k of NEED_KEYS) if (e[k] !== undefined && e[k] !== '' && Number(e[k]) !== 0) effects[k] = int(Math.round(Number(e[k])), `Efek ${k}`, { min: -100, max: 100 });
+    for (const k of ACTIVITY_EFFECTS) if (e[k] !== undefined && e[k] !== '' && Number(e[k]) !== 0) effects[k] = int(Math.round(Number(e[k])), `Efek ${k}`, { min: -100, max: 100 });
     const reward = b.reward_item ? slug(b.reward_item, 'Hadiah barang') : null;
     if (reward && !(await db.one('select 1 from items where id = $1', [reward]))) throw bad('invalid_reward', 'Hadiah barang tidak ditemukan.');
     const vals = [

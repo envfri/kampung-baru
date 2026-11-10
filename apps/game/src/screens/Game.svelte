@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom } from '../lib/game.svelte';
+  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom, isSleeping, setSleep, needsNow } from '../lib/game.svelte';
+  import FoodTray from '../components/FoodTray.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -31,6 +32,10 @@
   import { checkWhatsNew } from '../lib/whatsnew';
   import Panen from '../scenes/Panen.svelte';
   import Memori from '../scenes/Memori.svelte';
+  import Bakiak from '../games/Bakiak.svelte';
+  import Gasing from '../games/Gasing.svelte';
+  import Layangan from '../games/Layangan.svelte';
+  import Pinang from '../games/Pinang.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
@@ -42,24 +47,33 @@
     { k: 'main', label: 'Main', icon: I.play },
     { k: 'tidur', label: 'Tidur', icon: I.sleep },
   ] as const;
-  const FX: Record<string, 'bubbles' | 'coins' | 'zz'> = { mandi: 'bubbles', main: 'coins', tidur: 'zz' };
-  let night = $state(false);
-
   const cdLeft = (k: string) => Math.max(0, Math.ceil(((G.cool[k] ?? 0) - Date.now()) / 1000));
   const fmtCd = (s: number) => (s >= 60 ? Math.ceil(s / 60) + 'm' : s + 'd');
+  const sleeping = $derived(G.now > 0 && isSleeping());
+  const wakeIn = $derived(sleeping ? Math.max(1, Math.ceil((G.me.pet.sleep.wakeAt - serverNow()) / 60_000)) : 0);
 
   async function act(k: string) {
-    if (k === 'makan') { G.sheet = 'feed'; return; }
+    // rawat dengan sentuhan: makan lewat nampan (seret ke mulut), mandi gosok-bilas, tidur matikan lampu
+    if (k === 'makan') { sfx.tap(); G.bath = null; G.feeding = !G.feeding; return; }
+    if (k === 'mandi') {
+      const cd = cdLeft('mandi');
+      if (cd > 0) { sfx.error(); toast(`${G.me.pet.name} masih wangi. Mandi lagi ${fmtCd(cd)} lagi.`, 'error'); return; }
+      sfx.tap(); G.feeding = false; G.bath = { scrub: 0, tool: 'sabun', rinsing: false };
+      return;
+    }
+    if (k === 'tidur') {
+      if (needsNow().energi >= (settings().sleep?.maxEnergiToSleep ?? 95)) { toast(`${G.me.pet.name} belum ngantuk. Main dulu, yuk!`); return; }
+      G.feeding = false; G.bath = null;
+      await setSleep(true);
+      return;
+    }
     sfx.tap();
-    fx(FX[k]);
-    if (k === 'tidur') { night = true; setTimeout(() => (night = false), 1300); }
+    fx('coins');
     const r: any = await run(() => post('/api/action', { type: k }));
     const cfg = settings().actions?.[k];
     if (r) {
       if (cfg?.cooldownSec) G.cool[k] = Date.now() + cfg.cooldownSec * 1000;
       if (r.result?.coins) { sfx.coin(); toast(`+${r.result.coins} koin dari bermain`, 'good'); }
-      else if (k === 'mandi') toast(`${G.me.pet.name} wangi lagi`, 'good');
-      else if (k === 'tidur') toast(`${G.me.pet.name} tidur nyenyak`, 'good');
       if (r.result?.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.result.levelUp}!`, 'good'); }
     }
   }
@@ -76,6 +90,11 @@
     G.draft.splice(G.sel, 1);
     G.sel = -1;
     sfx.tap();
+  }
+
+  async function likeHouse() {
+    const r: any = await run(() => api.post(`/api/visit/${G.visit.owner.id}/like`));
+    if (r) { G.visit.likes = r.likes; sfx.pop(); fx('hearts'); toast(r.already ? 'Kamu sudah menyukai rumah ini minggu ini.' : `Kamu menyukai rumah ${G.visit.owner.display_name}!`, 'good'); }
   }
 
   async function claimVisit() {
@@ -137,9 +156,14 @@
     {:else if G.view === 'panen'}<Panen />
     {:else if G.view === 'memori'}<Memori />
     {:else if G.view === 'shop'}<ShopScene />
+    {:else if G.view === 'bakiak'}<Bakiak />
+    {:else if G.view === 'gasing'}<Gasing />
+    {:else if G.view === 'layangan'}<Layangan />
+    {:else if G.view === 'pinang'}<Pinang />
     {/if}
   </div>
-  <div class="night" class:on={night}></div>
+  <!-- lampu mati saat pet tidur -->
+  <div class="night" class:on={sleeping && G.view === 'home'}></div>
 
   {#if !G.immersive}<Hud />{/if}
 
@@ -153,16 +177,34 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    <QuestChip />
-    <div class="acts">
-      {#each ACTS as a}
-        {@const cd = G.now && cdLeft(a.k)}
-        <button class="btn act" disabled={G.busy} onclick={() => act(a.k)}>
-          {@html a.icon}<span>{a.label}</span>{#if cd > 0}<i class="cd">{fmtCd(cd)}</i>{/if}
-        </button>
-      {/each}
-      <button class="btn act" onclick={startEdit}>{@html I.edit}<span>Atur</span></button>
-    </div>
+    {#if !G.feeding && !G.bath && !sleeping}<QuestChip />{/if}
+    {#if sleeping}
+      <div class="sleepbar">
+        <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
+        <button class="btn hot" disabled={G.busy} onclick={() => setSleep(false)}>{@html I.sleep} Nyalakan lampu & bangunkan</button>
+      </div>
+    {:else if G.bath}
+      <div class="bathbar">
+        <p>{G.bath.tool === 'sabun' ? `Gosok badan ${G.me.pet.name} dengan sabun sampai berbusa.` : `Sekarang bilas: ketuk ${G.me.pet.name} dengan gayung.`}</p>
+        <div class="meter" aria-label="Busa {Math.round(G.bath.scrub * 100)}%"><i style="width:{G.bath.scrub * 100}%"></i></div>
+        <div class="row">
+          <button class="btn sm" class:on={G.bath.tool === 'sabun'} onclick={() => (G.bath!.tool = 'sabun')}>Sabun</button>
+          <button class="btn sm" class:on={G.bath.tool === 'gayung'} disabled={G.bath.scrub < 0.35} onclick={() => (G.bath!.tool = 'gayung')}>Gayung</button>
+          <button class="btn sm" onclick={() => (G.bath = null)}>Batal</button>
+        </div>
+      </div>
+    {:else}
+      {#if G.feeding}<FoodTray />{/if}
+      <div class="acts">
+        {#each ACTS as a}
+          {@const cd = G.now && cdLeft(a.k)}
+          <button class="btn act" class:on={a.k === 'makan' && G.feeding} disabled={G.busy} onclick={() => act(a.k)}>
+            {@html a.icon}<span>{a.label}</span>{#if cd > 0 && a.k !== 'makan'}<i class="cd">{fmtCd(cd)}</i>{/if}
+          </button>
+        {/each}
+        <button class="btn act" onclick={startEdit}>{@html I.edit}<span>Atur</span></button>
+      </div>
+    {/if}
   {/if}
 
   {#if G.edit}
@@ -187,6 +229,7 @@
       {/if}
       <div class="row">
         <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
+        <button class="btn sm" class:on={G.visit.likes?.liked} disabled={G.busy} onclick={likeHouse} aria-label="Suka rumah ini">♥ {G.visit.likes?.liked ? 'Disukai' : 'Suka'}{G.visit.likes?.count ? ` · ${G.visit.likes.count}` : ''}</button>
         <button class="btn sm" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: G.visit.owner.id, name: G.visit.owner.display_name }; }}>{@html I.gift} Hadiah</button>
         <button class="btn sm" onclick={() => { G.view = 'home'; G.visit = null; }}>Pulang</button>
       </div>
@@ -221,7 +264,7 @@
   .game[data-view='map'] { background: #A9D18A; }
   .scene { position: absolute; inset: 0; }
   .night { position: absolute; inset: 0; background: #1B2340; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 2; }
-  .night.on { opacity: .55; }
+  .night.on { opacity: .5; }
   .acts { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); display: flex; gap: 6px; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
@@ -231,6 +274,10 @@
   .roompill .n { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--ok); color: #fff; font-size: 11.5px; display: grid; place-items: center; padding: 0 4px; }
   .cd { position: absolute; top: -9px; right: -6px; background: var(--ink); color: var(--paper); font-style: normal; font-size: 11px; border-radius: 8px; padding: 0 5px; }
   .event { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); right: max(10px, var(--safe-r)); max-width: calc(52vw - 30px); background: var(--ev); color: #fff; border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 14px; font-weight: 800; font-size: 13.5px; box-shadow: 0 2px 0 var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sleepbar, .bathbar { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(520px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; animation: pop .2s ease-out; }
+  .sleepbar p, .bathbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
+  .meter { height: 12px; border: 2px solid var(--ink); border-radius: 8px; background: var(--track); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #9FD3EC; transition: width .15s; }
   .editbar, .visit { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(560px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
   .visit { top: calc(var(--safe-t) + 118px); bottom: auto; flex-direction: column; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }

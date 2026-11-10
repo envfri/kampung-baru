@@ -39,6 +39,12 @@ export function friendCode() {
 
 export const today = () => dayKey(Date.now());
 export const yesterday = () => dayKey(Date.now() - 86_400_000);
+/** Kunci minggu (tanggal Senin, WIB) untuk suka rumah & peringkat mingguan. */
+export function weekKey(t = Date.now()) {
+  const d = new Date(t + 7 * 3_600_000);
+  const dow = (d.getUTCDay() + 6) % 7;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - dow)).toISOString().slice(0, 10);
+}
 
 /* ---------------- settings & catalog cache ---------------- */
 

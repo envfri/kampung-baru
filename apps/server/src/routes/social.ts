@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index';
-import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, today, track } from '../lib/core';
+import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, today, track, weekKey } from '../lib/core';
 import { requireUser } from '../lib/auth';
 import { loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
@@ -68,14 +68,50 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
     if (id !== req.user!.id && !(await isFriend(req.user!.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-    const [owner, pet, rooms, visited] = await Promise.all([
+    const [owner, pet, rooms, visited, likes] = await Promise.all([
       db.one(`select id, display_name from users where id = $1 and banned_at is null`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
       loadRooms(db, id, cat, s, false),
       db.one(`select 1 from visits where visitor_id = $1 and host_id = $2 and day = $3`, [req.user!.id, id, today()]),
+      db.one<{ c: number; mine: boolean }>(`select count(*)::int c, bool_or(liker_id = $2) mine from house_likes where host_id = $1 and week = $3`, [id, req.user!.id, weekKey()]),
     ]);
     if (!owner) throw notFound('Rumah tidak ditemukan.');
-    return { owner, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited };
+    return { owner, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited, likes: { count: likes?.c ?? 0, liked: !!likes?.mine } };
+  });
+
+  /* ---------------- suka rumah teman & rumah terfavorit ---------------- */
+
+  app.post('/api/visit/:id/like', auth, async (req: any) => {
+    const me = req.user!;
+    const id = String(req.params.id);
+    if (!UUID.test(id) || id === me.id) throw bad('invalid', 'Tidak bisa menyukai rumah sendiri.');
+    if (!(await isFriend(me.id, id))) throw forbidden('Kamu hanya bisa menyukai rumah teman.');
+    const week = weekKey();
+    const r = await db.one(`insert into house_likes (liker_id, host_id, week) values ($1,$2,$3) on conflict do nothing returning 1 as ok`, [me.id, id, week]);
+    const n = (await db.one<{ c: number }>(`select count(*)::int c from house_likes where host_id = $1 and week = $2`, [id, week]))!.c;
+    if (r) {
+      await track(db, me.id, 'like', { host: id });
+      await track(db, id, 'liked', { from: me.id });
+      void notifyEvent(db, id, 'house_liked', { teman: me.display_name, jumlah: n }, { log: req.log });
+    }
+    return { ok: true, likes: { count: n, liked: true }, already: !r };
+  });
+
+  app.get('/api/houses/top', auth, async (req: any) => {
+    const me = req.user!.id;
+    const week = weekKey();
+    const s = await getSettings(db);
+    const rows = await db.query<any>(
+      `select h.host_id as id, count(*)::int as likes, u.display_name, p.name as pet_name, p.level, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear,
+              exists (select 1 from friendships f where f.user_id = $2 and f.friend_id = h.host_id) as friend
+         from house_likes h join users u on u.id = h.host_id and u.banned_at is null left join pets p on p.user_id = h.host_id
+        where h.week = $1 group by h.host_id, u.display_name, p.name, p.level, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear
+        order by likes desc, min(h.created_at) limit 10`,
+      [week, me],
+    );
+    const mine = await db.one<{ c: number }>(`select count(*)::int c from house_likes where host_id = $1 and week = $2`, [me, week]);
+    void s;
+    return { week, top: rows.map((r, i) => ({ rank: i + 1, ...r, me: r.id === me })), mine: mine?.c ?? 0 };
   });
 
   app.post('/api/visit/:id/claim', auth, async (req: any) => {

@@ -5,6 +5,10 @@ import { mulberry32 } from './economy';
 export const GAMES = {
   panen: { name: 'Panen Buah', desc: 'Geser keranjang untuk menangkap buah yang jatuh. Hindari kerikil!' },
   memori: { name: 'Ingat Jajanan', desc: 'Buka dua kartu, cari pasangan jajanan yang sama secepatnya.' },
+  bakiak: { name: 'Balap Bakiak', desc: 'Ketuk kaki kiri dan kanan sesuai aba-aba. Salah langkah, timmu tersandung!' },
+  gasing: { name: 'Gasing', desc: 'Lepas gasing saat tenaganya pas di zona hijau supaya berputar lama.' },
+  layangan: { name: 'Tangkap Layangan', desc: 'Ketuk layangan putus sebelum jatuh. Layangan emas +3, layangan sobek jangan diambil!' },
+  pinang: { name: 'Panjat Pinang', desc: 'Ketuk berirama untuk memanjat tiang licin. Terlalu cepat malah melorot!', event: 'bendera' },
 } as const;
 export type GameId = keyof typeof GAMES;
 
@@ -85,4 +89,129 @@ export function memoriReplay(layout: number[], flips: [number, number][]) {
 
 export function memoriStars(moves: number) {
   return moves <= 12 ? 3 : moves <= 18 ? 2 : 1;
+}
+
+/* ---------------- Balap Bakiak ---------------- */
+
+export const BAKIAK = { stumbleMs: 700, minGapMs: 70, finish: 60 };
+export type Foot = 'L' | 'R';
+
+/** Aba-aba kaki: kebanyakan bergantian, kadang kaki yang sama dua kali. */
+export function bakiakPrompts(seed: number, n = 240): Foot[] {
+  const r = mulberry32(seed);
+  const out: Foot[] = [];
+  let f: Foot = r() < 0.5 ? 'L' : 'R';
+  for (let i = 0; i < n; i++) {
+    out.push(f);
+    if (r() > 0.22) f = f === 'L' ? 'R' : 'L';
+  }
+  return out;
+}
+
+/** Putar ulang ketukan [ms, kaki]. Langkah benar maju 1; salah = tersandung (ketukan diabaikan sebentar). */
+export function bakiakReplay(seed: number, taps: [number, Foot][], durationMs: number) {
+  const prompts = bakiakPrompts(seed);
+  let steps = 0, stumbles = 0, lockUntil = -1, last = -Infinity;
+  for (const tap of taps) {
+    if (!Array.isArray(tap) || tap.length !== 2) return null;
+    const [t, f] = tap;
+    if (!Number.isFinite(t) || t < 0 || t > durationMs + 300 || (f !== 'L' && f !== 'R') || t - last < BAKIAK.minGapMs) return null;
+    last = t;
+    if (t < lockUntil || steps >= prompts.length) continue;
+    if (f === prompts[steps]) steps++;
+    else { stumbles++; lockUntil = t + BAKIAK.stumbleMs; }
+  }
+  return { steps, stumbles };
+}
+
+/* ---------------- Gasing ---------------- */
+
+export interface GasingRound { speed: number; zone: number; width: number }
+export function gasingRounds(seed: number, rounds = 5): GasingRound[] {
+  const r = mulberry32(seed);
+  return Array.from({ length: rounds }, (_, i) => ({
+    speed: Math.round(1300 - i * 90 - r() * 260), // ms dari kosong ke penuh; makin lama makin cepat
+    zone: Math.round((0.55 + r() * 0.3) * 100) / 100,
+    width: Math.round((0.11 - i * 0.008) * 1000) / 1000,
+  }));
+}
+/** Tenaga 0..1 naik-turun (gelombang segitiga). */
+export const gasingMeter = (t: number, speed: number) => { const p = (Math.max(0, t) % (2 * speed)) / speed; return p <= 1 ? p : 2 - p; };
+
+/** Lama putaran satu ronde (detik, satu desimal) bila dilepas pada t ms. */
+export function gasingSpin(r: GasingRound, t: number) {
+  const dist = Math.abs(gasingMeter(t, r.speed) - r.zone);
+  const quality = Math.max(0, 1 - dist / (r.width * 3));
+  return Math.round((2 + quality * 8 + (dist <= r.width ? 2 : 0)) * 10) / 10;
+}
+
+/** Lama putaran (detik, satu desimal) dari waktu lepas tiap ronde. */
+export function gasingScore(seed: number, releases: number[], rounds = 5) {
+  if (!Array.isArray(releases) || releases.length !== rounds) return null;
+  const rs = gasingRounds(seed, rounds);
+  const spins: number[] = [];
+  for (let i = 0; i < rounds; i++) {
+    const t = releases[i];
+    if (!Number.isFinite(t) || t < 150 || t > 20_000) return null;
+    spins.push(gasingSpin(rs[i], t));
+  }
+  return { spins, total: Math.round(spins.reduce((a, b) => a + b, 0) * 10) / 10 };
+}
+
+/* ---------------- Tangkap Layangan ---------------- */
+
+export const LAYANGAN_FALL_MS = 3600;
+export interface Kite { t: number; x: number; sway: number; kind: 'biasa' | 'emas' | 'sobek'; value: number; color: number }
+export function layanganSchedule(seed: number, durationMs = 25_000): Kite[] {
+  const r = mulberry32(seed);
+  const out: Kite[] = [];
+  let t = 700;
+  while (t < durationMs - LAYANGAN_FALL_MS * 0.6) {
+    const x = r();
+    const kind: Kite['kind'] = x < 0.14 ? 'sobek' : x < 0.24 ? 'emas' : 'biasa';
+    out.push({ t: Math.round(t), x: Math.round((0.12 + r() * 0.76) * 1000) / 1000, sway: Math.round((0.03 + r() * 0.08) * 1000) / 1000, kind, value: kind === 'emas' ? 3 : kind === 'sobek' ? -1 : 1, color: Math.floor(r() * 5) });
+    t += 650 + r() * 520 - (t / durationMs) * 220;
+  }
+  return out;
+}
+/** Posisi layangan (0..1) pada waktu t: turun sambil meliuk. */
+export function kitePos(k: Kite, t: number) {
+  const a = (t - k.t) / LAYANGAN_FALL_MS;
+  return { x: k.x + Math.sin((t - k.t) / 650) * k.sway, y: -0.08 + a * 1.06 };
+}
+export function layanganScore(sched: Kite[], caught: [number, number][], durationMs: number) {
+  const seen = new Set<number>();
+  let score = 0;
+  for (const c of caught) {
+    if (!Array.isArray(c) || c.length !== 2) return null;
+    const [i, t] = c;
+    if (!Number.isInteger(i) || i < 0 || i >= sched.length || seen.has(i)) return null;
+    const k = sched[i];
+    if (!Number.isFinite(t) || t < k.t || t > k.t + LAYANGAN_FALL_MS + 150 || t > durationMs + 300) return null;
+    seen.add(i);
+    score += k.value;
+  }
+  return { score: Math.max(0, score) };
+}
+
+/* ---------------- Panjat Pinang (event Agustusan) ---------------- */
+
+export const PINANG = { top: 100, climb: 3.2, slipFast: 5, rhythmMs: 140, slipPerSec: 6, prizes: [25, 50, 75, 100], minGapMs: 55 };
+/** Licinnya tiang dari seed (0,85–1,2). */
+export const pinangGrease = (seed: number) => Math.round((0.85 + mulberry32(seed)() * 0.35) * 100) / 100;
+
+/** Putar ulang ketukan (ms). Berirama = naik; terlalu cepat = melorot; diam = melorot pelan. */
+export function pinangReplay(seed: number, taps: number[], durationMs: number) {
+  const grease = pinangGrease(seed);
+  let h = 0, maxH = 0, prev = 0, last = -Infinity;
+  for (const t of taps) {
+    if (!Number.isFinite(t) || t < 0 || t > durationMs + 300 || t - last < PINANG.minGapMs) return null;
+    h = Math.max(0, h - (PINANG.slipPerSec * grease * (t - prev)) / 1000);
+    h = t - last < PINANG.rhythmMs ? Math.max(0, h - PINANG.slipFast * grease) : Math.min(PINANG.top, h + PINANG.climb);
+    prev = t; last = t;
+    maxH = Math.max(maxH, h);
+    if (h >= PINANG.top) break;
+  }
+  const height = Math.round(maxH);
+  return { height, tiers: PINANG.prizes.filter((p) => height >= p).length };
 }

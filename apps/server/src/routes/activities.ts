@@ -4,7 +4,7 @@ import { applyNeedDelta, karungRace, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC } from
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, purchasable, track } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { currentNeeds, lockPet, savePet } from '../lib/state';
+import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../lib/state';
 import { int, str } from '../lib/validate';
 import { grantXp, patch } from './game';
 
@@ -68,6 +68,8 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
     return db.tx(async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      assertAwake(pet, s);
+      assertHealthy(pet, s);
       const needs = currentNeeds(pet, s);
       if (needs.energi < s.karung.energiCost) throw bad('tired', `${pet.name} terlalu capek untuk lomba. Tidur dulu.`);
       await bumpCounter(t, u.id, 'karung', s.karung.playsPerDay);
@@ -133,6 +135,7 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
     return db.tx(async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      assertAwake(pet, s);
       const needs = currentNeeds(pet, s);
       if (needs.energi < s.fishing.energiCost) throw bad('tired', `${pet.name} terlalu capek untuk memancing.`);
       await bumpCounter(t, u.id, 'fishing', s.fishing.castsPerDay);

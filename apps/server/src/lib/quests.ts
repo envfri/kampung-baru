@@ -5,7 +5,7 @@ import { addXp } from '@kb/shared';
 import { bad, credit, getSettings, notFound, today, track } from './core';
 
 export interface QuestDef {
-  id: string; kind: 'starter' | 'daily'; title: string; description: string; event: string;
+  id: string; kind: 'starter' | 'daily' | 'badge'; title: string; description: string; event: string;
   filter: Record<string, string | number>; target: number; reward_coin: number; reward_pearl: number; reward_xp: number;
   url: string; sort: number; active: boolean;
 }
@@ -52,7 +52,7 @@ export async function questEvent(db: Db, userId: string | null, name: string, pr
          set progress = least($4, quest_progress.progress + 1),
              completed_at = coalesce(quest_progress.completed_at, case when quest_progress.progress + 1 >= $4 then now() end)
          where quest_progress.completed_at is null`,
-      [userId, q.id, q.kind === 'starter' ? 'starter' : day, q.target],
+      [userId, q.id, q.kind === 'daily' ? day : q.kind, q.target],
     );
   }
 }
@@ -63,7 +63,7 @@ export async function questList(db: Db, userId: string) {
   const day = today();
   const daily = dailyFor(userId, day, qs.filter((q) => q.kind === 'daily'), s.quests.dailyCount);
   const rows = await db.query<{ quest_id: string; period: string; progress: number; completed_at: Date | null; claimed_at: Date | null }>(
-    `select quest_id, period, progress, completed_at, claimed_at from quest_progress where user_id = $1 and (period = 'starter' or period = $2)`,
+    `select quest_id, period, progress, completed_at, claimed_at from quest_progress where user_id = $1 and (period in ('starter', 'badge') or period = $2)`,
     [userId, day],
   );
   const prog = new Map(rows.map((r) => [`${r.quest_id}|${r.period}`, r]));
@@ -77,7 +77,9 @@ export async function questList(db: Db, userId: string) {
   };
   const starter = qs.filter((q) => q.kind === 'starter').map((q) => view(q, 'starter'));
   const dailyList = daily.map((q) => view(q, day));
-  const all = [...starter, ...dailyList];
+  // lencana: sekali seumur akun, semua aktif; yang sudah diambil tetap tampil sebagai koleksi
+  const badges = qs.filter((q) => q.kind === 'badge').map((q) => view(q, 'badge'));
+  const all = [...starter, ...dailyList, ...badges];
   const next = starter.find((q) => !q.claimed) ?? null;
   // tengah malam WIB berikutnya
   const now = Date.now() + 7 * 3600_000;
@@ -86,6 +88,7 @@ export async function questList(db: Db, userId: string) {
     enabled: s.features.quests,
     starter,
     daily: dailyList,
+    badges,
     dailyResetAt: resetAt,
     summary: {
       ready: s.features.quests ? all.filter((q) => q.done && !q.claimed).length : 0,
@@ -93,6 +96,8 @@ export async function questList(db: Db, userId: string) {
       dailyDone: dailyList.filter((q) => q.claimed).length,
       dailyTotal: dailyList.length,
       starterLeft: starter.filter((q) => !q.claimed).length,
+      badgesEarned: badges.filter((q) => q.claimed).length,
+      badgesTotal: badges.length,
     },
   };
 }
@@ -106,7 +111,7 @@ export async function claimQuest(db: Db, userId: string, questId: string) {
   const qs = await getQuests(db);
   const q = qs.find((x) => x.id === questId);
   if (!q) throw notFound('Tugas tidak ditemukan.');
-  const period = q.kind === 'starter' ? 'starter' : today();
+  const period = q.kind === 'daily' ? today() : q.kind;
   const row = await db.one(
     `update quest_progress set claimed_at = now() where user_id = $1 and quest_id = $2 and period = $3 and completed_at is not null and claimed_at is null returning 1 as ok`,
     [userId, q.id, period],

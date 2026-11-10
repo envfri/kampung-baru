@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { fits, renderRoom, ROOM_VIEWBOX, occupied, petSpot, roomGeom, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, type RoomSpot } from '@kb/shared';
-  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText } from '../lib/game.svelte';
+  import { fits, renderRoom, ROOM_VIEWBOX, occupied, petSpot, roomGeom, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, type RoomSpot } from '@kb/shared';
+  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' } = $props();
   let svgEl: SVGSVGElement | undefined = $state();
   let wrapEl: HTMLDivElement | undefined = $state();
   let fxLayer: SVGGElement | undefined = $state();
+  let foamLayer: SVGGElement | undefined = $state();
   let lastTap = 0;
 
   const room = $derived<any>(mode === 'visit' ? (G.visit?.rooms?.[G.visitRoom] ?? G.visit?.room ?? { layout: [] }) : curRoom());
@@ -17,6 +18,9 @@
   const itemMap = $derived(Object.fromEntries(items()));
   const layout = $derived<any[]>(mode === 'visit' ? (room?.layout ?? []) : G.edit && G.draft ? G.draft : (room?.layout ?? []));
   const blocked = $derived(occupied(layout, itemMap));
+  const petData = $derived<any>(mode === 'visit' ? G.visit?.pet : G.me.pet);
+  const asleep = $derived(!!petData && G.now > 0 && isSleeping(petData));
+  const homeLive = $derived(mode === 'home' && !G.edit);
 
   /* ---------------- pet berjalan ---------------- */
   // `pos` dipakai saat menggambar ulang ruangan (hanya saat pet pindah petak, untuk urutan kedalaman);
@@ -24,7 +28,7 @@
   let pos = $state<[number, number] | null>(null);
   let flip = $state(false);
   let walking = $state(false);
-  /** pose saat beraktivitas (tidur di kasur, membaca, ...) */
+  /** pose saat beraktivitas / tidur (tidur di kasur, membaca, ...) */
   let pose = $state<{ pose: string; prop?: string; lift: number } | null>(null);
   let acting = $state(false);
   let live: [number, number] | null = null;
@@ -34,6 +38,7 @@
   let last = 0;
   let arrived: (() => void) | null = null;
   let shownRoom = '';
+  let bedSpot: [number, number] | null = null;
   const SPEED = 1.3; // petak per detik
   const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const tileOf = (p: [number, number]) => `${Math.floor(p[0])},${Math.floor(p[1])}`;
@@ -44,23 +49,64 @@
     const b = blocked, sz = size, lay = layout, rid = room?.id ?? '';
     const cur = untrack(() => pos);
     const moved = rid !== shownRoom;
-    if (moved || (!untrack(() => acting) && (!cur || cur[0] >= sz || cur[1] >= sz || b.has(tileOf(cur))))) {
+    if (moved || (!untrack(() => acting) && !untrack(() => bedSpot) && (!cur || cur[0] >= sz || cur[1] >= sz || b.has(tileOf(cur))))) {
       shownRoom = rid;
       halt();
-      untrack(() => { pose = null; acting = false; menu = null; });
+      untrack(() => { pose = null; acting = false; menu = null; bedSpot = null; });
       const spot = petSpot(lay, itemMap, sz);
       pos = spot;
       live = [...spot];
+      if (untrack(() => asleep)) queueMicrotask(() => goToBed(true));
     }
   });
 
+  // keadaan tubuh yang digambar: wajah sesuai kebutuhan, noda kotor (berkurang saat digosok), gembul
+  const look = $derived.by(() => {
+    const l = petLook(petData);
+    if (!l) return undefined;
+    if (mode === 'home' && G.bath) return { ...l, dirt: l.dirt * (1 - G.bath.scrub) };
+    return l;
+  });
+
+  /* ---------------- remah & bulu rontok ---------------- */
+  let swept = $state<Set<number>>(new Set());
+  const crumbCount = $derived.by(() => {
+    const c = settings().crumbs;
+    const at = G.me?.pet?.crumbsAt;
+    if (mode !== 'home' || !c || !at) return 0;
+    return Math.max(0, Math.min(c.max, Math.floor((serverNow() - at) / (c.everyMinutes * 60_000))));
+  });
+  const crumbs = $derived.by(() => {
+    if (!crumbCount || G.edit) return [];
+    const r = mulberry32(Math.floor((G.me.pet.crumbsAt ?? 0) / 1000) ^ size);
+    const free: [number, number][] = [];
+    for (let x = 0; x < size; x++) for (let y = 0; y < size; y++) if (!blocked.has(`${x},${y}`)) free.push([x, y]);
+    const out: { x: number; y: number; k: string; c?: string; i: number }[] = [];
+    for (let i = 0; i < crumbCount && free.length; i++) {
+      const [x, y] = free.splice(Math.floor(r() * free.length), 1)[0];
+      const k = theme === 'luar' ? (r() < 0.5 ? 'daun' : 'bulu') : r() < 0.55 ? 'remah' : 'bulu';
+      out.push({ x: x + 0.3 + r() * 0.4, y: y + 0.3 + r() * 0.4, k, c: G.me.pet.color, i });
+    }
+    return out.filter((c) => !swept.has(c.i));
+  });
+  $effect(() => { void G.me?.pet?.crumbsAt; untrack(() => (swept = new Set())); });
+
+  async function sweepCrumb(i: number, e: MouseEvent) {
+    if (swept.has(i)) return;
+    swept = new Set([...swept, i]);
+    sfx.tap();
+    spawnAt(e.clientX, e.clientY, 'sparkle');
+    const r: any = await run(() => post('/api/sweep'));
+    if (r) toast(r.coins ? `Lantai bersih! +${r.coins} koin` : 'Lantai bersih!', 'good');
+    if (r?.coins) sfx.coin();
+  }
+
   const html = $derived.by(() => {
     const p = pos ?? undefined;
-    const pet = mode === 'visit' ? G.visit?.pet : G.me.pet;
     return renderRoom({
       layout, items: itemMap, wall: item(room?.wall), floor: item(room?.floor), size, theme,
-      pet: pet ? { look: pet, wear: wearItems(pet.wear), pos: p, flip, lift: pose?.lift, pose: pose?.pose, prop: pose?.prop } : null,
-      edit: mode === 'home' && G.edit, sel: G.sel, decor: activeDecor(),
+      pet: petData ? { look: petData, wear: wearItems(petData.wear), pos: p, flip, lift: pose?.lift, pose: pose?.pose, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop, state: look } : null,
+      edit: mode === 'home' && G.edit, sel: G.sel, decor: activeDecor(), crumbs,
     });
   });
 
@@ -163,7 +209,7 @@
     idleTimer = setTimeout(wander, 2500 + Math.random() * 5000);
   }
   function wander() {
-    if (!live || G.edit || acting || menu || document.hidden || G.sheet === 'feed') return scheduleIdle();
+    if (!live || G.edit || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     const options: [number, number][] = [];
     for (let x = 0; x < size; x++)
@@ -175,25 +221,71 @@
     if (!pick || !walkTo(pick[0], pick[1])) scheduleIdle();
   }
 
-  // mode atur: pet diam supaya mudah menata barang
+  // mode atur & mandi: pet diam supaya mudah ditata / digosok
   $effect(() => {
-    if (G.edit) { halt(); untrack(() => (menu = null)); }
+    if (G.edit || G.bath) { halt(); untrack(() => (menu = null)); }
     else untrack(() => scheduleIdle());
   });
 
   onMount(() => scheduleIdle());
-  onDestroy(() => halt());
+  onDestroy(() => { halt(); clearInterval(talkTimer); cancelAnimationFrame(bubbleRaf); });
+
+  /* ---------------- tidur dengan lampu mati ---------------- */
+
+  /** Pet naik ke kasur di ruangan ini (bila ada) lalu tidur; tanpa kasur tidur di lantai. */
+  async function goToBed(instant = false) {
+    if (!live) return;
+    halt();
+    menu = null;
+    const bed = layout.map((p, i) => ({ p, i, it: item(p.i) })).find((e) => e.it?.art?.type === 'builtin' && e.it.art.key === 'kasur');
+    if (bed) {
+      const f = footprint(bed.it);
+      const goals: [number, number][] = [];
+      for (let a = 0; a < f.w; a++) goals.push([bed.p.x + a, bed.p.y - 1], [bed.p.x + a, bed.p.y + f.d]);
+      for (let b = 0; b < f.d; b++) goals.push([bed.p.x - 1, bed.p.y + b], [bed.p.x + f.w, bed.p.y + b]);
+      if (!instant) { const p = routeToAny(goals); if (p) await walkPath(p); }
+      if (!untrack(() => asleep)) return;
+      bedSpot = live ? [...live] as [number, number] : null;
+      const c: [number, number] = [bed.p.x + f.w / 2, bed.p.y + f.d / 2];
+      live = [...c]; pos = [...c];
+      pose = { pose: 'tidur', lift: ACTIVITY_ANIMS.tidur.lift };
+    } else pose = { pose: 'tidur', lift: 0 };
+    queueMicrotask(place);
+  }
+  function wakeUp() {
+    pose = null;
+    if (bedSpot) { live = [...bedSpot]; pos = [...bedSpot]; bedSpot = null; }
+    queueMicrotask(place);
+    scheduleIdle();
+  }
+  let wasAsleep = false;
+  $effect(() => {
+    const a = asleep;
+    if (a === wasAsleep) return;
+    wasAsleep = a;
+    untrack(() => (a ? goToBed() : wakeUp()));
+  });
+  // dengkur halus selama tidur
+  $effect(() => {
+    if (!asleep) return;
+    const t = setInterval(() => fx('zz'), 2600);
+    return () => clearInterval(t);
+  });
 
   /* ---------------- aktivitas di rumah ---------------- */
 
   type Target = { index?: number; spot?: RoomSpot };
   let menu = $state<null | { x: number; y: number; title: string; acts: any[]; target: Target }>(null);
+  const SLEEP_ACT = { id: '__sleep', name: 'Tidur sampai segar', effects: {}, cooldown_sec: 0, note: 'Matikan lampu' };
 
   function activitiesFor(t: Target) {
     const list = G.catalog?.activities ?? [];
     if (t.spot) return theme === 'luar' ? [] : list.filter((a: any) => activityFits(a.targets, null, t.spot));
     const it = item(layout[t.index!]?.i);
-    return list.filter((a: any) => activityFits(a.targets, it as any));
+    const acts = list.filter((a: any) => activityFits(a.targets, it as any));
+    // kasur & lampu: matikan lampu untuk tidur sungguhan
+    const key = it?.art?.type === 'builtin' ? it.art.key : '';
+    return key === 'kasur' || key === 'lampu' ? [SLEEP_ACT, ...acts] : acts;
   }
 
   function goalsFor(t: Target): { goals: [number, number][]; center: [number, number] | null; faceTo: [number, number] | null; flipTo: boolean | null } {
@@ -230,6 +322,7 @@
   async function doActivity(a: any, t: Target) {
     menu = null;
     if (acting || G.busy) return;
+    if (a.id === '__sleep') { await setSleep(true); return; }
     if ((a.min_level ?? 1) > G.me.pet.level) { sfx.error(); toast(`Terbuka di Lv ${a.min_level}.`, 'error'); return; }
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
     const g = goalsFor(t);
@@ -262,11 +355,75 @@
     scheduleIdle();
   }
 
+  /* ---------------- mandi: gosok sabun lalu bilas ---------------- */
+
+  let scrubbing = false, lastPt: [number, number] | null = null, foamN = 0;
+  function toSvg(cx: number, cy: number) {
+    const ctm = svgEl?.getScreenCTM();
+    if (!svgEl || !ctm) return null;
+    const pt = svgEl.createSVGPoint();
+    pt.x = cx; pt.y = cy;
+    const q = pt.matrixTransform(ctm.inverse());
+    return [q.x, q.y] as [number, number];
+  }
+  function overPet(cx: number, cy: number, pad = 14) {
+    const r = petEl()?.getBoundingClientRect();
+    return !!r && cx >= r.left - pad && cx <= r.right + pad && cy >= r.top - pad && cy <= r.bottom + pad;
+  }
+  function foamAt(cx: number, cy: number) {
+    const q = toSvg(cx, cy);
+    if (!q || !foamLayer || foamN > 60) return;
+    foamN++;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    g.setAttribute('cx', (q[0] + (Math.random() * 10 - 5)).toFixed(1));
+    g.setAttribute('cy', (q[1] + (Math.random() * 10 - 5)).toFixed(1));
+    g.setAttribute('r', (4 + Math.random() * 6).toFixed(1));
+    g.setAttribute('class', 'foam');
+    foamLayer.appendChild(g);
+  }
+  function bathDown(e: PointerEvent) {
+    if (!G.bath || mode !== 'home') return;
+    if (G.bath.tool === 'gayung') { if (overPet(e.clientX, e.clientY, 30)) rinse(); return; }
+    scrubbing = true;
+    lastPt = [e.clientX, e.clientY];
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  }
+  function bathMove(e: PointerEvent) {
+    if (!G.bath || !scrubbing || G.bath.tool !== 'sabun' || !lastPt) return;
+    const d = Math.hypot(e.clientX - lastPt[0], e.clientY - lastPt[1]);
+    lastPt = [e.clientX, e.clientY];
+    if (!overPet(e.clientX, e.clientY)) return;
+    G.bath.scrub = Math.min(1, G.bath.scrub + d / 900);
+    if (Math.random() < 0.45) foamAt(e.clientX, e.clientY);
+    if (Math.random() < 0.08) sfx.tap();
+    if (G.bath.scrub >= 1 && G.bath.tool === 'sabun') { G.bath.tool = 'gayung'; toast('Sudah berbusa! Sekarang bilas pakai gayung.'); }
+  }
+  function bathUp() { scrubbing = false; lastPt = null; }
+  async function rinse() {
+    if (!G.bath || G.bath.rinsing) return;
+    G.bath.rinsing = true;
+    for (let i = 0; i < 3; i++) setTimeout(() => fx('drops'), i * 250);
+    sfx.pop();
+    const r: any = await run(() => post('/api/action', { type: 'mandi' }));
+    setTimeout(() => { if (foamLayer) foamLayer.innerHTML = ''; foamN = 0; }, 500);
+    if (r) {
+      G.cool.mandi = Date.now() + (settings().actions?.mandi?.cooldownSec ?? 0) * 1000;
+      fx('bubbles');
+      toast(`${G.me.pet.name} wangi lagi`, 'good');
+      if (r.result?.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.result.levelUp}!`, 'good'); }
+    }
+    G.bath = null;
+  }
+  $effect(() => { if (!G.bath && foamLayer) untrack(() => { foamLayer!.innerHTML = ''; foamN = 0; }); });
+
   /* ---------------- interaksi ---------------- */
 
   function click(e: MouseEvent) {
     const t = e.target as Element;
+    if (G.bath) return;
     if (menu) { menu = null; if (!t.closest('.furn, .spot')) return; }
+    const cr = t.closest('.crumb') as SVGElement | null;
+    if (cr && homeLive) return sweepCrumb(Number(cr.dataset.c), e);
     if (t.closest('.pet')) return tapPet();
     if (mode === 'home' && G.edit) {
       const f = t.closest('.furn') as SVGElement | null;
@@ -284,6 +441,7 @@
       return;
     }
     if (acting) return;
+    if (asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
     if (mode === 'home') {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) return openMenu(e, { index: Number(f.dataset.i) });
@@ -302,38 +460,91 @@
     if (walking) { stopWalk(); scheduleIdle(); }
     fx('hearts');
     sfx.pop();
-    if (mode === 'home' && !G.edit) await run(() => post('/api/action', { type: 'elus' }));
+    if (mode !== 'home' || G.edit) return;
+    if (asleep) sayLine('tidur');
+    else if (Math.random() < 0.5) sayLine('elus');
+    await run(() => post('/api/action', { type: 'elus' }));
   }
 
-  function key(e: KeyboardEvent) { if (e.key === 'Escape' && menu) menu = null; }
+  function key(e: KeyboardEvent) { if (e.key === 'Escape') { if (menu) menu = null; else if (G.bath) G.bath = null; } }
+
+  /* ---------------- mata mengikuti jari / mouse ---------------- */
+  function lookAt(cx: number, cy: number) {
+    const r = petEl()?.getBoundingClientRect();
+    if (!r || !svgEl || asleep) return;
+    const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height * 0.4);
+    const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 160);
+    svgEl.style.setProperty('--lx', `${((dx / d) * 4.5 * k * (flip ? -1 : 1)).toFixed(2)}px`);
+    svgEl.style.setProperty('--ly', `${((dy / d) * 3 * k).toFixed(2)}px`);
+  }
+  function onPointer(e: PointerEvent) {
+    lookAt(e.clientX, e.clientY);
+    bathMove(e);
+  }
+  // makanan didekatkan ke mulut: pet mangap
+  const mouthOpen = $derived.by(() => {
+    const d = G.feedDrag;
+    if (!d || mode !== 'home') return false;
+    void G.now;
+    const r = petEl()?.getBoundingClientRect();
+    if (!r) return false;
+    return Math.hypot(d.x - (r.left + r.width / 2), d.y - (r.top + r.height * 0.55)) < Math.max(110, r.width);
+  });
+  $effect(() => { const d = G.feedDrag; if (d) untrack(() => lookAt(d.x, d.y)); });
+  const chewing = $derived(G.now - G.chewing < 1300 && G.chewing > 0);
+
+  /* ---------------- celetukan pet ---------------- */
+  let talkTimer: any;
+  let bubble = $state<{ x: number; y: number } | null>(null);
+  let bubbleRaf = 0;
+  const mood = $derived(look?.mood ?? 'biasa');
+  let lastMood = '';
+  function scheduleTalk() {
+    clearInterval(talkTimer);
+    const every = Math.max(10, Number(settings().speech?.everySec ?? 35));
+    talkTimer = setInterval(() => {
+      if (mode !== 'home' || G.edit || G.sheet || document.hidden) return;
+      if (Math.random() < 0.7) sayLine(look?.chub && look.chub > 0.3 && Math.random() < 0.4 ? 'gembul' : mood);
+    }, every * 1000);
+  }
+  onMount(scheduleTalk);
+  $effect(() => {
+    const m = mood;
+    if (mode !== 'home' || m === lastMood) return;
+    const first = !lastMood;
+    lastMood = m;
+    // saat suasana hati berubah (lapar, capek, sakit, ...) pet langsung bilang
+    if (!first && m !== 'biasa') untrack(() => sayLine(m));
+  });
+  $effect(() => {
+    const sp = G.speech;
+    if (!sp || mode !== 'home') return;
+    const follow = () => {
+      const r = petEl()?.getBoundingClientRect(), w = wrapEl?.getBoundingClientRect();
+      // tetap di dalam layar (gelembung maks ±240px)
+      if (r && w) bubble = { x: Math.max(128, Math.min(w.width - 128, r.left + r.width / 2 - w.left)), y: Math.max(56, r.top - w.top) };
+      bubbleRaf = requestAnimationFrame(follow);
+    };
+    follow();
+    const t = setTimeout(() => { if (G.speech?.n === sp.n) G.speech = null; }, 3800);
+    return () => { cancelAnimationFrame(bubbleRaf); clearTimeout(t); bubble = null; };
+  });
 
   // efek melayang (hati, gelembung, koin, zzz, ...) di atas kepala pet
-  $effect(() => {
-    const n = G.fx;
-    if (!n || !svgEl || !fxLayer) return;
-    const pet = svgEl.querySelector('.pet');
-    if (!pet) return;
-    const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(pet.getAttribute('transform') ?? '');
-    if (!m) return;
-    const x = +m[1], y = +m[2] - 74;
-    const hop = pet.querySelector('.pet-hop');
-    if (!untrack(() => pose)) {
-      hop?.classList.remove('go');
-      void (hop as any)?.getBBox?.();
-      hop?.classList.add('go');
-    }
-    const shapes: Record<string, () => string> = {
-      hearts: () => '<path d="M0 4C-8 -4-14 2-7 9L0 15 7 9C14 2 8 -4 0 4Z" fill="#FF6B8A" stroke="#2B2F4A" stroke-width="2"/>',
-      bubbles: () => `<circle r="${5 + Math.random() * 5}" fill="#DDF3FF" stroke="#2B2F4A" stroke-width="1.8"/>`,
-      coins: () => '<circle r="8" fill="#F2B632" stroke="#2B2F4A" stroke-width="2"/><circle r="4" fill="none" stroke="#B9800F" stroke-width="1.6"/>',
-      zz: () => '<text font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="1.2">Z</text>',
-      food: () => '<circle r="5" fill="#F2C94C" stroke="#2B2F4A" stroke-width="1.6"/>',
-      sparkle: () => '<path d="M0 -9L2.4 -2.4 9 0 2.4 2.4 0 9-2.4 2.4-9 0-2.4 -2.4Z" fill="#FFE07A" stroke="#2B2F4A" stroke-width="1.6" stroke-linejoin="round"/>',
-      drops: () => '<path d="M0 -8C4 -2 6 2 6 5A6 6 0 0 1 -6 5C-6 2 -4 -2 0 -8Z" fill="#7FC4E8" stroke="#2B2F4A" stroke-width="1.6"/>',
-      notes: () => '<path d="M-3 6V-8L7 -10V4" fill="none" stroke="#2B2F4A" stroke-width="2.2"/><ellipse cx="-6" cy="6" rx="4" ry="3" fill="#9A6FC0" stroke="#2B2F4A" stroke-width="1.6"/><ellipse cx="4" cy="4" rx="4" ry="3" fill="#9A6FC0" stroke="#2B2F4A" stroke-width="1.6"/>',
-      steam: () => '<path d="M0 8q-6 -6 0 -12t0 -12" fill="none" stroke="#FFFDF7" stroke-width="4" stroke-linecap="round"/><path d="M0 8q-6 -6 0 -12t0 -12" fill="none" stroke="#9AA7B8" stroke-width="2" stroke-linecap="round"/>',
-    };
-    const make = shapes[G.fxKind] ?? shapes.hearts;
+  const SHAPES: Record<string, () => string> = {
+    hearts: () => '<path d="M0 4C-8 -4-14 2-7 9L0 15 7 9C14 2 8 -4 0 4Z" fill="#FF6B8A" stroke="#2B2F4A" stroke-width="2"/>',
+    bubbles: () => `<circle r="${5 + Math.random() * 5}" fill="#DDF3FF" stroke="#2B2F4A" stroke-width="1.8"/>`,
+    coins: () => '<circle r="8" fill="#F2B632" stroke="#2B2F4A" stroke-width="2"/><circle r="4" fill="none" stroke="#B9800F" stroke-width="1.6"/>',
+    zz: () => '<text font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="1.2">Z</text>',
+    food: () => '<circle r="5" fill="#F2C94C" stroke="#2B2F4A" stroke-width="1.6"/>',
+    sparkle: () => '<path d="M0 -9L2.4 -2.4 9 0 2.4 2.4 0 9-2.4 2.4-9 0-2.4 -2.4Z" fill="#FFE07A" stroke="#2B2F4A" stroke-width="1.6" stroke-linejoin="round"/>',
+    drops: () => '<path d="M0 -8C4 -2 6 2 6 5A6 6 0 0 1 -6 5C-6 2 -4 -2 0 -8Z" fill="#7FC4E8" stroke="#2B2F4A" stroke-width="1.6"/>',
+    notes: () => '<path d="M-3 6V-8L7 -10V4" fill="none" stroke="#2B2F4A" stroke-width="2.2"/><ellipse cx="-6" cy="6" rx="4" ry="3" fill="#9A6FC0" stroke="#2B2F4A" stroke-width="1.6"/><ellipse cx="4" cy="4" rx="4" ry="3" fill="#9A6FC0" stroke="#2B2F4A" stroke-width="1.6"/>',
+    steam: () => '<path d="M0 8q-6 -6 0 -12t0 -12" fill="none" stroke="#FFFDF7" stroke-width="4" stroke-linecap="round"/><path d="M0 8q-6 -6 0 -12t0 -12" fill="none" stroke="#9AA7B8" stroke-width="2" stroke-linecap="round"/>',
+  };
+  function spawn(x: number, y: number, kind: string) {
+    if (!fxLayer) return;
+    const make = SHAPES[kind] ?? SHAPES.hearts;
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     let h = '';
     for (let i = 0; i < 4; i++) {
@@ -343,6 +554,22 @@
     g.innerHTML = h;
     fxLayer.appendChild(g);
     setTimeout(() => g.remove(), 1600);
+  }
+  function spawnAt(cx: number, cy: number, kind: string) { const q = toSvg(cx, cy); if (q) spawn(q[0], q[1] - 10, kind); }
+  $effect(() => {
+    const n = G.fx;
+    if (!n || !svgEl || !fxLayer) return;
+    const pet = svgEl.querySelector('.pet');
+    if (!pet) return;
+    const m = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(pet.getAttribute('transform') ?? '');
+    if (!m) return;
+    const hop = pet.querySelector('.pet-hop');
+    if (!untrack(() => pose) && !untrack(() => G.bath)) {
+      hop?.classList.remove('go');
+      void (hop as any)?.getBBox?.();
+      hop?.classList.add('go');
+    }
+    spawn(+m[1], +m[2] - 74, G.fxKind);
   });
 
   // potret: perbesar ruangan agar memenuhi layar HP (ruangan kecil diperbesar, halaman besar diperkecil)
@@ -356,21 +583,27 @@
   });
 </script>
 
-<svelte:window onkeydown={key} />
+<svelte:window onkeydown={key} onpointermove={onPointer} onpointerup={bathUp} />
 <div class="roomwrap" bind:this={wrapEl}>
-  <svg bind:this={svgEl} class="room" class:walking class:acting={!!pose} class:home={mode === 'home' && !G.edit} {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={mode === 'visit' ? 'Rumah teman' : `Rumahmu: ${room?.name ?? 'Kamar'}`} onclick={click}>
+  <svg bind:this={svgEl} class="room" class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
+    class:mangap={mouthOpen || chewing} class:chew={chewing} class:asleep
+    {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={mode === 'visit' ? 'Rumah teman' : `Rumahmu: ${room?.name ?? 'Kamar'}`} onclick={click} onpointerdown={bathDown}>
     {@html html}
+    <g bind:this={foamLayer} pointer-events="none"></g>
     <g bind:this={fxLayer} pointer-events="none"></g>
   </svg>
+  {#if bubble && G.speech && mode === 'home'}
+    {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
+  {/if}
   {#if menu}
     <div class="menu" style={menuStyle} role="menu" aria-label="Aktivitas {menu.title}">
       <b>{menu.title}</b>
       {#each menu.acts as a (a.id)}
         {@const cd = cdLeft(a.id)}
         {@const lock = (a.min_level ?? 1) > G.me.pet.level}
-        <button class="btn sm" role="menuitem" disabled={cd > 0 || lock || G.busy} onclick={() => doActivity(a, menu!.target)}>
+        <button class="btn sm" class:hot={a.id === '__sleep'} role="menuitem" disabled={cd > 0 || lock || G.busy} onclick={() => doActivity(a, menu!.target)}>
           <span class="nm">{a.name}</span>
-          <span class="ef">{lock ? `Lv ${a.min_level}` : cd > 0 ? fmtCd(cd) : effText(a.effects) || (a.coins ? `+${a.coins} koin` : '')}</span>
+          <span class="ef">{a.note ?? (lock ? `Lv ${a.min_level}` : cd > 0 ? fmtCd(cd) : effText(a.effects) || (a.coins ? `+${a.coins} koin` : ''))}</span>
         </button>
       {/each}
     </div>
@@ -380,18 +613,27 @@
 <style>
   .roomwrap { position: absolute; inset: 0; }
   .room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .room.bathing { touch-action: none; }
+  .room.soap { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Crect x='3' y='6' width='34' height='20' rx='9' fill='%23F7A8C4' stroke='%232B2F4A' stroke-width='2.5'/%3E%3Ccircle cx='30' cy='8' r='4' fill='%23DDF3FF' stroke='%232B2F4A' stroke-width='1.5'/%3E%3C/svg%3E") 20 16, pointer; }
+  .room.scoop { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='36'%3E%3Cpath d='M4 10h22l-3 18H7Z' fill='%237FC4E8' stroke='%232B2F4A' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M25 14h11' stroke='%232B2F4A' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") 16 18, pointer; }
   .room :global(.fl) { cursor: pointer; }
-  .room.home :global(.furn), .room.home :global(.spot) { cursor: pointer; }
+  .room.home :global(.furn), .room.home :global(.spot), .room.home :global(.crumb) { cursor: pointer; }
   .room.home :global(.furn:hover), .room.home :global(.spot:hover) { filter: brightness(1.06); }
+  .room :global(.crumb) { animation: crumbIn .4s ease-out; }
   .room.walking :global(.pet-bob) { animation: waddle 0.3s ease-in-out infinite alternate; }
+  .room :global(.foam) { fill: #FFFFFF; stroke: #9FD0E8; stroke-width: 1.4; opacity: .95; animation: pop .25s ease-out; }
   @keyframes waddle {
     from { transform: rotate(-6deg) translateY(0); }
     to { transform: rotate(6deg) translateY(-4px); }
   }
+  @keyframes crumbIn { from { opacity: 0; transform: scale(.4); } }
+  .bubble { position: absolute; z-index: 11; transform: translate(-50%, calc(-100% - 10px)); margin: 0; width: max-content; max-width: min(240px, 70vw); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); padding: 5px 12px; font-weight: 800; font-size: 14.5px; line-height: 1.2; pointer-events: none; animation: talk 3.8s ease-out forwards; }
+  .bubble::after { content: ''; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; background: var(--paper); border-right: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+  @keyframes talk { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 2px)) scale(.8); } 8%, 88% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 14px)); } }
   .menu { position: absolute; z-index: 12; width: 240px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; animation: pop .18s ease-out; }
   .menu b { font-size: 15px; padding: 0 4px; }
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; }
   .menu .nm { font-weight: 800; }
   .menu .ef { font-size: 12px; font-weight: 700; color: var(--muted); white-space: normal; text-align: right; }
-  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob) { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob) { animation: none; } .bubble { animation: none; } }
 </style>

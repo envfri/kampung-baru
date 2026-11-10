@@ -23,7 +23,7 @@
     }
   }
   // toko kini didatangi lewat peta: berada di dalam toko = tab Kampung aktif
-  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
+  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop', 'bakiak', 'gasing', 'layangan', 'pinang'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
 </script>
 
 <nav class="dock" aria-label="Navigasi">

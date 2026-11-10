@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
+import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -15,7 +15,7 @@ import {
   HttpError, notFound, purchasable, today, track, yesterday, bumpCounter,
 } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { J, loadRooms, lockPet, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds } from '../lib/state';
+import { J, loadRooms, lockPet, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds, currentWeight, assertAwake, assertHealthy, isAsleep, isSick, wakePet, crumbsNow } from '../lib/state';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const roomIdOf = (v: unknown) => {
   if (v === undefined || v === null || v === '') return null;
@@ -66,13 +66,19 @@ export async function patch(db: Db, userId: string, parts: ('pet' | 'wallet' | '
   }
   if (parts.includes('garden')) out.garden = await db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]);
   if (parts.includes('limits')) {
-    const [k, f, gp, gm] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing'), counter(db, userId, 'game_panen'), counter(db, userId, 'game_memori')]);
-    const g: any = (s as any).games;
-    out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f), games: { panen: Math.max(0, g.panen.playsPerDay - gp), memori: Math.max(0, g.memori.playsPerDay - gm) } };
+    const [k, f] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing')]);
+    out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f), games: await gamesLeft(db, userId, s) };
   }
   out.quests = await questSummary(db, userId);
   out.serverNow = Date.now();
   return out;
+}
+
+/** Sisa jatah main hari ini untuk tiap mini-game Balai Main. */
+export async function gamesLeft(db: Db, userId: string, s: any) {
+  const ids = Object.keys(GAMES);
+  const used = await Promise.all(ids.map((id) => counter(db, userId, 'game_' + id)));
+  return Object.fromEntries(ids.map((id, i) => [id, Math.max(0, Number(s.games?.[id]?.playsPerDay ?? 0) - used[i])]));
 }
 
 /** Tambah XP pet (dan bonus koin saat naik level). Dipakai di banyak tempat. */
@@ -180,6 +186,8 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
   app.post('/api/action', auth, async (req: any) => {
     const u = req.user!;
     const type = oneOf(req.body?.type, 'Aksi', ['makan', 'mandi', 'main', 'tidur', 'elus'] as const);
+    // 'tidur' kini = matikan lampu (tidur sungguhan); tetap diterima dari PWA versi lama
+    if (type === 'tidur') return sleepStart(u, reqId(req.body?.requestId));
     const itemId = req.body?.itemId ? String(req.body.itemId) : undefined;
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     const mult = coinMultiplier(cat);
@@ -190,28 +198,37 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       let delta: Partial<Needs> = {};
       let xp = 0;
       let coins = 0;
+      let weight: number | undefined;
+      let cured = false;
       const a = s.actions;
+      if (type !== 'elus') assertAwake(pet, s);
       if (type === 'makan') {
         const item = itemId ? cat.byId.get(itemId) : undefined;
         if (!item || item.kind !== 'food') throw bad('invalid_item', 'Pilih makanan dari tas.');
-        if (needs.kenyang >= 99) throw bad('full', `${pet.name} masih kenyang.`);
+        const cure = !!item.data?.cure;
+        if (needs.kenyang >= 99 && !(cure && isSick(pet, s))) throw bad('full', `${pet.name} masih kenyang.`);
         await addItem(t, u.id, item.id, -1);
         delta = item.data?.effects ?? {};
         xp = a.makan.xp;
+        // kebanyakan makan → berat bertambah (tampak gembul)
+        const excess = Math.max(0, needs.kenyang + Number(delta.kenyang ?? 0) - 100);
+        weight = Math.min(100, currentWeight(pet, s) + excess * Number((s as any).weight.perExcess ?? 0));
+        if (cure && pet.sick_at) {
+          await t.query(`update pets set sick_at = null where user_id = $1`, [u.id]);
+          cured = true;
+          await track(t, u.id, 'cure', { itemId: item.id });
+        }
       } else if (type === 'mandi') {
         await cooldown(t, u.id, 'mandi', a.mandi.cooldownSec);
         delta = { bersih: a.mandi.bersih };
         xp = a.mandi.xp;
       } else if (type === 'main') {
+        assertHealthy(pet, s);
         if (needs.energi < a.main.minEnergi) throw bad('tired', `${pet.name} kecapekan. Tidur dulu.`);
         await cooldown(t, u.id, 'main', a.main.cooldownSec);
         delta = { ceria: a.main.ceria, energi: a.main.energi, kenyang: a.main.kenyang };
         xp = a.main.xp;
         coins = Math.round(a.main.coins * mult);
-      } else if (type === 'tidur') {
-        await cooldown(t, u.id, 'tidur', a.tidur.cooldownSec);
-        delta = { energi: a.tidur.energi };
-        xp = a.tidur.xp;
       } else {
         // elus: tidak pernah gagal, tapi XP dibatasi per hari dan per beberapa detik
         const cd = await t.one<{ until: Date }>(`select until from cooldowns where user_id = $1 and key = 'elus'`, [u.id]);
@@ -229,10 +246,64 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       needs = applyNeedDelta(needs, delta);
       const lv = xp ? await grantXp(t, u.id, pet, xp) : { level: pet.level, xp: pet.xp, levelsGained: 0 };
       if (coins) await credit(t, u.id, 'coin', coins, 'action:' + type);
-      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp });
+      // elus saat tidur: hanya membelai, kebutuhan (dan hitungan tidur) tidak diubah
+      if (type === 'elus' && isAsleep(pet, s)) return { ok: true, result: { type, coins: 0, xp: 0, levelUp: null, asleep: true }, ...(await patch(t, u.id, ['pet'])) };
+      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp, weight });
       if (type !== 'elus') await track(t, u.id, 'action', { type });
       else if (xp || Object.keys(delta).length) await questEvent(t, u.id, 'action', { type });
-      return { ok: true, result: { type, coins, xp, levelUp: lv.levelsGained > 0 ? lv.level : null }, ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])) };
+      return { ok: true, result: { type, coins, xp, cured, levelUp: lv.levelsGained > 0 ? lv.level : null }, ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])) };
+    });
+  });
+
+  /* ---------------- tidur dengan lampu mati ---------------- */
+
+  async function sleepStart(u: { id: string }, requestId?: string) {
+    const s = await getSettings(db);
+    return once(db, u.id, requestId, async (t) => {
+      const pet = await lockPet(t, u.id);
+      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      if (isAsleep(pet, s)) return { ok: true, result: { type: 'tidur', coins: 0, xp: 0, levelUp: null }, ...(await patch(t, u.id, ['pet'])) };
+      const needs = currentNeeds(pet, s);
+      if (needs.energi >= (s as any).sleep.maxEnergiToSleep) throw bad('not_sleepy', `${pet.name} belum ngantuk. Main dulu, yuk!`);
+      await savePet(t, u.id, { needs });
+      await t.query(`update pets set sleep_from = now() where user_id = $1`, [u.id]);
+      await track(t, u.id, 'sleep_start');
+      return { ok: true, result: { type: 'tidur', coins: 0, xp: 0, levelUp: null }, ...(await patch(t, u.id, ['pet'])) };
+    });
+  }
+
+  app.post('/api/sleep', auth, async (req: any) => {
+    const u = req.user!;
+    const on = req.body?.on !== false;
+    if (on) return sleepStart(u, reqId(req.body?.requestId));
+    const s = await getSettings(db);
+    return db.tx(async (t) => {
+      const pet = await lockPet(t, u.id);
+      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      if (pet.sleep_from) await wakePet(t, pet, s);
+      return { ok: true, ...(await patch(t, u.id, ['pet'])) };
+    });
+  });
+
+  /* ---------------- sapu remah & bulu rontok ---------------- */
+
+  app.post('/api/sweep', auth, async (req: any) => {
+    const u = req.user!;
+    const s = await getSettings(db);
+    const c = (s as any).crumbs;
+    return once(db, u.id, reqId(req.body?.requestId), async (t) => {
+      const pet = await lockPet(t, u.id);
+      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      const n = crumbsNow(pet, s);
+      if (n <= 0) throw bad('no_crumbs', 'Lantainya sudah bersih.');
+      // sisa remah tetap di lantai: geser dasar hitungan
+      await t.query(`update pets set crumbs_at = now() - ($2::float8 * interval '1 minute') where user_id = $1`, [u.id, (n - 1) * c.everyMinutes]);
+      const used = await counter(t, u.id, 'sweep');
+      const coins = used < c.dailyMax ? c.coins : 0;
+      await bumpCounter(t, u.id, 'sweep', Number.MAX_SAFE_INTEGER);
+      if (coins) await credit(t, u.id, 'coin', coins, 'sweep');
+      await track(t, u.id, 'sweep');
+      return { ok: true, coins, ...(await patch(t, u.id, ['pet', 'wallet'])) };
     });
   });
 
@@ -375,9 +446,12 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
       if (pet.level < (act.min_level ?? 1)) throw bad('locked', `Aktivitas ini terbuka di Lv ${act.min_level}.`);
+      assertAwake(pet, s);
       let needs = currentNeeds(pet, s);
       const delta: Partial<Needs> = {};
       for (const k of NEED_KEYS) { const v = Math.round(Number(act.effects?.[k]) || 0); if (v) delta[k] = v; }
+      const berat = Math.round(Number(act.effects?.berat) || 0);
+      if ((delta.energi ?? 0) < 0 || berat < 0) assertHealthy(pet, s);
       if ((delta.energi ?? 0) < 0 && needs.energi + (delta.energi ?? 0) < 0) throw bad('tired', `${pet.name} kecapekan. Tidur dulu.`);
       await cooldown(t, u.id, 'act:' + act.id, act.cooldown_sec);
       if (act.daily_limit > 0) await bumpCounter(t, u.id, 'act:' + act.id, act.daily_limit);
@@ -387,8 +461,10 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       if (coins) await credit(t, u.id, 'coin', coins, 'activity', act.id);
       const rewardItem = act.reward_item && cat.byId.get(act.reward_item) ? act.reward_item : null;
       if (rewardItem) await addItem(t, u.id, rewardItem, 1);
-      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp });
+      const weight = berat ? Math.max(0, Math.min(100, currentWeight(pet, s) + berat)) : undefined;
+      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp, weight });
       await track(t, u.id, 'activity', { id: act.id, anim: act.anim });
+      if (berat < 0) await track(t, u.id, 'exercise', { id: act.id });
       return {
         ok: true,
         result: { id: act.id, coins, xp: act.xp, item: rewardItem, cooldownSec: act.cooldown_sec, levelUp: lv.levelsGained > 0 ? lv.level : null, message: activityMessage(act, pet.name, target) },

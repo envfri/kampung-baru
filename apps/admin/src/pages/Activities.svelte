@@ -7,7 +7,7 @@
   import { A, can, err, toast } from '../lib/store.svelte';
   import Drawer from '../components/Drawer.svelte';
 
-  const NEEDS = ['kenyang', 'bersih', 'ceria', 'energi'] as const;
+  const NEEDS = ['kenyang', 'bersih', 'ceria', 'energi', 'berat'] as const;
   let list = $state<any[]>([]);
   let anims = $state<Record<string, string>>({});
   let spots = $state<Record<string, string>>({});
@@ -126,6 +126,7 @@
         <fieldset>
           <legend>Efek & hadiah</legend>
           <div class="grid4">{#each NEEDS as k}<label>{k}<input type="number" min="-100" max="100" bind:value={form.effects[k]} /></label>{/each}</div>
+          <span class="help">berat negatif = olahraga (menurunkan berat badan pet yang gembul).</span>
           <div class="grid3">
             <label>XP<input type="number" min="0" bind:value={form.xp} /></label>
             <label>Koin<input type="number" min="0" bind:value={form.coins} /></label>
@@ -170,7 +171,7 @@
   fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; margin: 0; }
   legend { font-weight: 700; padding: 0 6px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
   @media (max-width: 560px) { .grid3, .grid4 { grid-template-columns: 1fr 1fr; } }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .pick { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13.5px; cursor: pointer; flex-direction: row; font-weight: 600; }

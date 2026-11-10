@@ -12,6 +12,7 @@
     mebel: { name: 'Pak Jati', look: { color: '#B98A64', ear: 'anjing', pattern: 'totol', eyes: 'bulat' }, greet: 'Mebel kayu jati asli kampung. Pilih yang cocok buat rumahmu!' },
     butik: { name: 'Mbak Benang', look: { color: '#C9B6E8', ear: 'kucing', pattern: 'bintang', eyes: 'berbinar' }, greet: 'Ada model baru, lho. Coba yang mana?' },
     mutiara: { name: 'Nyai Mutiara', look: { color: '#9FD0E8', ear: 'antena', pattern: 'polos', eyes: 'bintang' }, greet: 'Barang istimewa, khusus dibeli dengan Mutiara.' },
+    jamu: { name: 'Mbok Jamu', look: { color: '#F4D58D', ear: 'kelinci', pattern: 'ujung', eyes: 'senyum' }, greet: 'Kurang enak badan? Minum jamu, besok segar lagi!' },
     bangunan: { name: 'Pak Tukang', look: { color: '#F4D58D', ear: 'tunas', pattern: 'belang', eyes: 'bulat' }, greet: 'Mau tambah ruangan atau halaman? Pak Tukang siap bangun!' },
   };
   const KIND_LABEL: Record<string, string> = { food: 'Makanan', seed: 'Bibit', furniture: 'Mebel', wallpaper: 'Dinding', floor: 'Lantai', wear: 'Pakaian', room: 'Ruangan', material: 'Lainnya', fish: 'Ikan' };
@@ -33,7 +34,7 @@
   onMount(() => { if (!loc?.sells_back) G.shopTab = 'buy'; });
 
   function sub(it: any) {
-    if (it.kind === 'food') return effText(it.data?.effects);
+    if (it.kind === 'food') return (it.data?.cure ? 'Menyembuhkan · ' : '') + effText(it.data?.effects);
     if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}`; }
     if (it.kind === 'seed') return `Panen dalam ${it.data?.growMinutes} mnt`;
     if (it.kind === 'wear') return { head: 'Kepala', face: 'Wajah', neck: 'Leher', back: 'Punggung' }[it.data?.slot as 'head'] ?? '';

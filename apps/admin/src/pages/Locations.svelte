@@ -1,6 +1,6 @@
 <script lang="ts">
   import CrudPage from '../components/CrudPage.svelte';
-  import { renderMap } from '@kb/shared';
+  import { renderMap, MAP_VIEWBOX } from '@kb/shared';
   const KIND: [string, string][] = [['shop', 'Toko'], ['pearl', 'Toko Mutiara'], ['social', 'Tempat nongkrong (teman)'], ['garden', 'Kebun'], ['race', 'Lapangan lomba'], ['pond', 'Kolam pancing'], ['home', 'Rumah']];
   const label = Object.fromEntries(KIND);
 </script>
@@ -28,10 +28,10 @@
   blank={() => ({ id: '', name: '', kind: 'shop', x: 400, y: 205, style: { body: '#FDF1D6', roof: '#3FA06A', w: 104 }, sort: 10, sells_back: false, enabled: true })}
 >
   {#snippet preview(form)}
-    <div class="map"><svg viewBox="0 -40 800 520">{@html renderMap([{ ...form, x: Number(form.x), y: Number(form.y), enabled: true, style: { ...form.style, w: Number(form.style?.w) || undefined } }])}</svg></div>
+    <div class="map"><svg viewBox={MAP_VIEWBOX}>{@html renderMap([{ ...form, x: Number(form.x), y: Number(form.y), enabled: true, style: { ...form.style, w: Number(form.style?.w) || undefined } }])}</svg></div>
   {/snippet}
   {#snippet extra(rows)}
-    <div class="map big"><svg viewBox="0 -40 800 520">{@html renderMap(rows)}</svg></div>
+    <div class="map big"><svg viewBox={MAP_VIEWBOX}>{@html renderMap(rows)}</svg></div>
   {/snippet}
 </CrudPage>
 <style>

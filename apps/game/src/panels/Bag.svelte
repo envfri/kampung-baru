@@ -97,7 +97,7 @@
     {#each list as { it, n } (it!.id)}
       {@const i = it!}
       {#if i.kind === 'food'}
-        <ItemCard it={i} sub={effText(i.data?.effects)} badge="×{n}"><button class="btn sm hot" disabled={G.busy} onclick={() => feed(i.id)}>Beri</button></ItemCard>
+        <ItemCard it={i} sub={(i.data?.cure ? 'Menyembuhkan · ' : '') + effText(i.data?.effects)} badge="×{n}"><button class="btn sm hot" disabled={G.busy} onclick={() => feed(i.id)}>Beri</button></ItemCard>
       {:else if i.kind === 'furniture'}
         {@const avail = G.edit ? draftAvail(i.id) : n}
         {#if avail > 0}<ItemCard it={i} sub="Ukuran {i.data?.w ?? 1}×{i.data?.d ?? 1}" badge="×{avail}"><button class="btn sm" onclick={() => place(i.id)}>Pasang</button></ItemCard>{/if}

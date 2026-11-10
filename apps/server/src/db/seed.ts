@@ -276,3 +276,86 @@ export async function seedPackV4(db: Db) {
   await db.query(`insert into settings (key, value) values ('content_pack', '4'::jsonb) on conflict (key) do update set value = excluded.value`);
   return true;
 }
+
+// Paket konten v5: Warung Jamu (pet sakit), olahraga (berat badan), lencana, tugas harian baru.
+export const SEED_ITEMS_V5: SeedItem[] = [
+  { id: 'jamu-kunyit', kind: 'food', name: 'Jamu Kunyit Asam', description: 'Menyembuhkan pet yang sakit. Segar!', price_coin: 15, sell_coin: 5, shop: 'jamu', art: b('gelas', { main: '#F2B632', accent: '#E9A23B' }), data: { effects: { ceria: 6, kenyang: 4 }, cure: true } },
+  { id: 'jamu-beras-kencur', kind: 'food', name: 'Jamu Beras Kencur', description: 'Menyembuhkan sakit dan menambah tenaga.', price_coin: 18, sell_coin: 6, shop: 'jamu', art: b('gelas', { main: '#F4EEE2', accent: '#E3D3A8' }), data: { effects: { energi: 15 }, cure: true } },
+  { id: 'wedang-jahe', kind: 'food', name: 'Wedang Jahe', description: 'Hangat di badan, mengusir masuk angin.', price_coin: 12, sell_coin: 4, shop: 'jamu', art: b('mangkuk', { main: '#C98A4B', accent: '#FFFDF7' }), data: { effects: { ceria: 8, energi: 5 }, cure: true } },
+  { id: 'jamu-temulawak', kind: 'food', name: 'Jamu Temulawak', description: 'Menyembuhkan dan bikin nafsu makan.', price_coin: 20, sell_coin: 7, shop: 'jamu', art: b('gelas', { main: '#E07A2F', accent: '#B85A1F' }), data: { effects: { kenyang: 12 }, cure: true } },
+  { id: 'sepeda-statis', kind: 'furniture', name: 'Sepeda Statis', description: 'Gowes di rumah supaya tidak gembul.', price_coin: 200, sell_coin: 80, shop: 'mebel', art: b('sepeda'), data: { w: 1, d: 1 } },
+  { id: 'matras-senam', kind: 'furniture', name: 'Matras Senam', description: 'Tempat lompat tali. Bisa dilewati.', price_coin: 70, sell_coin: 28, shop: 'mebel', art: b('matras'), data: { w: 2, d: 1, flat: true } },
+];
+
+export const SEED_ACTIVITIES_V5 = [
+  { id: 'bersepeda', name: 'Gowes', targets: ['art:sepeda'], anim: 'gowes', effects: { energi: -12, ceria: 6, berat: -8 }, xp: 3, cooldown_sec: 600, message: '{pet} gowes sampai berkeringat.' },
+  { id: 'lompat-tali', name: 'Lompat tali', targets: ['art:matras'], anim: 'olahraga', effects: { energi: -10, ceria: 8, berat: -6 }, xp: 3, cooldown_sec: 600, message: '{pet} lompat tali seratus kali!' },
+];
+
+export const SEED_BADGES = [
+  { id: 'b-tidur', title: 'Tukang Tidur', description: 'Tidurkan pet dengan lampu mati sampai bangun, 10 kali.', event: 'sleep', filter: {}, target: 10, reward_coin: 60, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-mandi', title: 'Wangi Selalu', description: 'Mandikan pet 25 kali.', event: 'action', filter: { type: 'mandi' }, target: 25, reward_coin: 60, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-makan', title: 'Doyan Makan', description: 'Beri makan pet 50 kali.', event: 'action', filter: { type: 'makan' }, target: 50, reward_coin: 80, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-koki', title: 'Koki Kampung', description: 'Masak di kompor 10 kali.', event: 'activity', filter: { id: 'masak-roti' }, target: 10, reward_coin: 80, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-atlet', title: 'Atlet Kampung', description: 'Olahraga 15 kali (gowes atau lompat tali).', event: 'exercise', filter: {}, target: 15, reward_coin: 100, reward_pearl: 0, reward_xp: 15 },
+  { id: 'b-sapu', title: 'Rajin Menyapu', description: 'Sapu 30 remah atau bulu rontok.', event: 'sweep', filter: {}, target: 30, reward_coin: 60, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-sehat', title: 'Dokter Kecil', description: 'Sembuhkan pet yang sakit dengan jamu, 3 kali.', event: 'cure', filter: {}, target: 3, reward_coin: 50, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-rumah', title: 'Juragan Rumah', description: 'Bangun 3 ruangan baru.', event: 'purchase', filter: { kind: 'room' }, target: 3, reward_coin: 0, reward_pearl: 2, reward_xp: 20 },
+  { id: 'b-teman', title: 'Ramah Tamah', description: 'Kunjungi rumah teman 20 kali.', event: 'visit', filter: {}, target: 20, reward_coin: 80, reward_pearl: 0, reward_xp: 15 },
+  { id: 'b-jempol', title: 'Pemberi Jempol', description: 'Sukai rumah teman 10 kali.', event: 'like', filter: {}, target: 10, reward_coin: 50, reward_pearl: 0, reward_xp: 10 },
+  { id: 'b-favorit', title: 'Rumah Idaman', description: 'Rumahmu disukai teman 25 kali.', event: 'liked', filter: {}, target: 25, reward_coin: 0, reward_pearl: 2, reward_xp: 20 },
+  { id: 'b-pemain', title: 'Jago Balai Main', description: 'Selesaikan 30 mini-game di Balai Main.', event: 'game_finish', filter: {}, target: 30, reward_coin: 100, reward_pearl: 0, reward_xp: 15 },
+  { id: 'b-panen', title: 'Petani Ulet', description: 'Panen kebun 30 kali.', event: 'harvest', filter: {}, target: 30, reward_coin: 80, reward_pearl: 0, reward_xp: 15 },
+  { id: 'b-pancing', title: 'Raja Kolam', description: 'Tangkap 40 ikan.', event: 'fish', filter: {}, target: 40, reward_coin: 80, reward_pearl: 0, reward_xp: 15 },
+  { id: 'b-pinang', title: 'Juara Pinang', description: 'Sampai ke puncak Panjat Pinang.', event: 'pinang_top', filter: {}, target: 1, reward_coin: 0, reward_pearl: 3, reward_xp: 20 },
+];
+
+export async function seedPackV5(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 5) return false;
+  await db.query(
+    `insert into locations (id, name, kind, x, y, style, sort) values ('jamu', 'Warung Jamu', 'shop', 1010, 205, '{"body":"#FFF0C2","roof":"#2F7F55","w":100}'::jsonb, 12) on conflict (id) do nothing`,
+  );
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V5) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), (sort += 10)],
+    );
+  }
+  let asort = 200;
+  for (const a of SEED_ACTIVITIES_V5) {
+    await db.query(
+      `insert into activities (id, name, targets, anim, effects, xp, cooldown_sec, message, sort)
+       values ($1,$2,$3::text::jsonb,$4,$5::text::jsonb,$6,$7,$8,$9) on conflict (id) do nothing`,
+      [a.id, a.name, JSON.stringify(a.targets), a.anim, JSON.stringify(a.effects), a.xp, a.cooldown_sec, a.message, (asort += 10)],
+    );
+  }
+  // tidur sungguhan kini lewat lampu: aktivitas kasur bawaan jadi "Rebahan" sebentar (bila belum diubah admin)
+  await db.query(
+    `update activities set name = 'Rebahan', effects = '{"energi":15}'::jsonb, cooldown_sec = 600, message = '{pet} rebahan sebentar di {item}.'
+      where id = 'tidur-kasur' and name = 'Tidur' and effects = '{"energi":35}'::jsonb`,
+  );
+  let qsort = 500;
+  for (const q of SEED_BADGES) {
+    await db.query(
+      `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_pearl, reward_xp, url, sort)
+       values ($1, 'badge', $2, $3, $4, $5::text::jsonb, $6, $7, $8, $9, '/', $10) on conflict (id) do nothing`,
+      [q.id, q.title, q.description, q.event, JSON.stringify(q.filter), q.target, q.reward_coin, q.reward_pearl, q.reward_xp, (qsort += 10)],
+    );
+  }
+  for (const [id, title, desc, event, filter, target, coin] of [
+    ['h-sapu', 'Lantai kinclong', 'Sapu 2 remah atau bulu rontok di lantai rumah.', 'sweep', {}, 2, 15],
+    ['h-tidur', 'Tidur nyenyak', 'Tidurkan pet dengan lampu mati sampai bangun.', 'sleep', {}, 1, 20],
+    ['h-balai', 'Main di Balai', 'Selesaikan 2 mini-game di Balai Main.', 'game_finish', {}, 2, 20],
+  ] as const) {
+    await db.query(
+      `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_xp, url, sort)
+       values ($1, 'daily', $2, $3, $4, $5::text::jsonb, $6, $7, 4, '/', 140) on conflict (id) do nothing`,
+      [id, title, desc, event, JSON.stringify(filter), target, coin],
+    ).catch(() => {});
+  }
+  await db.query(`insert into settings (key, value) values ('content_pack', '5'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}

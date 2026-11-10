@@ -1,10 +1,12 @@
 <script lang="ts">
   import { mood, xpToNext, petSVG } from '@kb/shared';
-  import { G, needsNow, wearItems, fmt, settings } from '../lib/game.svelte';
+  import { G, needsNow, wearItems, fmt, settings, petLook, isSleeping } from '../lib/game.svelte';
   import { I, COIN, PEARL } from '../lib/icons';
   const pet = $derived(G.me.pet);
   const need = $derived(xpToNext(pet.level, settings().economy ?? { xpBase: 40, xpStep: 20 }));
-  const ava = $derived(petSVG(pet, wearItems(pet.wear)));
+  const look = $derived(petLook(pet));
+  // wajah di avatar ikut keadaan pet (lapar, capek, tidur, ...); diperbarui saat suasana hati berubah
+  const ava = $derived(petSVG(pet, wearItems(pet.wear), '', look ? { mood: look.mood, chub: look.chub } : undefined));
 </script>
 
 <div class="hud">
@@ -13,7 +15,7 @@
     <span class="id">
       <span class="name"><span class="nm">{pet.name}</span><span class="lv">Lv {pet.level}</span></span>
       <span class="xp" title="{pet.xp}/{need} XP"><i style="width:{Math.min(100, (pet.xp / need) * 100)}%"></i></span>
-      <span class="mood">{mood(pet.name, needsNow())}</span>
+      <span class="mood">{mood(pet.name, needsNow(), { sleeping: isSleeping(), sick: !!pet.sick, chubby: (pet.chub ?? 0) > 0.25 })}</span>
     </span>
   </button>
   <div class="right">

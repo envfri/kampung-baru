@@ -22,7 +22,7 @@
 </script>
 
 <Sheet title="Rumahku">
-  <p class="muted">Ketuk ruangan untuk pindah. Atur mebel tiap ruangan dengan tombol Atur.</p>
+  <p class="muted">Ketuk ruangan untuk pindah. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
   <div class="list">
     {#each rooms as r (r.id)}
       <button class="room" class:on={r.id === cur?.id} onclick={() => pick(r)} aria-current={r.id === cur?.id}>

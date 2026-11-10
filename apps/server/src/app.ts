@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
-import { seed, seedPacks, seedPackV3, seedPackV4 } from './db/seed';
+import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5 } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
@@ -49,6 +49,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPacks(db)) app.log.info('Paket konten v2 (aksesori, mebel, makanan, ikan) ditambahkan');
   if (await seedPackV3(db)) app.log.info('Paket konten v3 (Balai Main, hadiah event) ditambahkan');
   if (await seedPackV4(db)) app.log.info('Paket konten v4 (Toko Bangunan, ruangan, aktivitas di rumah) ditambahkan');
+  if (await seedPackV5(db)) app.log.info('Paket konten v5 (Warung Jamu, olahraga, lencana) ditambahkan');
   await migrateNotifySettings(db);
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
   setTrackHook(async (d, u, n, p) => { await questEvent(d, u, n, p); await eventPoints(d, u, n, p); });

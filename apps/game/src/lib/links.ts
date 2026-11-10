@@ -28,6 +28,8 @@ export function openLink(url: string) {
     case 'games': G.view = 'map'; G.sheet = 'games'; break;
     case 'panen': G.view = 'panen'; break;
     case 'memori': G.view = 'memori'; break;
+    case 'bakiak': case 'gasing': case 'layangan': case 'pinang': G.view = hash; break;
+    case 'badges': G.view = 'home'; G.sheet = 'quests'; G.sheetArg = { tab: 'badges' }; break;
     default: G.view = 'home';
   }
 }

@@ -39,9 +39,33 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.13.0',
+    date: '2026-11-10',
+    title: 'Pet terasa hidup: rawat dengan sentuhan, jamu, lencana, mini-game Nusantara',
+    summary: 'Wajah pet kini ikut perasaannya. Suapi, mandikan, dan tidurkan dengan sentuhan. Ada Warung Jamu, lencana, empat mini-game baru, dan suka rumah teman.',
+    items: [
+      { kind: 'baru', text: 'Wajah pet ikut perasaannya: senang tersenyum lebar, lapar berair mata, capek sayu dan menguap, kotor bernoda dan dikerubungi lalat, sakit berkompres. Matanya mengikuti jarimu.', player: true },
+      { kind: 'baru', text: 'Makan: buka nampan lalu seret makanan ke mulut pet (atau ketuk). Pet mangap dan mengunyah.', player: true },
+      { kind: 'baru', text: 'Mandi: gosok badan pet dengan sabun sampai berbusa, lalu bilas dengan gayung.', player: true },
+      { kind: 'baru', text: 'Tidur: matikan lampu, pet naik ke kasur dan energinya terisi pelan-pelan. Pet bangun sendiri saat segar (ada notifikasi), atau bangunkan kapan saja.', player: true },
+      { kind: 'baru', text: 'Pet suka berceletuk sesuai suasana hatinya.', player: true },
+      { kind: 'baru', text: 'Pet bisa sakit ringan bila lama dibiarkan lapar dan kotor. Belikan jamu di Warung Jamu (Peta Kampung, sisi kanan) untuk menyembuhkannya.', player: true },
+      { kind: 'baru', text: 'Kebanyakan makan bikin pet gembul. Olahraga dengan Sepeda Statis atau lompat tali di Matras Senam (Mebel Jati).', player: true },
+      { kind: 'baru', text: 'Remah dan bulu rontok muncul di lantai. Ketuk untuk menyapu dan dapat koin.', player: true },
+      { kind: 'baru', text: 'Lencana: 15 pencapaian dengan hadiah (Tugas › Lencana).', player: true },
+      { kind: 'baru', text: 'Mini-game baru di Balai Main: Balap Bakiak, Gasing, Tangkap Layangan, dan Panjat Pinang (khusus event Agustusan).', player: true },
+      { kind: 'baru', text: 'Suka rumah teman saat berkunjung (sekali seminggu), dan lihat Rumah terfavorit minggu ini di menu Teman.', player: true },
+      { kind: 'ubah', text: 'Aktivitas kasur bawaan menjadi "Rebahan" sebentar; tidur sungguhan lewat lampu (tombol Tidur, atau ketuk kasur/lampu).', player: true },
+      { kind: 'baru', text: 'Admin → Ekonomi & fitur: bagian Tidur, Kesehatan, Berat badan, Remah, Celetukan pet (satu baris satu kalimat), dan pengaturan 4 mini-game baru. Item makanan bisa ditandai "menyembuhkan"; Aktivitas punya efek "berat"; Tugas punya jenis Lencana.' },
+      { kind: 'baru', text: 'Notifikasi baru di Pusat notifikasi: pet bangun tidur, pet sakit, rumah disukai.' },
+      { kind: 'baru', text: 'Migrasi 011 (pets: sleep_from, sick_at, weight, crumbs_at; quests kind badge; house_likes). API: /api/sleep, /api/sweep, /api/visit/:id/like, /api/houses/top; aksi "tidur" dari PWA lama kini memulai tidur. Paket konten v5: Warung Jamu, 4 jamu, olahraga, 15 lencana, 3 tugas harian. Peta diperlebar ke 1080 (posisi X lokasi sampai 1040).' },
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-11-10',
     title: 'Rumah berkamar-kamar, mebel bisa dipakai, belanja jalan kaki',
+    commits: ['663e93c'],
     summary: 'Bangun rumahmu: tambah ruang tamu, dapur, sampai halaman. Ketuk mebel untuk tidur, duduk, menyiram, atau membaca. Belanja kini dengan berjalan ke toko di Peta Kampung.',
     items: [
       { kind: 'baru', text: 'Toko Bangunan di Peta Kampung: beli ruangan baru untuk rumahmu (Ruang Tamu, Dapur, Kamar Mandi, Halaman Rumput berpagar, dan Loteng Bintang di Toko Mutiara). Pindah ruangan lewat tombol nama ruangan di Rumah.', player: true },

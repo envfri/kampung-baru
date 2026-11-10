@@ -137,6 +137,7 @@
             <div class="grid2">
               {#each ['kenyang', 'bersih', 'ceria', 'energi'] as k}<label>Efek {k}<input type="number" min="-100" max="100" bind:value={form.data.effects[k]} /></label>{/each}
             </div>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.cure} />Menyembuhkan pet yang sakit (jamu/obat)</label>
           {:else if form.kind === 'furniture'}
             <div class="grid2">
               <label>Lebar (petak)<input type="number" min="1" max="4" bind:value={form.data.w} /></label>

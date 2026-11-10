@@ -1,10 +1,10 @@
 // State global game (Svelte 5 runes). Semua angka penting berasal dari server;
 // client hanya menghitung ulang tampilan kebutuhan pet di antara respons.
-import { decayNeeds, type ItemLike, type Needs } from '@kb/shared';
+import { decayNeeds, needsWithSleep, petLookState, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
-export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop';
+export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang';
 export type Sheet = null | 'rooms' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
 
 export interface CatalogItem extends ItemLike {
@@ -52,6 +52,13 @@ export const G = $state({
   fxKind: 'hearts' as 'hearts' | 'bubbles' | 'coins' | 'zz' | 'food' | 'sparkle' | 'drops' | 'notes' | 'steam',
   /** versi terakhir yang dilihat pemain bila ada pembaruan yang belum dibuka */
   whatsNew: null as string | null,
+  /** rawat dengan sentuhan: nampan makanan, mode mandi (gosok sabun → bilas) */
+  feeding: false,
+  feedDrag: null as null | { x: number; y: number; id: string },
+  chewing: 0,
+  bath: null as null | { scrub: number; tool: 'sabun' | 'gayung'; rinsing: boolean },
+  /** celetukan pet yang sedang tampil */
+  speech: null as null | { text: string; n: number },
 });
 
 let itemsCache: { v: string; map: Map<string, CatalogItem> } | null = null;
@@ -69,7 +76,16 @@ export const serverNow = () => G.now + G.offset;
 
 export function needsNow(pet = G.me?.pet): Needs {
   if (!pet) return { kenyang: 0, bersih: 0, ceria: 0, energi: 0 };
-  return decayNeeds(pet.needs, pet.needsAt, serverNow(), settings().needs?.decayPerHour ?? {});
+  const per = settings().needs?.decayPerHour ?? {};
+  // tidur: energi naik bertahap sampai bangun (dihitung dari saat mulai tidur)
+  if (pet.sleep && settings().sleep) return needsWithSleep(pet.sleep.needs, pet.sleep.from, serverNow(), per, settings().sleep);
+  return decayNeeds(pet.needs, pet.needsAt, serverNow(), per);
+}
+export const isSleeping = (pet = G.me?.pet) => !!pet?.sleep && serverNow() < pet.sleep.wakeAt;
+/** Keadaan tubuh pet untuk digambar: wajah sesuai kebutuhan, noda kotor, gembul. */
+export function petLook(pet = G.me?.pet) {
+  if (!pet) return undefined;
+  return petLookState(needsNow(pet), { sleeping: isSleeping(pet), sick: !!pet.sick, chub: pet.chub ?? 0 });
 }
 
 export function wearItems(wear: Record<string, string> | undefined) {
@@ -180,6 +196,26 @@ export function effText(e: Record<string, number> | undefined) {
 
 export function track(name: string, props?: Record<string, unknown>) {
   api.post('/api/track', { events: [{ name, props }] }).catch(() => {});
+}
+
+/* -------- tidur dengan lampu mati -------- */
+
+export async function setSleep(on: boolean) {
+  const r: any = await run(() => post('/api/sleep', { on }));
+  if (r) {
+    if (on) { sfx.pop(); toast(`Lampu dimatikan. ${G.me.pet.name} tidur…`); }
+    else { sfx.level(); toast(`${G.me.pet.name} bangun!`, 'good'); }
+  }
+  return r;
+}
+
+/** Celetukan pet dari pengaturan admin (per suasana hati). */
+export function sayLine(mood: string) {
+  const sp = settings().speech ?? {};
+  const list: string[] = (sp[mood]?.length ? sp[mood] : sp.biasa) ?? [];
+  if (!list.length || !G.me) return;
+  const t = list[Math.floor(Math.random() * list.length)].replace(/\{pet\}/g, G.me.pet.name).replace(/\{nama\}/g, G.me.user.display_name);
+  G.speech = { text: t, n: (G.speech?.n ?? 0) + 1 };
 }
 
 /* -------- rumah multi-ruangan -------- */

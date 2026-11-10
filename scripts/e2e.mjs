@@ -22,8 +22,19 @@ try {
   await step('01-login', () => p.goto(BASE).then(() => p.waitForSelector('text=Main sekarang')));
   await step('02-setup', async () => { await p.click('text=Main sekarang'); await p.fill('#pet-name', 'Uji'); await p.click('text=Kelinci'); });
   await step('03-daily', async () => { await p.click('text=Mulai main'); await p.click('.sheet .btn:has-text("Ambil hadiah")'); await p.waitForTimeout(1200); });
-  await step('04-mandi', () => p.click('.acts .btn:has-text("Mandi")'));
-  await step('05-makan', async () => { await p.click('.acts .btn:has-text("Makan")'); await p.click('.sheet .btn:has-text("Beri")'); await p.keyboard.press('Escape'); });
+  await step('04-mandi', async () => {
+    // gosok sabun di badan pet sampai berbusa, lalu bilas dengan gayung
+    await p.click('.acts .btn:has-text("Mandi")');
+    const b = await p.locator('.room .pet').boundingBox();
+    await p.mouse.move(b.x + b.width * 0.3, b.y + b.height * 0.5); await p.mouse.down();
+    for (let i = 0; i < 60; i++) await p.mouse.move(b.x + b.width * (0.25 + 0.5 * ((i % 10) / 10)), b.y + b.height * (0.3 + 0.4 * (Math.floor(i / 10) / 6)));
+    await p.mouse.up();
+    await p.click('.bathbar .btn:has-text("Gayung")');
+    const b2 = await p.locator('.room .pet').boundingBox();
+    await p.mouse.click(b2.x + b2.width / 2, b2.y + b2.height / 2);
+    await p.waitForSelector('.bathbar', { state: 'detached' });
+  });
+  await step('05-makan', async () => { await p.click('.acts .btn:has-text("Makan")'); await p.click('.tray .food >> nth=0'); await p.waitForTimeout(400); await p.click('.tray .btn:has-text("Tutup")'); });
   await step('06-aktivitas', async () => {
     // ketuk kasur → menu aktivitas → pet berjalan & tidur di kasur
     await p.click('.furn >> nth=0', { force: true }).catch(() => {});
