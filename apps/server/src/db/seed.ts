@@ -214,3 +214,65 @@ export async function seed(db: Db) {
   });
   return true;
 }
+
+// Paket konten v4: rumah dengan banyak ruangan (Toko Bangunan), mebel dapur/kamar mandi/halaman,
+// dan aktivitas di rumah (tidur di kasur, lihat jendela, siram tanaman, ...).
+export const SEED_ITEMS_V4: SeedItem[] = [
+  { id: 'fl-rumput', kind: 'floor', name: 'Hamparan Rumput', price_coin: 70, shop: 'bangunan', art: b('rumput'), data: {} },
+  { id: 'fl-batu', kind: 'floor', name: 'Lantai Batu Paving', price_coin: 90, shop: 'bangunan', art: b('batu'), data: {} },
+  { id: 'kompor-dapur', kind: 'furniture', name: 'Kompor Dapur', description: 'Bisa dipakai memasak roti.', price_coin: 140, sell_coin: 56, shop: 'mebel', art: b('kompor'), data: { w: 1, d: 1 } },
+  { id: 'bak-mandi', kind: 'furniture', name: 'Bak Mandi', description: 'Berendam bikin wangi.', price_coin: 180, sell_coin: 72, shop: 'mebel', art: b('bakmandi'), data: { w: 2, d: 1 } },
+  { id: 'bangku-taman', kind: 'furniture', name: 'Bangku Taman', price_coin: 90, sell_coin: 36, shop: 'bangunan', art: b('bangku'), data: { w: 2, d: 1 } },
+  { id: 'pohon-mangga', kind: 'furniture', name: 'Pohon Mangga', description: 'Teduh untuk halaman.', price_coin: 160, sell_coin: 64, shop: 'bangunan', art: b('pohon'), data: { w: 1, d: 1 } },
+  { id: 'ruang-tamu', kind: 'room', name: 'Ruang Tamu', description: 'Ruangan 6×6 untuk menerima teman.', price_coin: 600, shop: 'bangunan', art: b('dalam', { main: '#E3F1DA', accent: '#C48A55' }), data: { size: 6, theme: 'dalam', wall: 'wp-pandan', floor: 'fl-papan' } },
+  { id: 'dapur', kind: 'room', name: 'Dapur', description: 'Ruangan 5×5. Pasang kompor untuk memasak.', price_coin: 450, shop: 'bangunan', art: b('dalam', { main: '#FBE3D3', accent: '#E9E4D6' }), data: { size: 5, theme: 'dalam', wall: 'wp-kotak', floor: 'fl-tegel' } },
+  { id: 'kamar-mandi', kind: 'room', name: 'Kamar Mandi', description: 'Ruangan 4×4. Pasang bak mandi untuk berendam.', price_coin: 400, shop: 'bangunan', art: b('dalam', { main: '#DCE9F5', accent: '#E6E1D8' }), data: { size: 4, theme: 'dalam', wall: 'wp-titik', floor: 'fl-teraso' } },
+  { id: 'halaman', kind: 'room', name: 'Halaman Rumput', description: 'Halaman terbuka 7×7 berpagar bambu.', price_coin: 750, shop: 'bangunan', art: b('luar'), data: { size: 7, theme: 'luar', floor: 'fl-rumput' } },
+  { id: 'loteng', kind: 'room', name: 'Loteng Bintang', description: 'Ruangan rahasia 5×5 di atas rumah.', price_pearl: 12, shop: 'mutiara', art: b('dalam', { main: '#EEE8FA', accent: '#9FB8D9' }), data: { size: 5, theme: 'dalam', wall: 'wp-titik', floor: 'fl-karpet' } },
+];
+
+export const SEED_ACTIVITIES = [
+  { id: 'tidur-kasur', name: 'Tidur', targets: ['art:kasur'], anim: 'tidur', effects: { energi: 35 }, xp: 3, cooldown_sec: 900, message: '{pet} tidur nyenyak di {item}.' },
+  { id: 'duduk-santai', name: 'Duduk santai', targets: ['art:sofa', 'art:kursi', 'art:beanbag', 'art:bangku'], anim: 'duduk', effects: { ceria: 6, energi: 6 }, xp: 1, cooldown_sec: 180, message: '{pet} duduk santai di {item}.' },
+  { id: 'lihat-jendela', name: 'Lihat ke luar', targets: ['spot:jendela'], anim: 'lihat', effects: { ceria: 6 }, xp: 1, cooldown_sec: 240, message: '{pet} melihat awan dari jendela.' },
+  { id: 'lihat-lukisan', name: 'Lihat lukisan', targets: ['spot:lukisan'], anim: 'lihat', effects: { ceria: 5 }, xp: 2, cooldown_sec: 300, message: '{pet} mengagumi lukisan gunung.' },
+  { id: 'siram-tanaman', name: 'Siram', targets: ['art:tanaman', 'art:kaktus', 'art:pohon'], anim: 'siram', effects: { ceria: 5 }, xp: 2, coins: 2, cooldown_sec: 600, message: '{pet} menyiram {item}. Segar!' },
+  { id: 'baca-buku', name: 'Baca buku', targets: ['art:rak'], anim: 'baca', effects: { ceria: 8 }, xp: 3, cooldown_sec: 300, message: '{pet} membaca buku dongeng.' },
+  { id: 'nonton-tv', name: 'Nonton TV', targets: ['art:tv'], anim: 'lihat', effects: { ceria: 12, energi: -3 }, xp: 1, cooldown_sec: 300, message: '{pet} nonton kartun di TV.' },
+  { id: 'lihat-ikan', name: 'Lihat ikan', targets: ['art:akuarium'], anim: 'lihat', effects: { ceria: 8 }, xp: 1, cooldown_sec: 300, message: '{pet} menghitung ikan di akuarium.' },
+  { id: 'main-mainan', name: 'Main bola', targets: ['item:peti-mainan'], anim: 'main', effects: { ceria: 14, energi: -6, kenyang: -3 }, xp: 3, coins: 3, cooldown_sec: 300, message: '{pet} bermain bola dari peti mainan.' },
+  { id: 'ambil-camilan', name: 'Ambil camilan', targets: ['art:kulkas'], anim: 'lihat', effects: { kenyang: 10 }, xp: 1, cooldown_sec: 1200, daily_limit: 3, message: '{pet} mengambil camilan dingin dari kulkas.' },
+  { id: 'masak-roti', name: 'Masak', targets: ['art:kompor'], anim: 'masak', effects: { kenyang: 4 }, xp: 3, reward_item: 'roti', cooldown_sec: 1800, daily_limit: 3, message: '{pet} memasak di {item}.' },
+  { id: 'berendam', name: 'Berendam', targets: ['art:bakmandi'], anim: 'mandi', effects: { bersih: 45, ceria: 4 }, xp: 2, cooldown_sec: 600, message: '{pet} berendam sampai wangi.' },
+  { id: 'berteduh', name: 'Berteduh', targets: ['art:pohon', 'art:payung'], anim: 'lihat', effects: { energi: 4, ceria: 4 }, xp: 1, cooldown_sec: 300, message: '{pet} berteduh di bawah {item}.' },
+];
+
+export async function seedPackV4(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 4) return false;
+  await db.query(
+    `insert into locations (id, name, kind, x, y, style, sort) values ('bangunan', 'Toko Bangunan', 'shop', 880, 384, '{"body":"#F4E1B0","roof":"#C0603A","w":104}'::jsonb, 11) on conflict (id) do nothing`,
+  );
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V4) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), (sort += 10)],
+    );
+  }
+  let asort = 0;
+  for (const a of SEED_ACTIVITIES) {
+    await db.query(
+      `insert into activities (id, name, targets, anim, effects, xp, coins, reward_item, cooldown_sec, daily_limit, message, sort)
+       values ($1,$2,$3::text::jsonb,$4,$5::text::jsonb,$6,$7,$8,$9,$10,$11,$12) on conflict (id) do nothing`,
+      [a.id, a.name, JSON.stringify(a.targets), a.anim, JSON.stringify(a.effects), a.xp ?? 0, (a as any).coins ?? 0, (a as any).reward_item ?? null, a.cooldown_sec, (a as any).daily_limit ?? 0, a.message, (asort += 10)],
+    );
+  }
+  await db.query(
+    `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_xp, url, sort)
+     values ('h-aktivitas', 'daily', 'Betah di rumah', 'Lakukan 2 aktivitas di rumah (ketuk mebel, jendela, atau lukisan).', 'activity', '{}'::jsonb, 2, 20, 4, '/', 130) on conflict (id) do nothing`,
+  ).catch(() => {});
+  await db.query(`insert into settings (key, value) values ('content_pack', '4'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
+import { ACTIVITY_ANIMS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, NEED_KEYS, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -17,7 +17,7 @@ import { zepay, zepayConfigured, zepayMode, zepayWebhookUrl, ZePayError, type Ze
 
 const zErr = (e: unknown) => (e instanceof ZePayError ? `${e.message} (${e.code})` : String((e as any)?.message ?? e));
 
-const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material'] as const;
+const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material', 'room'] as const;
 const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -61,6 +61,12 @@ function cleanItemData(kind: string, v: any) {
       return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}) };
     case 'wear':
       return { slot: oneOf(d.slot ?? 'head', 'Bagian', ['head', 'face', 'neck', 'back'] as const) };
+    case 'room': {
+      const out: any = { size: num(d.size, 'Ukuran ruangan', 4, 10, 6), theme: oneOf(d.theme ?? 'dalam', 'Tema', ['dalam', 'luar'] as const) };
+      if (d.wall) out.wall = slug(d.wall, 'Dinding awal');
+      if (d.floor) out.floor = slug(d.floor, 'Lantai awal');
+      return out;
+    }
     case 'seed':
       return { growMinutes: num(d.growMinutes, 'Lama tumbuh', 1, 10080, 30), yieldItem: slug(d.yieldItem, 'Hasil panen'), yieldQty: num(d.yieldQty, 'Jumlah panen', 1, 50, 1) };
     case 'fish':
@@ -209,7 +215,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   app.get('/api/admin/items', mod, async () => ({
     items: await db.query(
-      `select i.*, (select coalesce(sum(qty),0)::int from inventory v where v.item_id = i.id) as owned from items i order by i.sort, i.id`,
+      `select i.*, ((select coalesce(sum(qty),0)::int from inventory v where v.item_id = i.id) + (select count(*)::int from rooms r where r.room_item = i.id)) as owned from items i order by i.sort, i.id`,
     ),
   }));
 
@@ -222,6 +228,10 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (eventId && !(await db.one('select 1 from events where id = $1', [eventId]))) throw bad('invalid_event', 'Event tidak ditemukan.');
     const data = cleanItemData(kind, b.data);
     if (kind === 'seed' && !(await db.one('select 1 from items where id = $1', [data.yieldItem]))) throw bad('invalid_yield', 'Item hasil panen tidak ditemukan.');
+    if (kind === 'room') {
+      if (data.wall && !(await db.one(`select 1 from items where id = $1 and kind = 'wallpaper'`, [data.wall]))) throw bad('invalid_wall', 'Dinding awal harus item jenis Dinding.');
+      if (data.floor && !(await db.one(`select 1 from items where id = $1 and kind = 'floor'`, [data.floor]))) throw bad('invalid_floor', 'Lantai awal harus item jenis Lantai.');
+    }
     const vals = [
       id, kind, str(b.name, 'Nama', { min: 2, max: 60 }), str(b.description, 'Deskripsi', { max: 200, optional: true }) ?? '',
       int(b.price_coin, 'Harga koin', { min: 0, max: 1_000_000, def: 0 }), int(b.price_pearl, 'Harga Mutiara', { min: 0, max: 100_000, def: 0 }),
@@ -248,7 +258,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
   app.delete('/api/admin/items/:id', adm, async (req: any) => {
     const id = slug(req.params.id);
     const used = await db.one<{ c: number }>(
-      `select ((select count(*) from inventory where item_id = $1 and qty > 0) + (select count(*) from rooms where layout @> jsonb_build_array(jsonb_build_object('i', $1::text))))::int c`,
+      `select ((select count(*) from inventory where item_id = $1 and qty > 0) + (select count(*) from rooms where room_item = $1 or layout @> jsonb_build_array(jsonb_build_object('i', $1::text))))::int c`,
       [id],
     );
     if (used && used.c > 0) {
@@ -487,18 +497,18 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const s = await getSettings(db);
     const user = await db.one(`select * from users where id = $1`, [id]);
     if (!user) throw notFound('Pemain tidak ditemukan.');
-    const [ids, pet, wallet, ledger, inventory, room, payments, friends, gifts] = await Promise.all([
+    const [ids, pet, wallet, ledger, inventory, rooms, payments, friends, gifts] = await Promise.all([
       db.query(`select provider, email, created_at from auth_identities where user_id = $1`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
       db.one(`select coin, pearl from wallets where user_id = $1`, [id]),
       db.query(`select id, currency, delta, balance_after, reason, ref, created_at from wallet_ledger where user_id = $1 order by id desc limit 60`, [id]),
       db.query(`select item_id, qty from inventory where user_id = $1 and qty > 0 order by item_id`, [id]),
-      db.one(`select layout, wall, floor, version, updated_at from rooms where user_id = $1`, [id]),
+      db.query(`select id, room_item, name, layout, wall, floor, version, updated_at from rooms where user_id = $1 order by sort, id`, [id]),
       db.query(`select id, package_id, pearls, amount_idr, status, provider, created_at, paid_at from payments where user_id = $1 order by created_at desc limit 20`, [id]),
       db.one<{ c: number }>(`select count(*)::int c from friendships where user_id = $1`, [id]),
       db.one<{ c: number }>(`select count(*)::int c from gifts where from_id = $1`, [id]),
     ]);
-    return { user, identities: ids, pet: pet ? petView(pet, s) : null, wallet, ledger, inventory, room, payments, friends: friends?.c ?? 0, giftsSent: gifts?.c ?? 0 };
+    return { user, identities: ids, pet: pet ? petView(pet, s) : null, wallet, ledger, inventory, rooms, room: rooms[0], payments, friends: friends?.c ?? 0, giftsSent: gifts?.c ?? 0 };
   });
 
   app.post('/api/admin/players/:id/ban', mod, async (req: any) => {
@@ -538,7 +548,9 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const id = String(req.params.id);
     const itemId = slug(req.body?.itemId, 'Item');
     const qty = int(Number(req.body?.qty), 'Jumlah', { min: -999, max: 999 });
-    if (!(await db.one('select 1 from items where id = $1', [itemId]))) throw notFound('Item tidak ditemukan.');
+    const it = await db.one<{ kind: string }>('select kind from items where id = $1', [itemId]);
+    if (!it) throw notFound('Item tidak ditemukan.');
+    if (it.kind === 'room') throw bad('invalid_item', 'Ruangan tidak masuk tas. Pemain membelinya di Toko Bangunan.');
     await db.tx((t) => addItem(t, id, itemId, qty));
     await audit(db, req, 'player_items', id, { itemId, qty });
     return { ok: true };
@@ -773,6 +785,60 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     invalidateQuests();
     await audit(db, req, 'quest_deactivate', id);
     return { ok: true, message: 'Tugas dinonaktifkan (riwayat progres pemain tetap tersimpan).' };
+  });
+
+  /* ---------------- aktivitas di rumah ---------------- */
+
+  app.get('/api/admin/activities', mod, async () => ({
+    activities: await db.query(`select * from activities order by sort, id`),
+    anims: Object.fromEntries(Object.entries(ACTIVITY_ANIMS).map(([k, v]) => [k, v.label])),
+    spots: ACTIVITY_SPOTS,
+  }));
+  async function writeActivity(req: any, id: string, creating: boolean) {
+    const b = obj(req.body, 'body');
+    if (!Array.isArray(b.targets) || !b.targets.length) throw bad('invalid_targets', 'Pilih minimal satu mebel/bagian ruangan.');
+    const targets = [...new Set(b.targets.map((x: unknown) => String(x)))] as string[];
+    for (const t of targets) {
+      const [kind, key] = t.split(':');
+      if (!key || !/^[a-z0-9-]{1,48}$/.test(key)) throw bad('invalid_targets', `Target tidak valid: ${t}`);
+      if (kind === 'spot' && !(key in ACTIVITY_SPOTS)) throw bad('invalid_targets', `Bagian ruangan tidak dikenal: ${key}`);
+      if (kind === 'item' && !(await db.one(`select 1 from items where id = $1 and kind = 'furniture'`, [key]))) throw bad('invalid_targets', `Mebel tidak ditemukan: ${key}`);
+      if (!['spot', 'item', 'art'].includes(kind)) throw bad('invalid_targets', `Target tidak valid: ${t}`);
+    }
+    const e = obj(b.effects, 'Efek');
+    const effects: Record<string, number> = {};
+    for (const k of NEED_KEYS) if (e[k] !== undefined && e[k] !== '' && Number(e[k]) !== 0) effects[k] = int(Math.round(Number(e[k])), `Efek ${k}`, { min: -100, max: 100 });
+    const reward = b.reward_item ? slug(b.reward_item, 'Hadiah barang') : null;
+    if (reward && !(await db.one('select 1 from items where id = $1', [reward]))) throw bad('invalid_reward', 'Hadiah barang tidak ditemukan.');
+    const vals = [
+      id, str(b.name, 'Nama', { min: 2, max: 30 }), str(b.description, 'Deskripsi', { max: 160, optional: true }) ?? '', J(targets),
+      oneOf(b.anim, 'Animasi', Object.keys(ACTIVITY_ANIMS)), J(effects),
+      int(Number(b.xp ?? 0), 'XP', { min: 0, max: 1000 }), int(Number(b.coins ?? 0), 'Koin', { min: 0, max: 10000 }), reward,
+      int(Number(b.cooldown_sec ?? 0), 'Jeda', { min: 0, max: 7 * 86400 }), int(Number(b.daily_limit ?? 0), 'Batas harian', { min: 0, max: 1000 }),
+      int(Number(b.min_level ?? 1), 'Level minimal', { min: 1, max: 999 }), str(b.message, 'Pesan', { max: 120, optional: true }) ?? '',
+      bool(b.active, true), int(Number(b.sort ?? 0), 'Urutan', { min: -10000, max: 10000 }),
+    ];
+    if (creating) {
+      if (await db.one('select 1 from activities where id = $1', [id])) throw bad('exists', 'ID aktivitas sudah dipakai.');
+      await db.query(`insert into activities (id, name, description, targets, anim, effects, xp, coins, reward_item, cooldown_sec, daily_limit, min_level, message, active, sort)
+        values ($1,$2,$3,$4::text::jsonb,$5,$6::text::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15)`, vals);
+    } else {
+      const r = await db.one(`update activities set name=$2, description=$3, targets=$4::text::jsonb, anim=$5, effects=$6::text::jsonb, xp=$7, coins=$8, reward_item=$9,
+        cooldown_sec=$10, daily_limit=$11, min_level=$12, message=$13, active=$14, sort=$15 where id=$1 returning id`, vals);
+      if (!r) throw notFound('Aktivitas tidak ditemukan.');
+    }
+    await bumpCatalog(db);
+    await audit(db, req, creating ? 'activity_create' : 'activity_update', id, b);
+    return { ok: true };
+  }
+  app.post('/api/admin/activities', adm, async (req: any) => writeActivity(req, slug(req.body?.id), true));
+  app.put('/api/admin/activities/:id', adm, async (req: any) => writeActivity(req, slug(req.params.id), false));
+  app.delete('/api/admin/activities/:id', adm, async (req: any) => {
+    const id = slug(req.params.id);
+    await db.query(`delete from activities where id = $1`, [id]);
+    await bumpCatalog(db);
+    await audit(db, req, 'activity_delete', id);
+    return { ok: true };
   });
 
   app.post('/api/admin/cache/clear', adm, async (req) => {

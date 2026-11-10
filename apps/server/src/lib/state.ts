@@ -38,15 +38,28 @@ export function petView(p: PetRow, s: Settings) {
   return { name: p.name, color: p.color, ear: p.ear, pattern: (p as any).pattern ?? 'polos', eyes: (p as any).eyes ?? 'bulat', tail: (p as any).tail ?? 'bulat', wear: p.wear ?? {}, level: p.level, xp: p.xp, needs, needsAt: Date.now() };
 }
 
+/** Ukuran & tema ruangan ditentukan item jenis 'room'-nya (kamar awal: ukuran dari pengaturan). */
+export function roomMeta(roomItem: string | null | undefined, cat: Catalog, s: Settings) {
+  const it = roomItem ? cat.byId.get(roomItem) : undefined;
+  const size = Math.max(4, Math.min(10, Math.round(Number(it?.data?.size ?? s.room.size)) || s.room.size));
+  return { size, theme: it?.data?.theme === 'luar' ? 'luar' : 'dalam' };
+}
+
+/** Semua ruangan rumah pemain, urut (kamar awal dulu). */
+export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Settings, withVersion = true) {
+  const rows = await db.query<any>(`select id, room_item, name, layout, wall, floor, version from rooms where user_id = $1 order by sort, id`, [userId]);
+  return rows.map((r) => ({ id: r.id, item: r.room_item, name: r.name, layout: r.layout ?? [], wall: r.wall, floor: r.floor, ...(withVersion ? { version: r.version } : {}), ...roomMeta(r.room_item, cat, s) }));
+}
+
 /** Semua yang dibutuhkan client setelah masuk. */
 export async function playerState(db: Db, userId: string) {
   const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-  const [user, pet, wallet, inv, room, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
+  const [user, pet, wallet, inv, rooms, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
     db.one(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at from users where id = $1`, [userId]),
     db.one<PetRow>(`select * from pets where user_id = $1`, [userId]),
     db.one<{ coin: number; pearl: number }>(`select coin, pearl from wallets where user_id = $1`, [userId]),
     db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]),
-    db.one(`select layout, wall, floor, version from rooms where user_id = $1`, [userId]),
+    loadRooms(db, userId, cat, s),
     db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]),
     db.one<{ c: number }>(`select count(*)::int as c from gifts where to_id = $1 and opened_at is null`, [userId]),
     db.query(
@@ -78,7 +91,9 @@ export async function playerState(db: Db, userId: string) {
     pet: pet ? petView(pet, s) : null,
     wallet: wallet ?? { coin: 0, pearl: 0 },
     inventory: Object.fromEntries(inv.map((r) => [r.item_id, r.qty])),
-    room: room ?? { layout: [], wall: null, floor: null, version: 1 },
+    rooms,
+    // klien lama (sebelum rumah multi-ruangan) membaca `room`
+    room: rooms[0] ?? { layout: [], wall: null, floor: null, version: 1 },
     garden: plots,
     giftsUnread: gifts?.c ?? 0,
     visitors,
@@ -116,6 +131,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
     locations: cat.locations.filter((l) => l.enabled),
     events: cat.events.filter((e) => e.active && new Date(e.ends_at).getTime() > now - 86_400_000),
     packages: cat.packages.filter((p) => p.active),
+    activities: cat.activities.filter((a) => a.active).map(({ active, sort, ...a }) => a),
     settings: {
       needs: s.needs,
       actions: s.actions,
@@ -127,6 +143,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       fishing: { castsPerDay: s.fishing.castsPerDay, energiCost: s.fishing.energiCost, windowMs: s.fishing.windowMs },
       garden: s.garden,
       room: s.room,
+      house: (s as any).house,
       features: s.features,
     },
   };

@@ -20,6 +20,7 @@
   import Admins from './pages/Admins.svelte';
   import Account from './pages/Account.svelte';
   import Quests from './pages/Quests.svelte';
+  import Activities from './pages/Activities.svelte';
   import Email from './pages/Email.svelte';
   import NotifyCenter from './pages/NotifyCenter.svelte';
   import WhatsApp from './pages/WhatsApp.svelte';
@@ -33,6 +34,7 @@
       { k: 'items', label: 'Item & harga', min: 'moderator', C: Items },
       { k: 'events', label: 'Event', min: 'moderator', C: Events },
       { k: 'quests', label: 'Tugas', min: 'moderator', C: Quests },
+      { k: 'activities', label: 'Aktivitas di rumah', min: 'moderator', C: Activities },
       { k: 'locations', label: 'Peta & toko', min: 'moderator', C: Locations },
       { k: 'settings', label: 'Ekonomi & fitur', min: 'moderator', C: Settings },
       { k: 'media', label: 'Media', min: 'moderator', C: Media },

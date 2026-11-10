@@ -1,5 +1,5 @@
 // Tautan dalam game (dipakai notifikasi & deep link): /#garden, /#shop, /#friends, ...
-import { G } from './game.svelte';
+import { G, goTo } from './game.svelte';
 
 export function openLink(url: string) {
   let hash = '';
@@ -12,7 +12,9 @@ export function openLink(url: string) {
     case 'garden': G.view = 'garden'; break;
     case 'karung': G.view = 'karung'; break;
     case 'fishing': G.view = 'fishing'; break;
-    case 'shop': G.view = 'home'; G.sheet = 'shop'; break;
+    case 'shop': goTo(G.shopId || 'pasar'); break;
+    case 'bangunan': goTo('bangunan'); break;
+    case 'rooms': G.view = 'home'; G.sheet = 'rooms'; break;
     case 'friends': G.view = 'home'; G.sheet = 'friends'; break;
     case 'daily': G.view = 'home'; G.sheet = 'daily'; break;
     case 'news': G.view = 'home'; G.sheet = 'news'; break;

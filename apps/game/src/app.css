@@ -74,6 +74,20 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .loc { cursor: pointer; }
 .loc .lift { transition: transform .15s; }
 .loc:hover .lift, .loc:focus .lift { transform: translateY(-4px); }
+/* pose saat beraktivitas di rumah */
+.pet.pose-tidur .pet-bob { animation: snooze 2.4s ease-in-out infinite; }
+.pet.pose-tidur .eyes { animation: none; transform: scaleY(.12); }
+.pet.pose-duduk .pet-bob { animation: sitbob 2s ease-in-out infinite; }
+.pet.pose-mandi .pet-bob { animation: soak 1.6s ease-in-out infinite; }
+.pet.pose-lihat .pet-bob { animation: gaze 2.2s ease-in-out infinite; }
+.pet.pose-main .pet-bob { animation: bounce .45s ease-in-out infinite alternate; }
+.pet.pose-baca .pet-bob, .pet.pose-siram .pet-bob, .pet.pose-masak .pet-bob { animation: busy 1s ease-in-out infinite; }
+@keyframes snooze { 0%, 100% { transform: rotate(-14deg) scale(1.06, .86); } 50% { transform: rotate(-14deg) scale(1.1, .82); } }
+@keyframes sitbob { 0%, 100% { transform: scale(1.04, .92); } 50% { transform: scale(1.06, .9); } }
+@keyframes soak { 0%, 100% { transform: translateY(6px) scale(1.02, .94); } 50% { transform: translateY(9px) scale(1.04, .92); } }
+@keyframes gaze { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes bounce { from { transform: translateY(0) scale(1.03, .97); } to { transform: translateY(-12px) scale(.98, 1.02); } }
+@keyframes busy { 0%, 100% { transform: rotate(-4deg) translateY(0); } 50% { transform: rotate(4deg) translateY(-3px); } }
 @keyframes bob { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.035, .965); } }
 @keyframes hop { 0% { transform: translateY(0); } 40% { transform: translateY(-16px); } 100% { transform: translateY(0); } }
 @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
@@ -81,6 +95,6 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 @keyframes selPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .pet-bob, .eyes, .pet-hop.go, .furn.sel { animation: none; }
+  .pet-bob, .eyes, .pet-hop.go, .furn.sel, .pet[class*='pose-'] .pet-bob { animation: none; }
   .fx-up { animation-duration: .01s; }
 }

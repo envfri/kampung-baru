@@ -4,6 +4,24 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.12.0 · 2026-11-10 · Rumah berkamar-kamar, mebel bisa dipakai, belanja jalan kaki
+
+_Bangun rumahmu: tambah ruang tamu, dapur, sampai halaman. Ketuk mebel untuk tidur, duduk, menyiram, atau membaca. Belanja kini dengan berjalan ke toko di Peta Kampung._
+
+### Baru
+
+- Toko Bangunan di Peta Kampung: beli ruangan baru untuk rumahmu (Ruang Tamu, Dapur, Kamar Mandi, Halaman Rumput berpagar, dan Loteng Bintang di Toko Mutiara). Pindah ruangan lewat tombol nama ruangan di Rumah. _(pemain)_
+- Mebel bisa dipakai: ketuk kasur untuk tidur, sofa/kursi untuk duduk santai, tanaman untuk disiram, rak buku untuk membaca, TV, akuarium, kulkas, kompor (masak roti), bak mandi, juga jendela dan lukisan di dinding. _(pemain)_
+- Belanja dengan mendatangi tokonya: ketuk toko di Peta Kampung, pet berjalan ke sana lalu masuk. Tiap toko punya penjaga dan barangnya sendiri. _(pemain)_
+- Mebel baru: Kompor Dapur, Bak Mandi, Bangku Taman, Pohon Mangga; lantai Rumput dan Batu Paving. _(pemain)_
+- Admin → Aktivitas di rumah: tambah/ubah aktivitas (mebel atau bagian ruangan yang bisa dipakai, animasi, efek kebutuhan, XP, koin, hadiah barang, jeda, batas harian, level minimal, pesan) dengan pratinjau pose pet.
+- Item jenis Ruangan rumah (ukuran 4–10, ruangan dalam atau halaman, dinding & lantai awal) dan pengaturan house.maxRooms. Migrasi 010: rooms punya id per ruangan (data kamar lama tetap utuh), tabel activities.
+- API: POST /api/activity, POST /api/room menerima roomId (tanpa roomId = kamar awal, aman untuk PWA lama), state & kunjungan mengirim daftar rooms. Tugas harian baru "Betah di rumah" (peristiwa activity).
+
+### Perubahan
+
+- Tombol Toko di bawah diganti Tugas (dengan tanda hadiah siap). Saat berkunjung, kamu bisa melihat semua ruangan rumah teman. _(pemain)_
+
 ## 0.11.1 · 2026-11-10 · Login lewat http:// & perbaikan tampilan desktop
 
 _Masuk dan main dari browser desktop kini lebih lancar._
@@ -23,7 +41,7 @@ _Masuk dan main dari browser desktop kini lebih lancar._
 
 - Cookie sesi memakai flag Secure hanya bila PUBLIC_URL https:// (sebelumnya mengikuti NODE_ENV, sehingga di http:// browser membuang cookie dan semua /api/* 401).
 
-Commit: [`aae0213`](https://github.com/envfri/kampung-baru/commit/aae0213)
+Commit: [`aae0213`](https://github.com/envfri/kampung-baru/commit/aae0213), [`4a3e68c`](https://github.com/envfri/kampung-baru/commit/4a3e68c)
 
 ## 0.11.0 · 2026-11-10 · Nama baru: BUPI
 

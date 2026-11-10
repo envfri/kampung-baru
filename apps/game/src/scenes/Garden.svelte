@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { G, item, run, toast, fx, timeLeft, serverNow, settings } from '../lib/game.svelte';
+  import { G, item, run, toast, fx, timeLeft, serverNow, settings, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { sfx } from '../lib/sfx';
   import { I } from '../lib/icons';
@@ -63,7 +63,7 @@
   </svg>
   <div class="bar">
     <button class="btn" onclick={() => (G.view = 'map')}>{@html I.back} Kampung</button>
-    <button class="btn" onclick={() => { G.shopId = 'pasar'; G.sheet = 'shop'; }}>Beli bibit</button>
+    <button class="btn" onclick={() => goTo('pasar')}>Beli bibit</button>
   </div>
 </div>
 

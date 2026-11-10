@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track } from '../lib/game.svelte';
+  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -12,7 +12,8 @@
   import Garden from '../scenes/Garden.svelte';
   import Karung from '../scenes/Karung.svelte';
   import Fishing from '../scenes/Fishing.svelte';
-  import Shop from '../panels/Shop.svelte';
+  import ShopScene from '../scenes/Shop.svelte';
+  import Rooms from '../panels/Rooms.svelte';
   import Bag from '../panels/Bag.svelte';
   import Friends from '../panels/Friends.svelte';
   import Pearls from '../panels/Pearls.svelte';
@@ -65,7 +66,8 @@
 
   async function saveEdit() {
     if (!G.draft) return;
-    const r = await run(() => api.post('/api/room', { layout: G.draft, version: G.me.room.version }));
+    const room = curRoom();
+    const r = await run(() => api.post('/api/room', { roomId: room.id || undefined, layout: G.draft, version: room.version }));
     if (r) { G.edit = false; G.draft = null; G.sel = -1; sfx.pop(); toast('Ruangan disimpan', 'good'); }
   }
   function cancelEdit() { G.edit = false; G.draft = null; G.sel = -1; }
@@ -82,6 +84,8 @@
   }
 
   const event = $derived((G.me.events ?? [])[0]);
+  const room = $derived(curRoom());
+  const visitRooms = $derived<any[]>(G.visit?.rooms ?? []);
   const selItem = $derived(G.edit && G.draft && G.sel >= 0 ? item(G.draft[G.sel]?.i) : null);
 
   onMount(() => {
@@ -132,6 +136,7 @@
     {:else if G.view === 'fishing'}<Fishing />
     {:else if G.view === 'panen'}<Panen />
     {:else if G.view === 'memori'}<Memori />
+    {:else if G.view === 'shop'}<ShopScene />
     {/if}
   </div>
   <div class="night" class:on={night}></div>
@@ -139,6 +144,9 @@
   {#if !G.immersive}<Hud />{/if}
 
   {#if G.view === 'home' && !G.edit}
+    <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk pindah ruangan">
+      {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <Needs />
     {#if event}
       <button class="event" style="--ev:{event.theme?.color ?? '#E0583F'}" onclick={() => (G.sheet = 'event')}>
@@ -172,6 +180,11 @@
   {#if G.view === 'visit' && G.visit}
     <div class="visit">
       <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}</span>{/if}</div>
+      {#if visitRooms.length > 1}
+        <div class="tabbar" role="tablist" aria-label="Ruangan di rumah teman">
+          {#each visitRooms as r, i (r.id)}<button role="tab" aria-selected={G.visitRoom === i} class:on={G.visitRoom === i} onclick={() => { G.visitRoom = i; sfx.tap(); }}>{r.name}</button>{/each}
+        </div>
+      {/if}
       <div class="row">
         <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
         <button class="btn sm" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: G.visit.owner.id, name: G.visit.owner.display_name }; }}>{@html I.gift} Hadiah</button>
@@ -185,7 +198,7 @@
 
   {#if !G.immersive && !G.edit}<Dock />{/if}
 
-  {#if G.sheet === 'shop'}<Shop />
+  {#if G.sheet === 'rooms'}<Rooms />
   {:else if G.sheet === 'bag' || G.sheet === 'feed'}<Bag />
   {:else if G.sheet === 'friends'}<Friends />
   {:else if G.sheet === 'pearls'}<Pearls />
@@ -212,8 +225,12 @@
   .acts { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); display: flex; gap: 6px; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
+  .roompill { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); left: max(10px, var(--safe-l)); display: inline-flex; align-items: center; gap: 5px; max-width: 46vw; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink); padding: 3px 8px 3px 6px; font-weight: 800; font-size: 14px; cursor: pointer; }
+  .roompill b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .roompill :global(svg) { width: 18px; height: 18px; flex: none; }
+  .roompill .n { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--ok); color: #fff; font-size: 11.5px; display: grid; place-items: center; padding: 0 4px; }
   .cd { position: absolute; top: -9px; right: -6px; background: var(--ink); color: var(--paper); font-style: normal; font-size: 11px; border-radius: 8px; padding: 0 5px; }
-  .event { position: absolute; z-index: 6; top: calc(var(--safe-t) + 176px); left: 50%; transform: translateX(-50%); background: var(--ev); color: #fff; border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 14px; font-weight: 800; font-size: 13.5px; box-shadow: 0 2px 0 var(--ink); cursor: pointer; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+  .event { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); right: max(10px, var(--safe-r)); max-width: calc(52vw - 30px); background: var(--ev); color: #fff; border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 14px; font-weight: 800; font-size: 13.5px; box-shadow: 0 2px 0 var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .editbar, .visit { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(560px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
   .visit { top: calc(var(--safe-t) + 118px); bottom: auto; flex-direction: column; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
@@ -229,7 +246,8 @@
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     .acts { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); flex-direction: column; }
     .act { flex-direction: row; width: auto; min-width: 116px; justify-content: flex-start; gap: 8px; padding: 6px 12px; font-size: 15px; min-height: 46px; }
-    .event { top: calc(var(--safe-t) + 14px); }
+    .event { top: calc(var(--safe-t) + 14px); right: auto; left: 50%; transform: translateX(-50%); max-width: 46vw; }
+    .roompill { top: calc(var(--safe-t) + 52px); left: 50%; transform: translateX(-50%); max-width: 30vw; }
     .visit { top: calc(var(--safe-t) + 84px); }
   }
 </style>

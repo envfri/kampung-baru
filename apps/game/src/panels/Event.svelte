@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
   import { EVENT_POINT_SOURCES, eventDropSVG, itemIcon } from '@kb/shared';
-  import { G, item, run, fx, toast, fail, fmt } from '../lib/game.svelte';
+  import { G, item, run, fx, toast, fail, fmt, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { openLink } from '../lib/links';
   import { sfx } from '../lib/sfx';
@@ -73,7 +73,7 @@
       {#if ev.items.length}
         <h4>Barang edisi terbatas</h4>
         <div class="items">
-          {#each ev.items as id}{@const it = item(id)}{#if it}<button class="ei" onclick={() => { G.shopId = it.shop ?? 'pasar'; G.sheet = 'shop'; }}><span class="ic">{@html itemIcon(it)}</span><span>{it.name}</span></button>{/if}{/each}
+          {#each ev.items as id}{@const it = item(id)}{#if it}<button class="ei" onclick={() => goTo(it.shop ?? 'pasar')}><span class="ic">{@html itemIcon(it)}</span><span>{it.name}</span></button>{/if}{/each}
         </div>
       {/if}
     </section>

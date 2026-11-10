@@ -5,8 +5,8 @@
   const tabs = [
     { k: 'home', label: 'Rumah', icon: I.home },
     { k: 'map', label: 'Kampung', icon: I.map },
-    { k: 'shop', label: 'Toko', icon: I.shop },
     { k: 'bag', label: 'Tas', icon: I.bag },
+    { k: 'quests', label: 'Tugas', icon: I.quest },
     { k: 'friends', label: 'Teman', icon: I.friends },
   ] as const;
   function go(k: (typeof tabs)[number]['k']) {
@@ -14,15 +14,16 @@
     if (k === 'home' || k === 'map') {
       if (G.edit) return;
       G.sheet = null;
+      if (k === 'map' && (G.view === 'home' || G.view === 'visit')) G.mapAt = 'rumah';
       G.view = k;
       G.visit = null;
       if (k === 'map') track('open_map');
     } else {
       G.sheet = G.sheet === k ? null : k;
-      if (k === 'shop') track('open_shop');
     }
   }
-  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
+  // toko kini didatangi lewat peta: berada di dalam toko = tab Kampung aktif
+  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
 </script>
 
 <nav class="dock" aria-label="Navigasi">
@@ -30,6 +31,7 @@
     <button class:on={active(t.k)} aria-pressed={active(t.k)} onclick={() => go(t.k)}>
       {@html t.icon}<span>{t.label}</span>
       {#if t.k === 'friends' && G.me.giftsUnread > 0}<i class="badge">{G.me.giftsUnread}</i>{/if}
+      {#if t.k === 'quests' && G.me.quests?.ready > 0}<i class="badge">{G.me.quests.ready}</i>{/if}
     </button>
   {/each}
 </nav>

@@ -6,7 +6,7 @@
   import Drawer from '../components/Drawer.svelte';
   import ArtEditor from '../components/ArtEditor.svelte';
 
-  const KIND: Record<string, string> = { food: 'Makanan', furniture: 'Mebel', wear: 'Pakaian', wallpaper: 'Dinding', floor: 'Lantai', seed: 'Bibit', fish: 'Ikan', material: 'Bahan/lainnya' };
+  const KIND: Record<string, string> = { food: 'Makanan', furniture: 'Mebel', wear: 'Pakaian', wallpaper: 'Dinding', floor: 'Lantai', seed: 'Bibit', fish: 'Ikan', material: 'Bahan/lainnya', room: 'Ruangan rumah' };
   let items = $state<any[]>([]);
   let locs = $state<any[]>([]);
   let events = $state<any[]>([]);
@@ -40,7 +40,7 @@
     form.kind = k;
     const b = A.me?.builtins?.[k]?.[0];
     form.art = { type: 'builtin', key: b?.key ?? 'kotak', colors: { ...(b?.colors ?? {}) } };
-    form.data = k === 'food' ? { effects: { kenyang: 10 } } : k === 'furniture' ? { w: 1, d: 1 } : k === 'wear' ? { slot: b?.slot ?? 'head' } : k === 'seed' ? { growMinutes: 30, yieldItem: 'tomat', yieldQty: 3 } : {};
+    form.data = k === 'food' ? { effects: { kenyang: 10 } } : k === 'furniture' ? { w: 1, d: 1 } : k === 'wear' ? { slot: b?.slot ?? 'head' } : k === 'seed' ? { growMinutes: 30, yieldItem: 'tomat', yieldQty: 3 } : k === 'room' ? { size: 6, theme: b?.key === 'luar' ? 'luar' : 'dalam' } : {};
   }
   async function save() {
     busy = true;
@@ -65,6 +65,10 @@
     if (it.kind === 'furniture') return renderRoom({ layout: [{ i: it.id || 'x', x: 2, y: 2 }], items: map, size: 6 });
     if (it.kind === 'wallpaper') return renderRoom({ layout: [], items: {}, wall: it, size: 6 });
     if (it.kind === 'floor') return renderRoom({ layout: [], items: {}, floor: it, size: 6 });
+    if (it.kind === 'room') {
+      const byId = (id: string) => items.find((i) => i.id === id);
+      return renderRoom({ layout: [], items: {}, size: Math.max(4, Math.min(10, Number(it.data?.size) || 6)), theme: it.data?.theme, wall: byId(it.data?.wall), floor: byId(it.data?.floor) });
+    }
     return '';
   });
 </script>
@@ -153,6 +157,14 @@
               <label>Ukuran min (cm)<input type="number" min="1" bind:value={form.data.minCm} /></label>
               <label>Ukuran maks (cm)<input type="number" min="1" bind:value={form.data.maxCm} /></label>
             </div>
+          {:else if form.kind === 'room'}
+            <div class="grid2">
+              <label>Ukuran (petak)<input type="number" min="4" max="10" bind:value={form.data.size} /><span class="help">4–10; ruangan berbentuk persegi.</span></label>
+              <label>Jenis<select bind:value={form.data.theme}><option value="dalam">Ruangan dalam (dinding, jendela, lukisan)</option><option value="luar">Halaman terbuka (pagar & rumput)</option></select></label>
+              <label>Dinding awal<select bind:value={form.data.wall}><option value={undefined}>Bawaan</option>{#each items.filter((i) => i.kind === 'wallpaper') as i}<option value={i.id}>{i.name}</option>{/each}</select></label>
+              <label>Lantai awal<select bind:value={form.data.floor}><option value={undefined}>Bawaan</option>{#each items.filter((i) => i.kind === 'floor') as i}<option value={i.id}>{i.name}</option>{/each}</select></label>
+            </div>
+            <span class="help">Ruangan tidak masuk tas: setelah dibeli langsung jadi ruangan baru di rumah pemain (maksimal per pemain diatur di Ekonomi & Fitur → house). Jual di Toko Bangunan atau toko lain.</span>
           {:else}
             <p class="muted">Tidak ada detail tambahan.</p>
           {/if}

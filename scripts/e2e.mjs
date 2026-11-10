@@ -24,29 +24,40 @@ try {
   await step('03-daily', async () => { await p.click('text=Mulai main'); await p.click('.sheet .btn:has-text("Ambil hadiah")'); await p.waitForTimeout(1200); });
   await step('04-mandi', () => p.click('.acts .btn:has-text("Mandi")'));
   await step('05-makan', async () => { await p.click('.acts .btn:has-text("Makan")'); await p.click('.sheet .btn:has-text("Beri")'); await p.keyboard.press('Escape'); });
-  await step('06-beli-pasang', async () => {
-    await p.click('.dock button:has-text("Toko")'); await p.click('.tabs button:has-text("Mebel Jati")');
-    await p.click('.card:has-text("Meja Bambu") .btn'); await p.keyboard.press('Escape');
-    await p.click('.dock button:has-text("Tas")'); await p.click('.tabs button:has-text("Mebel")');
+  await step('06-aktivitas', async () => {
+    // ketuk kasur → menu aktivitas → pet berjalan & tidur di kasur
+    await p.click('.furn >> nth=0', { force: true }).catch(() => {});
+    if (!(await p.locator('.menu').count())) await p.click('.spot[data-spot="jendela"]');
+    await p.click('.menu .btn >> nth=0');
+    await p.waitForSelector('.room.acting', { timeout: 8000 });
+    await p.waitForFunction(() => !document.querySelector('.room.acting'), null, { timeout: 12000 });
+  });
+  await step('07-jalan-ke-toko', async () => {
+    // toko didatangi lewat peta: pet berjalan ke Mebel Jati, lalu masuk
+    await p.click('.dock button:has-text("Kampung")'); await p.click('[data-loc="mebel"]');
+    await p.waitForSelector('.shop .panel', { timeout: 10000 });
+    await p.click('.card:has-text("Meja Bambu") .btn');
+    await p.click('.shop .back');
+    await p.click('.dock button:has-text("Tas")'); await p.click('.tabbar button:has-text("Mebel")');
     await p.click('.card:has-text("Meja Bambu") .btn'); await p.click('.editbar .btn:has-text("Selesai")');
   });
-  await step('07-kebun', async () => {
+  await step('08-kebun', async () => {
     await p.click('.dock button:has-text("Kampung")'); await p.click('[data-loc="kebun"]');
     await p.click('.plot >> nth=0'); await p.click('.sheet .btn:has-text("Tanam")');
   });
-  await step('08-lomba', async () => {
+  await step('09-lomba', async () => {
     await p.click('.bar .btn:has-text("Kampung")'); await p.click('[data-loc="lapangan"]');
     await p.click('.btn:has-text("Mulai lomba")'); await p.waitForTimeout(3300);
     // ritme ketukan manusia (±8 per detik); lebih cepat dari batas akan ditolak anti-curang
     for (let i = 0; i < 60 && (await p.locator('.pad').count()); i++) { await p.click(`.pad >> nth=${i % 2}`, { timeout: 1500 }).catch(() => {}); await p.waitForTimeout(70); }
     await p.waitForSelector('text=Waktumu');
   });
-  await step('09-mancing', async () => {
+  await step('10-mancing', async () => {
     await p.click('.card .btn:has-text("Kampung")'); await p.click('[data-loc="kolam"]');
     await p.click('.btn:has-text("Lempar")'); await p.waitForSelector('text=TARIK!', { timeout: 8000 }); await p.click('text=TARIK!');
     await p.waitForTimeout(800);
   });
-  await step('10-notifikasi', () => p.click('.tool[aria-label^="Notifikasi"]'));
+  await step('11-notifikasi', () => p.click('.tool[aria-label^="Notifikasi"]'));
   if (errors.length) throw new Error('Error di halaman:\n' + errors.join('\n'));
   console.log(`Selesai. Screenshot di ${OUT}/`);
 } catch (e) {

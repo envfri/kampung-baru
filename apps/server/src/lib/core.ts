@@ -66,18 +66,20 @@ export interface Catalog {
   locations: any[];
   events: any[];
   packages: any[];
+  activities: any[];
 }
 
 export async function getCatalog(db: Db): Promise<Catalog> {
   if (catalogCache && Date.now() - catalogCache.at < TTL) return catalogCache.value;
-  const [items, locations, events, packages, ver] = await Promise.all([
+  const [items, locations, events, packages, activities, ver] = await Promise.all([
     db.query<CatalogItem>(`select id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, event_id, available_from, available_to, active, sort from items order by sort, id`),
     db.query(`select id, name, kind, x, y, style, enabled, sort, sells_back from locations order by sort, id`),
     db.query(`select id, name, description, starts_at, ends_at, theme, bonus, active, decor, points, milestones, token_name, repeat_yearly from events order by starts_at`),
     db.query(`select id, name, pearls, bonus, price_idr, active, sort from pearl_packages order by sort, id`),
+    db.query(`select id, name, description, targets, anim, effects, xp, coins, reward_item, cooldown_sec, daily_limit, min_level, message, active, sort from activities order by sort, id`),
     db.one<{ value: any }>(`select value from settings where key = 'catalog_version'`),
   ]);
-  const value: Catalog = { version: String(ver?.value ?? 1), items, byId: new Map(items.map((i) => [i.id, i])), locations, events, packages };
+  const value: Catalog = { version: String(ver?.value ?? 1), items, byId: new Map(items.map((i) => [i.id, i])), locations, events, packages, activities };
   catalogCache = { at: Date.now(), value };
   return value;
 }

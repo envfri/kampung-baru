@@ -10,7 +10,7 @@ export type ArtSpec =
   | { type: 'builtin'; key: string; colors?: Record<string, string>; params?: Record<string, number> }
   | { type: 'image'; url: string; w?: number; h?: number };
 
-export type ItemKind = 'food' | 'furniture' | 'wear' | 'wallpaper' | 'floor' | 'seed' | 'fish' | 'material';
+export type ItemKind = 'food' | 'furniture' | 'wear' | 'wallpaper' | 'floor' | 'seed' | 'fish' | 'material' | 'room';
 
 export interface ItemLike {
   id: string;
@@ -316,6 +316,60 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       return o + `<circle cx="${f1(cx)}" cy="${f1(top)}" r="${f1(3 * s)}" fill="${INK}"/>`;
     },
   },
+  kompor: {
+    label: 'Kompor dapur',
+    colors: { main: '#EEF3F5', accent: '#E0583F' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x + 0.06, y + 0.06, 0, w - 0.12, d - 0.12, 36, C3(c.main));
+      o += g.quadY(y + d - 0.06, x + 0.18, x + w - 0.18, 8, 26, shade(c.main, -0.32), 1.2);
+      o += g.quadY(y + d - 0.06, x + 0.3, x + w - 0.3, 22, 24, '#9AA7B8', 0);
+      for (const [a, b] of [[0.3, 0.32], [0.7, 0.68]]) {
+        const p = g.iso(x + a * w, y + b * d);
+        o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] - 36 * s)}" rx="${f1(8 * s)}" ry="${f1(4 * s)}" fill="#3B3F55" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/>`;
+      }
+      o += g.box(x + 0.16 * w, y + 0.18 * d, 36, 0.3, 0.3, 12, C3(c.accent));
+      const t = g.iso(x + 0.31 * w, y + 0.33 * d);
+      return o + `<path d="M${f1(t[0] - 3 * s)} ${f1(t[1] - 52 * s)}q${f1(-4 * s)} ${f1(-6 * s)} 0 ${f1(-12 * s)}M${f1(t[0] + 4 * s)} ${f1(t[1] - 52 * s)}q${f1(-4 * s)} ${f1(-6 * s)} 0 ${f1(-12 * s)}" stroke="#9AA7B8" stroke-width="${f1(1.6 * s)}" fill="none" stroke-linecap="round" opacity=".8"/>`;
+    },
+  },
+  bakmandi: {
+    label: 'Bak mandi',
+    colors: { main: '#FFFFFF', accent: '#7FC4E8' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x + 0.06, y + 0.06, 0, w - 0.12, d - 0.12, 26, C3(c.main));
+      const q = (a: number, b: number) => { const p = g.iso(x + a, y + b); return [p[0], p[1] - 24 * s]; };
+      o += g.poly([q(0.22, 0.2), q(w - 0.22, 0.2), q(w - 0.22, d - 0.2), q(0.22, d - 0.2)], c.accent, 1.2);
+      const t = g.iso(x + 0.14, y + d / 2);
+      o += `<path d="M${f1(t[0])} ${f1(t[1] - 26 * s)}v${f1(-16 * s)}h${f1(9 * s)}v${f1(5 * s)}" fill="none" stroke="${INK}" stroke-width="${f1(3 * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const m = q(w / 2, d / 2);
+      return o + `<circle cx="${f1(m[0] - 9 * s)}" cy="${f1(m[1] - 3 * s)}" r="${f1(4.5 * s)}" fill="#FFFFFF" stroke="${INK}" stroke-width="${f1(s)}"/><circle cx="${f1(m[0] + 7 * s)}" cy="${f1(m[1] - 5 * s)}" r="${f1(3.2 * s)}" fill="#FFFFFF" stroke="${INK}" stroke-width="${f1(s)}"/>`;
+    },
+  },
+  bangku: {
+    label: 'Bangku taman',
+    colors: { main: '#B9804A', accent: '#3B3F55' },
+    draw(g, x, y, w, d, c) {
+      const leg = C3(c.accent);
+      let o = '';
+      for (const a of [0.14, w - 0.24]) o += g.box(x + a, y + 0.2, 0, 0.1, 0.1, 18, leg) + g.box(x + a, y + d - 0.3, 0, 0.1, 0.1, 18, leg);
+      o += g.box(x + 0.08, y + 0.08, 18, w - 0.16, 0.1, 26, C3(c.main));
+      return o + g.box(x + 0.08, y + 0.18, 18, w - 0.16, d - 0.34, 4, C3(c.main));
+    },
+  },
+  pohon: {
+    label: 'Pohon rindang',
+    colors: { main: '#5DA05A', accent: '#8A5A36' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + w / 2, y + d / 2), cx = ctr[0], cy = ctr[1];
+      let o = `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(30 * s)}" ry="${f1(12 * s)}" fill="${INK}" opacity=".12"/>`;
+      o += g.box(x + w / 2 - 0.12, y + d / 2 - 0.12, 0, 0.24, 0.24, 62, C3(c.accent));
+      for (const [dx, dy, r, k] of [[0, -112, 28, 0], [-22, -86, 25, 1], [22, -90, 24, 1], [-6, -72, 20, 0], [14, -68, 18, 0]])
+        o += `<circle cx="${f1(cx + dx * s)}" cy="${f1(cy + dy * s)}" r="${f1(r * s)}" fill="${k ? shade(c.main, -0.14) : c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/>`;
+      return o + `<circle cx="${f1(cx - 9 * s)}" cy="${f1(cy - 120 * s)}" r="${f1(7 * s)}" fill="${shade(c.main, 0.35)}"/><circle cx="${f1(cx + 16 * s)}" cy="${f1(cy - 84 * s)}" r="${f1(3.5 * s)}" fill="#E0583F" stroke="${INK}" stroke-width="${f1(s)}"/>`;
+    },
+  },
   kotak: {
     label: 'Kotak (umum)',
     colors: { main: '#E9B23A' },
@@ -557,6 +611,13 @@ const FLOORS: Record<string, { label: string; colors: Record<string, string> }> 
   tegel: { label: 'Tegel catur', colors: { main: '#E9E4D6', accent: '#C9C2B0' } },
   teraso: { label: 'Teraso', colors: { main: '#E6E1D8', accent: '#A9A196' } },
   karpet: { label: 'Karpet lembut', colors: { main: '#9FB8D9', accent: '#8AA6CC' } },
+  rumput: { label: 'Rumput', colors: { main: '#8CC56E', accent: '#7DB862' } },
+  batu: { label: 'Batu paving', colors: { main: '#C9C2B0', accent: '#B5AD9A' } },
+};
+/** Jenis ruangan (untuk ikon item 'room'): dalam rumah atau halaman terbuka. */
+const ROOMS: Record<string, { label: string; colors: Record<string, string> }> = {
+  dalam: { label: 'Ruangan dalam', colors: { main: '#F3DFB8', accent: '#C48A55' } },
+  luar: { label: 'Halaman terbuka', colors: { main: '#D9B26A', accent: '#8CC56E' } },
 };
 
 export const DEFAULT_WALL: ArtSpec = { type: 'builtin', key: 'garis', colors: WALLS.garis.colors };
@@ -575,6 +636,7 @@ export function builtinCatalog() {
     seed: icons('seed'),
     fish: icons('fish'),
     material: icons('material'),
+    room: pick(ROOMS),
   } as Record<ItemKind, { key: string; label: string; colors: Record<string, string>; slot?: string }[]>;
 }
 
@@ -619,14 +681,14 @@ function roomDecor(g: Ctx, W: number, decor: string | undefined) {
     });
   }
   if (decor === 'hujan') {
-    // hujan di balik jendela
+    // hujan di balik jendela (tidak menghalangi ketukan ke jendela)
     for (let k = 0; k < 9; k++) {
       const xx = W / 2 - 1.0 + (k * 0.23) % 2.1, v = 64 + ((k * 23) % 50);
       const p = g.iso(xx, 0);
       o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - v * s)}" x2="${f1(p[0] - 4)}" y2="${f1(p[1] - v * s + 10)}" stroke="#3F7FBF" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>`;
     }
   }
-  return o;
+  return `<g pointer-events="none">${o}</g>`;
 }
 
 export interface RoomOpts {
@@ -635,11 +697,22 @@ export interface RoomOpts {
   wall?: ItemLike | null;
   floor?: ItemLike | null;
   size?: number;
-  pet?: { look: PetLook; wear: ItemLike[]; pos?: [number, number]; flip?: boolean } | null;
+  /** pose & prop saat beraktivitas (tidur di kasur, menyiram, membaca, ...); lift = naik di atas mebel */
+  pet?: { look: PetLook; wear: ItemLike[]; pos?: [number, number]; flip?: boolean; lift?: number; pose?: string; prop?: string } | null;
   edit?: boolean;
   sel?: number;
   decor?: string;
+  /** 'luar' = halaman terbuka berpagar (tanpa dinding, jendela, lukisan) */
+  theme?: string;
 }
+
+/** Benda kecil yang dipegang pet saat beraktivitas (koordinat lokal pet, kaki di 0,0). */
+const PROPS: Record<string, string> = {
+  siram: `<g transform="translate(40 -40) rotate(-18)"><path d="M-12 -8h22v18h-22z" fill="#7FC4E8" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M10 -4l16 -10" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M10 -4l16 -10" stroke="#7FC4E8" stroke-width="2.4" stroke-linecap="round"/><path d="M-12 -2q-8 2 -6 10" fill="none" stroke="${INK}" stroke-width="3"/></g>`,
+  baca: `<g transform="translate(0 -30)"><path d="M-26 -14L0 -8 26 -14V12L0 18-26 12Z" fill="#FFFDF7" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M0 -8V18" stroke="${INK}" stroke-width="2.4"/><path d="M-26 -14L-26 12 0 18 0 -8Z" fill="#E0583F" opacity=".25"/><path d="M-18 -4l12 3M-18 3l12 3M6 -1l12 -3M6 6l12 -3" stroke="${INK}" stroke-width="1.6" opacity=".6"/></g>`,
+  masak: `<g transform="translate(42 -36)"><ellipse rx="16" ry="6" fill="#3B3F55" stroke="${INK}" stroke-width="2.4"/><path d="M14 -2l18 -6" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><circle cx="-4" cy="-4" r="3" fill="#F2C94C"/><circle cx="5" cy="-3" r="2.6" fill="#E0583F"/></g>`,
+  main: `<g transform="translate(-44 -12)"><circle r="12" fill="#E0583F" stroke="${INK}" stroke-width="2.6"/><path d="M-12 0h24M0 -12q-7 12 0 24" stroke="#FFFDF7" stroke-width="2.4" fill="none"/></g>`,
+};
 
 export const ROOM_ISO: Iso = { ox: 400, oy: 150, t: 34, h: 17 };
 export const ROOM_VIEWBOX = '140 -70 520 500';
@@ -711,19 +784,46 @@ function wallColors(item?: ItemLike | null) {
   const def = WALLS[a.key] ?? WALLS.garis;
   return { key: a.key in WALLS ? a.key : 'garis', main: col(a.colors?.main, def.colors.main), accent: col(a.colors?.accent, def.colors.accent), url: '' };
 }
-function floorColors(item?: ItemLike | null) {
-  const a = item?.art ?? DEFAULT_FLOOR;
+const GRASS_FLOOR: ArtSpec = { type: 'builtin', key: 'rumput', colors: FLOORS.rumput.colors };
+function floorColors(item?: ItemLike | null, fallback: ArtSpec = DEFAULT_FLOOR) {
+  const a = item?.art ?? fallback;
   if (a.type === 'image') return { key: 'papan', main: '#C48A55', accent: '#B47B48' };
   const def = FLOORS[a.key] ?? FLOORS.papan;
   return { key: a.key in FLOORS ? a.key : 'papan', main: col(a.colors?.main, def.colors.main), accent: col(a.colors?.accent, def.colors.accent) };
 }
 
-function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor: ReturnType<typeof floorColors>, edit: boolean) {
+/** Halaman terbuka: semak & pagar bambu rendah menggantikan dinding. */
+function fenceSVG(g: Ctx, W: number) {
+  const s = g.s, col = '#D9B26A', FH = 40;
+  let o = '';
+  for (let k = 0; k < W; k++) {
+    for (const p of [g.iso(-0.2, k + 0.5), g.iso(k + 0.5, -0.2)])
+      o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] - 20 * s)}" rx="${f1(24 * s)}" ry="${f1(17 * s)}" fill="${k % 2 ? '#5DA05A' : '#6DB068'}" stroke="${INK}" stroke-width="${f1(1.5 * s)}"/>`;
+  }
+  o += g.quadX(0, 0, W, 13, 19, shade(col, -0.2)) + g.quadX(0, 0, W, 28, 34, shade(col, -0.2));
+  o += g.quadY(0, 0, W, 13, 19, col) + g.quadY(0, 0, W, 28, 34, col);
+  for (let u = 0; u <= W + 0.001; u += 0.5) {
+    const a = Math.max(0, u - 0.06), b = Math.min(W, u + 0.06);
+    o += g.quadX(0, a, b, 0, FH, shade(col, -0.1), 1.2) + g.quadY(0, a, b, 0, FH, shade(col, 0.15), 1.2);
+  }
+  return o;
+}
+
+/** Petak lantai di depan jendela / lukisan (tempat pet berdiri saat melihatnya) dan arah hadapnya. */
+export const ROOM_SPOTS = {
+  jendela: { label: 'Jendela', tiles: (W: number): [number, number][] => [[Math.floor(W / 2 - 0.6), 0], [Math.floor(W / 2), 0], [Math.floor(W / 2 - 0.6), 1], [Math.floor(W / 2), 1]], flip: false },
+  lukisan: { label: 'Lukisan', tiles: (W: number): [number, number][] => [[0, Math.floor(W / 2 + 0.5)], [0, Math.min(W - 1, Math.floor(W / 2 + 1.2))], [1, Math.floor(W / 2 + 0.5)], [1, Math.min(W - 1, Math.floor(W / 2 + 1.2))]], flip: true },
+} as const;
+export type RoomSpot = keyof typeof ROOM_SPOTS;
+
+function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor: ReturnType<typeof floorColors>, edit: boolean, outdoor = false) {
   const WH = 150, s = g.s;
   const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, W), D = g.iso(0, W);
   const up = (p: number[], v: number) => [p[0], p[1] - v];
   const wallR = shade(wall.main, 0.35);
   let o = `<polygon points="${P([[A[0], A[1] + 10], [B[0] + 12, B[1] + 8], [Cc[0], Cc[1] + 16], [D[0] - 12, D[1] + 8]])}" fill="${INK}" opacity=".12"/>`;
+  if (outdoor) o += fenceSVG(g, W);
+  else {
   o += g.poly([A, D, up(D, WH), up(A, WH)], wall.main);
   o += g.poly([A, B, up(B, WH), up(A, WH)], wallR);
   if (wall.key === 'garis') {
@@ -769,7 +869,8 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   }
   o += g.quadX(0, 0, W, 0, 26, shade(wall.main, -0.14));
   o += g.quadY(0, 0, W, 0, 26, shade(wallR, -0.14));
-  // jendela di dinding kanan
+  // jendela di dinding kanan (bisa diketuk: pet melihat ke luar)
+  o += `<g class="spot" data-spot="jendela">`;
   const trim = shade(wall.main, -0.45);
   const wx0 = W / 2 - 1.1, wx1 = W / 2 + 1.1;
   o += g.quadY(0, wx0 - 0.1, wx1 + 0.1, 50, 56, trim);
@@ -777,14 +878,17 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   const wm = g.iso(W / 2, 0), wl = g.iso(wx0, 0), wr = g.iso(wx1, 0);
   o += `<ellipse cx="${f1(wm[0] + 14)}" cy="${f1(wm[1] - 104 * s)}" rx="15" ry="5.5" fill="#FFFFFF"/><ellipse cx="${f1(wl[0] + 30)}" cy="${f1(wl[1] - 84 * s)}" rx="11" ry="4" fill="#FFFFFF"/>`;
   o += `<path d="M${f1(wm[0])} ${f1(wm[1] - 56 * s)}V${f1(wm[1] - 122 * s)}M${f1(wl[0])} ${f1(wl[1] - 89 * s)}L${f1(wr[0])} ${f1(wr[1] - 89 * s)}" stroke="${trim}" stroke-width="4"/>`;
-  // lukisan di dinding kiri
+  o += `</g>`;
+  // lukisan di dinding kiri (bisa diketuk)
+  o += `<g class="spot" data-spot="lukisan">`;
   const py0 = W / 2 + 0.35, py1 = W / 2 + 1.65;
   o += g.quadX(0, py0, py1, 62, 110, '#FFFDF7');
   o += g.quadX(0, py0 + 0.13, py1 - 0.13, 68, 104, '#9FD3C2');
   const Q = (yy: number, v: number) => { const p = g.iso(0, yy); return [p[0], p[1] - v * s]; };
   o += `<polygon points="${P([Q(py0 + 0.2, 70), Q(py0 + 0.6, 94), Q(py0 + 1.0, 70)])}" fill="#3FA06A"/><polygon points="${P([Q(py0 + 0.5, 70), Q(py0 + 0.85, 86), Q(py0 + 1.13, 70)])}" fill="#2F7F55"/>`;
   const sun = Q(py0 + 0.35, 97);
-  o += `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/>`;
+  o += `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/></g>`;
+  }
   // lantai
   for (let i = 0; i < W; i++)
     for (let j = 0; j < W; j++) {
@@ -797,6 +901,10 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
           const q = g.iso(i + ((fx + i * 0.13) % 1), j + ((fy + j * 0.17) % 1));
           o += `<circle cx="${f1(q[0])}" cy="${f1(q[1])}" r="${f1(1.6 * s)}" fill="${k ? '#FFFFFF' : floor.accent}" pointer-events="none"/>`;
         }
+      if (floor.key === 'rumput' && !edit && (i * 7 + j * 3) % 3 === 0) {
+        const c = g.iso(i + 0.5, j + 0.5);
+        o += `<path d="M${f1(c[0] - 5 * s)} ${f1(c[1] + 2 * s)}l${f1(2 * s)} ${f1(-7 * s)}M${f1(c[0])} ${f1(c[1] + 2 * s)}v${f1(-9 * s)}M${f1(c[0] + 5 * s)} ${f1(c[1] + 2 * s)}l${f1(-2 * s)} ${f1(-7 * s)}" stroke="#5E9E4A" stroke-width="${f1(1.6 * s)}" stroke-linecap="round" pointer-events="none"/>`;
+      }
       if (floor.key === 'papan' && !edit) {
         const a = g.iso(i + 0.5, j), b = g.iso(i + 0.5, j + 1);
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
@@ -816,14 +924,15 @@ function hash(s: string) {
 export function roomGeom(size = 6) {
   const t = Math.round((34 * 6) / size);
   const g = G({ ox: 400, oy: 150, t, h: t / 2 });
-  return { t, point: (x: number, y: number) => g.iso(x, y), petScale: Math.round(((0.82 * t) / 34) * 100) / 100 };
+  return { t, s: t / 32, point: (x: number, y: number) => g.iso(x, y), petScale: Math.round(((0.82 * t) / 34) * 100) / 100 };
 }
 
 export function renderRoom(o: RoomOpts) {
   const W = o.size ?? 6;
   const t = Math.round((34 * 6) / W);
   const g = G({ ox: 400, oy: 150, t, h: t / 2 });
-  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor), !!o.edit) + roomDecor(g, W, o.decor);
+  const outdoor = o.theme === 'luar';
+  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!o.edit, outdoor) + (outdoor ? '' : roomDecor(g, W, o.decor));
   const list = o.layout.map((p, idx) => ({ p, idx, it: o.items[p.i] })).filter((e) => e.it);
   const grp = (e: (typeof list)[number]) =>
     `<g class="furn${o.edit ? ' editable' : ''}${o.edit && o.sel === e.idx ? ' sel' : ''}" data-i="${e.idx}">${furnDraw(g, e.it, e.p.x, e.p.y)}</g>`;
@@ -834,7 +943,9 @@ export function renderRoom(o: RoomOpts) {
   if (o.pet) {
     const pos = o.pet.pos ?? petSpot(o.layout, o.items, W);
     const c = g.iso(pos[0], pos[1]);
-    draws.push({ d: pos[0] + pos[1] + 0.01, h: `<g class="pet" transform="translate(${f1(c[0])} ${f1(c[1])}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-face"${o.pet.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(o.pet.look, o.pet.wear)}</g></g></g></g>` });
+    const lift = (o.pet.lift ?? 0) * g.s;
+    const prop = o.pet.prop ? PROPS[o.pet.prop] ?? '' : '';
+    draws.push({ d: pos[0] + pos[1] + 0.01, h: `<g class="pet${o.pet.pose ? ' pose-' + esc(o.pet.pose) : ''}" transform="translate(${f1(c[0])} ${f1(c[1] - lift)}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-face"${o.pet.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(o.pet.look, o.pet.wear)}</g>${prop}</g></g></g>` });
   }
   draws.sort((a, b) => a.d - b.d).forEach((d) => (out += d.h));
   return out;
@@ -857,6 +968,15 @@ export function itemIcon(item: ItemLike) {
     const vb = { head: '-56 -124 112 64', face: '-46 -64 92 42', neck: '-46 -40 92 50', back: '-80 -112 160 116' }[slot as 'head'] ?? '-56 -124 112 64';
     const p = wearParts(item);
     return `<svg viewBox="${vb}" aria-hidden="true">${p.behind}${p.front}</svg>`;
+  }
+  if (item.kind === 'room') {
+    const c = a.type === 'builtin' ? a.colors ?? {} : {};
+    const outdoor = (item.data?.theme ?? (a.type === 'builtin' ? a.key : 'dalam')) === 'luar';
+    const def = ROOMS[outdoor ? 'luar' : 'dalam'].colors;
+    const wallIt = { art: { type: 'builtin', key: 'polos', colors: { main: col(c.main, def.main), accent: col(c.main, def.main) } } } as unknown as ItemLike;
+    const floorIt = { art: { type: 'builtin', key: outdoor ? 'rumput' : 'papan', colors: { main: col(c.accent, def.accent), accent: shade(col(c.accent, def.accent), -0.08) } } } as unknown as ItemLike;
+    const g = G({ ox: 32, oy: 10, t: 9, h: 4.5 });
+    return `<svg viewBox="${outdoor ? '2 -8 60 50' : '2 -34 60 72'}" aria-hidden="true">${roomShell(g, 3, wallColors(wallIt), floorColors(floorIt), false, outdoor)}</svg>`;
   }
   if (item.kind === 'wallpaper' || item.kind === 'floor') {
     if (a.type === 'image') {

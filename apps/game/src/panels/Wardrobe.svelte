@@ -1,7 +1,7 @@
 <script lang="ts">
   import Sheet from '../components/Sheet.svelte';
   import { PET_COLORS, PET_PARTS, petSVG, itemIcon } from '@kb/shared';
-  import { G, item, run, toast, fx, wearItems, owned } from '../lib/game.svelte';
+  import { G, item, run, toast, fx, wearItems, owned, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { sfx } from '../lib/sfx';
 
@@ -70,8 +70,8 @@
       {/if}
     {/each}
     <div class="row">
-      <button class="btn sm" onclick={() => { G.shopId = 'butik'; G.sheet = 'shop'; }}>Ke Butik Benang</button>
-      <button class="btn sm" onclick={() => { G.shopId = 'mutiara'; G.sheet = 'shop'; }}>Ke Toko Mutiara</button>
+      <button class="btn sm" onclick={() => goTo('butik')}>Ke Butik Benang</button>
+      <button class="btn sm" onclick={() => goTo('mutiara')}>Ke Toko Mutiara</button>
     </div>
   {:else}
     <div class="grid">

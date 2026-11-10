@@ -2,6 +2,7 @@ export * from './economy';
 export * from './settings';
 export * from './art';
 export * from './quests';
+export * from './activities';
 export * from './events';
 export * from './games';
 export * from './notify';

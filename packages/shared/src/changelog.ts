@@ -39,11 +39,27 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.12.0',
+    date: '2026-11-10',
+    title: 'Rumah berkamar-kamar, mebel bisa dipakai, belanja jalan kaki',
+    summary: 'Bangun rumahmu: tambah ruang tamu, dapur, sampai halaman. Ketuk mebel untuk tidur, duduk, menyiram, atau membaca. Belanja kini dengan berjalan ke toko di Peta Kampung.',
+    items: [
+      { kind: 'baru', text: 'Toko Bangunan di Peta Kampung: beli ruangan baru untuk rumahmu (Ruang Tamu, Dapur, Kamar Mandi, Halaman Rumput berpagar, dan Loteng Bintang di Toko Mutiara). Pindah ruangan lewat tombol nama ruangan di Rumah.', player: true },
+      { kind: 'baru', text: 'Mebel bisa dipakai: ketuk kasur untuk tidur, sofa/kursi untuk duduk santai, tanaman untuk disiram, rak buku untuk membaca, TV, akuarium, kulkas, kompor (masak roti), bak mandi, juga jendela dan lukisan di dinding.', player: true },
+      { kind: 'baru', text: 'Belanja dengan mendatangi tokonya: ketuk toko di Peta Kampung, pet berjalan ke sana lalu masuk. Tiap toko punya penjaga dan barangnya sendiri.', player: true },
+      { kind: 'baru', text: 'Mebel baru: Kompor Dapur, Bak Mandi, Bangku Taman, Pohon Mangga; lantai Rumput dan Batu Paving.', player: true },
+      { kind: 'ubah', text: 'Tombol Toko di bawah diganti Tugas (dengan tanda hadiah siap). Saat berkunjung, kamu bisa melihat semua ruangan rumah teman.', player: true },
+      { kind: 'baru', text: 'Admin → Aktivitas di rumah: tambah/ubah aktivitas (mebel atau bagian ruangan yang bisa dipakai, animasi, efek kebutuhan, XP, koin, hadiah barang, jeda, batas harian, level minimal, pesan) dengan pratinjau pose pet.' },
+      { kind: 'baru', text: 'Item jenis Ruangan rumah (ukuran 4–10, ruangan dalam atau halaman, dinding & lantai awal) dan pengaturan house.maxRooms. Migrasi 010: rooms punya id per ruangan (data kamar lama tetap utuh), tabel activities.' },
+      { kind: 'baru', text: 'API: POST /api/activity, POST /api/room menerima roomId (tanpa roomId = kamar awal, aman untuk PWA lama), state & kunjungan mengirim daftar rooms. Tugas harian baru "Betah di rumah" (peristiwa activity).' },
+    ],
+  },
+  {
     version: '0.11.1',
     date: '2026-11-10',
     title: 'Login lewat http:// & perbaikan tampilan desktop',
     summary: 'Masuk dan main dari browser desktop kini lebih lancar.',
-    commits: ['aae0213'],
+    commits: ['aae0213', '4a3e68c'],
     items: [
       { kind: 'perbaikan', text: 'Main tanpa daftar tidak lagi langsung diminta masuk ulang saat game dibuka lewat alamat http:// (mis. IP server sebelum domain siap).', player: true },
       { kind: 'perbaikan', text: 'Di layar komputer, jumlah koin & Mutiara tetap terlihat saat Tas/Toko terbuka, dan semua kategori terlihat tanpa harus digeser.', player: true },

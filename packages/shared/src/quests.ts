@@ -2,7 +2,8 @@
 // Dipakai server (validasi) dan halaman admin (pilihan).
 export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = {
   action: { label: 'Aksi di rumah', filters: 'type: elus | makan | mandi | main | tidur' },
-  purchase: { label: 'Beli barang di toko', filters: 'kind: food | furniture | wear | wallpaper | floor | seed · currency: coin | pearl' },
+  purchase: { label: 'Beli barang di toko', filters: 'kind: food | furniture | wear | wallpaper | floor | seed | room · currency: coin | pearl' },
+  activity: { label: 'Aktivitas di rumah (pakai mebel, lihat jendela, ...)', filters: 'id: id aktivitas · anim: tidur | duduk | lihat | siram | baca | masak | main | mandi' },
   sell: { label: 'Jual barang di Pasar', filters: '' },
   room_save: { label: 'Simpan susunan ruangan', filters: '' },
   wear: { label: 'Ganti pakaian pet', filters: '' },
@@ -18,6 +19,6 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
 };
 
 export const QUEST_LINKS: [string, string][] = [
-  ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
+  ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko (lewat peta)'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
   ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'],
 ];

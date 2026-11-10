@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { addXp, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
+import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -15,7 +15,13 @@ import {
   HttpError, notFound, purchasable, today, track, yesterday, bumpCounter,
 } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { J, lockPet, petView, playerState, publicCatalog, savePet, currentNeeds } from '../lib/state';
+import { J, loadRooms, lockPet, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds } from '../lib/state';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const roomIdOf = (v: unknown) => {
+  if (v === undefined || v === null || v === '') return null;
+  if (typeof v !== 'string' || !UUID.test(v)) throw bad('invalid_room', 'Ruangan tidak valid.');
+  return v;
+};
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { claimQuest, questEvent, questList, questSummary } from '../lib/quests';
 
@@ -53,7 +59,11 @@ export async function patch(db: Db, userId: string, parts: ('pet' | 'wallet' | '
     const rows = await db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]);
     out.inventory = Object.fromEntries(rows.map((r) => [r.item_id, r.qty]));
   }
-  if (parts.includes('room')) out.room = await db.one(`select layout, wall, floor, version from rooms where user_id = $1`, [userId]);
+  if (parts.includes('room')) {
+    const rooms = await loadRooms(db, userId, await getCatalog(db), s);
+    out.rooms = rooms;
+    out.room = rooms[0];
+  }
   if (parts.includes('garden')) out.garden = await db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]);
   if (parts.includes('limits')) {
     const [k, f, gp, gm] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing'), counter(db, userId, 'game_panen'), counter(db, userId, 'game_memori')]);
@@ -238,6 +248,23 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     if (!purchasable(cat, item)) throw bad('not_for_sale', 'Barang ini sedang tidak dijual.');
     const price = currency === 'coin' ? item!.price_coin : item!.price_pearl;
     if (!price) throw bad('wrong_currency', currency === 'coin' ? 'Barang ini dibeli dengan Mutiara.' : 'Barang ini dibeli dengan koin.');
+    if (item!.kind === 'room') {
+      const s = await getSettings(db);
+      return once(db, u.id, reqId(req.body?.requestId), async (t) => {
+        if (await t.one(`select 1 from rooms where user_id = $1 and room_item = $2`, [u.id, itemId])) throw bad('owned', 'Ruangan ini sudah ada di rumahmu.');
+        const n = (await t.one<{ c: number; m: number }>(`select count(*)::int c, coalesce(max(sort), 0)::int m from rooms where user_id = $1`, [u.id]))!;
+        const max = Number((s as any).house?.maxRooms ?? 6);
+        if (n.c >= max) throw bad('max_rooms', `Rumahmu sudah punya ${max} ruangan (batas maksimal).`);
+        await credit(t, u.id, currency, -price, 'buy', `${itemId}x1`);
+        const deco = (id: unknown, kind: string) => (typeof id === 'string' && cat.byId.get(id)?.kind === kind ? id : null);
+        const room = (await t.one<{ id: string }>(
+          `insert into rooms (user_id, room_item, name, layout, wall, floor, sort) values ($1,$2,$3,'[]'::jsonb,$4,$5,$6) returning id`,
+          [u.id, itemId, item!.name, deco(item!.data?.wall, 'wallpaper'), deco(item!.data?.floor, 'floor'), n.m + 1],
+        ))!;
+        await track(t, u.id, 'purchase', { itemId, kind: 'room', currency, total: price });
+        return { ok: true, roomId: room.id, ...(await patch(t, u.id, ['wallet', 'room'])) };
+      });
+    }
     return once(db, u.id, reqId(req.body?.requestId), async (t) => {
       await credit(t, u.id, currency, -price * qty, 'buy', `${itemId}x${qty}`);
       await addItem(t, u.id, itemId, qty);
@@ -267,9 +294,13 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const u = req.user!;
     const body = obj(req.body, 'body');
     const version = int(body.version, 'Versi', { min: 1 });
+    const roomId = roomIdOf(body.roomId);
     if (!Array.isArray(body.layout)) throw bad('invalid', 'Susunan ruangan tidak valid.');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-    const size = s.room.size;
+    const target = await db.one<{ id: string; room_item: string | null }>(
+      `select id, room_item from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [u.id, roomId]);
+    if (!target) throw notFound('Ruangan tidak ditemukan.');
+    const size = roomMeta(target.room_item, cat, s).size;
     if (body.layout.length > s.room.maxItems) throw bad('too_many', `Maksimal ${s.room.maxItems} barang di ruangan.`);
     const layout = body.layout.map((p: any) => ({ i: String(p?.i ?? ''), x: int(p?.x, 'x', { min: 0, max: size - 1 }), y: int(p?.y, 'y', { min: 0, max: size - 1 }) }));
     const items: Record<string, any> = {};
@@ -285,9 +316,9 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       placed.push(p);
     }
     return db.tx(async (t) => {
-      const room = await t.one<{ layout: any[]; version: number; wall: string | null; floor: string | null }>(`select layout, version, wall, floor from rooms where user_id = $1 for update`, [u.id]);
+      const room = await t.one<{ layout: any[]; version: number; wall: string | null; floor: string | null }>(`select layout, version, wall, floor from rooms where id = $1 and user_id = $2 for update`, [target.id, u.id]);
       if (!room) throw notFound('Ruangan tidak ditemukan.');
-      if (room.version !== version) throw new HttpError(409, 'room_conflict', 'Ruangan diubah dari perangkat lain. Memuat ulang.', { room });
+      if (room.version !== version) throw new HttpError(409, 'room_conflict', 'Ruangan diubah dari perangkat lain. Memuat ulang.', { room: { ...room, id: target.id } });
       const count = (arr: any[]) => arr.reduce((m: Record<string, number>, p: any) => ((m[p.i] = (m[p.i] ?? 0) + 1), m), {});
       const before = count(room.layout ?? []), after = count(layout);
       for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
@@ -308,9 +339,61 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       };
       const wall = await theme('wall', 'wallpaper');
       const floor = await theme('floor', 'floor');
-      await t.query(`update rooms set layout = $2::text::jsonb, wall = $3, floor = $4, version = version + 1, updated_at = now() where user_id = $1`, [u.id, J(layout), wall, floor]);
+      await t.query(`update rooms set layout = $2::text::jsonb, wall = $3, floor = $4, version = version + 1, updated_at = now() where id = $1`, [target.id, J(layout), wall, floor]);
       await track(t, u.id, 'room_save', { items: layout.length });
       return { ok: true, ...(await patch(t, u.id, ['room', 'inventory'])) };
+    });
+  });
+
+  /* ---------------- aktivitas di rumah (pakai mebel, lihat jendela/lukisan) ---------------- */
+
+  app.post('/api/activity', auth, async (req: any) => {
+    const u = req.user!;
+    const b = obj(req.body, 'body');
+    const id = str(b.activityId, 'Aktivitas', { max: 48 })!;
+    const roomId = roomIdOf(b.roomId);
+    const spot = b.spot !== undefined && b.spot !== null ? oneOf(b.spot, 'Bagian ruangan', Object.keys(ACTIVITY_SPOTS)) : null;
+    const index = spot ? -1 : int(b.index, 'Mebel', { min: 0, max: 500 });
+    const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
+    const act = cat.activities.find((a) => a.id === id && a.active);
+    if (!act) throw bad('invalid_activity', 'Aktivitas ini sedang tidak tersedia.');
+    const mult = coinMultiplier(cat);
+    return once(db, u.id, reqId(b.requestId), async (t) => {
+      const room = await t.one<{ room_item: string | null; layout: any[] }>(
+        `select room_item, layout from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [u.id, roomId]);
+      if (!room) throw notFound('Ruangan tidak ditemukan.');
+      let target = '';
+      if (spot) {
+        if (roomMeta(room.room_item, cat, s).theme === 'luar' || !activityFits(act.targets, null, spot)) throw bad('invalid_target', 'Aktivitas ini tidak bisa dilakukan di situ.');
+        target = ACTIVITY_SPOTS[spot].toLowerCase();
+      } else {
+        const placed = (room.layout ?? [])[index];
+        const it = placed ? cat.byId.get(placed.i) : undefined;
+        if (!it || !activityFits(act.targets, it as any)) throw bad('invalid_target', 'Mebel itu tidak bisa dipakai untuk aktivitas ini.');
+        target = it.name;
+      }
+      const pet = await lockPet(t, u.id);
+      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      if (pet.level < (act.min_level ?? 1)) throw bad('locked', `Aktivitas ini terbuka di Lv ${act.min_level}.`);
+      let needs = currentNeeds(pet, s);
+      const delta: Partial<Needs> = {};
+      for (const k of NEED_KEYS) { const v = Math.round(Number(act.effects?.[k]) || 0); if (v) delta[k] = v; }
+      if ((delta.energi ?? 0) < 0 && needs.energi + (delta.energi ?? 0) < 0) throw bad('tired', `${pet.name} kecapekan. Tidur dulu.`);
+      await cooldown(t, u.id, 'act:' + act.id, act.cooldown_sec);
+      if (act.daily_limit > 0) await bumpCounter(t, u.id, 'act:' + act.id, act.daily_limit);
+      needs = applyNeedDelta(needs, delta);
+      const lv = act.xp ? await grantXp(t, u.id, pet, act.xp) : { level: pet.level, xp: pet.xp, levelsGained: 0 };
+      const coins = act.coins ? Math.round(act.coins * mult) : 0;
+      if (coins) await credit(t, u.id, 'coin', coins, 'activity', act.id);
+      const rewardItem = act.reward_item && cat.byId.get(act.reward_item) ? act.reward_item : null;
+      if (rewardItem) await addItem(t, u.id, rewardItem, 1);
+      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp });
+      await track(t, u.id, 'activity', { id: act.id, anim: act.anim });
+      return {
+        ok: true,
+        result: { id: act.id, coins, xp: act.xp, item: rewardItem, cooldownSec: act.cooldown_sec, levelUp: lv.levelsGained > 0 ? lv.level : null, message: activityMessage(act, pet.name, target) },
+        ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])),
+      };
     });
   });
 

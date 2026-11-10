@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, today, track } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { petView } from '../lib/state';
+import { loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { eventOn, notifyEvent } from '../lib/notify';
@@ -67,15 +67,15 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const id = String(req.params.id);
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
     if (id !== req.user!.id && !(await isFriend(req.user!.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
-    const s = await getSettings(db);
-    const [owner, pet, room, visited] = await Promise.all([
+    const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
+    const [owner, pet, rooms, visited] = await Promise.all([
       db.one(`select id, display_name from users where id = $1 and banned_at is null`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
-      db.one(`select layout, wall, floor from rooms where user_id = $1`, [id]),
+      loadRooms(db, id, cat, s, false),
       db.one(`select 1 from visits where visitor_id = $1 and host_id = $2 and day = $3`, [req.user!.id, id, today()]),
     ]);
     if (!owner) throw notFound('Rumah tidak ditemukan.');
-    return { owner, pet: pet ? petView(pet, s) : null, room, claimed: !!visited };
+    return { owner, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited };
   });
 
   app.post('/api/visit/:id/claim', auth, async (req: any) => {

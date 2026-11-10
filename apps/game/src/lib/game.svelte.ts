@@ -4,8 +4,8 @@ import { decayNeeds, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
-export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori';
-export type Sheet = null | 'shop' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
+export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop';
+export type Sheet = null | 'rooms' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -21,13 +21,20 @@ export interface CatalogItem extends ItemLike {
 export const G = $state({
   booted: false,
   config: null as any,
-  catalog: null as null | { version: string; items: CatalogItem[]; locations: any[]; events: any[]; packages: any[]; settings: any },
+  catalog: null as null | { version: string; items: CatalogItem[]; locations: any[]; events: any[]; packages: any[]; activities?: any[]; settings: any },
   me: null as any,
   view: 'home' as View,
   sheet: null as Sheet,
   sheetArg: null as any,
   shopId: 'pasar',
+  shopTab: 'buy' as 'buy' | 'sell',
   bagTab: 'food',
+  /** ruangan rumah yang sedang dilihat (id) & ruangan teman saat berkunjung (indeks) */
+  roomId: '' as string,
+  visitRoom: 0,
+  /** posisi pet di peta kampung (id lokasi) dan tujuan jalan berikutnya */
+  mapAt: 'rumah',
+  mapGoal: null as null | string,
   visit: null as any,
   edit: false,
   sel: -1,
@@ -42,7 +49,7 @@ export const G = $state({
   cool: {} as Record<string, number>,
   portrait: typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth,
   fx: 0,
-  fxKind: 'hearts' as 'hearts' | 'bubbles' | 'coins' | 'zz' | 'food',
+  fxKind: 'hearts' as 'hearts' | 'bubbles' | 'coins' | 'zz' | 'food' | 'sparkle' | 'drops' | 'notes' | 'steam',
   /** versi terakhir yang dilihat pemain bila ada pembaruan yang belum dibuka */
   whatsNew: null as string | null,
 });
@@ -76,7 +83,7 @@ export function toast(text: string, kind: 'info' | 'error' | 'good' = 'info') {
 export function merge(p: any) {
   if (!p || !G.me) return;
   const readyBefore = G.me.quests?.ready ?? 0;
-  for (const k of ['pet', 'wallet', 'inventory', 'room', 'garden', 'limits', 'daily', 'notificationsUnread', 'quests']) if (p[k] !== undefined) G.me[k] = p[k];
+  for (const k of ['pet', 'wallet', 'inventory', 'room', 'rooms', 'garden', 'limits', 'daily', 'notificationsUnread', 'quests']) if (p[k] !== undefined) G.me[k] = p[k];
   if ((G.me.quests?.ready ?? 0) > readyBefore) setTimeout(() => toast('Tugas selesai! Ambil hadiahnya di Tugas.', 'good'), 900);
   if (p.serverNow) G.offset = p.serverNow - Date.now();
 }
@@ -105,7 +112,10 @@ export async function run<T = any>(fn: () => Promise<T>): Promise<T | null> {
     return r;
   } catch (e) {
     fail(e);
-    if (e instanceof ApiError && e.code === 'room_conflict' && e.data?.room) G.me.room = e.data.room;
+    if (e instanceof ApiError && e.code === 'room_conflict' && e.data?.room) {
+      const i = (G.me.rooms ?? []).findIndex((r: any) => r.id === e.data.room.id);
+      if (i >= 0) G.me.rooms[i] = { ...G.me.rooms[i], ...e.data.room };
+    }
     return null;
   } finally {
     G.busy = false;
@@ -172,11 +182,39 @@ export function track(name: string, props?: Record<string, unknown>) {
   api.post('/api/track', { events: [{ name, props }] }).catch(() => {});
 }
 
+/* -------- rumah multi-ruangan -------- */
+
+export interface RoomState { id: string; item: string | null; name: string; layout: { i: string; x: number; y: number }[]; wall: string | null; floor: string | null; version: number; size: number; theme: 'dalam' | 'luar' }
+
+/** Ruangan yang sedang dilihat di rumah sendiri (default: kamar awal). */
+export function curRoom(): RoomState {
+  const list: RoomState[] = G.me?.rooms ?? (G.me?.room ? [{ id: '', item: null, name: 'Kamar', size: settings().room?.size ?? 6, theme: 'dalam', ...G.me.room }] : []);
+  return list.find((r) => r.id === G.roomId) ?? list[0];
+}
+
+export function switchRoom(id: string) {
+  if (G.edit || id === curRoom()?.id) return;
+  G.roomId = id;
+  G.view = 'home';
+}
+
+/** Jalan ke tempat di peta kampung (pet berjalan dulu, lalu tempatnya dibuka). */
+export function goTo(locId: string, opts: { tab?: 'buy' | 'sell' } = {}) {
+  if (G.edit) { G.edit = false; G.draft = null; G.sel = -1; }
+  G.sheet = null;
+  G.visit = null;
+  if (opts.tab) G.shopTab = opts.tab;
+  // berangkat dari rumah: pet keluar dari pintu Rumahku
+  if (G.view === 'home' || G.view === 'visit') G.mapAt = 'rumah';
+  G.view = 'map';
+  G.mapGoal = locId;
+}
+
 /* -------- mode atur ruangan -------- */
 
 export function startEdit() {
   if (G.edit) return;
-  G.draft = (G.me.room.layout ?? []).map((p: any) => ({ ...p }));
+  G.draft = (curRoom()?.layout ?? []).map((p: any) => ({ ...p }));
   G.sel = -1;
   G.edit = true;
   G.sheet = null;
@@ -185,6 +223,6 @@ export function startEdit() {
 
 export function draftAvail(id: string) {
   const placedNow = (G.draft ?? []).filter((p) => p.i === id).length;
-  const placedSaved = (G.me.room.layout ?? []).filter((p: any) => p.i === id).length;
+  const placedSaved = (curRoom()?.layout ?? []).filter((p: any) => p.i === id).length;
   return owned(id) - (placedNow - placedSaved);
 }

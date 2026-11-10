@@ -16,6 +16,8 @@ Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar
 | 4 · Soft launch | Mutiara via QRIS (ZePay), Toko Mutiara (kosmetik saja), Kolam Pancing & koleksi ikan, kalender event | Selesai, perlu uji kunci ZePay mode uji lalu live |
 | Mini-game | Balai Main: Panen Buah (tangkap buah, hindari kerikil) dan Ingat Jajanan (cocokkan kartu), plus Lomba Karung & Kolam Pancing. Skor dihitung ulang di server dari seed | Selesai |
 | Event musiman | Diatur penuh dari admin: tanggal, dekorasi kampung & rumah (bendera, lampion, ketupat, kembang api, hujan, bunga), pengali koin, poin event per aktivitas, hadiah bertingkat, barang edisi terbatas, berulang tiap tahun, notifikasi otomatis saat mulai, template Agustusan/Ramadan/Lebaran/Imlek/Tahun Baru/Musim Hujan | Selesai |
+| Rumah & aktivitas | Rumah multi-ruangan: kamar awal + ruang tamu, dapur, kamar mandi, halaman rumput berpagar, loteng (dibeli di Toko Bangunan). Ketuk mebel/jendela/lukisan: pet berjalan ke sana lalu tidur di kasur, duduk di sofa, berendam, menyiram, membaca, memasak, dll. Aktivitas diatur dari admin | Selesai |
+| Peta & toko | Belanja dengan mendatangi toko di Peta Kampung: pet berjalan menyusuri jalan, lalu masuk ke dalam toko (penjaga, etalase, barang khusus toko itu) | Selesai |
 | Notifikasi | Web Push (muncul walau PWA ditutup) + kotak notifikasi di game: kebun siap panen, pet butuh perhatian, pengingat hadiah harian, teman/kunjungan/hadiah, pembayaran, broadcast & jadwal dari admin | Selesai, perlu uji di HP sungguhan |
 
 ## Struktur
@@ -74,11 +76,12 @@ Admin pertama dibuat dari `ADMIN_EMAIL` + `ADMIN_PASSWORD` saat tabel admin koso
 
 Yang bisa diatur tanpa deploy:
 
-- **Item & harga**: tambah/ubah makanan, mebel, pakaian, dinding, lantai, bibit, ikan. Gambar dari bentuk bawaan (warna bisa diubah) atau upload PNG/WebP/SVG, dengan pratinjau langsung.
+- **Item & harga**: tambah/ubah makanan, mebel, pakaian, dinding, lantai, bibit, ikan, dan **ruangan rumah** (ukuran, ruangan dalam/halaman, dinding & lantai awal). Gambar dari bentuk bawaan (warna bisa diubah) atau upload PNG/WebP/SVG, dengan pratinjau langsung.
+- **Aktivitas di rumah**: tambah/ubah aktivitas mebel (mis. "Tidur" di semua kasur, "Lihat ke luar" di jendela): mebel/bagian ruangan yang bisa dipakai, animasi, efek ke kebutuhan, XP, koin, hadiah barang, jeda, batas harian, level minimal, dan pesannya.
 - **Event**: buat dari template, atur tanggal, dekorasi, pengali koin, nama poin, poin per aktivitas, hadiah bertingkat (koin/Mutiara/item), berulang tiap tahun, dan notifikasi saat mulai. Lihat jumlah peserta & hadiah yang diambil.
 - **Tugas**: tugas pemula & harian.
 - **Peta & toko**: nama, posisi, warna bangunan, tampil/sembunyi, toko yang membeli barang pemain.
-- **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran ruangan, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
+- **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran kamar awal, jumlah maksimal ruangan per rumah, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
 - **Notifikasi**: kirim sekarang atau jadwalkan ke semua pemain, yang aktif 7 hari, yang tidak aktif, pembeli, atau tamu.
 - **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Integrasi & URL**, **Versi & changelog**, **Admin**.
 

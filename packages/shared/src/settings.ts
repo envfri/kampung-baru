@@ -53,6 +53,9 @@ export const DEFAULT_SETTINGS = {
     size: 6,
     maxItems: 40,
   },
+  house: {
+    maxRooms: 6,
+  },
   quests: {
     dailyCount: 3,
   },
@@ -103,7 +106,8 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   karung: 'Lomba Karung: jatah main per hari, biaya energi, hadiah per peringkat.',
   fishing: 'Kolam Pancing: jatah lempar per hari, jeda gigitan, dan lama jendela tarik (ms).',
   garden: 'Jumlah petak kebun dan XP panen.',
-  room: 'Ukuran ruangan (petak) dan batas jumlah barang terpasang.',
+  room: 'Ukuran kamar awal (petak) dan batas jumlah barang terpasang per ruangan.',
+  house: 'Rumah: jumlah maksimal ruangan per pemain (kamar awal + ruangan yang dibeli di Toko Bangunan). Jenis ruangan, harga, dan ukurannya diatur sebagai item jenis Ruangan.',
   notify: 'Waktu notifikasi otomatis: ambang kebutuhan pet & jeda jam, jam pengingat hadiah harian (WIB), jeda notifikasi kunjungan (menit). Nyala/mati dan teks tiap notifikasi diatur di Pusat notifikasi.',
   games: 'Mini-game Balai Main. Panen Buah: hadiah = skor × koin per poin (maks maxCoins). Ingat Jajanan: hadiah koin untuk 1, 2, dan 3 bintang.',
   quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',

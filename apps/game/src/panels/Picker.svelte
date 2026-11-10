@@ -1,7 +1,7 @@
 <script lang="ts">
   import Sheet from '../components/Sheet.svelte';
   import ItemCard from '../components/ItemCard.svelte';
-  import { G, item, run, post, toast } from '../lib/game.svelte';
+  import { G, item, run, post, toast, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { sfx } from '../lib/sfx';
 
@@ -33,7 +33,7 @@
   {/if}
   {#if list.length === 0}
     <p class="muted">{mode === 'seed' ? 'Belum punya bibit. Beli di Pasar Pagi.' : 'Tas kosong.'}</p>
-    {#if mode === 'seed'}<button class="btn hot" onclick={() => { G.shopId = 'pasar'; G.sheet = 'shop'; }}>Ke Pasar Pagi</button>{/if}
+    {#if mode === 'seed'}<button class="btn hot" onclick={() => goTo('pasar')}>Ke Pasar Pagi</button>{/if}
   {/if}
   <div class="grid">
     {#each list as { it, n } (it!.id)}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import Sheet from '../components/Sheet.svelte';
   import ItemCard from '../components/ItemCard.svelte';
-  import { G, item, effText, run, post, fx, toast, startEdit, draftAvail, items } from '../lib/game.svelte';
+  import { G, item, effText, run, post, fx, toast, startEdit, draftAvail, items, curRoom, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { fits } from '@kb/shared';
   import { sfx } from '../lib/sfx';
@@ -35,7 +35,7 @@
     if (!it) return;
     if (!G.edit) startEdit();
     if (draftAvail(id) <= 0) { toast('Semua sudah terpasang.', 'error'); return; }
-    const size = G.catalog?.settings?.room?.size ?? 6;
+    const size = curRoom()?.size ?? G.catalog?.settings?.room?.size ?? 6;
     const map = Object.fromEntries(items());
     for (let s = 0; s < size * 2; s++)
       for (let x = 0; x < size; x++) {
@@ -56,8 +56,9 @@
   async function decor(id: string) {
     const it = item(id)!;
     const key = it.kind === 'wallpaper' ? 'wall' : 'floor';
-    const layout = G.edit && G.draft ? G.draft : G.me.room.layout;
-    const r = await run(() => api.post('/api/room', { layout, version: G.me.room.version, [key]: id }));
+    const room = curRoom();
+    const layout = G.edit && G.draft ? G.draft : room.layout;
+    const r = await run(() => api.post('/api/room', { roomId: room.id || undefined, layout, version: room.version, [key]: id }));
     if (r) { if (G.edit) { G.edit = false; G.draft = null; } sfx.pop(); toast(`${it.name} dipasang`, 'good'); }
   }
 
@@ -88,7 +89,8 @@
       {:else if tab.k === 'seed'}Belum ada bibit. Beli di Pasar Pagi.
       {:else}Belum ada barang di sini.{/if}
     </p>
-    {#if tab.k === 'food' || tab.k === 'seed'}<button class="btn hot" onclick={() => { G.shopId = 'pasar'; G.sheet = 'shop'; }}>Ke Pasar Pagi</button>{/if}
+    {#if tab.k === 'food' || tab.k === 'seed'}<button class="btn hot" onclick={() => goTo('pasar')}>Jalan ke Pasar Pagi</button>
+    {:else if tab.k === 'furniture' || tab.k === 'decor'}<button class="btn hot" onclick={() => goTo('mebel')}>Jalan ke Mebel Jati</button>{/if}
   {/if}
 
   <div class="grid">
@@ -100,7 +102,7 @@
         {@const avail = G.edit ? draftAvail(i.id) : n}
         {#if avail > 0}<ItemCard it={i} sub="Ukuran {i.data?.w ?? 1}×{i.data?.d ?? 1}" badge="×{avail}"><button class="btn sm" onclick={() => place(i.id)}>Pasang</button></ItemCard>{/if}
       {:else if i.kind === 'wallpaper' || i.kind === 'floor'}
-        {@const on = G.me.room[i.kind === 'wallpaper' ? 'wall' : 'floor'] === i.id}
+        {@const on = curRoom()?.[i.kind === 'wallpaper' ? 'wall' : 'floor'] === i.id}
         <ItemCard it={i} sub={i.kind === 'wallpaper' ? 'Dinding' : 'Lantai'}><button class="btn sm" class:on disabled={on || G.busy} onclick={() => decor(i.id)}>{on ? 'Terpasang' : 'Pakai'}</button></ItemCard>
       {:else if i.kind === 'wear'}
         {@const on = G.me.pet.wear?.[i.data?.slot ?? 'head'] === i.id}
@@ -108,7 +110,7 @@
       {:else if i.kind === 'seed'}
         <ItemCard it={i} sub="{i.data?.growMinutes} mnt" badge="×{n}"><button class="btn sm" onclick={() => { G.sheet = null; G.view = 'garden'; }}>Ke Kebun</button></ItemCard>
       {:else}
-        <ItemCard it={i} sub={i.sell_coin ? `Jual ${i.sell_coin} koin` : ''} badge="×{n}"><button class="btn sm" onclick={() => { G.shopId = 'pasar'; G.sheet = 'shop'; }}>Jual</button></ItemCard>
+        <ItemCard it={i} sub={i.sell_coin ? `Jual ${i.sell_coin} koin` : ''} badge="×{n}"><button class="btn sm" onclick={() => goTo('pasar', { tab: 'sell' })}>Jual</button></ItemCard>
       {/if}
     {/each}
   </div>
