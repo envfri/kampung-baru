@@ -205,7 +205,7 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
       (req as any).rawBody = body;
       try { done(null, JSON.parse((body as Buffer).toString('utf8'))); } catch (e: any) { e.statusCode = 400; done(e, undefined); }
     });
-    sub.post('/api/payments/zepay/webhook', async (req: any, reply) => {
+    sub.post('/api/payments/zepay/webhook', { config: { rateLimit: false } }, async (req: any, reply) => {
       const raw: Buffer | undefined = req.rawBody;
       if (!raw || !verifyWebhook(req.headers['zepay-signature'], raw, await webhookSecrets(db))) {
         req.log.warn({ event: req.headers['zepay-event-id'] }, 'zepay: tanda tangan webhook tidak cocok');
@@ -236,7 +236,7 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
   });
 
   /* Notifikasi Midtrans (HTTP notification URL di dashboard Midtrans: <PUBLIC_URL>/api/payments/midtrans/notify) */
-  app.post('/api/payments/midtrans/notify', async (req: any, reply) => {
+  app.post('/api/payments/midtrans/notify', { config: { rateLimit: false } }, async (req: any, reply) => {
     const b = req.body ?? {};
     const sig = createHash('sha512').update(`${b.order_id}${b.status_code}${b.gross_amount}${config.midtransServerKey}`).digest('hex');
     if (!config.midtransServerKey || sig !== b.signature_key) {

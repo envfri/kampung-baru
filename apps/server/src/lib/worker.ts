@@ -8,7 +8,8 @@ import { paymentJobs } from './payments';
 import { zepayConfigured } from './zepay';
 import { mailEnabled } from './mail';
 import { waEnabled } from './klikflow';
-import { deliver } from './outbox';
+import { drainOutbox } from './outbox';
+import { getTemplate } from './notify-config';
 
 const LOCK = 7_420_011;
 
@@ -66,17 +67,20 @@ export async function runJobs(db: Db, log?: any) {
     // 3) pengingat hadiah harian (sekali sehari setelah jam tertentu WIB)
     const hourWib = (new Date().getUTCHours() + 7) % 24;
     if (on.daily && hourWib >= s.notify.dailyHourWib) {
+      const dailyTpl = await getTemplate(db, 'daily_reminder');
       const rows = await t.query<{ id: string }>(
         `insert into daily_counters (user_id, key, day, count)
          select u.id, 'notif_daily', $1::date, 1 from users u
           where u.banned_at is null and u.last_seen_at > now() - interval '14 days'
-            and exists (select 1 from push_subscriptions s where s.user_id = u.id)
+            and (exists (select 1 from push_subscriptions s where s.user_id = u.id)
+                 or ($2::boolean and u.wa_verified_at is not null)
+                 or ($3::boolean and exists (select 1 from auth_identities ai where ai.user_id = u.id and ai.email is not null)))
             and not exists (select 1 from daily_claims d where d.user_id = u.id and d.day = $1::date)
             and not exists (select 1 from daily_counters c where c.user_id = u.id and c.key = 'notif_daily' and c.day = $1::date)
           limit 2000
          on conflict do nothing
          returning user_id as id`,
-        [today()],
+        [today(), !!dailyTpl?.channels.whatsapp, !!dailyTpl?.channels.email],
       );
       for (const r of rows) outbox.push({ userId: r.id, key: 'daily_reminder', vars: {} });
     }
@@ -116,9 +120,11 @@ export async function runJobs(db: Db, log?: any) {
     );
     log?.info?.({ id: b.id, ...r }, 'broadcast terkirim');
   }
+  await db.query(`delete from webhook_events where created_at < now() - interval '30 days'`).catch(() => {});
+
   // antrean email & WhatsApp (broadcast, event, jam tenang, percobaan ulang)
   if (mailEnabled() || waEnabled()) {
-    try { await deliver(db, { log }); } catch (e) { log?.warn?.({ err: String(e) }, 'pengiriman pesan gagal'); }
+    try { await drainOutbox(db, log); } catch (e) { log?.warn?.({ err: String(e) }, 'pengiriman pesan gagal'); }
   }
   return { sent: outbox.length, broadcasts: broadcasts.length };
 }

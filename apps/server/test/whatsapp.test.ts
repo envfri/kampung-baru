@@ -7,7 +7,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { config } from '../src/config';
 
 const KEY = 'kf_test_kampung';
-const TEST_NUMBERS = ['6281200000001', '6281200000002', '6281200000003'];
+const TEST_NUMBERS = ['6281200000001', '6281200000002', '6281200000003', '6281200000004'];
 const sent: any[] = [];
 const idem = new Map<string, any>();
 const kfm = { failNext: '' as string };
@@ -88,10 +88,16 @@ function client() {
   return { call, get: (u: string) => call('GET', u), post: (u: string, b?: unknown) => call('POST', u, b ?? {}), put: (u: string, b?: unknown) => call('PUT', u, b ?? {}) };
 }
 
-async function player(pet = 'Kopi') {
+async function player(pet = 'Kopi', guest = false) {
   const c = client();
   await c.post('/api/auth/guest');
   assert.equal((await c.post('/api/pet', { name: pet, color: '#F6B7A8', ear: 'tunas' })).status, 200);
+  if (!guest) {
+    // akun disimpan lewat email (mode pengembangan: kode ada di respons)
+    const mail = `${pet.toLowerCase()}-${randomUUID().slice(0, 6)}@contoh.id`;
+    const st = await c.post('/api/auth/email/start', { email: mail });
+    assert.equal((await c.post('/api/auth/email/verify', { email: mail, code: st.body.devCode })).status, 200);
+  }
   const id = (await c.get('/api/me')).body.user.id as string;
   return { c, id };
 }
@@ -383,4 +389,50 @@ test('whatsapp: broadcast admin, halaman admin WhatsApp, kirim uji template', as
   assert.equal(t.status, 200, JSON.stringify(t.body));
   assert.equal(sent[n].text.body, 'Uji Pekan Panen Raya: Kumpulkan poin panen dan ambil caping emas edisi terbatas.');
   assert.equal((await o.post('/api/admin/notify/test/event_start', { channel: 'whatsapp', to: '081299999999' })).body.error.code, 'send_failed');
+});
+
+test('whatsapp: tamu ditolak, batas kode per nomor, pesan antre dibatalkan setelah STOP, tanda tangan aneh tidak bikin error', async () => {
+  const o = await owner();
+  await o.put('/api/admin/notify/channels', noQuiet);
+  const guest = await player('Tamu', true);
+  assert.equal((await guest.c.post('/api/wa/start', { phone: '081200000002' })).body.error.code, 'guest');
+
+  // nomor yang sama hanya 3 kode per 24 jam, dari akun mana pun
+  for (let i = 0; i < 3; i++) {
+    const x = await player('Coba' + i);
+    assert.equal((await x.c.post('/api/wa/start', { phone: '081200000004' })).status, 200);
+  }
+  const extra = await player('Lebih');
+  assert.equal((await extra.c.post('/api/wa/start', { phone: '081200000004' })).body.error.code, 'otp_limit');
+
+  // pesan biasa ditunda jam tenang, lalu pemain membalas STOP: saat dikirim, pesan dibatalkan
+  const { c, id } = await player('Stop');
+  const phone = '081200000001';
+  await db.query(`update users set wa_phone = null, wa_verified_at = null where wa_phone = '6281200000001'`);
+  await db.query(`delete from outbox where to_addr = '6281200000001' and kind = 'wa_verify'`);
+  await linkWa(c, phone);
+  await o.put('/api/admin/notify/templates/visit', { channels: { whatsapp: true } });
+  const hourWib = Math.floor(((Date.now() + 7 * 3_600_000) % 86_400_000) / 3_600_000);
+  await o.put('/api/admin/notify/channels', { whatsapp: { quietStart: hourWib, quietEnd: (hourWib + 1) % 24 } });
+  await notifyEvent(db, id, 'visit', { teman: 'Sari' });
+  const row = await db.one(`select id from outbox where channel = 'whatsapp' and user_id = $1 and kind = 'visit' order by id desc limit 1`, [id]);
+  await o.put('/api/admin/notify/channels', noQuiet);
+  await c.post('/api/notify/prefs', { prefs: { whatsapp: false } });
+  await db.query(`update outbox set next_at = now() where id = $1`, [row.id]);
+  const n = sent.length;
+  const { deliver } = await import('../src/lib/outbox');
+  await deliver(db);
+  assert.equal(sent.length, n);
+  const after = await db.one(`select status, error from outbox where id = $1`, [row.id]);
+  assert.equal(after.status, 'failed');
+  assert.match(after.error, /mematikan WhatsApp/);
+  await o.call('DELETE', '/api/admin/notify/templates/visit');
+
+  // tanda tangan dengan karakter non-ASCII: ditolak, bukan error server
+  const t = Math.floor(Date.now() / 1000);
+  const r = await app.inject({ method: 'POST', url: '/api/wa/klikflow/webhook', payload: '{"id":"evt_x","type":"message.status","data":{}}', headers: { 'content-type': 'application/json', 'klikflow-signature': `t=${t},v1=${'é'.repeat(64)}` } });
+  assert.equal(r.statusCode, 400);
+  const u = await app.inject({ method: 'GET', url: `/api/email/unsubscribe?u=${id}&t=${'a'.repeat(31)}%C3%A9` });
+  assert.equal(u.statusCode, 400);
+  assert.equal((await o.post('/api/admin/whatsapp/unlink/bukan-uuid')).status, 400);
 });

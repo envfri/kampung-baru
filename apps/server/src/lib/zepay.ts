@@ -59,7 +59,8 @@ export async function webhookSecrets(db: Db): Promise<string[]> {
   const out: string[] = [];
   if (config.zepayWebhookSecret) out.push(config.zepayWebhookSecret);
   const row = await db.one<{ value: any }>(`select value from settings where key = 'zepay_webhook'`);
-  if (row?.value?.secret && !out.includes(row.value.secret)) out.push(row.value.secret);
+  // secret yang didaftarkan dengan kunci uji tidak berlaku setelah pindah ke kunci live (dan sebaliknya)
+  if (row?.value?.secret && !out.includes(row.value.secret) && (!row.value.mode || row.value.mode === zepayMode())) out.push(row.value.secret);
   return out;
 }
 
@@ -81,7 +82,7 @@ export function verifyWebhook(header: unknown, raw: Buffer, secrets: string[], n
   if (!/^\d{1,12}$/.test(t) || Math.abs(nowSec - Number(t)) > 300) return false;
   for (const s of secrets) {
     const expected = Buffer.from(createHmac('sha256', s).update(t + '.').update(raw).digest('hex'));
-    if (sigs.some((v) => v.length === expected.length && timingSafeEqual(Buffer.from(v), expected))) return true;
+    if (sigs.some((v) => { const b = Buffer.from(v); return b.length === expected.length && timingSafeEqual(b, expected); })) return true;
   }
   return false;
 }

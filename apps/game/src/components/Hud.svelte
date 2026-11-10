@@ -11,7 +11,7 @@
   <button class="card" onclick={() => (G.sheet = 'wardrobe')} aria-label="Lemari: ubah penampilan {pet.name}">
     <span class="ava">{@html ava}</span>
     <span class="id">
-      <span class="name">{pet.name} <span class="lv">Lv {pet.level}</span></span>
+      <span class="name"><span class="nm">{pet.name}</span><span class="lv">Lv {pet.level}</span></span>
       <span class="xp" title="{pet.xp}/{need} XP"><i style="width:{Math.min(100, (pet.xp / need) * 100)}%"></i></span>
       <span class="mood">{mood(pet.name, needsNow())}</span>
     </span>
@@ -38,7 +38,13 @@
   .ava :global(svg) { width: 100%; height: 100%; }
   .id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .name { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lv { font-size: 12px; font-weight: 700; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 1px 7px; white-space: nowrap; }
+  .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* HP kecil: level jadi lencana di pojok avatar supaya nama tetap terbaca */
+  @media (max-width: 359px) {
+    .card { position: relative; }
+    .lv { position: absolute; left: 4px; bottom: 3px; font-size: 10.5px; padding: 0 5px; border: 1.5px solid var(--paper); }
+  }
+  .lv { flex: none; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 1px 7px; white-space: nowrap; }
   .xp { display: block; width: 120px; max-width: 100%; height: 9px; border: 2px solid var(--ink); border-radius: 6px; background: var(--track); overflow: hidden; }
   .xp i { display: block; height: 100%; background: var(--sky); transition: width .4s; }
   .mood { font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

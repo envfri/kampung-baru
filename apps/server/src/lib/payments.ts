@@ -54,7 +54,7 @@ export async function applyZepay(
     log?.warn?.({ id: pay.id, amount: zp.amount, expected: pay.amount_idr }, 'zepay: nominal tidak cocok');
     return 'ignored';
   }
-  if (zepayMode() === 'live' && zp.livemode === false) {
+  if (zepayMode() === 'live' && zp.livemode !== true) {
     log?.warn?.({ id: pay.id }, 'zepay: event mode uji ditolak di kunci live');
     return 'ignored';
   }

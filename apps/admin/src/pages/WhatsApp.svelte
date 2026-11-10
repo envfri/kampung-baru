@@ -83,6 +83,8 @@
         <label>Jam tenang mulai<input type="number" min="0" max="23" bind:value={cfg.quietStart} disabled={!can('admin')} /></label>
         <label>sampai (WIB)<input type="number" min="0" max="23" bind:value={cfg.quietEnd} disabled={!can('admin')} /></label>
       </div>
+      <label>Maks. kode verifikasi per hari (semua pemain)<input type="number" min="0" max="5000" bind:value={cfg.verifyPerDay} disabled={!can('admin')} />
+        <span class="help">Melindungi kuota & biaya dari penyalahgunaan. Satu nomor juga dibatasi 3 kode per 24 jam, dan hanya akun yang sudah disimpan (bukan tamu) yang bisa meminta kode.</span></label>
       {#if can('admin')}<div class="row"><button class="btn primary" disabled={busy} onclick={saveCfg}>Simpan</button></div>{/if}
     </section>
 

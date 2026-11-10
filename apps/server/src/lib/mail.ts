@@ -72,7 +72,7 @@ async function mailKey(db: Db) {
   return key;
 }
 const mac = (k: Buffer, s: string) => createHmac('sha256', k).update(s).digest('base64url');
-const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const same = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 
 export async function unsubUrl(db: Db, userId: string) {
   return `${config.publicUrl}/api/email/unsubscribe?u=${userId}&t=${mac(await mailKey(db), 'unsub:' + userId).slice(0, 32)}`;
@@ -129,6 +129,9 @@ export function otpEmail(subject: string, body: string, code: string) {
 
 /** Email notifikasi. Tautan berhenti langganan diisi saat dikirim (berbeda per pemain). */
 export function noteEmail(title: string, body: string, url: string) {
+  // teks dari pemain (nama, pesan hadiah) tidak boleh memuat penanda tautan berhenti langganan
+  title = title.split(UNSUB).join('');
+  body = body.split(UNSUB).join('');
   return {
     subject: title,
     html: layout({

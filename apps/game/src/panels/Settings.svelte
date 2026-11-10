@@ -133,6 +133,8 @@
           <label class="tg"><input type="checkbox" checked={nprefs.whatsapp !== false} onchange={(e) => setNotif('whatsapp', (e.target as HTMLInputElement).checked)} /> Kirim kabar ke WhatsApp</label>
           <p class="muted small">Tersambung ke {G.me.user.wa.phone}. Balas STOP di WhatsApp kapan saja untuk berhenti.</p>
           <button class="link" onclick={waRemove}>Putuskan nomor</button>
+        {:else if G.me.user.is_guest}
+          <p class="muted small">Simpan progres dulu (Google atau email, di atas) untuk menyambungkan WhatsApp.</p>
         {:else if waStep === 'code'}
           <form class="row" onsubmit={waVerify}>
             <input class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 angka" bind:value={waCode} aria-label="Kode dari WhatsApp" />

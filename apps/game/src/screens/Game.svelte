@@ -217,6 +217,11 @@
   .who { display: flex; flex-direction: column; }
   .who b { font-size: 18px; } .who span { font-size: 13.5px; color: var(--muted); font-weight: 600; }
   .offline { position: absolute; z-index: 30; top: calc(var(--safe-t) + 4px); left: 50%; transform: translateX(-50%); background: #A93A27; color: #fff; font-weight: 700; font-size: 13px; border-radius: 10px; padding: 3px 10px; white-space: nowrap; }
+  /* HP kecil (lebar 320–360 px): lima tombol aksi tetap muat dalam layar */
+  @media (max-width: 359px) {
+    .acts { gap: 4px; }
+    .act { width: 56px; font-size: 12px; }
+  }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     .acts { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); flex-direction: column; }
     .act { flex-direction: row; width: auto; min-width: 116px; justify-content: flex-start; gap: 8px; padding: 6px 12px; font-size: 15px; min-height: 46px; }

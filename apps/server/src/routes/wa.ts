@@ -8,7 +8,7 @@ import { audit, requireAdmin, requireUser } from '../lib/auth';
 import { str } from '../lib/validate';
 import { getChannels, getTemplate } from '../lib/notify-config';
 import { kf, klikflowMode, klikflowSecrets, klikflowWebhookUrl, maskPhone, verifyKlikflow, waEnabled, waPayload, waSend } from '../lib/klikflow';
-import { deliver, enqueue } from '../lib/outbox';
+import { deliver, enqueue, wibDayStart } from '../lib/outbox';
 import { varsFor } from '../lib/notify';
 
 const kfErr = (e: any) => `${e?.message ?? e} (${e?.code ?? 'error'})`;
@@ -25,12 +25,24 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
   app.post('/api/wa/start', { ...auth, config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req: any) => {
     if (!(await available())) throw forbidden('Notifikasi WhatsApp sedang tidak tersedia.');
     const u = req.user!;
+    // akun tamu bisa dibuat tanpa batas: kode WhatsApp hanya untuk akun yang sudah disimpan (Google/email)
+    if (u.is_guest) throw bad('guest', 'Simpan progres dulu (masuk dengan Google atau email) sebelum menyambungkan WhatsApp.');
     const phone = normalizePhone(req.body?.phone);
     if (!phone) throw bad('invalid_phone', 'Nomor WhatsApp tidak valid. Contoh: 0812 3456 7890.');
     const taken = await db.one(`select 1 from users where wa_phone = $1 and wa_verified_at is not null and id <> $2`, [phone, u.id]);
     if (taken) throw bad('phone_taken', 'Nomor ini sudah tersambung ke akun lain.');
     const prev = await db.one<{ created_at: Date }>(`select created_at from wa_otps where user_id = $1`, [u.id]);
     if (prev && Date.now() - new Date(prev.created_at).getTime() < 60_000) throw bad('otp_wait', 'Kode baru saja dikirim. Tunggu 1 menit sebelum meminta lagi.');
+    // satu nomor tidak boleh dibanjiri kode dari banyak akun, dan ada batas harian untuk semua pemain
+    const cnt = await db.one<{ per_phone: number; per_day: number }>(
+      `select count(*) filter (where to_addr = $1 and created_at > now() - interval '24 hours')::int as per_phone,
+              count(*) filter (where created_at >= $2)::int as per_day
+         from outbox where channel = 'whatsapp' and kind = 'wa_verify'`,
+      [phone, wibDayStart()],
+    );
+    if ((cnt?.per_phone ?? 0) >= 3) throw bad('otp_limit', 'Kode untuk nomor ini sudah dikirim 3 kali dalam 24 jam. Coba lagi besok.');
+    const chCfg = await getChannels(db);
+    if ((cnt?.per_day ?? 0) >= chCfg.whatsapp.verifyPerDay) throw bad('otp_limit', 'Penyambungan WhatsApp sedang ramai. Coba lagi besok.');
 
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const ch = await getChannels(db);
@@ -108,7 +120,7 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
       (req as any).rawBody = body;
       try { done(null, JSON.parse((body as Buffer).toString('utf8'))); } catch (e: any) { e.statusCode = 400; done(e, undefined); }
     });
-    sub.post('/api/wa/klikflow/webhook', async (req: any, res) => {
+    sub.post('/api/wa/klikflow/webhook', { config: { rateLimit: false } }, async (req: any, res) => {
       const raw: Buffer | undefined = req.rawBody;
       if (!raw || !verifyKlikflow(req.headers['klikflow-signature'], raw, await klikflowSecrets(db))) {
         req.log.warn({ event: req.headers['klikflow-event-id'] }, 'klikflow: tanda tangan webhook tidak cocok');
@@ -116,8 +128,8 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
       }
       const ev = req.body ?? {};
       if (typeof ev.id !== 'string') return { ok: true };
-      const fresh = await db.one(`insert into webhook_events (id, source) values ($1, 'klikflow') on conflict do nothing returning id`, [ev.id]);
-      if (!fresh) return { ok: true, duplicate: true };
+      // id dicatat setelah diproses: bila pemrosesan gagal, kiriman ulang dari Klik Flow tetap diproses
+      if (await db.one(`select 1 from webhook_events where id = $1`, [ev.id])) return { ok: true, duplicate: true };
       await db.query(
         `insert into settings (key, value) values ('wa_seen', $1::text::jsonb) on conflict (key) do update set value = excluded.value`,
         [JSON.stringify({ at: new Date().toISOString(), type: ev.type, test: !!ev.test })],
@@ -142,6 +154,7 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
           }
         }
       }
+      await db.query(`insert into webhook_events (id, source) values ($1, 'klikflow') on conflict do nothing`, [ev.id]);
       return { ok: true };
     });
   });
@@ -230,6 +243,7 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
   });
 
   app.post('/api/admin/whatsapp/unlink/:id', adm, async (req: any) => {
+    if (!/^[0-9a-f-]{36}$/i.test(String(req.params.id))) throw bad('invalid', 'Pemain tidak valid.');
     const r = await db.one(`update users set wa_phone = null, wa_verified_at = null where id = $1 returning id`, [String(req.params.id)]);
     if (!r) throw new HttpError(404, 'not_found', 'Pemain tidak ditemukan.');
     await audit(db, req, 'wa_unlink', String(req.params.id));

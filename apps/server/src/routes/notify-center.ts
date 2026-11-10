@@ -188,6 +188,7 @@ export default async function notifyCenterRoutes(app: FastifyInstance, { db }: {
         quietStart: int(w.quietStart, 'Jam tenang mulai', 0, 23, cur.whatsapp.quietStart),
         quietEnd: int(w.quietEnd, 'Jam tenang selesai', 0, 23, cur.whatsapp.quietEnd),
         verifyTemplate: w.verifyTemplate === undefined ? cur.whatsapp.verifyTemplate : S(String(w.verifyTemplate ?? ''), 'Template verifikasi', 512).trim(),
+        verifyPerDay: int(w.verifyPerDay, 'Batas kode verifikasi per hari', 0, 5000, cur.whatsapp.verifyPerDay),
       },
     });
     await db.query(

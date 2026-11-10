@@ -42,7 +42,7 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
   });
 
   /* ---------------- webhook Mailketing (Bounce & Unsubscribe) ---------------- */
-  app.post('/api/email/mailketing/:key', async (req: any, reply) => {
+  app.post('/api/email/mailketing/:key', { config: { rateLimit: false } }, async (req: any, reply) => {
     if (!(await checkWebhookKey(db, String(req.params.key)))) return reply.code(404).send({ ok: false });
     const b = req.body ?? {};
     const type = String(b.type ?? '');

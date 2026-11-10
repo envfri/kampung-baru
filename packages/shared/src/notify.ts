@@ -223,12 +223,14 @@ export interface NotifyChannelsConfig {
     quietStart: number;
     quietEnd: number;
     verifyTemplate: string;
+    /** batas kode verifikasi WhatsApp yang dikirim per hari (semua pemain) */
+    verifyPerDay: number;
   };
 }
 
 export const DEFAULT_CHANNELS: NotifyChannelsConfig = {
   email: { enabled: true, maxPerDay: 3 },
-  whatsapp: { enabled: true, channel: 'whatsapp_qr', from: '', maxPerDay: 2, quietStart: 21, quietEnd: 7, verifyTemplate: '' },
+  whatsapp: { enabled: true, channel: 'whatsapp_qr', from: '', maxPerDay: 2, quietStart: 21, quietEnd: 7, verifyTemplate: '', verifyPerDay: 100 },
 };
 
 export function resolveChannels(over?: any): NotifyChannelsConfig {
