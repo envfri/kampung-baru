@@ -13,7 +13,7 @@ export function checkWhatsNew() {
   if (compareVersion(APP_VERSION, seen) <= 0) return;
   if (!playerReleases(seen).length) { write(APP_VERSION); return; }
   G.whatsNew = seen;
-  setTimeout(() => toast(`Kampung Bulu diperbarui ke v${APP_VERSION}. Lihat yang baru di Pengaturan.`, 'good'), 1500);
+  setTimeout(() => toast(`BUPI diperbarui ke v${APP_VERSION}. Lihat yang baru di Pengaturan.`, 'good'), 1500);
 }
 
 /** Pemain sudah membuka "Apa yang baru". */

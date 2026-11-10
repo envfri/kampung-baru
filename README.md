@@ -1,6 +1,6 @@
-# Kampung Bulu
+# BUPI
 
-Game pet sosial untuk browser dan HP (PWA). Pemain merawat pet "Bulu", menghias rumah isometrik, berkebun, ikut lomba karung, memancing, mengunjungi teman, dan menerima notifikasi walau game sedang ditutup. Semua karakter, gambar, nama, dan tata letak dibuat orisinal. **Kampung Bulu** masih nama kerja; cek dulu ketersediaan mereknya di PDKI (DJKI) sebelum peluncuran.
+Game pet sosial untuk browser dan HP (PWA). Pemain merawat pet orisinal "bupi" di Kampung Bupi, menghias rumah isometrik, berkebun, ikut lomba karung, memancing, mengunjungi teman, dan menerima notifikasi walau game sedang ditutup. Semua karakter, gambar, nama, dan tata letak dibuat orisinal. **BUPI** adalah nama game (dunianya: Kampung Bupi). Domain yang disarankan: playbupi.com dan bupi.id. Cek & daftarkan mereknya di PDKI (DJKI) sebelum peluncuran.
 
 Pet bisa diubah lewat Lemari: 16 warna, 9 telinga, 6 motif, 5 gaya mata, 4 ekor (sebagian terbuka saat naik level), serta 30+ aksesori di kepala, wajah, leher, dan punggung. Katalog berisi puluhan makanan, mebel, dinding, lantai, bibit, dan ikan, semuanya bisa ditambah dari admin.
 
@@ -64,7 +64,7 @@ npm start
 
 ## Admin
 
-Admin pertama dibuat dari `ADMIN_EMAIL` + `ADMIN_PASSWORD` saat tabel admin kosong. Di mode dev tanpa variabel itu, server membuat `admin@kampungbulu.local` dengan password acak yang dicetak di log.
+Admin pertama dibuat dari `ADMIN_EMAIL` + `ADMIN_PASSWORD` saat tabel admin kosong. Di mode dev tanpa variabel itu, server membuat `admin@bupi.local` dengan password acak yang dicetak di log.
 
 | Peran | Akses |
 |---|---|
@@ -132,7 +132,7 @@ Semua notifikasi diatur dari admin → **Pusat notifikasi**, tanpa deploy:
 Semua email dikirim lewat [Mailketing](https://mailketing.co.id/docs/send-email-via-api/) API v2 (1 email = 1 kredit).
 
 1. Di Mailketing: tambahkan domain pengirim di **Setup Domain** sampai aktif, lalu salin token dari **Integrasi → Email Application API**.
-2. Isi `MAILKETING_API_TOKEN` dan `MAIL_FROM=Kampung Bulu <noreply@domainmu>` di `.env`, lalu `docker compose up -d`.
+2. Isi `MAILKETING_API_TOKEN` dan `MAIL_FROM=BUPI <noreply@domainmu>` di `.env`, lalu `docker compose up -d`.
 3. Admin → **Email**: lihat sisa kredit, **Kirim email uji**, lalu salin **URL webhook** ke Mailketing → Integrasi → WebHook (kolom Bounce dan Unsubscribe). Alamat yang bounce otomatis tidak dikirimi lagi.
 
 Hanya pemain yang menautkan email/Google yang menerima email. Setiap email punya tautan berhenti langganan. Isi email kode masuk tidak disimpan; isi email notifikasi dihapus dari database setelah terkirim.
@@ -248,7 +248,7 @@ npm run test:e2e
 - Aktifkan domain pengirim di Mailketing, kirim email uji dari admin, dan pasang URL webhook bounce.
 - Uji WhatsApp Klik Flow dengan kunci tes & nomor uji, siapkan template Official bila memakai WhatsApp Official, lalu ganti ke kunci live dan daftarkan webhook.
 - Uji QRIS ZePay dengan kunci mode uji dari awal sampai akhir, lalu ganti ke kunci live dan bayar satu paket kecil sungguhan.
-- Cek merek "Kampung Bulu" di PDKI, atau pilih nama final.
+- Cek & daftarkan merek "BUPI" di PDKI; amankan domain playbupi.com / bupi.id dan akun @playbupi.
 - Halaman Kebijakan Privasi dan Syarat Layanan (wajib untuk login Google/Facebook dan pembayaran).
 - Uji beban (mis. k6) dengan target DAU awal, lalu atur `PG_POOL_MAX` dan jumlah instance.
 - Sentuhan seni: art direction final, suara, dan animasi tambahan sesuai style guide.

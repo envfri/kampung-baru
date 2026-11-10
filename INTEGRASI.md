@@ -65,7 +65,7 @@ Versi yang selalu sesuai dengan server (dengan tombol salin dan status) ada di *
 - `.env`:
   ```
   MAILKETING_API_TOKEN=…
-  MAIL_FROM=Kampung Bulu <noreply@amt.ai.id>
+  MAIL_FROM=BUPI <noreply@amt.ai.id>
   ```
 - **Webhook**: Mailketing → Integrasi → **WebHook**, isi **Bounce Webhook** dan **Unsubscribe Webhook** dengan URL yang sama dari admin → **Email** (bentuknya `https://amt.ai.id/api/email/mailketing/<kunci-rahasia>`). Kunci dibuat sekali per database, jadi URL lengkapnya hanya ada di admin. Jangan dibagikan.
 

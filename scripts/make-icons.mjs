@@ -1,4 +1,4 @@
-// Membuat ikon PWA (PNG) dari pet orisinal "Bulu" memakai Chromium (Playwright).
+// Membuat ikon PWA (PNG) dari pet orisinal "Bupi" memakai Chromium (Playwright).
 // Jalankan: npm run icons (butuh Playwright + Chromium terpasang)  (hasilnya di-commit ke apps/game/public/icons)
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';

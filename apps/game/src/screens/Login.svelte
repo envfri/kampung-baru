@@ -15,8 +15,8 @@
         <div class="p p{i}">{@html petSVG(p, [], 'pet-bob')}</div>
       {/each}
     </div>
-    <h1>Kampung Bulu</h1>
-    <p>Rawat pet bulumu, hias rumah, dan kunjungi teman sekampung.</p>
+    <h1>BUPI</h1>
+    <p>Rawat bupi-mu, hias rumah, dan kunjungi teman sekampung.</p>
   </div>
   <div class="panel">
     <AuthOptions />

@@ -49,7 +49,7 @@
       <button class:on={tab === 'daily'} onclick={() => (tab = 'daily')}>Harian {#if readyIn('daily')}<i>{readyIn('daily')}</i>{/if}</button>
     </div>
     {#if tab === 'starter'}
-      <p class="lead">{starterLeft ? `Selesaikan tugas berurutan untuk mengenal Kampung Bulu. Tersisa ${starterLeft}.` : 'Semua tugas pemula selesai. Lanjutkan dengan tugas harian!'}</p>
+      <p class="lead">{starterLeft ? `Selesaikan tugas berurutan untuk mengenal BUPI. Tersisa ${starterLeft}.` : 'Semua tugas pemula selesai. Lanjutkan dengan tugas harian!'}</p>
     {:else}
       <p class="lead">Tiga tugas baru setiap hari. Berganti dalam {resetIn}.</p>
     {/if}

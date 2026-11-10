@@ -13,7 +13,7 @@
   }
   /** Ringkasan teks untuk dibagikan ke tim (tanpa URL rahasia). */
   function asText(withSecret: boolean) {
-    const lines = [`Integrasi & URL Kampung Bulu — ${d.publicUrl}`, ''];
+    const lines = [`Integrasi & URL BUPI — ${d.publicUrl}`, ''];
     for (const it of d.items) {
       lines.push(`## ${it.name} [${ST[it.status]?.[0] ?? it.status}]`);
       for (const x of it.urls) lines.push(`- ${x.label}: ${x.secret && !withSecret ? '(rahasia — lihat admin → Integrasi & URL)' : x.url}`);

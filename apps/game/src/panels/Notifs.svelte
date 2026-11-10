@@ -24,7 +24,7 @@
   {#if st === 'off'}
     <div class="cta"><p>Aktifkan notifikasi supaya kamu tahu saat kebun siap panen, pet butuh perhatian, atau teman mengirim hadiah, walau game sedang ditutup.</p><button class="btn hot" onclick={turnOn}>Aktifkan notifikasi</button></div>
   {:else if st === 'ios-install'}
-    <div class="cta"><p>Di iPhone/iPad, notifikasi bisa diterima setelah game dipasang: ketuk <b>Bagikan</b> di Safari, pilih <b>Tambah ke Layar Utama</b>, lalu buka Kampung Bulu dari ikon di layar utama.</p></div>
+    <div class="cta"><p>Di iPhone/iPad, notifikasi bisa diterima setelah game dipasang: ketuk <b>Bagikan</b> di Safari, pilih <b>Tambah ke Layar Utama</b>, lalu buka BUPI dari ikon di layar utama.</p></div>
   {:else if st === 'denied'}
     <div class="cta"><p>Notifikasi diblokir di browser. Buka pengaturan situs di browser, izinkan Notifikasi, lalu muat ulang game.</p></div>
   {/if}

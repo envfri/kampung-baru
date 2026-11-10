@@ -12,7 +12,7 @@
 </script>
 
 <Sheet title="Apa yang baru">
-  <p class="intro">Kampung Bulu versi <b>{APP_VERSION}</b></p>
+  <p class="intro">BUPI versi <b>{APP_VERSION}</b></p>
   <ol class="rels">
     {#each releases as r (r.version)}
       {@const fresh = since && compareVersion(r.version, since) > 0}

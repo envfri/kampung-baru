@@ -38,12 +38,12 @@
     } catch (e) { fail(e); }
   }
   async function share() {
-    const text = `Main Kampung Bulu bareng aku! Kode temanku ${myCode}. ${link}`;
+    const text = `Main BUPI bareng aku! Kode temanku ${myCode}. ${link}`;
     track('share_invite');
-    if (navigator.share) { try { await navigator.share({ title: 'Kampung Bulu', text, url: link }); return; } catch { /* batal */ } }
+    if (navigator.share) { try { await navigator.share({ title: 'BUPI', text, url: link }); return; } catch { /* batal */ } }
     try { await navigator.clipboard.writeText(text); toast('Link undangan disalin', 'good'); } catch { toast(link); }
   }
-  const wa = $derived(`https://wa.me/?text=${encodeURIComponent(`Main Kampung Bulu bareng aku! Kode temanku ${myCode}. ${link}`)}`);
+  const wa = $derived(`https://wa.me/?text=${encodeURIComponent(`Main BUPI bareng aku! Kode temanku ${myCode}. ${link}`)}`);
   async function open(g: any) {
     const r: any = await run(() => api.post(`/api/gifts/${g.id}/open`));
     if (r) { sfx.level(); toast(`Dapat ${item(r.itemId)?.name ?? 'hadiah'}!`, 'good'); g.opened_at = new Date().toISOString(); G.me.giftsUnread = Math.max(0, G.me.giftsUnread - 1); }

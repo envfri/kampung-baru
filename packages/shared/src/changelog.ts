@@ -39,9 +39,24 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.11.0',
+    date: '2026-11-10',
+    title: 'Nama baru: BUPI',
+    summary: 'Kampung Bulu sekarang bernama BUPI! Pet-mu, rumahmu, dan teman-temanmu tetap sama.',
+    items: [
+      { kind: 'ubah', text: 'Game berganti nama menjadi BUPI. Kampungnya sekarang bernama Kampung Bupi, dan pet-mu disebut bupi.', player: true },
+      { kind: 'ubah', text: 'Nama di layar utama HP ikut berganti. Bila ikon lama masih bernama Kampung Bulu, pasang ulang dari menu browser.', player: true },
+      { kind: 'ubah', text: 'Nama BUPI di judul & manifest PWA, layar masuk, admin, email (pengirim, isi, halaman berhenti langganan), WhatsApp, teks berbagi kode teman, notifikasi push, dan dokumentasi.' },
+      { kind: 'ubah', text: 'Nama teknis: database bupi, file backup bupi-*.sql.gz, paket bupi, folder pemasangan ~/bupi (DEPLOY.md).' },
+      { kind: 'perbaikan', text: 'backup.sh tidak lagi meninggalkan file backup kosong/rusak bila pg_dump gagal (mis. database mati): dump ditulis ke file sementara dan dicek penanda akhirnya dulu.' },
+      { kind: 'perbaikan', text: 'Dua backup di detik yang sama (backup pengaman restore.sh) tidak lagi saling menimpa.' },
+    ],
+  },
+  {
     version: '0.10.2',
     date: '2026-11-10',
     title: 'Panduan deploy & skrip deploy lebih aman',
+    commits: ['a89984a'],
     items: [
       { kind: 'baru', text: 'DEPLOY.md: panduan deploy rekomendasi untuk Ubuntu 24.04/26.04 LTS (spesifikasi, DNS, pengamanan VPS, instalasi, setelah instal, update, rollback, backup di luar server, masalah umum).' },
       { kind: 'baru', text: 'deploy/restore.sh: pulihkan database dari backup dengan konfirmasi, didahului backup kondisi sekarang.' },
@@ -204,7 +219,7 @@ export const CHANGELOG: Release[] = [
   {
     version: '0.1.0',
     date: '2026-11-09',
-    title: 'Kampung Bulu pertama',
+    title: 'Versi pertama',
     summary: 'Rawat pet, hias rumah, dan bermain bersama teman di kampung.',
     commits: ['6608d85'],
     items: [
@@ -239,7 +254,7 @@ export function changelogMarkdown() {
   const out = [
     '# Changelog',
     '',
-    'Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/id/): fitur baru menaikkan MINOR, perbaikan menaikkan PATCH; 1.0.0 untuk peluncuran publik.',
+    'Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fitur baru menaikkan MINOR, perbaikan menaikkan PATCH; 1.0.0 untuk peluncuran publik.',
     '',
     '> Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.',
     '',

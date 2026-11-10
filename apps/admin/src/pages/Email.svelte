@@ -37,7 +37,7 @@
     <h2>Mailketing belum disambungkan</h2>
     <p>Tambahkan ke <span class="mono">.env</span> di server, lalu restart:</p>
     <pre class="mono">MAILKETING_API_TOKEN=token_dari_menu_Integrasi_Email_Application_API
-MAIL_FROM=Kampung Bulu &lt;noreply@domainmu&gt;</pre>
+MAIL_FROM=BUPI &lt;noreply@domainmu&gt;</pre>
     <p class="muted">Domain pengirim harus aktif dulu di Mailketing → Setup Domain. Sampai token diisi, kode masuk hanya muncul di log server (mode pengembangan) dan notifikasi tidak dikirim ke email.</p>
   </section>
 {:else}

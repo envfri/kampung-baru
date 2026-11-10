@@ -166,7 +166,7 @@
 
   <section>
     <h3>Tentang</h3>
-    <p class="muted">Kampung Bulu versi {APP_VERSION}</p>
+    <p class="muted">BUPI versi {APP_VERSION}</p>
     <button class="btn" class:hot={!!G.whatsNew} onclick={() => (G.sheet = 'whatsnew')}>Apa yang baru{#if G.whatsNew} <span class="newdot" aria-label="ada pembaruan"></span>{/if}</button>
   </section>
 

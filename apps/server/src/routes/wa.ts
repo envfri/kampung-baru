@@ -215,7 +215,7 @@ export default async function waRoutes(app: FastifyInstance, { db }: { db: Db })
       const list: any = await kf('GET', '/api/v2/webhooks');
       // secret webhook lama tidak bisa dibaca lewat API: hapus lalu buat ulang
       for (const w of (list.data ?? []).filter((w: any) => w.url === url)) await kf('DELETE', `/api/v2/webhooks/${w.id}`);
-      hook = ((await kf('POST', '/api/v2/webhooks', { url, events: ['message.status', 'message.received'], description: 'Kampung Bulu' }, `kb-hook-${randomUUID()}`)) as any).data;
+      hook = ((await kf('POST', '/api/v2/webhooks', { url, events: ['message.status', 'message.received'], description: 'BUPI' }, `kb-hook-${randomUUID()}`)) as any).data;
     } catch (e: any) {
       if (e?.code === 'live_key_required') throw bad('wa_live', 'Webhook hanya bisa didaftarkan dengan kunci live (kf_live_…). Dengan kunci tes, status pesan tetap terlihat di riwayat.');
       throw bad('wa_error', 'Klik Flow menolak: ' + kfErr(e));

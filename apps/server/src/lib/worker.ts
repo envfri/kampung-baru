@@ -100,7 +100,7 @@ export async function runJobs(db: Db, log?: any) {
   const started = await eventJobs(db);
   for (const ev of started) {
     const ids = (await db.query<{ id: string }>(`select id from users where banned_at is null and last_seen_at > now() - interval '30 days'`)).map((r) => r.id);
-    const r = await notifyMany(db, ids, 'event_start', { event: ev.name, deskripsi: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.' }, { url: '/#event', tag: 'event-' + ev.id, log });
+    const r = await notifyMany(db, ids, 'event_start', { event: ev.name, deskripsi: ev.description || 'Ada event baru di Kampung Bupi. Kumpulkan poin dan ambil hadiahnya.' }, { url: '/#event', tag: 'event-' + ev.id, log });
     log?.info?.({ event: ev.id, ...r }, 'pengumuman event terkirim');
   }
 

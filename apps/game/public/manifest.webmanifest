@@ -1,7 +1,7 @@
 {
-  "name": "Kampung Bulu",
-  "short_name": "Kampung Bulu",
-  "description": "Rawat pet bulumu, hias rumah, dan kunjungi teman.",
+  "name": "BUPI",
+  "short_name": "BUPI",
+  "description": "BUPI: rawat bupi-mu, hias rumah, dan kunjungi teman di Kampung Bupi.",
   "lang": "id",
   "start_url": "/?source=pwa",
   "scope": "/",

@@ -6,10 +6,10 @@ services:
     environment:
       POSTGRES_USER: kb
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kb}
-      POSTGRES_DB: kampungbulu
+      POSTGRES_DB: bupi
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kb -d kampungbulu"]
+      test: ["CMD-SHELL", "pg_isready -U kb -d bupi"]
       interval: 5s
       retries: 10
     restart: unless-stopped
@@ -24,7 +24,7 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://kb:${POSTGRES_PASSWORD:-kb}@db:5432/kampungbulu
+      DATABASE_URL: postgres://kb:${POSTGRES_PASSWORD:-kb}@db:5432/bupi
       REDIS_URL: redis://redis:6379
       TRUST_PROXY: "1"
     expose: ["8787"]

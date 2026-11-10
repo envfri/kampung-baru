@@ -326,7 +326,7 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
 };
 
 /* ------------------------------------------------------------------ */
-/* Pet (karakter orisinal "Bulu")                                      */
+/* Pet (karakter orisinal "Bupi")                                      */
 /* ------------------------------------------------------------------ */
 
 export const PET_COLORS = [

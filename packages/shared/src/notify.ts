@@ -121,7 +121,7 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     key: 'friend_added', group: 'Teman', label: 'Teman baru', kind: 'social', allowed: ALL, url: '/#friends',
     desc: 'Pemain lain menambahkan pemain ini sebagai teman.',
     vars: { teman: 'Nama teman' },
-    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Teman baru', body: '{teman} menambahkanmu sebagai teman. Kunjungi rumahnya, yuk!', wa: '{teman} menambahkanmu sebagai teman di Kampung Bulu. Kunjungi rumahnya, yuk!\n{link}' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Teman baru', body: '{teman} menambahkanmu sebagai teman. Kunjungi rumahnya, yuk!', wa: '{teman} menambahkanmu sebagai teman di Kampung Bupi. Kunjungi rumahnya, yuk!\n{link}' },
   },
   {
     key: 'visit', group: 'Teman', label: 'Ada tamu', kind: 'social', allowed: ALL, url: '/#friends',
@@ -145,25 +145,25 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     key: 'login_code', group: 'Akun', label: 'Kode masuk (email)', kind: 'system', critical: true, allowed: ['email'], url: '/',
     desc: 'Kode untuk masuk atau menautkan akun email. Tidak bisa dimatikan selama login email aktif; teksnya bisa diubah.',
     vars: { kode: 'Kode 6 angka' },
-    defaults: { enabled: true, channels: ch('email'), title: 'Kode masuk Kampung Bulu: {kode}', body: 'Ketik kode ini di game. Kode berlaku 10 menit.', wa: '' },
+    defaults: { enabled: true, channels: ch('email'), title: 'Kode masuk BUPI: {kode}', body: 'Ketik kode ini di game. Kode berlaku 10 menit.', wa: '' },
   },
   {
     key: 'wa_verify', group: 'Akun', label: 'Kode verifikasi WhatsApp', kind: 'system', critical: true, allowed: ['whatsapp'], url: '/',
     desc: 'Kode saat pemain menyambungkan nomor WhatsApp. Saluran Official memakai template Autentikasi yang diatur di halaman WhatsApp.',
     vars: { kode: 'Kode 6 angka' },
-    defaults: { enabled: true, channels: ch('whatsapp'), title: 'Kode verifikasi WhatsApp', body: '', wa: 'Kode verifikasi WhatsApp Kampung Bulu: *{kode}*\nBerlaku 10 menit. Jangan berikan ke siapa pun.' },
+    defaults: { enabled: true, channels: ch('whatsapp'), title: 'Kode verifikasi WhatsApp', body: '', wa: 'Kode verifikasi WhatsApp BUPI: *{kode}*\nBerlaku 10 menit. Jangan berikan ke siapa pun.' },
   },
   {
     key: 'wa_stop', group: 'Akun', label: 'Balasan STOP WhatsApp', kind: 'system', critical: true, allowed: ['whatsapp'], url: '/',
     desc: 'Balasan saat pemain mengirim STOP/BERHENTI ke nomor WhatsApp bisnis. Notifikasi WhatsApp pemain itu langsung dimatikan.',
     vars: {},
-    defaults: { enabled: true, channels: ch('whatsapp'), title: 'WhatsApp dimatikan', body: '', wa: 'Notifikasi WhatsApp Kampung Bulu untuk {pet} sudah dimatikan. Balas *MULAI* kalau mau menyalakannya lagi.' },
+    defaults: { enabled: true, channels: ch('whatsapp'), title: 'WhatsApp dimatikan', body: '', wa: 'Notifikasi WhatsApp BUPI untuk {pet} sudah dimatikan. Balas *MULAI* kalau mau menyalakannya lagi.' },
   },
   {
     key: 'wa_start', group: 'Akun', label: 'Balasan MULAI WhatsApp', kind: 'system', critical: true, allowed: ['whatsapp'], url: '/',
     desc: 'Balasan saat pemain mengirim MULAI ke nomor WhatsApp bisnis untuk menyalakan lagi notifikasi WhatsApp.',
     vars: {},
-    defaults: { enabled: true, channels: ch('whatsapp'), title: 'WhatsApp dinyalakan', body: '', wa: 'Notifikasi WhatsApp Kampung Bulu untuk {pet} menyala lagi. Balas *STOP* kapan saja untuk berhenti.' },
+    defaults: { enabled: true, channels: ch('whatsapp'), title: 'WhatsApp dinyalakan', body: '', wa: 'Notifikasi WhatsApp BUPI untuk {pet} menyala lagi. Balas *STOP* kapan saja untuk berhenti.' },
   },
 ];
 

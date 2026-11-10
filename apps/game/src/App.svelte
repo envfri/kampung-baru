@@ -42,7 +42,7 @@
 {#if !G.booted}
   <div class="splash">
     <div class="pet">{@html petSVG({ color: '#F6B7A8', ear: 'tunas' })}</div>
-    <p>Memuat Kampung Bulu…</p>
+    <p>Memuat BUPI…</p>
   </div>
 {:else if error && !G.me}
   <div class="splash">

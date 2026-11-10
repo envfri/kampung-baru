@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pasang Kampung Bulu di VPS Ubuntu 22.04 / 24.04 / 26.04 LTS (disarankan 24.04 atau 26.04).
+# Pasang BUPI di VPS Ubuntu 22.04 / 24.04 / 26.04 LTS (disarankan 24.04 atau 26.04).
 # Jalankan dari folder repo:  sudo bash deploy/install.sh domainmu.com
 set -euo pipefail
 
@@ -69,7 +69,7 @@ ADMIN_PASSWORD=$ADMIN_PW
 GOOGLE_CLIENT_ID=
 # Email lewat Mailketing (token dari Integrasi → Email Application API; domain $DOMAIN harus aktif di Setup Domain)
 MAILKETING_API_TOKEN=
-MAIL_FROM=Kampung Bulu <noreply@$DOMAIN>
+MAIL_FROM=BUPI <noreply@$DOMAIN>
 # WhatsApp lewat Klik Flow (kunci dari Pengaturan › API & Webhook)
 KLIKFLOW_API_KEY=
 KLIKFLOW_WEBHOOK_SECRET=
@@ -123,7 +123,7 @@ ADMIN_EMAIL=$(grep '^ADMIN_EMAIL=' .env | cut -d= -f2)
 ADMIN_PASSWORD=$(grep '^ADMIN_PASSWORD=' .env | cut -d= -f2)
 cat <<INFO
 
-================= Kampung Bulu terpasang =================
+===================== BUPI terpasang =====================
 Game   : https://$DOMAIN
 Admin  : https://$DOMAIN/admin/
 Email  : $ADMIN_EMAIL

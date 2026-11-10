@@ -27,7 +27,7 @@ export const config = {
   klikflowBaseUrl: (env.KLIKFLOW_BASE_URL ?? 'https://klikflow.id').replace(/\/$/, ''),
   klikflowWebhookSecret: env.KLIKFLOW_WEBHOOK_SECRET ?? '',
   // pengirim; domainnya harus sudah aktif di Mailketing → Setup Domain
-  mailFrom: env.MAIL_FROM ?? 'Kampung Bulu <noreply@kampungbulu.local>',
+  mailFrom: env.MAIL_FROM ?? 'BUPI <noreply@bupi.local>',
   // pembayaran: zepay (QRIS) | midtrans | mock
   paymentProvider: (env.PAYMENT_PROVIDER ?? (env.NODE_ENV === 'production' ? 'zepay' : 'mock')) as 'mock' | 'midtrans' | 'zepay',
   zepayBaseUrl: (env.ZEPAY_BASE_URL ?? 'https://payment.envfri.com').replace(/\/$/, ''),
@@ -48,5 +48,5 @@ export type Config = typeof config;
 export const vapidConfig = {
   publicKey: process.env.VAPID_PUBLIC_KEY ?? '',
   privateKey: process.env.VAPID_PRIVATE_KEY ?? '',
-  subject: process.env.VAPID_SUBJECT ?? 'mailto:admin@kampungbulu.local',
+  subject: process.env.VAPID_SUBJECT ?? 'mailto:admin@bupi.local',
 };

@@ -37,7 +37,7 @@ config.adminPassword = 'rahasia-sekali-123';
 config.paymentProvider = 'mock';
 config.publicUrl = 'https://game.test';
 config.mailketingToken = TOKEN;
-config.mailFrom = 'Kampung Bulu <noreply@kampungbulu.id>';
+config.mailFrom = 'BUPI <noreply@bupi.id>';
 
 const { buildApp } = await import('../src/app');
 const { runJobs } = await import('../src/lib/worker');
@@ -116,8 +116,8 @@ test('email: kode masuk dikirim lewat Mailketing; isi tidak disimpan; gagal kiri
   assert.equal(st.body.sent, true);
   const m = inbox[n];
   assert.equal(m.to, 'otp@contoh.id');
-  assert.equal(m.from, 'noreply@kampungbulu.id');
-  assert.equal(m.fromName, 'Kampung Bulu');
+  assert.equal(m.from, 'noreply@bupi.id');
+  assert.equal(m.fromName, 'BUPI');
   assert.ok(m.html.includes(st.body.devCode));
   const row = await db.one(`select status, body, message_id from outbox where kind = 'login_code' and to_addr = 'otp@contoh.id'`);
   assert.equal(row.status, 'sent');
@@ -211,7 +211,7 @@ test('email: webhook bounce menandai alamat, admin bisa melepasnya; kredit habis
   const panel = (await o.get('/api/admin/email')).body;
   assert.equal(panel.enabled, true);
   assert.equal(panel.credits, 1234);
-  assert.equal(panel.from.email, 'noreply@kampungbulu.id');
+  assert.equal(panel.from.email, 'noreply@bupi.id');
   const hook = panel.webhookUrl.replace('https://game.test', '');
   assert.match(hook, /^\/api\/email\/mailketing\/[\w-]{32}$/);
 
@@ -242,7 +242,7 @@ test('email: webhook bounce menandai alamat, admin bisa melepasnya; kredit habis
   // email uji dari admin
   const t = await o.post('/api/admin/email/test', { to: 'admin@contoh.id' });
   assert.equal(t.status, 200, JSON.stringify(t.body));
-  assert.equal(inbox[inbox.length - 1].subject, 'Tes email Kampung Bulu');
+  assert.equal(inbox[inbox.length - 1].subject, 'Tes email BUPI');
   const badTo = await o.post('/api/admin/email/test', { to: 'bukan-email' });
   assert.equal(badTo.status, 400);
 });

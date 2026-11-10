@@ -108,7 +108,7 @@ export async function ensureAdmin(db: Db, log: { info: (...a: any[]) => void; wa
       log.warn('Belum ada admin. Isi ADMIN_EMAIL dan ADMIN_PASSWORD lalu restart server.');
       return;
     }
-    mail = 'admin@kampungbulu.local';
+    mail = 'admin@bupi.local';
     pw = randomBytes(9).toString('base64url');
     log.warn({ email: mail, password: pw }, 'Admin pengembangan dibuat. Simpan password ini.');
   }
@@ -618,7 +618,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
           await zepay('PATCH', `/webhook-endpoints/${found.id}`, { status: 'enabled', ...(covers ? {} : { events: [...(found.events ?? []), 'payment.*'] }) });
         }
       } else {
-        ep = await zepay('POST', '/webhook-endpoints', { url, events: ['payment.*'], description: 'Kampung Bulu' }, `kb-hook-${randomUUID()}`);
+        ep = await zepay('POST', '/webhook-endpoints', { url, events: ['payment.*'], description: 'BUPI' }, `kb-hook-${randomUUID()}`);
       }
     } catch (e) {
       throw bad('zepay_error', 'ZePay menolak: ' + zErr(e));

@@ -208,7 +208,7 @@ export async function seed(db: Db) {
     }
     for (const w of SEED_BANNED) await t.query('insert into banned_words (word) values ($1) on conflict do nothing', [w]);
     await t.query(`insert into announcements (title, body) values ($1, $2)`, [
-      'Selamat datang di Kampung Bulu!',
+      'Selamat datang di Kampung Bupi!',
       'Rawat pet-mu, hias rumah, dan kunjungi teman. Pekan Ceria Kampung sedang berlangsung: hadiah koin dari aktivitas +20%.',
     ]);
   });

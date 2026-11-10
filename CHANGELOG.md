@@ -1,8 +1,24 @@
 # Changelog
 
-Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/id/): fitur baru menaikkan MINOR, perbaikan menaikkan PATCH; 1.0.0 untuk peluncuran publik.
+Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fitur baru menaikkan MINOR, perbaikan menaikkan PATCH; 1.0.0 untuk peluncuran publik.
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
+
+## 0.11.0 · 2026-11-10 · Nama baru: BUPI
+
+_Kampung Bulu sekarang bernama BUPI! Pet-mu, rumahmu, dan teman-temanmu tetap sama._
+
+### Perubahan
+
+- Game berganti nama menjadi BUPI. Kampungnya sekarang bernama Kampung Bupi, dan pet-mu disebut bupi. _(pemain)_
+- Nama di layar utama HP ikut berganti. Bila ikon lama masih bernama Kampung Bulu, pasang ulang dari menu browser. _(pemain)_
+- Nama BUPI di judul & manifest PWA, layar masuk, admin, email (pengirim, isi, halaman berhenti langganan), WhatsApp, teks berbagi kode teman, notifikasi push, dan dokumentasi.
+- Nama teknis: database bupi, file backup bupi-*.sql.gz, paket bupi, folder pemasangan ~/bupi (DEPLOY.md).
+
+### Perbaikan
+
+- backup.sh tidak lagi meninggalkan file backup kosong/rusak bila pg_dump gagal (mis. database mati): dump ditulis ke file sementara dan dicek penanda akhirnya dulu.
+- Dua backup di detik yang sama (backup pengaman restore.sh) tidak lagi saling menimpa.
 
 ## 0.10.2 · 2026-11-10 · Panduan deploy & skrip deploy lebih aman
 
@@ -21,6 +37,8 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 - install.sh tidak lagi berhenti di langkah terakhir pada VPS baru yang belum punya crontab (backup harian kini terpasang dan password admin tercetak).
 - Backup harian berjalan sebagai user deploy (bukan root), sehingga update.sh tanpa sudo bisa menulis backup.
 - Nama file backup memakai detik agar dua backup di menit yang sama tidak saling menimpa.
+
+Commit: [`a89984a`](https://github.com/envfri/kampung-baru/commit/a89984a)
 
 ## 0.10.1 · 2026-11-10 · Tampilan lebih rapi & update PWA lebih andal
 
@@ -188,7 +206,7 @@ Commit: [`03948be`](https://github.com/envfri/kampung-baru/commit/03948be)
 
 Commit: [`27e3444`](https://github.com/envfri/kampung-baru/commit/27e3444), [`129e246`](https://github.com/envfri/kampung-baru/commit/129e246)
 
-## 0.1.0 · 2026-11-09 · Kampung Bulu pertama
+## 0.1.0 · 2026-11-09 · Versi pertama
 
 _Rawat pet, hias rumah, dan bermain bersama teman di kampung._
 

@@ -1,6 +1,6 @@
-# Deploy Kampung Bulu (rekomendasi)
+# Deploy BUPI (rekomendasi)
 
-Panduan langkah demi langkah untuk memasang Kampung Bulu di VPS Ubuntu dengan domain **amt.ai.id**.
+Panduan langkah demi langkah untuk memasang BUPI di VPS Ubuntu dengan domain **amt.ai.id**.
 Semua layanan berjalan di Docker (Caddy HTTPS otomatis → aplikasi → PostgreSQL 16 + Redis), jadi sistem operasi cukup menyediakan Docker.
 
 ## 1. Pilih VPS & OS
@@ -72,27 +72,27 @@ sudo apt -y install unattended-upgrades && sudo dpkg-reconfigure -f noninteracti
 Buat deploy key khusus baca di VPS:
 
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/kampung_deploy -C "vps-amt"
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/bupi_deploy -C "vps-bupi"
 ```
 
 ```bash
-cat ~/.ssh/kampung_deploy.pub
+cat ~/.ssh/bupi_deploy.pub
 ```
 
 Tempel isinya di GitHub: **envfri/kampung-baru → Settings → Deploy keys → Add deploy key** (jangan centang write access).
 
 ```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/kampung_deploy -o StrictHostKeyChecking=accept-new" git clone git@github.com:envfri/kampung-baru.git ~/kampung-bulu
+GIT_SSH_COMMAND="ssh -i ~/.ssh/bupi_deploy -o StrictHostKeyChecking=accept-new" git clone git@github.com:envfri/kampung-baru.git ~/bupi
 ```
 
 ```bash
-cd ~/kampung-bulu && git config core.sshCommand "ssh -i ~/.ssh/kampung_deploy"
+cd ~/bupi && git config core.sshCommand "ssh -i ~/.ssh/bupi_deploy"
 ```
 
 ## 5. Pasang
 
 ```bash
-cd ~/kampung-bulu && sudo bash deploy/install.sh amt.ai.id
+cd ~/bupi && sudo bash deploy/install.sh amt.ai.id
 ```
 
 `install.sh` (5–10 menit pertama kali):
@@ -117,12 +117,12 @@ curl -s https://amt.ai.id/healthz && echo && curl -s https://amt.ai.id/api/versi
 
 1. Buka `https://amt.ai.id/admin/`, login, lalu **Akun saya → ganti password**.
 2. **Admin → Integrasi & URL**: lihat status tiap layanan dan URL yang perlu didaftarkan (daftar lengkap juga di [INTEGRASI.md](INTEGRASI.md)).
-3. Isi `.env` (`nano ~/kampung-bulu/.env`), mulai dengan kunci **uji**:
-   - `MAILKETING_API_TOKEN`, `MAIL_FROM=Kampung Bulu <noreply@amt.ai.id>`: wajib agar pemain bisa menyimpan akun lewat email. Atau isi `GOOGLE_CLIENT_ID`.
+3. Isi `.env` (`nano ~/bupi/.env`), mulai dengan kunci **uji**:
+   - `MAILKETING_API_TOKEN`, `MAIL_FROM=BUPI <noreply@amt.ai.id>`: wajib agar pemain bisa menyimpan akun lewat email. Atau isi `GOOGLE_CLIENT_ID`.
    - `PAYMENT_PROVIDER=zepay`, `ZEPAY_KEY_ID=zpk_test_…`, `ZEPAY_SECRET=zsk_test_…`
    - `KLIKFLOW_API_KEY=kf_test_…`
    ```bash
-   cd ~/kampung-bulu && docker compose up -d
+   cd ~/bupi && docker compose up -d
    ```
 4. Daftarkan webhook:
    - Admin → **Pembayaran** → Daftarkan webhook (ZePay).
@@ -135,7 +135,7 @@ curl -s https://amt.ai.id/healthz && echo && curl -s https://amt.ai.id/api/versi
 ## 7. Update versi baru
 
 ```bash
-cd ~/kampung-bulu && bash deploy/update.sh
+cd ~/bupi && bash deploy/update.sh
 ```
 
 `update.sh` membuat **backup database dulu**, menarik commit terbaru, membangun ulang, menunggu sampai sehat, lalu menampilkan versi yang berjalan. Riwayatnya terlihat di admin → **Versi & changelog**. Pemain melihat banner "Versi baru tersedia" di game.
@@ -145,7 +145,7 @@ cd ~/kampung-bulu && bash deploy/update.sh
 `update.sh` mencetak commit sebelumnya. Untuk kembali:
 
 ```bash
-cd ~/kampung-bulu && git log --oneline -5
+cd ~/bupi && git log --oneline -5
 ```
 
 ```bash
@@ -159,7 +159,7 @@ ls -1t backups/ | head
 ```
 
 ```bash
-bash deploy/restore.sh backups/kampungbulu-YYYYMMDD-HHMMSS.sql.gz
+bash deploy/restore.sh backups/bupi-YYYYMMDD-HHMMSS.sql.gz
 ```
 
 `restore.sh` meminta konfirmasi (ketik `PULIHKAN`), membuat backup kondisi saat ini dulu, lalu mengganti database. Kembali ke versi terbaru nanti:
@@ -170,15 +170,15 @@ git checkout main && bash deploy/update.sh
 
 ## 9. Backup
 
-- Otomatis setiap hari 03:15 WIB ke `~/kampung-bulu/backups/` (14 hari; log di `backups/backup.log`) dan setiap kali `update.sh` dijalankan.
+- Otomatis setiap hari 03:15 WIB ke `~/bupi/backups/` (14 hari; log di `backups/backup.log`) dan setiap kali `update.sh` dijalankan.
 - Manual: `bash deploy/backup.sh`.
 - **Simpan juga di luar VPS** (bila VPS rusak, backup lokal ikut hilang). Contoh menarik backup ke komputer Anda:
 
 ```bash
-rsync -az ubuntu@IP_VPS:~/kampung-bulu/backups/ ./backup-kampung-bulu/
+rsync -az ubuntu@IP_VPS:~/bupi/backups/ ./backup-bupi/
 ```
 
-- Simpan juga salinan `~/kampung-bulu/.env` di tempat aman (berisi kunci & password).
+- Simpan juga salinan `~/bupi/.env` di tempat aman (berisi kunci & password).
 
 ## 10. Perintah sehari-hari
 
@@ -192,7 +192,7 @@ rsync -az ubuntu@IP_VPS:~/kampung-bulu/backups/ ./backup-kampung-bulu/
 | Pemakaian disk Docker | `docker system df` |
 | Bersihkan image lama | `docker image prune -f` |
 
-Semua perintah dijalankan dari folder `~/kampung-bulu`.
+Semua perintah dijalankan dari folder `~/bupi`.
 
 ## 11. Masalah umum
 

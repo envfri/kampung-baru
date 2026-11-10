@@ -82,7 +82,7 @@ function startMock() {
       }
       if (path === '/api/v2/merchant' && method === 'GET') {
         return send(res, 200, {
-          id: 'm1', code: 'KBL', name: 'Kampung Bulu', status: 'active', livemode: false, contact_email: 'rahasia@contoh.id',
+          id: 'm1', code: 'KBL', name: 'BUPI', status: 'active', livemode: false, contact_email: 'rahasia@contoh.id',
           payment_methods: [{ method: 'QRIS', enabled: true, channels: [{ channel: 'QRIS', name: 'QRIS', fee_fixed: 0, fee_percent: 0.7, fee_paid_by: 'merchant', min_amount: 1000, max_amount: 10000000, expiry_minutes: 1440 }] }],
         });
       }

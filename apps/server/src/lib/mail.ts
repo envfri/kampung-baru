@@ -9,11 +9,11 @@ import { getTemplate } from './notify-config';
 
 export const mailEnabled = () => !!config.mailketingToken;
 
-/** "Kampung Bulu <noreply@domain>" → nama & alamat pengirim. */
+/** "BUPI <noreply@domain>" → nama & alamat pengirim. */
 export function mailFrom(v = config.mailFrom) {
   const m = /^\s*"?(.*?)"?\s*<\s*([^<>\s]+@[^<>\s]+)\s*>\s*$/.exec(v);
-  if (m) return { name: m[1] || 'Kampung Bulu', email: m[2] };
-  return { name: 'Kampung Bulu', email: v.trim() };
+  if (m) return { name: m[1] || 'BUPI', email: m[2] };
+  return { name: 'BUPI', email: v.trim() };
 }
 
 /* ---------------- Mailketing API ---------------- */
@@ -102,7 +102,7 @@ function layout(o: { preheader: string; heading: string; body: string; cta?: { l
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px">
 <tr><td style="padding:0 4px 12px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>
 <td><img src="${icon}" width="40" height="40" alt="" style="display:block;border-radius:10px"></td>
-<td style="padding-left:10px;font-size:18px;font-weight:800;color:${INK}">Kampung Bulu</td></tr></table></td></tr>
+<td style="padding-left:10px;font-size:18px;font-weight:800;color:${INK}">BUPI</td></tr></table></td></tr>
 <tr><td style="background:#FFFDF7;border:3px solid ${INK};border-radius:18px;padding:24px">
 <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:${INK}">${esc(o.heading)}</h1>
 ${o.body}
@@ -138,15 +138,15 @@ export function noteEmail(title: string, body: string, url: string) {
       preheader: body,
       heading: title,
       body: body ? body.split(/\n+/).map(para).join('') : '',
-      cta: { label: 'Buka Kampung Bulu', url: config.publicUrl + (url.startsWith('/') ? url : '/') },
-      footer: `Kamu menerima email ini karena akun Kampung Bulu-mu memakai alamat ini. <a href="${UNSUB}" style="color:#5F6478">Berhenti menerima email notifikasi</a>, atau atur di Pengaturan game.`,
+      cta: { label: 'Buka BUPI', url: config.publicUrl + (url.startsWith('/') ? url : '/') },
+      footer: `Kamu menerima email ini karena akun BUPI-mu memakai alamat ini. <a href="${UNSUB}" style="color:#5F6478">Berhenti menerima email notifikasi</a>, atau atur di Pengaturan game.`,
     }),
   };
 }
 
 export function testEmail() {
   return {
-    subject: 'Tes email Kampung Bulu',
+    subject: 'Tes email BUPI',
     html: layout({
       preheader: 'Pengiriman email lewat Mailketing berjalan.',
       heading: 'Email berhasil terkirim',

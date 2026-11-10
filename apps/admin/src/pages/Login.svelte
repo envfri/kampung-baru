@@ -11,7 +11,7 @@
 <main>
   <form class="card" onsubmit={submit}>
     <img src="/icons/favicon.svg" alt="" />
-    <h1>Admin Kampung Bulu</h1>
+    <h1>Admin BUPI</h1>
     <label>Email<input type="email" autocomplete="username" required bind:value={email} /></label>
     <label>Password<input type="password" autocomplete="current-password" required bind:value={password} /></label>
     <button class="btn primary" disabled={busy}>Masuk</button>

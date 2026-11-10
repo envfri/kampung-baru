@@ -30,7 +30,7 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
     const { u, t } = target(req);
     reply.type('text/html; charset=utf-8');
     if (!UUID.test(u) || !(await checkUnsub(db, u, t))) return reply.code(400).send(page('Tautan tidak valid', '<p>Tautan ini rusak atau sudah tidak berlaku. Kamu tetap bisa mematikan email dari Pengaturan di game.</p>'));
-    return page('Berhenti menerima email?', `<p>Kamu tidak akan menerima email notifikasi Kampung Bulu lagi. Kode masuk tetap dikirim saat kamu memintanya.</p>
+    return page('Berhenti menerima email?', `<p>Kamu tidak akan menerima email notifikasi BUPI lagi. Kode masuk tetap dikirim saat kamu memintanya.</p>
 <form method="post"><input type="hidden" name="u" value="${esc(u)}"><input type="hidden" name="t" value="${esc(t)}"><button>Berhenti berlangganan</button></form>`);
   });
   app.post('/api/email/unsubscribe', async (req: any, reply) => {
@@ -38,7 +38,7 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
     reply.type('text/html; charset=utf-8');
     if (!UUID.test(u) || !(await checkUnsub(db, u, t))) return reply.code(400).send(page('Tautan tidak valid', '<p>Tautan ini rusak atau sudah tidak berlaku.</p>'));
     await db.query(`update users set notify_prefs = notify_prefs || '{"email": false}'::jsonb where id = $1`, [u]);
-    return page('Sudah berhenti', `<p>Email notifikasi dimatikan. Kamu bisa menyalakannya lagi kapan saja di Pengaturan game.</p><a class="b" href="${esc(config.publicUrl)}/">Buka Kampung Bulu</a>`);
+    return page('Sudah berhenti', `<p>Email notifikasi dimatikan. Kamu bisa menyalakannya lagi kapan saja di Pengaturan game.</p><a class="b" href="${esc(config.publicUrl)}/">Buka BUPI</a>`);
   });
 
   /* ---------------- webhook Mailketing (Bounce & Unsubscribe) ---------------- */

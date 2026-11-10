@@ -79,7 +79,7 @@
 {:else}
   <div class="shell">
     <aside class:open={menu}>
-      <div class="brand"><img src="/icons/favicon.svg" alt="" /><div><b>Kampung Bulu</b><span>Admin</span></div></div>
+      <div class="brand"><img src="/icons/favicon.svg" alt="" /><div><b>BUPI</b><span>Admin</span></div></div>
       <nav>
         {#each NAV as g}
           {@const vis = g.items.filter((i) => can(i.min as any))}
