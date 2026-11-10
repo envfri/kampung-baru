@@ -181,40 +181,23 @@ Tamu harus menautkan akun dulu sebelum membeli, supaya Mutiara tidak hilang.
 
 Midtrans masih didukung sebagai alternatif (`PAYMENT_PROVIDER=midtrans`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, notification URL `https://domainmu/api/payments/midtrans/notify`).
 
-## Deploy ke VPS (Ubuntu 22.04/24.04)
+## Deploy ke VPS (Ubuntu 24.04 / 26.04 LTS)
 
-Stack produksi: Caddy (HTTPS otomatis Let's Encrypt) → aplikasi → PostgreSQL + Redis, semuanya lewat Docker Compose. Minimal 1 vCPU, 2 GB RAM (skrip menambah swap otomatis bila RAM kecil).
+Panduan lengkap yang direkomendasikan ada di **[DEPLOY.md](DEPLOY.md)**: pilihan OS & spesifikasi, DNS, pengamanan VPS, instalasi, langkah setelah instal, update, rollback, backup di luar server, dan pemecahan masalah.
 
-1. Di panel DNS domain, buat **A record** domain → IP VPS. Di panel VPS, buka port **80** dan **443** (firewall/security group).
-2. Masuk ke VPS lewat SSH, lalu buat deploy key untuk repo privat ini:
-
-```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/kampung_deploy -C "vps"
-```
-
-```bash
-cat ~/.ssh/kampung_deploy.pub
-```
-
-   Tempel isinya di GitHub: repo → Settings → Deploy keys → Add deploy key (cukup akses baca).
-
-3. Clone dan pasang (ganti domainnya):
-
-```bash
-GIT_SSH_COMMAND="ssh -i ~/.ssh/kampung_deploy -o StrictHostKeyChecking=accept-new" git clone git@github.com:envfri/kampung-baru.git ~/kampung-bulu
-```
-
-```bash
-cd ~/kampung-bulu && git config core.sshCommand "ssh -i ~/.ssh/kampung_deploy"
-```
+Ringkasnya (Docker Compose: Caddy HTTPS otomatis → aplikasi → PostgreSQL 16 + Redis; minimal 1 vCPU / 2 GB RAM):
 
 ```bash
 sudo bash deploy/install.sh amt.ai.id
 ```
 
-`install.sh` memasang Docker, menambah swap bila perlu, membuat `.env` dengan password acak, membangun & menjalankan semua layanan, memasang backup database harian (03:15, disimpan 14 hari di `backups/`), lalu mencetak alamat game, admin, dan password admin. HTTPS aktif otomatis beberapa menit setelah DNS mengarah ke VPS.
+| Skrip | Fungsi |
+|---|---|
+| `deploy/install.sh domain` | Pasang Docker (Ubuntu 22.04/24.04/26.04), swap, firewall, `.env` acak, build & jalankan, backup harian 03:15 |
+| `deploy/update.sh` | Backup database → tarik commit terbaru → build ulang → cek sehat → tampilkan versi |
+| `deploy/backup.sh` | Dump database ke `backups/` (14 hari) |
+| `deploy/restore.sh file` | Pulihkan database dari backup (dengan konfirmasi; backup kondisi sekarang dulu) |
 
-- Update ke versi terbaru: `bash deploy/update.sh`
 - Lihat log: `docker compose logs -f app`
 - Ubah konfigurasi (Google, Mailketing, Klik Flow, ZePay): edit `.env`, lalu `docker compose up -d`
 - Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).

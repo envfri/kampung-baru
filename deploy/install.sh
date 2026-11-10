@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Pasang Kampung Bulu di VPS Ubuntu 22.04/24.04.
+# Pasang Kampung Bulu di VPS Ubuntu 22.04 / 24.04 / 26.04 LTS (disarankan 24.04 atau 26.04).
 # Jalankan dari folder repo:  sudo bash deploy/install.sh domainmu.com
 set -euo pipefail
 
 DOMAIN="${1:-}"
 if [ -z "$DOMAIN" ]; then echo "Pakai: sudo bash deploy/install.sh domainmu.com"; exit 1; fi
 if [ "$(id -u)" -ne 0 ]; then echo "Jalankan dengan sudo."; exit 1; fi
+if [ -r /etc/os-release ]; then . /etc/os-release; if [ "${ID:-}" != "ubuntu" ]; then echo "Peringatan: skrip ini diuji untuk Ubuntu (terdeteksi: ${PRETTY_NAME:-?})."; fi; fi
 cd "$(dirname "$0")/.."
 REPO_DIR="$(pwd)"
 OWNER="${SUDO_USER:-root}"
@@ -29,9 +30,17 @@ if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
   . /etc/os-release
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${UBUNTU_CODENAME:-$VERSION_CODENAME} stable" > /etc/apt/sources.list.d/docker.list
-  apt-get update -y
-  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+  echo "    Ubuntu ${VERSION_ID:-?} ($CODENAME)"
+  if curl -fsI "https://download.docker.com/linux/ubuntu/dists/$CODENAME/Release" >/dev/null 2>&1; then
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $CODENAME stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  else
+    # rilis Ubuntu yang sangat baru dan belum ada di repo Docker: pakai paket Docker bawaan Ubuntu
+    echo "    repo Docker belum punya $CODENAME, memakai paket Ubuntu (docker.io + docker-compose-v2)"
+    apt-get install -y docker.io docker-compose-v2 docker-buildx || apt-get install -y docker.io docker-compose-v2
+  fi
   systemctl enable --now docker
   [ "$OWNER" != "root" ] && usermod -aG docker "$OWNER" || true
 else
@@ -93,9 +102,21 @@ done
 if [ "${OK:-0}" != "1" ]; then echo "Server belum sehat. Cek: docker compose logs app --tail 100"; exit 1; fi
 
 echo "==> 6/6 Backup database harian (03:15, simpan 14 hari)"
-chmod +x deploy/backup.sh deploy/update.sh
-CRON="15 3 * * * cd $REPO_DIR && bash deploy/backup.sh >> /var/log/kampungbulu-backup.log 2>&1"
-( crontab -l 2>/dev/null | grep -v 'deploy/backup.sh' ; echo "$CRON" ) | crontab -
+chmod +x deploy/*.sh
+# folder & cron backup milik user yang menjalankan sudo (anggota grup docker), supaya update.sh tanpa sudo
+# bisa menulis backup ke folder yang sama
+mkdir -p backups && chown -R "$OWNER" backups
+LOG="$REPO_DIR/backups/backup.log"
+CRON="15 3 * * * cd $REPO_DIR && bash deploy/backup.sh >> $LOG 2>&1"
+# VPS baru belum punya crontab: `crontab -l` gagal, jadi semua dibuat toleran (set -euo pipefail)
+EXISTING="$(crontab -u "$OWNER" -l 2>/dev/null | grep -v 'deploy/backup.sh' || true)"
+printf '%s\n%s\n' "$EXISTING" "$CRON" | sed '/^$/d' | crontab -u "$OWNER" -
+if [ "$OWNER" != "root" ]; then
+  # instalasi lama memasang backup di crontab root: pindahkan
+  ROOT_EXISTING="$(crontab -l 2>/dev/null | grep -v 'deploy/backup.sh' || true)"
+  printf '%s\n' "$ROOT_EXISTING" | sed '/^$/d' | crontab - || true
+fi
+echo "    terpasang di crontab $OWNER: $(crontab -u "$OWNER" -l 2>/dev/null | grep -c 'deploy/backup.sh') jadwal backup"
 
 IP=$(curl -fsS https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')
 ADMIN_EMAIL=$(grep '^ADMIN_EMAIL=' .env | cut -d= -f2)

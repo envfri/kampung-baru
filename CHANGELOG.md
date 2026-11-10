@@ -4,6 +4,24 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.10.2 · 2026-11-10 · Panduan deploy & skrip deploy lebih aman
+
+### Baru
+
+- DEPLOY.md: panduan deploy rekomendasi untuk Ubuntu 24.04/26.04 LTS (spesifikasi, DNS, pengamanan VPS, instalasi, setelah instal, update, rollback, backup di luar server, masalah umum).
+- deploy/restore.sh: pulihkan database dari backup dengan konfirmasi, didahului backup kondisi sekarang.
+
+### Perubahan
+
+- update.sh membuat backup database dulu, lalu memeriksa server sehat dan menampilkan versi yang berjalan.
+- install.sh mendukung Ubuntu 26.04 (resolute) dan memakai paket Docker bawaan Ubuntu bila repo Docker belum punya rilis tersebut.
+
+### Perbaikan
+
+- install.sh tidak lagi berhenti di langkah terakhir pada VPS baru yang belum punya crontab (backup harian kini terpasang dan password admin tercetak).
+- Backup harian berjalan sebagai user deploy (bukan root), sehingga update.sh tanpa sudo bisa menulis backup.
+- Nama file backup memakai detik agar dua backup di menit yang sama tidak saling menimpa.
+
 ## 0.10.1 · 2026-11-10 · Tampilan lebih rapi & update PWA lebih andal
 
 ### Perubahan
@@ -15,6 +33,8 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 - Di HP layar kecil, daftar Balai Main dan daftar teman tidak lagi berdesakan. _(pemain)_
 - Pemberitahuan "Versi baru tersedia" pindah ke atas sehingga tidak menutupi tombol Makan sampai Atur. _(pemain)_
 - Info event kembali rapi ("Pekan Ceria Kampung · koin ×1.2"). _(pemain)_
+
+Commit: [`e218691`](https://github.com/envfri/kampung-baru/commit/e218691)
 
 ## 0.10.0 · 2026-11-10 · Integrasi & URL webhook
 
