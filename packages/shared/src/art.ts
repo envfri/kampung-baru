@@ -285,6 +285,37 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       return o + `<circle cx="${f1(cx)}" cy="${f1(base - 41 * s)}" r="${f1(4 * s)}" fill="#FF8FA3" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
     },
   },
+  lampion: {
+    label: 'Lampion berdiri',
+    colors: { main: '#C0392B', accent: '#F2B632' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + 0.5, y + 0.5), cx = ctr[0], cy = ctr[1];
+      let o = g.box(x + 0.35, y + 0.35, 0, 0.3, 0.3, 5, C3('#5A381F'));
+      o += `<path d="M${f1(cx)} ${f1(cy - 4 * s)}V${f1(cy - 84 * s)}h${f1(16 * s)}" fill="none" stroke="${INK}" stroke-width="${f1(3 * s)}" stroke-linecap="round"/>`;
+      const lx = cx + 16 * s, ly = cy - 64 * s;
+      o += `<circle cx="${f1(lx)}" cy="${f1(ly)}" r="${f1(22 * s)}" fill="#FFD27A" opacity=".35"/>`;
+      o += `<line x1="${f1(lx)}" y1="${f1(cy - 84 * s)}" x2="${f1(lx)}" y2="${f1(ly - 14 * s)}" stroke="${INK}" stroke-width="${f1(1.5 * s)}"/>`;
+      o += `<ellipse cx="${f1(lx)}" cy="${f1(ly)}" rx="${f1(11 * s)}" ry="${f1(13 * s)}" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/>`;
+      o += `<path d="M${f1(lx - 4 * s)} ${f1(ly - 12 * s)}v${f1(24 * s)}M${f1(lx + 4 * s)} ${f1(ly - 12 * s)}v${f1(24 * s)}" stroke="${shade(c.main, -0.3)}" stroke-width="${f1(1.2 * s)}"/>`;
+      o += `<rect x="${f1(lx - 6 * s)}" y="${f1(ly - 16 * s)}" width="${f1(12 * s)}" height="${f1(4 * s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/><rect x="${f1(lx - 6 * s)}" y="${f1(ly + 12 * s)}" width="${f1(12 * s)}" height="${f1(4 * s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/>`;
+      return o + `<path d="M${f1(lx)} ${f1(ly + 16 * s)}v${f1(8 * s)}" stroke="${c.accent}" stroke-width="${f1(2 * s)}"/>`;
+    },
+  },
+  payung: {
+    label: 'Payung taman',
+    colors: { main: '#3F7FBF', accent: '#FFFFFF' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + 0.5, y + 0.5), cx = ctr[0], cy = ctr[1];
+      let o = g.box(x + 0.32, y + 0.32, 0, 0.36, 0.36, 6, C3('#9AA7B8'));
+      o += `<line x1="${f1(cx)}" y1="${f1(cy - 6 * s)}" x2="${f1(cx)}" y2="${f1(cy - 70 * s)}" stroke="${INK}" stroke-width="${f1(3 * s)}"/>`;
+      const top = cy - 92 * s, rim = cy - 66 * s, R = 40 * s;
+      for (let i = 0; i < 6; i++) {
+        const a0 = -R + (i * 2 * R) / 6, a1 = -R + ((i + 1) * 2 * R) / 6;
+        o += `<path d="M${f1(cx)} ${f1(top)}L${f1(cx + a0)} ${f1(rim + Math.abs(a0) * 0.12)}Q${f1(cx + (a0 + a1) / 2)} ${f1(rim + 8 * s)} ${f1(cx + a1)} ${f1(rim + Math.abs(a1) * 0.12)}Z" fill="${i % 2 ? c.accent : c.main}" stroke="${INK}" stroke-width="${f1(1.6 * s)}" stroke-linejoin="round"/>`;
+      }
+      return o + `<circle cx="${f1(cx)}" cy="${f1(top)}" r="${f1(3 * s)}" fill="${INK}"/>`;
+    },
+  },
   kotak: {
     label: 'Kotak (umum)',
     colors: { main: '#E9B23A' },
@@ -502,6 +533,7 @@ const ICONS: Record<string, { label: string; kinds: ItemKind[]; colors: Record<s
   martabak: { label: 'Martabak', kinds: ['food'], colors: { main: '#E3B370', accent: '#6B3E1E' }, draw: (c) => plate + `<path d="M14 36L20 22H44L50 36Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M17 29H47" stroke="${c.accent}" stroke-width="3"/><path d="M26 22L24 36M38 22L40 36" stroke="${INK}" stroke-width="1.6"/><path d="M22 25l1 -1M33 25l1 1M42 26l1 -1" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>` },
   roti: { label: 'Roti', kinds: ['food'], colors: { main: '#E3B370' }, draw: (c) => plate + `<path d="M12 38Q10 18 32 16Q54 18 52 38Z" fill="${c.main}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M22 24l4 6M30 21l4 6M38 22l4 6" stroke="${shade(c.main, -0.3)}" stroke-width="2" stroke-linecap="round"/>` },
   stroberi: { label: 'Stroberi', kinds: ['food'], colors: { main: '#E0583F', accent: '#3FA06A' }, draw: (c) => `<path d="M32 48C18 40 14 26 20 20Q32 14 44 20C50 26 46 40 32 48Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 18L28 22L32 14L36 22L42 18L38 24H26Z" fill="${c.accent}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><g fill="#FCE3A3"><circle cx="26" cy="28" r="1.4"/><circle cx="34" cy="27" r="1.4"/><circle cx="40" cy="31" r="1.4"/><circle cx="29" cy="35" r="1.4"/><circle cx="36" cy="38" r="1.4"/></g>` },
+  ketupat: { label: 'Ketupat', kinds: ['food'], colors: { main: '#9CCB5A' }, draw: (c) => plate + `<path d="M32 12L48 28L32 44L16 28Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 20L40 36M28 16L44 32M20 24L36 40M40 20L24 36M36 16L20 32M44 24L28 40" stroke="${shade(c.main, -0.3)}" stroke-width="1.4"/><path d="M32 12q-4 -6 -10 -6M32 12q4 -7 11 -6" fill="none" stroke="${shade(c.main, -0.2)}" stroke-width="2" stroke-linecap="round"/>` },
   bibit: { label: 'Bungkus bibit', kinds: ['seed'], colors: { main: '#C8955A', accent: '#3FA06A' }, draw: (c) => `<path d="M18 12H46L44 46H20Z" fill="${c.main}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><path d="M18 12L22 18 26 12 30 18 34 12 38 18 42 12 46 12" fill="none" stroke="${INK}" stroke-width="2"/><path d="M32 40V28" stroke="${INK}" stroke-width="2.5"/><ellipse cx="26" cy="28" rx="6" ry="3.5" transform="rotate(-25 26 28)" fill="${c.accent}" stroke="${INK}" stroke-width="2"/><ellipse cx="38" cy="26" rx="6" ry="3.5" transform="rotate(25 38 26)" fill="${shade(c.accent, -0.15)}" stroke="${INK}" stroke-width="2"/>` },
   ikan: { label: 'Ikan', kinds: ['fish'], colors: { main: '#F2994A', accent: '#E0583F' }, draw: (c, p) => `<path d="M48 26L60 16V36Z" fill="${c.accent}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><ellipse cx="30" cy="26" rx="21" ry="12" fill="${c.main}" stroke="${INK}" stroke-width="2.5"/><path d="M28 14q6 -6 12 0" fill="${c.accent}" stroke="${INK}" stroke-width="2"/>${p.stripes ? `<path d="M26 16v20M34 15v22" stroke="${shade(c.main, -0.3)}" stroke-width="2.4"/>` : ''}${p.spots ? `<path d="M22 18q6 -2 9 4q-4 5 -10 1Z M34 26q6 -3 8 3q-3 5 -9 2Z M26 31q4 -1 5 3q-3 2 -6 0Z" fill="${c.accent}"/>` : ''}<circle cx="16" cy="23" r="3" fill="${INK}"/><circle cx="15" cy="22" r="1" fill="#fff"/>` },
   bunga: { label: 'Bunga', kinds: ['material'], colors: { main: '#FFFFFF', accent: '#F2B632' }, draw: (c) => `<path d="M32 46V30" stroke="#3E8E4E" stroke-width="3"/>` + [0, 72, 144, 216, 288].map((r) => `<ellipse cx="32" cy="14" rx="5.5" ry="9" transform="rotate(${r} 32 24)" fill="${c.main}" stroke="${INK}" stroke-width="2"/>`).join('') + `<circle cx="32" cy="24" r="4.5" fill="${c.accent}" stroke="${INK}" stroke-width="1.8"/>` },
@@ -556,6 +588,47 @@ export interface Placed {
   y: number;
 }
 
+/** Benda event kecil (dipusatkan di 0,0, ±14px) untuk dekorasi & mini-game. */
+export function eventDropSVG(decor: string | undefined) {
+  switch (decor) {
+    case 'bendera': return `<path d="M-8 14V-14" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><path d="M-7 -13H12V-4H-7Z" fill="#E0583F" stroke="${INK}" stroke-width="2"/><path d="M-7 -4H12V5H-7Z" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/>`;
+    case 'lampion': return `<ellipse cx="0" cy="0" rx="11" ry="13" fill="#C0392B" stroke="${INK}" stroke-width="2.2"/><path d="M-4 -12v24M4 -12v24" stroke="#8E2A20" stroke-width="1.4"/><rect x="-6" y="-16" width="12" height="4" fill="#F2B632" stroke="${INK}" stroke-width="1.4"/><rect x="-6" y="12" width="12" height="4" fill="#F2B632" stroke="${INK}" stroke-width="1.4"/>`;
+    case 'ketupat': return `<path d="M0 -14L14 0L0 14L-14 0Z" fill="#9CCB5A" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><path d="M-7 -7L7 7M-3.5 -10.5L10.5 3.5M-10.5 -3.5L3.5 10.5M7 -7L-7 7M3.5 -10.5L-10.5 3.5M10.5 -3.5L-3.5 10.5" stroke="#6E9A3C" stroke-width="1.2"/>`;
+    case 'kembangapi': return `<path d="M0 -14L3.5 -4.5 13 -4 5.5 2.5 8 12 0 6.5-8 12-5.5 2.5-13 -4-3.5 -4.5Z" fill="#F2B632" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    case 'hujan': return `<path d="M-14 0Q-12 -13 0 -13Q12 -13 14 0Q10 -3 7 0Q3 -3 0 0Q-3 -3 -7 0Q-10 -3 -14 0Z" fill="#3F7FBF" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M0 0V10q0 4 -4 4" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+    case 'bunga': return [0, 72, 144, 216, 288].map((r) => `<ellipse cx="0" cy="-7" rx="5" ry="7" transform="rotate(${r})" fill="#F7A8C4" stroke="${INK}" stroke-width="1.6"/>`).join('') + `<circle r="4" fill="#F2B632" stroke="${INK}" stroke-width="1.4"/>`;
+    default: return `<circle r="12" fill="#F2B632" stroke="${INK}" stroke-width="2.2"/><path d="M0 -6L1.8 -1.8 6 0 1.8 1.8 0 6-1.8 1.8-6 0-1.8-1.8Z" fill="#FFFDF7"/>`;
+  }
+}
+
+function roomDecor(g: Ctx, W: number, decor: string | undefined) {
+  if (!decor) return '';
+  const WH = 150, s = g.s;
+  const along = (wall: 'L' | 'R', u: number, sag: number) => { const p = wall === 'L' ? g.iso(0, u) : g.iso(u, 0); return [p[0], p[1] - WH + 14 + sag]; };
+  let o = '';
+  for (const wall of ['L', 'R'] as const) {
+    const pts: number[][] = [];
+    for (let u = 0.15; u <= W - 0.1; u += 0.35) pts.push(along(wall, u, Math.sin((u / W) * Math.PI * 3) * -6 + 10));
+    if (decor === 'hujan') continue;
+    o += `<polyline points="${P(pts)}" fill="none" stroke="${INK}" stroke-width="1.6" opacity=".7"/>`;
+    pts.forEach((p, i) => {
+      if (decor === 'bendera') o += `<path d="M${f1(p[0] - 5)} ${f1(p[1])}L${f1(p[0] + 5)} ${f1(p[1])}L${f1(p[0])} ${f1(p[1] + 11)}Z" fill="${i % 2 ? '#FFFFFF' : '#E0583F'}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>`;
+      else if (decor === 'kembangapi') o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] + 4)}" r="3.6" fill="${['#F2B632', '#E0583F', '#7FC4E8', '#8FD3A7'][i % 4]}" stroke="${INK}" stroke-width="1"/>`;
+      else if (decor === 'bunga' && i % 2 === 0) o += `<g transform="translate(${f1(p[0])} ${f1(p[1] + 3)}) scale(.55)">${eventDropSVG('bunga')}</g>`;
+      else if ((decor === 'lampion' || decor === 'ketupat') && i % 3 === 1) o += `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(p[0])}" y2="${f1(p[1] + 10)}" stroke="${INK}" stroke-width="1.2"/><g transform="translate(${f1(p[0])} ${f1(p[1] + 22)}) scale(.75)">${eventDropSVG(decor)}</g>`;
+    });
+  }
+  if (decor === 'hujan') {
+    // hujan di balik jendela
+    for (let k = 0; k < 9; k++) {
+      const xx = W / 2 - 1.0 + (k * 0.23) % 2.1, v = 64 + ((k * 23) % 50);
+      const p = g.iso(xx, 0);
+      o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - v * s)}" x2="${f1(p[0] - 4)}" y2="${f1(p[1] - v * s + 10)}" stroke="#3F7FBF" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>`;
+    }
+  }
+  return o;
+}
+
 export interface RoomOpts {
   layout: Placed[];
   items: Record<string, ItemLike>;
@@ -565,6 +638,7 @@ export interface RoomOpts {
   pet?: { look: PetLook; wear: ItemLike[]; pos?: [number, number]; flip?: boolean } | null;
   edit?: boolean;
   sel?: number;
+  decor?: string;
 }
 
 export const ROOM_ISO: Iso = { ox: 400, oy: 150, t: 34, h: 17 };
@@ -749,7 +823,7 @@ export function renderRoom(o: RoomOpts) {
   const W = o.size ?? 6;
   const t = Math.round((34 * 6) / W);
   const g = G({ ox: 400, oy: 150, t, h: t / 2 });
-  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor), !!o.edit);
+  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor), !!o.edit) + roomDecor(g, W, o.decor);
   const list = o.layout.map((p, idx) => ({ p, idx, it: o.items[p.i] })).filter((e) => e.it);
   const grp = (e: (typeof list)[number]) =>
     `<g class="furn${o.edit ? ' editable' : ''}${o.edit && o.sel === e.idx ? ' sel' : ''}" data-i="${e.idx}">${furnDraw(g, e.it, e.p.x, e.p.y)}</g>`;
@@ -859,18 +933,67 @@ function special(l: LocationLike) {
   return building(l);
 }
 
-export const MAP_VIEWBOX = '0 -40 800 520';
+export const MAP_VIEWBOX = '0 -40 960 520';
 
-export function renderMap(locations: LocationLike[]) {
+function mapDecor(decor: string | undefined) {
+  if (!decor) return '';
+  let o = '';
+  const garland = (y: number, every: number, item: (x: number, yy: number, i: number) => string) => {
+    let pts = '', out = '';
+    for (let x = -10, i = 0; x <= 970; x += every, i++) {
+      const yy = y + Math.sin(((x % 240) / 240) * Math.PI) * 18;
+      pts += `${x},${f1(yy)} `;
+      out += item(x, yy, i);
+    }
+    return `<polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="1.6" opacity=".7"/>` + out;
+  };
+  switch (decor) {
+    case 'bendera':
+      o += garland(-18, 24, (x, y, i) => `<path d="M${x - 8} ${f1(y)}L${x + 8} ${f1(y)}L${x} ${f1(y + 16)}Z" fill="${i % 2 ? '#FFFFFF' : '#E0583F'}" stroke="${INK}" stroke-width="1.3" stroke-linejoin="round"/>`);
+      o += `<path d="M453 232V112" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><path d="M455 114H495V126H455Z" fill="#E0583F" stroke="${INK}" stroke-width="2"/><path d="M455 126H495V138H455Z" fill="#FFFFFF" stroke="${INK}" stroke-width="2"/>`;
+      break;
+    case 'lampion':
+    case 'ketupat':
+      if (decor === 'ketupat') o += `<path d="M58 -14A22 22 0 1 0 82 14A18 18 0 1 1 58 -14Z" fill="#F2D16B" stroke="${INK}" stroke-width="2"/>` + [[110, -20], [140, 6], [96, 26]].map(([x, y]) => `<path d="M${x} ${y - 5}L${x + 1.5} ${y - 1.5} ${x + 5} ${y} ${x + 1.5} ${y + 1.5} ${x} ${y + 5} ${x - 1.5} ${y + 1.5} ${x - 5} ${y} ${x - 1.5} ${y - 1.5}Z" fill="#FFF6C9"/>`).join('');
+      o += garland(-22, 26, (x, y, i) => (i % 3 === 1 ? `<line x1="${x}" y1="${f1(y)}" x2="${x}" y2="${f1(y + 10)}" stroke="${INK}" stroke-width="1.2"/><g transform="translate(${x} ${f1(y + 24)}) scale(.9)">${eventDropSVG(decor)}</g>` : ''));
+      break;
+    case 'kembangapi':
+      o += `<rect x="-200" y="-200" width="1400" height="300" fill="#2B2F4A" opacity=".12"/>`;
+      [[90, -8, '#F2B632'], [300, -18, '#E0583F'], [520, 0, '#7FC4E8'], [720, -14, '#8FD3A7'], [890, 4, '#E7A1C9']].forEach(([x, y, c]) => {
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * Math.PI * 2;
+          o += `<line x1="${f1(+x + Math.cos(a) * 8)}" y1="${f1(+y + Math.sin(a) * 8)}" x2="${f1(+x + Math.cos(a) * 26)}" y2="${f1(+y + Math.sin(a) * 26)}" stroke="${c}" stroke-width="3" stroke-linecap="round"/><circle cx="${f1(+x + Math.cos(a) * 31)}" cy="${f1(+y + Math.sin(a) * 31)}" r="2.4" fill="${c}"/>`;
+        }
+      });
+      break;
+    case 'hujan':
+      o += `<rect x="-200" y="-200" width="1400" height="900" fill="#2F5D7C" opacity=".1"/>`;
+      for (let k = 0; k < 140; k++) {
+        const x = (k * 97) % 980, y = ((k * 61) % 520) - 40;
+        o += `<line x1="${x}" y1="${y}" x2="${x - 6}" y2="${y + 16}" stroke="#3F7FBF" stroke-width="2" stroke-linecap="round" opacity=".55"/>`;
+      }
+      [[160, 246], [640, 236], [420, 340]].forEach(([x, y]) => (o += `<ellipse cx="${x}" cy="${y}" rx="22" ry="6" fill="#7FC4E8" opacity=".7"/>`));
+      break;
+    case 'bunga':
+      for (let k = 0; k < 40; k++) {
+        const x = (k * 113) % 960, y = ((k * 71) % 500) - 30;
+        o += `<ellipse cx="${x}" cy="${y}" rx="5" ry="3" transform="rotate(${(k * 47) % 180} ${x} ${y})" fill="${k % 3 ? '#F7A8C4' : '#FFFFFF'}" stroke="${INK}" stroke-width=".8" opacity=".9"/>`;
+      }
+      break;
+  }
+  return `<g pointer-events="none">${o}</g>`;
+}
+
+export function renderMap(locations: LocationLike[], decor?: string) {
   let o = `<rect x="-200" y="-200" width="1200" height="900" fill="#A9D18A"/>`;
-  for (let i = 0; i < 70; i++) o += `<circle cx="${(i * 137) % 800}" cy="${(i * 89) % 440}" r="3" fill="#97C478"/>`;
-  [[40, 70], [200, 58], [380, 62], [560, 56], [760, 72], [20, 140], [780, 150]].forEach(([x, y]) => {
+  for (let i = 0; i < 84; i++) o += `<circle cx="${(i * 137) % 960}" cy="${(i * 89) % 440}" r="3" fill="#97C478"/>`;
+  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [950, 150]].forEach(([x, y]) => {
     o += `<circle cx="${x}" cy="${y + 16}" r="5" fill="#7A5232"/><circle cx="${x}" cy="${y}" r="20" fill="#5DA05A" stroke="${INK}" stroke-width="2.5"/><circle cx="${x - 6}" cy="${y - 6}" r="7" fill="#7CC57D"/>`;
   });
-  o += `<path d="M-20 240H820M420 240V470" stroke="${INK}" stroke-width="38" fill="none"/><path d="M-20 240H820M420 240V470" stroke="#E9D9AE" stroke-width="32" fill="none"/><path d="M-20 240H820M420 240V470" stroke="#C9B582" stroke-width="2" stroke-dasharray="12 12" fill="none"/>`;
+  o += `<path d="M-20 240H980M420 240V470" stroke="${INK}" stroke-width="38" fill="none"/><path d="M-20 240H980M420 240V470" stroke="#E9D9AE" stroke-width="32" fill="none"/><path d="M-20 240H980M420 240V470" stroke="#C9B582" stroke-width="2" stroke-dasharray="12 12" fill="none"/>`;
   for (const l of locations) {
     if (!l.enabled) continue;
     o += `<g class="loc" data-loc="${esc(l.id)}" tabindex="0" role="button" aria-label="${esc(l.name)}">${special(l)}</g>`;
   }
-  return o;
+  return o + mapDecor(decor);
 }

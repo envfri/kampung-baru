@@ -3,6 +3,7 @@
 import type { Db } from '../db/index';
 import { getCatalog, getSettings, today } from './core';
 import { notify, notifyMany, type Note } from './push';
+import { eventJobs } from './events';
 
 const LOCK = 7_420_011;
 
@@ -77,6 +78,14 @@ export async function runJobs(db: Db, log?: any) {
   });
 
   for (const o of outbox) await notify(db, o.userId, o.n, log);
+
+  // event musiman: jadwal ulang tahunan & umumkan event yang baru mulai
+  const started = await eventJobs(db);
+  for (const ev of started) {
+    const ids = (await db.query<{ id: string }>(`select id from users where banned_at is null and last_seen_at > now() - interval '30 days'`)).map((r) => r.id);
+    const r = await notifyMany(db, ids, { kind: 'events', title: `${ev.name} dimulai!`, body: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.', url: '/#event', tag: 'event-' + ev.id }, log);
+    log?.info?.({ event: ev.id, ...r }, 'pengumuman event terkirim');
+  }
 
   for (const b of broadcasts) {
     const where: Record<string, string> = {

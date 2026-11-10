@@ -22,7 +22,7 @@
       if (k === 'shop') track('open_shop');
     }
   }
-  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
+  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
 </script>
 
 <nav class="dock" aria-label="Navigasi">

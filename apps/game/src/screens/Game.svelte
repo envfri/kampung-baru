@@ -24,6 +24,10 @@
   import Notifs from '../panels/Notifs.svelte';
   import Quests from '../panels/Quests.svelte';
   import Wardrobe from '../panels/Wardrobe.svelte';
+  import Games from '../panels/Games.svelte';
+  import EventPanel from '../panels/Event.svelte';
+  import Panen from '../scenes/Panen.svelte';
+  import Memori from '../scenes/Memori.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
@@ -123,6 +127,8 @@
     {:else if G.view === 'garden'}<Garden />
     {:else if G.view === 'karung'}<Karung />
     {:else if G.view === 'fishing'}<Fishing />
+    {:else if G.view === 'panen'}<Panen />
+    {:else if G.view === 'memori'}<Memori />
     {/if}
   </div>
   <div class="night" class:on={night}></div>
@@ -132,7 +138,7 @@
   {#if G.view === 'home' && !G.edit}
     <Needs />
     {#if event}
-      <button class="event" style="--ev:{event.theme?.color ?? '#E0583F'}" onclick={() => (G.sheet = 'news')}>
+      <button class="event" style="--ev:{event.theme?.color ?? '#E0583F'}" onclick={() => (G.sheet = 'event')}>
         {event.name}{#if event.bonus?.coinMultiplier > 1} · koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
@@ -188,6 +194,8 @@
   {:else if G.sheet === 'notifs'}<Notifs />
   {:else if G.sheet === 'quests'}<Quests />
   {:else if G.sheet === 'wardrobe'}<Wardrobe />
+  {:else if G.sheet === 'games'}<Games />
+  {:else if G.sheet === 'event'}<EventPanel />
   {/if}
 </div>
 

@@ -56,6 +56,10 @@ export const DEFAULT_SETTINGS = {
   quests: {
     dailyCount: 3,
   },
+  games: {
+    panen: { playsPerDay: 8, energiCost: 6, durationMs: 30000, coinPerPoint: 2, maxCoins: 80, xp: 6 },
+    memori: { playsPerDay: 8, energiCost: 4, rewards: [15, 30, 50], xp: 6 },
+  },
   starter: {
     inventory: { 'pisang-goreng': 3, klepon: 2, 'bibit-tomat': 2, 'wp-garis': 1, 'fl-papan': 1 } as Record<string, number>,
     layout: [
@@ -79,6 +83,7 @@ export const DEFAULT_SETTINGS = {
   },
   features: {
     quests: true,
+    minigames: true,
     guestLogin: true,
     emailLogin: true,
     googleLogin: true,
@@ -105,6 +110,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   garden: 'Jumlah petak kebun dan XP panen.',
   room: 'Ukuran ruangan (petak) dan batas jumlah barang terpasang.',
   notify: 'Notifikasi otomatis ke HP: kebun siap panen, pet butuh perhatian (ambang & jeda jam), pengingat hadiah harian (jam WIB), kunjungan & hadiah teman.',
+  games: 'Mini-game Balai Main. Panen Buah: hadiah = skor × koin per poin (maks maxCoins). Ingat Jajanan: hadiah koin untuk 1, 2, dan 3 bintang.',
   quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',
   starter: 'Barang awal pemain baru: isi tas, susunan ruangan, dinding, dan lantai (pakai ID item).',
   features: 'Nyalakan atau matikan fitur dan metode login.',

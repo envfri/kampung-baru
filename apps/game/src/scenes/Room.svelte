@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
   import { fits, renderRoom, ROOM_VIEWBOX, occupied, petSpot, roomGeom } from '@kb/shared';
-  import { G, items, item, wearItems, run, post, fx, toast } from '../lib/game.svelte';
+  import { G, items, item, wearItems, run, post, fx, toast, activeDecor } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' } = $props();
@@ -49,13 +49,14 @@
       return renderRoom({
         layout: r.layout ?? [], items: itemMap, wall: item(r.wall), floor: item(r.floor), size,
         pet: G.visit.pet ? { look: G.visit.pet, wear: wearItems(G.visit.pet.wear), pos: p, flip } : null,
+        decor: activeDecor(),
       });
     }
     const room = G.me.room;
     return renderRoom({
       layout, items: itemMap, wall: item(room.wall), floor: item(room.floor), size,
       pet: { look: G.me.pet, wear: wearItems(G.me.pet.wear), pos: p, flip },
-      edit: G.edit, sel: G.sel,
+      edit: G.edit, sel: G.sel, decor: activeDecor(),
     });
   });
 

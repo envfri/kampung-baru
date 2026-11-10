@@ -56,8 +56,9 @@ export async function patch(db: Db, userId: string, parts: ('pet' | 'wallet' | '
   if (parts.includes('room')) out.room = await db.one(`select layout, wall, floor, version from rooms where user_id = $1`, [userId]);
   if (parts.includes('garden')) out.garden = await db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]);
   if (parts.includes('limits')) {
-    const [k, f] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing')]);
-    out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f) };
+    const [k, f, gp, gm] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing'), counter(db, userId, 'game_panen'), counter(db, userId, 'game_memori')]);
+    const g: any = (s as any).games;
+    out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f), games: { panen: Math.max(0, g.panen.playsPerDay - gp), memori: Math.max(0, g.memori.playsPerDay - gm) } };
   }
   out.quests = await questSummary(db, userId);
   out.serverNow = Date.now();

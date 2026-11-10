@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
-import { seed, seedPacks } from './db/seed';
+import { seed, seedPacks, seedPackV3 } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
@@ -16,6 +16,8 @@ import activityRoutes from './routes/activities';
 import paymentRoutes from './routes/payments';
 import adminRoutes, { ensureAdmin } from './routes/admin';
 import notifyRoutes from './routes/notify';
+import minigameRoutes from './routes/minigames';
+import { eventPoints } from './lib/events';
 import { initPush } from './lib/push';
 import { startWorker } from './lib/worker';
 
@@ -39,7 +41,8 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seed(db)) app.log.info('Data awal (katalog, lokasi, event) dibuat');
   if (await seedQuests(db)) app.log.info('Tugas pemula & harian dibuat');
   if (await seedPacks(db)) app.log.info('Paket konten v2 (aksesori, mebel, makanan, ikan) ditambahkan');
-  setTrackHook(questEvent);
+  if (await seedPackV3(db)) app.log.info('Paket konten v3 (Balai Main, hadiah event) ditambahkan');
+  setTrackHook(async (d, u, n, p) => { await questEvent(d, u, n, p); await eventPoints(d, u, n, p); });
   await ensureAdmin(db, app.log);
   await initPush(db);
 
@@ -96,6 +99,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(paymentRoutes, { db });
   await app.register(adminRoutes, { db });
   await app.register(notifyRoutes, { db });
+  await app.register(minigameRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

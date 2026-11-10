@@ -79,7 +79,14 @@ export async function playerState(db: Db, userId: string) {
     visitors,
     friendsCount: friendsCount?.c ?? 0,
     daily: { claimedToday: daily?.day === today(), streak: daily?.streak ?? 0, lastDay: daily?.day ?? null },
-    limits: { karungLeft: Math.max(0, s.karung.playsPerDay - plays), fishingLeft: Math.max(0, s.fishing.castsPerDay - casts) },
+    limits: {
+      karungLeft: Math.max(0, s.karung.playsPerDay - plays),
+      fishingLeft: Math.max(0, s.fishing.castsPerDay - casts),
+      games: {
+        panen: Math.max(0, (s as any).games.panen.playsPerDay - (await counter(db, userId, 'game_panen'))),
+        memori: Math.max(0, (s as any).games.memori.playsPerDay - (await counter(db, userId, 'game_memori'))),
+      },
+    },
     announcements,
     events: activeEvents(cat),
     notificationsUnread: unread?.c ?? 0,
@@ -111,6 +118,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       social: s.social,
       daily: s.daily,
       karung: s.karung,
+      games: (s as any).games,
       fishing: { castsPerDay: s.fishing.castsPerDay, energiCost: s.fishing.energiCost, windowMs: s.fishing.windowMs },
       garden: s.garden,
       room: s.room,

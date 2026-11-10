@@ -415,3 +415,95 @@ test('jenis pet: bagian terkunci sesuai level, paket konten v2 tersedia, slot pu
   const wear = await c.post('/api/pet/look', { wear: { back: 'ransel-jalan' } });
   assert.equal(wear.body.pet.wear.back, 'ransel-jalan');
 });
+
+test('mini-game Panen Buah: skor dihitung server, terlalu cepat ditolak', async () => {
+  const { panenSchedule } = await import('@kb/shared');
+  const { c } = await newPlayer('Panen');
+  const owner = client();
+  await owner.post('/api/admin/login', { email: 'owner@test.local', password: 'rahasia-sekali-123' });
+  const st = (await owner.get('/api/admin/settings')).body.value;
+  st.games.panen.durationMs = 3000;
+  await owner.call('PUT', '/api/admin/settings', { value: st });
+  const s1 = await c.post('/api/games/panen/start');
+  assert.equal(s1.status, 200, JSON.stringify(s1.body));
+  const early = await c.post('/api/games/panen/finish', { runId: s1.body.runId, caught: [0] });
+  assert.equal(early.body.error.code, 'invalid_run');
+  const s2 = await c.post('/api/games/panen/start');
+  const sched = panenSchedule(s2.body.seed, s2.body.durationMs, s2.body.eventDrops);
+  const good = sched.map((d: any, i: number) => (d.value > 0 ? i : -1)).filter((i: number) => i >= 0);
+  await new Promise((r) => setTimeout(r, 3000));
+  const fin = await c.post('/api/games/panen/finish', { runId: s2.body.runId, caught: good });
+  assert.equal(fin.status, 200, JSON.stringify(fin.body));
+  assert.equal(fin.body.score, sched.filter((d: any) => d.value > 0).reduce((a: number, d: any) => a + d.value, 0));
+  assert.ok(fin.body.reward > 0);
+  const dup = await c.post('/api/games/panen/start');
+  await new Promise((r) => setTimeout(r, 3000));
+  assert.equal((await c.post('/api/games/panen/finish', { runId: dup.body.runId, caught: [0, 0] })).body.error.code, 'invalid_run');
+});
+
+test('mini-game Ingat Jajanan: langkah diputar ulang di server', async () => {
+  const { memoriLayout } = await import('@kb/shared');
+  const { c } = await newPlayer('Ingat');
+  const s = await c.post('/api/games/memori/start');
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  const layout = memoriLayout(s.body.seed);
+  // langkah sempurna: pasangkan kartu yang sama
+  const flips: [number, number][] = [];
+  const seen = new Map<number, number>();
+  layout.forEach((v: number, i: number) => { if (seen.has(v)) flips.push([seen.get(v)!, i]); else seen.set(v, i); });
+  const bad = await c.post('/api/games/memori/finish', { runId: s.body.runId, flips: flips.slice(0, 3), timeMs: 5000 });
+  assert.equal(bad.body.error.code, 'invalid_run');
+  const s2 = await c.post('/api/games/memori/start');
+  const l2 = memoriLayout(s2.body.seed);
+  const f2: [number, number][] = [];
+  const seen2 = new Map<number, number>();
+  l2.forEach((v: number, i: number) => { if (seen2.has(v)) f2.push([seen2.get(v)!, i]); else seen2.set(v, i); });
+  await new Promise((r) => setTimeout(r, 3000));
+  const ok = await c.post('/api/games/memori/finish', { runId: s2.body.runId, flips: f2, timeMs: 2900 });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.stars, 3);
+  assert.ok(ok.body.reward >= 50);
+});
+
+test('event musiman: poin dari aktivitas, hadiah bertingkat, editor admin', async () => {
+  const owner = client();
+  await owner.post('/api/admin/login', { email: 'owner@test.local', password: 'rahasia-sekali-123' });
+  const meta = (await owner.get('/api/admin/events')).body;
+  assert.ok(meta.templates.length >= 6);
+  const now = Date.now();
+  const r = await owner.post('/api/admin/events', {
+    id: 'uji-musim', name: 'Musim Uji', description: 'Event uji', starts_at: new Date(now - 60_000).toISOString(), ends_at: new Date(now + 86_400_000).toISOString(),
+    theme: { color: '#3F7FBF' }, bonus: { coinMultiplier: 1 }, decor: 'hujan', token_name: 'Tetes', active: true,
+    points: { daily_claim: 30, harvest: 5 }, milestones: [{ points: 20, coin: 40 }, { points: 25, item: 'payung-taman' }],
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const badItem = await owner.post('/api/admin/events', { id: 'uji-x', name: 'X', starts_at: new Date().toISOString(), ends_at: new Date(now + 1e6).toISOString(), milestones: [{ points: 5, item: 'tidak-ada' }] });
+  assert.equal(badItem.status, 400);
+  const { c } = await newPlayer('Event');
+  await c.post('/api/daily');
+  const ev = (await c.get('/api/events')).body.events.find((e: any) => e.id === 'uji-musim');
+  assert.equal(ev.myPoints, 30);
+  assert.equal(ev.decor, 'hujan');
+  assert.equal(ev.milestones[0].ready, true);
+  const before = (await c.get('/api/me')).body.wallet.coin;
+  const cl = await c.post('/api/events/uji-musim/claim', { index: 0 });
+  assert.equal(cl.status, 200, JSON.stringify(cl.body));
+  assert.equal(cl.body.wallet.coin, before + 40);
+  assert.equal((await c.post('/api/events/uji-musim/claim', { index: 0 })).status, 400);
+  const cl2 = await c.post('/api/events/uji-musim/claim', { index: 1 });
+  assert.equal(cl2.body.inventory['payung-taman'], 1);
+  const stats = (await owner.get('/api/admin/events')).body.events.find((e: any) => e.id === 'uji-musim');
+  assert.equal(stats.participants, 1);
+  assert.equal(stats.claims, 2);
+});
+
+test('event musiman: diumumkan sekali saat mulai, berulang tiap tahun', async () => {
+  const { eventJobs } = await import('../src/lib/events');
+  await db.query(`insert into events (id, name, starts_at, ends_at, repeat_yearly) values ('uji-tahunan', 'Tahunan', now() - interval '10 days', now() - interval '1 day', true)`);
+  const first = await eventJobs(db);
+  assert.ok(first.some((e: any) => e.id === 'uji-musim'));
+  const again = await eventJobs(db);
+  assert.ok(!again.some((e: any) => e.id === 'uji-musim'));
+  const ev = await db.one(`select starts_at, ends_at from events where id = 'uji-tahunan'`);
+  assert.ok(new Date(ev.ends_at).getTime() > Date.now() + 300 * 86_400_000);
+});

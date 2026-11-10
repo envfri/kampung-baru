@@ -14,6 +14,8 @@ Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar
 | 2 · Alpha sosial | Teman lewat kode & link WhatsApp, kunjungan harian berhadiah, kirim & buka hadiah, Peta Kampung, Butik Benang & pakaian, Lomba Karung, Kebun | Selesai |
 | 3 · Beta | Panel admin (katalog, event, ekonomi, peta, pemain, moderasi, audit), event musiman, rate limit & anti-curang, moderasi nama, PWA, analitik & funnel | Selesai |
 | 4 · Soft launch | Mutiara via Midtrans (QRIS, e-wallet, transfer), Toko Mutiara (kosmetik saja), Kolam Pancing & koleksi ikan, kalender event | Selesai, perlu uji sandbox Midtrans |
+| Mini-game | Balai Main: Panen Buah (tangkap buah, hindari kerikil) dan Ingat Jajanan (cocokkan kartu), plus Lomba Karung & Kolam Pancing. Skor dihitung ulang di server dari seed | Selesai |
+| Event musiman | Diatur penuh dari admin: tanggal, dekorasi kampung & rumah (bendera, lampion, ketupat, kembang api, hujan, bunga), pengali koin, poin event per aktivitas, hadiah bertingkat, barang edisi terbatas, berulang tiap tahun, notifikasi otomatis saat mulai, template Agustusan/Ramadan/Lebaran/Imlek/Tahun Baru/Musim Hujan | Selesai |
 | Notifikasi | Web Push (muncul walau PWA ditutup) + kotak notifikasi di game: kebun siap panen, pet butuh perhatian, pengingat hadiah harian, teman/kunjungan/hadiah, pembayaran, broadcast & jadwal dari admin | Selesai, perlu uji di HP sungguhan |
 
 ## Struktur
@@ -73,7 +75,8 @@ Admin pertama dibuat dari `ADMIN_EMAIL` + `ADMIN_PASSWORD` saat tabel admin koso
 Yang bisa diatur tanpa deploy:
 
 - **Item & harga**: tambah/ubah makanan, mebel, pakaian, dinding, lantai, bibit, ikan. Gambar dari bentuk bawaan (warna bisa diubah) atau upload PNG/WebP/SVG, dengan pratinjau langsung.
-- **Event**: tanggal, pengali hadiah koin, warna tema, item edisi terbatas.
+- **Event**: buat dari template, atur tanggal, dekorasi, pengali koin, nama poin, poin per aktivitas, hadiah bertingkat (koin/Mutiara/item), berulang tiap tahun, dan notifikasi saat mulai. Lihat jumlah peserta & hadiah yang diambil.
+- **Tugas**: tugas pemula & harian.
 - **Peta & toko**: nama, posisi, warna bangunan, tampil/sembunyi, toko yang membeli barang pemain.
 - **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran ruangan, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
 - **Notifikasi**: kirim sekarang atau jadwalkan ke semua pemain, yang aktif 7 hari, yang tidak aktif, pembeli, atau tamu.

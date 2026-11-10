@@ -73,7 +73,7 @@ export async function getCatalog(db: Db): Promise<Catalog> {
   const [items, locations, events, packages, ver] = await Promise.all([
     db.query<CatalogItem>(`select id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, event_id, available_from, available_to, active, sort from items order by sort, id`),
     db.query(`select id, name, kind, x, y, style, enabled, sort, sells_back from locations order by sort, id`),
-    db.query(`select id, name, description, starts_at, ends_at, theme, bonus, active from events order by starts_at`),
+    db.query(`select id, name, description, starts_at, ends_at, theme, bonus, active, decor, points, milestones, token_name, repeat_yearly from events order by starts_at`),
     db.query(`select id, name, pearls, bonus, price_idr, active, sort from pearl_packages order by sort, id`),
     db.one<{ value: any }>(`select value from settings where key = 'catalog_version'`),
   ]);

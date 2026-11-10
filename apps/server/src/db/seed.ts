@@ -108,6 +108,40 @@ export const SEED_ITEMS_V2: SeedItem[] = [
   { id: 'ikan-sapu', kind: 'fish', name: 'Ikan Sapu-sapu', sell_coin: 5, art: b('ikan', { main: '#6B6255', accent: '#3B382F' }, { stripes: 1 }), data: { fishWeight: 10, minCm: 10, maxCm: 25 } },
 ];
 
+// Paket konten v3: Balai Main, hadiah event musiman.
+export const SEED_ITEMS_V3: SeedItem[] = [
+  { id: 'ketupat', kind: 'food', name: 'Ketupat', description: 'Teman makan di hari raya.', price_coin: 10, sell_coin: 4, shop: 'pasar', art: b('ketupat'), data: { effects: { kenyang: 22 } } },
+  { id: 'lampion-merah', kind: 'furniture', name: 'Lampion Merah', description: 'Hadiah event. Bercahaya hangat.', sell_coin: 40, shop: null, art: b('lampion'), data: { w: 1, d: 1 } },
+  { id: 'payung-taman', kind: 'furniture', name: 'Payung Taman', description: 'Hadiah event musim hujan.', sell_coin: 40, shop: null, art: b('payung'), data: { w: 1, d: 1 } },
+  { id: 'peci-lebaran', kind: 'wear', name: 'Peci Hijau Lebaran', description: 'Hadiah event hari raya.', sell_coin: 20, shop: null, art: b('peci', { main: '#2F7F55' }), data: { slot: 'head' } },
+  { id: 'topi-tahunbaru', kind: 'wear', name: 'Topi Pesta Emas', description: 'Hadiah event tahun baru.', sell_coin: 20, shop: null, art: b('topipesta', { main: '#F2B632', accent: '#3F5FBF' }), data: { slot: 'head' } },
+];
+
+export async function seedPackV3(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 3) return false;
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V3) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), (sort += 10)],
+    );
+  }
+  await db.query(
+    `insert into locations (id, name, kind, x, y, style, sort) values ('balai', 'Balai Main', 'games', 860, 205, '{"body":"#E3F1DA","roof":"#E0583F","w":100}'::jsonb, 10) on conflict (id) do nothing`,
+  );
+  // Pekan Ceria contoh: pakai dekorasi, poin, dan hadiah bertingkat
+  await db.query(
+    `update events set decor = 'bendera', token_name = 'Bendera',
+            points = '{"game_finish":10,"game_event_drop":2,"race":8,"visit":5,"daily_claim":10}'::jsonb,
+            milestones = '[{"points":50,"coin":100},{"points":150,"item":"kupluk-merahputih"},{"points":300,"item":"karpet-merahputih"},{"points":500,"pearl":5}]'::jsonb
+      where id = 'pekan-ceria' and decor = ''`,
+  );
+  await db.query(`insert into settings (key, value) values ('content_pack', '3'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}
+
 export const SEED_LOCATIONS = [
   { id: 'rumah', name: 'Rumahku', kind: 'home', x: 80, y: 205, style: { body: '#F8EBCF', roof: '#C0603A', w: 96 }, sort: 1 },
   { id: 'pasar', name: 'Pasar Pagi', kind: 'shop', x: 225, y: 205, style: { body: '#FDF1D6', roof: '#3FA06A', w: 104 }, sort: 2, sells_back: true },

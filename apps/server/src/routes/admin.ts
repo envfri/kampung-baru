@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes } from 'node:crypto';
-import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS } from '@kb/shared';
+import { builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -14,7 +14,7 @@ import { bool, email as vEmail, int, isoDate, obj, oneOf, str } from '../lib/val
 import { markPaid } from './payments';
 
 const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material'] as const;
-const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl'] as const;
+const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const MIME = ['image/png', 'image/webp', 'image/jpeg', 'image/svg+xml'];
@@ -283,7 +283,19 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   /* ---------------- event ---------------- */
 
-  app.get('/api/admin/events', mod, async () => ({ events: await db.query(`select * from events order by starts_at desc`) }));
+  app.get('/api/admin/events', mod, async () => ({
+    events: await db.query(
+      `select e.*,
+              (select count(*)::int from event_progress p where p.event_id = e.id and p.season = to_char(e.starts_at, 'YYYY-MM-DD')) as participants,
+              (select coalesce(sum(points),0)::int from event_progress p where p.event_id = e.id and p.season = to_char(e.starts_at, 'YYYY-MM-DD')) as total_points,
+              (select coalesce(sum(jsonb_array_length(claimed)),0)::int from event_progress p where p.event_id = e.id and p.season = to_char(e.starts_at, 'YYYY-MM-DD')) as claims
+         from events e order by e.starts_at desc`,
+    ),
+    decor: EVENT_DECOR,
+    sources: EVENT_POINT_SOURCES,
+    templates: EVENT_TEMPLATES,
+    items: await db.query(`select id, name, kind from items where active order by kind, name`),
+  }));
   async function writeEvent(req: any, id: string, creating: boolean) {
     const b = obj(req.body, 'body');
     const starts = isoDate(b.starts_at, 'Mulai')!, ends = isoDate(b.ends_at, 'Selesai')!;
@@ -292,13 +304,37 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const bonus = obj(b.bonus, 'Bonus');
     const mult = Number(bonus.coinMultiplier ?? 1);
     if (!(mult >= 1 && mult <= 5)) throw bad('invalid_bonus', 'Pengali koin harus 1–5.');
+    const decor = oneOf(b.decor ?? '', 'Dekorasi', EVENT_DECOR.map((d) => d[0]));
+    const points: Record<string, number> = {};
+    for (const [k, v] of Object.entries(obj(b.points, 'Poin'))) {
+      if (!/^[a-z_]{2,30}(:[a-z]{2,20})?$/.test(k)) throw bad('invalid_points', 'Sumber poin tidak dikenal.');
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) points[k] = Math.min(1000, Math.round(n));
+    }
+    if (!Array.isArray(b.milestones ?? [])) throw bad('invalid_milestones', 'Hadiah bertingkat harus berupa daftar.');
+    const itemIds = new Set((await db.query<{ id: string }>('select id from items')).map((r) => r.id));
+    const milestones = (b.milestones ?? []).slice(0, 20).map((m: any, i: number) => {
+      const out: Record<string, unknown> = { points: int(Number(m?.points), `Poin hadiah #${i + 1}`, { min: 1, max: 1_000_000 }) };
+      if (Number(m?.coin) > 0) out.coin = int(Number(m.coin), `Koin hadiah #${i + 1}`, { min: 1, max: 1_000_000 });
+      if (Number(m?.pearl) > 0) out.pearl = int(Number(m.pearl), `Mutiara hadiah #${i + 1}`, { min: 1, max: 10_000 });
+      if (m?.item) {
+        if (!itemIds.has(String(m.item))) throw bad('invalid_item', `Item hadiah #${i + 1} tidak ditemukan.`);
+        out.item = String(m.item);
+        out.qty = int(Number(m.qty ?? 1), `Jumlah item #${i + 1}`, { min: 1, max: 99 });
+      }
+      if (!out.coin && !out.pearl && !out.item) throw bad('invalid_milestones', `Hadiah #${i + 1} belum berisi koin, Mutiara, atau item.`);
+      return out;
+    }).sort((a: any, c: any) => a.points - c.points);
     const vals = [id, str(b.name, 'Nama', { min: 2, max: 60 }), str(b.description, 'Deskripsi', { max: 300, optional: true }) ?? '', starts, ends,
-      J({ color: /^#[0-9a-fA-F]{6}$/.test(theme.color) ? theme.color : '#E0583F' }), J({ coinMultiplier: Math.round(mult * 100) / 100 }), bool(b.active, true)];
+      J({ color: /^#[0-9a-fA-F]{6}$/.test(theme.color) ? theme.color : '#E0583F' }), J({ coinMultiplier: Math.round(mult * 100) / 100 }), bool(b.active, true),
+      decor, J(points), J(milestones), str(b.token_name, 'Nama poin', { min: 2, max: 24, optional: true }) ?? 'Poin event', bool(b.repeat_yearly, false), bool(b.notify_start, true)];
     if (creating) {
       if (await db.one('select 1 from events where id = $1', [id])) throw bad('exists', 'ID event sudah dipakai.');
-      await db.query(`insert into events (id, name, description, starts_at, ends_at, theme, bonus, active) values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8)`, vals);
+      await db.query(`insert into events (id, name, description, starts_at, ends_at, theme, bonus, active, decor, points, milestones, token_name, repeat_yearly, notify_start)
+                      values ($1,$2,$3,$4,$5,$6::text::jsonb,$7::text::jsonb,$8,$9,$10::text::jsonb,$11::text::jsonb,$12,$13,$14)`, vals);
     } else {
-      const r = await db.one(`update events set name=$2, description=$3, starts_at=$4, ends_at=$5, theme=$6::text::jsonb, bonus=$7::text::jsonb, active=$8 where id=$1 returning id`, vals);
+      const r = await db.one(`update events set name=$2, description=$3, starts_at=$4, ends_at=$5, theme=$6::text::jsonb, bonus=$7::text::jsonb, active=$8,
+                              decor=$9, points=$10::text::jsonb, milestones=$11::text::jsonb, token_name=$12, repeat_yearly=$13, notify_start=$14 where id=$1 returning id`, vals);
       if (!r) throw notFound('Event tidak ditemukan.');
     }
     await bumpCatalog(db);
@@ -326,7 +362,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     for (const k of ['body', 'roof']) if (typeof st[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(st[k])) style[k] = st[k];
     if (st.w !== undefined && st.w !== '') style.w = int(Number(st.w), 'Lebar bangunan', { min: 70, max: 140 });
     const kind = oneOf(b.kind, 'Jenis lokasi', LOC_KINDS);
-    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 760 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
+    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 920 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
       J(style), bool(b.enabled, true), int(Number(b.sort ?? 0), 'Urutan', { min: -1000, max: 1000 }), bool(b.sells_back, false)];
     if (creating) {
       if (await db.one('select 1 from locations where id = $1', [id])) throw bad('exists', 'ID lokasi sudah dipakai.');
