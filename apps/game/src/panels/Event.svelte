@@ -37,7 +37,7 @@
         <span class="tok"><svg viewBox="-16 -16 32 32">{@html eventDropSVG(ev.decor)}</svg></span>
         <div>
           <h3>{ev.name}</h3>
-          <span class="when">{ev.running ? `Berakhir dalam ${left(ev)}` : `Mulai dalam ${left(ev)}`}{#if ev.multiplier > 1} · koin ×{ev.multiplier}{/if}</span>
+          <span class="when">{ev.running ? `Berakhir dalam ${left(ev)}` : `Mulai dalam ${left(ev)}`}{#if ev.multiplier > 1}{' · '}koin ×{ev.multiplier}{/if}</span>
         </div>
       </header>
       {#if ev.description}<p class="desc">{ev.description}</p>{/if}

@@ -135,6 +135,10 @@
   .info em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--muted); }
   .info em.hot { color: #1E7A4C; }
   .btns { display: flex; gap: 4px; }
+  @media (max-width: 359px) {
+    .friend { flex-wrap: wrap; }
+    .btns { flex: 1 1 100%; justify-content: flex-end; }
+  }
   .visitors { margin: 0; font-size: 14px; font-weight: 600; background: #E6F3EC; border-radius: 10px; padding: 6px 10px; }
   .muted { margin: 0; font-weight: 600; }
 </style>

@@ -81,5 +81,5 @@
     .rotate .pet { width: 90px; height: 95px; transform: rotate(-90deg); animation: none; }
     .rotate p { margin: 0; font-size: 19px; font-weight: 800; }
   }
-  .update { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 92px); z-index: 60; display: flex; gap: 10px; align-items: center; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); padding: 6px 6px 6px 14px; font-weight: 700; white-space: nowrap; }
+  .update { position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 104px); z-index: 60; display: flex; gap: 10px; align-items: center; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); padding: 6px 6px 6px 14px; font-weight: 700; white-space: nowrap; }
 </style>

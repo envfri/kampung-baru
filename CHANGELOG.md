@@ -4,6 +4,18 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.10.1 · 2026-11-10 · Tampilan lebih rapi & update PWA lebih andal
+
+### Perubahan
+
+- PWA memeriksa versi baru tiap 30 menit dan saat aplikasi dibuka lagi dari latar, sehingga pemain yang membiarkan aplikasi terbuka tetap mendapat update.
+
+### Perbaikan
+
+- Di HP layar kecil, daftar Balai Main dan daftar teman tidak lagi berdesakan. _(pemain)_
+- Pemberitahuan "Versi baru tersedia" pindah ke atas sehingga tidak menutupi tombol Makan sampai Atur. _(pemain)_
+- Info event kembali rapi ("Pekan Ceria Kampung · koin ×1.2"). _(pemain)_
+
 ## 0.10.0 · 2026-11-10 · Integrasi & URL webhook
 
 ### Baru
@@ -14,6 +26,8 @@ Semua perubahan Kampung Bulu. Versi mengikuti [semver](https://semver.org/lang/i
 ### Perubahan
 
 - install.sh menampilkan URL webhook utama di ringkasan akhir instalasi.
+
+Commit: [`24be392`](https://github.com/envfri/kampung-baru/commit/24be392)
 
 ## 0.9.0 · 2026-11-10 · Halaman versi & changelog
 

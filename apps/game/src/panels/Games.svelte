@@ -47,4 +47,10 @@
   em :global(svg) { width: 15px; height: 15px; }
   .ev { display: flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 800; color: #1E7A4C; }
   .ev svg { width: 18px; height: 18px; }
+  @media (max-width: 359px) {
+    .gm { flex-wrap: wrap; }
+    .art { width: 52px; height: 48px; }
+    .art :global(svg) { width: 46px; height: 40px; }
+    .gm .btn { flex: 1 1 100%; }
+  }
 </style>

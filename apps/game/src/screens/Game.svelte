@@ -142,7 +142,7 @@
     <Needs />
     {#if event}
       <button class="event" style="--ev:{event.theme?.color ?? '#E0583F'}" onclick={() => (G.sheet = 'event')}>
-        {event.name}{#if event.bonus?.coinMultiplier > 1} · koin ×{event.bonus.coinMultiplier}{/if}
+        {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
     <QuestChip />

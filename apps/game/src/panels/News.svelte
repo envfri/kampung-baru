@@ -12,7 +12,7 @@
     <article class="ev" style="--ev:{e.theme?.color ?? '#E0583F'}">
       <b>{e.name}</b>
       <p>{e.description}</p>
-      <span>Sampai {date(e.ends_at)}{#if e.bonus?.coinMultiplier > 1} · hadiah koin ×{e.bonus.coinMultiplier}{/if}</span>
+      <span>Sampai {date(e.ends_at)}{#if e.bonus?.coinMultiplier > 1}{' · '}hadiah koin ×{e.bonus.coinMultiplier}{/if}</span>
     </article>
   {/each}
   {#each list as a (a.id)}
