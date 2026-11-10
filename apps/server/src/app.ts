@@ -17,6 +17,7 @@ import paymentRoutes from './routes/payments';
 import adminRoutes, { ensureAdmin } from './routes/admin';
 import notifyRoutes from './routes/notify';
 import minigameRoutes from './routes/minigames';
+import emailRoutes from './routes/email';
 import { eventPoints } from './lib/events';
 import { initPush } from './lib/push';
 import { startWorker } from './lib/worker';
@@ -100,6 +101,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(adminRoutes, { db });
   await app.register(notifyRoutes, { db });
   await app.register(minigameRoutes, { db });
+  await app.register(emailRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

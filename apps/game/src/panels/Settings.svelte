@@ -19,7 +19,8 @@
   const P: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook' };
 
   let push = $state<PushStatus>('off');
-  let nprefs = $state<Record<string, boolean>>({ garden: true, needs: true, daily: true, social: true, events: true, ...(G.me.notifyPrefs ?? {}) });
+  let nprefs = $state<Record<string, boolean>>({ garden: true, needs: true, daily: true, social: true, events: true, email: true, ...(G.me.notifyPrefs ?? {}) });
+  const mailAddr = $derived((G.me.user.identities ?? []).find((i: any) => i.email)?.email as string | undefined);
   const NK: [string, string][] = [['garden', 'Kebun siap dipanen'], ['needs', 'Pet butuh perhatian'], ['daily', 'Pengingat hadiah harian'], ['social', 'Teman, kunjungan & hadiah'], ['events', 'Event & kabar kampung']];
   async function pushOn() { try { push = await enablePush(); if (push === 'on') toast('Notifikasi aktif', 'good'); else if (push === 'denied') toast('Notifikasi diblokir di browser.', 'error'); } catch (e) { fail(e); } }
   async function pushOff() { await disablePush(); push = await pushStatus(); toast('Notifikasi di perangkat ini dimatikan'); }
@@ -99,6 +100,14 @@
     {#each NK as [k, l]}
       <label class="tg"><input type="checkbox" checked={nprefs[k] !== false} onchange={(e) => setNotif(k, (e.target as HTMLInputElement).checked)} /> {l}</label>
     {/each}
+    {#if G.config?.email}
+      {#if mailAddr}
+        <label class="tg"><input type="checkbox" checked={nprefs.email !== false} onchange={(e) => setNotif('email', (e.target as HTMLInputElement).checked)} /> Kirim kabar penting ke email</label>
+        <p class="muted small">Ke {mailAddr}: bukti pembelian Mutiara, event, dan pesan dari pengelola.</p>
+      {:else}
+        <p class="muted small">Sambungkan email atau Google supaya kabar penting juga dikirim ke email.</p>
+      {/if}
+    {/if}
   </section>
 
   <section>

@@ -6,6 +6,7 @@ import { notify, notifyMany, type Note } from './push';
 import { eventJobs } from './events';
 import { paymentJobs } from './payments';
 import { zepayConfigured } from './zepay';
+import { deliver, mailEnabled } from './mail';
 
 const LOCK = 7_420_011;
 
@@ -92,7 +93,7 @@ export async function runJobs(db: Db, log?: any) {
   const started = await eventJobs(db);
   for (const ev of started) {
     const ids = (await db.query<{ id: string }>(`select id from users where banned_at is null and last_seen_at > now() - interval '30 days'`)).map((r) => r.id);
-    const r = await notifyMany(db, ids, { kind: 'events', title: `${ev.name} dimulai!`, body: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.', url: '/#event', tag: 'event-' + ev.id }, log);
+    const r = await notifyMany(db, ids, { kind: 'events', title: `${ev.name} dimulai!`, body: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.', url: '/#event', tag: 'event-' + ev.id }, log, { email: s.email.events });
     log?.info?.({ event: ev.id, ...r }, 'pengumuman event terkirim');
   }
 
@@ -105,9 +106,13 @@ export async function runJobs(db: Db, log?: any) {
       guests: 'u.is_guest',
     };
     const ids = (await db.query<{ id: string }>(`select u.id from users u where u.banned_at is null and ${where[b.segment] ?? 'true'}`)).map((r) => r.id);
-    const r = await notifyMany(db, ids, { kind: 'events', title: b.title, body: b.body, url: b.url, tag: 'broadcast-' + b.id }, log);
-    await db.query(`update broadcasts set status = 'sent', sent_at = now(), recipients = $2, pushed = $3 where id = $1`, [b.id, r.recipients, r.pushed]);
+    const r = await notifyMany(db, ids, { kind: 'events', title: b.title, body: b.body, url: b.url, tag: 'broadcast-' + b.id }, log, { email: !!b.email });
+    await db.query(`update broadcasts set status = 'sent', sent_at = now(), recipients = $2, pushed = $3, emailed = $4 where id = $1`, [b.id, r.recipients, r.pushed, b.email ? r.emailed : null]);
     log?.info?.({ id: b.id, ...r }, 'broadcast terkirim');
+  }
+  // antrean email (broadcast, event, percobaan ulang) lewat Mailketing
+  if (mailEnabled()) {
+    try { await deliver(db, { log }); } catch (e) { log?.warn?.({ err: String(e) }, 'pengiriman email gagal'); }
   }
   return { sent: outbox.length, broadcasts: broadcasts.length };
 }

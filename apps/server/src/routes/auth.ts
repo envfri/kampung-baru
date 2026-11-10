@@ -7,7 +7,7 @@ import { bad, forbidden, getSettings, sha256, track, HttpError } from '../lib/co
 import { createSession, createUser, destroySession, loadUser, requireUser } from '../lib/auth';
 import { playerState } from '../lib/state';
 import { email as vEmail, str } from '../lib/validate';
-import { sendOtp } from '../lib/mail';
+import { mailEnabled, sendOtp } from '../lib/mail';
 
 let googleJwks: any = null;
 
@@ -43,12 +43,13 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
     return {
       login: {
         guest: f.guestLogin,
-        email: f.emailLogin && (!!config.smtpUrl || !config.isProd),
+        email: f.emailLogin && (mailEnabled() || !config.isProd),
         google: f.googleLogin && config.googleClientId ? config.googleClientId : null,
         facebook: f.facebookLogin && config.facebookAppId ? config.facebookAppId : null,
       },
       payments: f.payments ? config.paymentProvider : null,
       paymentsTest: config.paymentProvider === 'zepay' && zepayMode() === 'test',
+      email: mailEnabled(),
       midtransClientKey: config.paymentProvider === 'midtrans' ? config.midtransClientKey : null,
       midtransProduction: config.midtransProduction,
     };
@@ -65,7 +66,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
 
   app.post('/api/auth/email/start', { config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req: any) => {
     const s = await getSettings(db);
-    if (!s.features.emailLogin || (config.isProd && !config.smtpUrl)) throw forbidden('Login email sedang tidak tersedia.');
+    if (!s.features.emailLogin || (config.isProd && !mailEnabled())) throw forbidden('Login email sedang tidak tersedia.');
     const mail = vEmail(req.body?.email);
     const prev = await db.one<{ created_at: Date }>(`select created_at from email_otps where email = $1`, [mail]);
     if (prev && Date.now() - new Date(prev.created_at).getTime() < 60_000) throw bad('otp_wait', 'Kode baru saja dikirim. Tunggu 1 menit sebelum meminta lagi.');
@@ -75,7 +76,12 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
        on conflict (email) do update set code_hash = excluded.code_hash, attempts = 0, expires_at = excluded.expires_at, created_at = now()`,
       [mail, sha256(mail + ':' + code)],
     );
-    const sent = await sendOtp(mail, code, req.log);
+    const sent = await sendOtp(db, mail, code, req.log);
+    if (!sent && mailEnabled()) {
+      // jangan biarkan pemain menunggu email yang tidak akan datang; boleh langsung minta ulang
+      await db.query(`delete from email_otps where email = $1`, [mail]);
+      if (config.isProd) throw bad('mail_failed', 'Email kode masuk gagal dikirim. Periksa alamatnya atau coba lagi beberapa menit lagi.');
+    }
     return { ok: true, sent, ...(config.isProd ? {} : { devCode: code }) };
   });
 

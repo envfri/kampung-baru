@@ -20,6 +20,7 @@
   import Admins from './pages/Admins.svelte';
   import Account from './pages/Account.svelte';
   import Quests from './pages/Quests.svelte';
+  import Email from './pages/Email.svelte';
 
   const NAV = [
     { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', min: 'moderator', C: Dashboard }] },
@@ -33,6 +34,7 @@
     ] },
     { group: 'Komunikasi', items: [
       { k: 'broadcasts', label: 'Notifikasi', min: 'admin', C: Broadcasts },
+      { k: 'email', label: 'Email', min: 'admin', C: Email },
       { k: 'announcements', label: 'Pengumuman', min: 'moderator', C: Announcements },
     ] },
     { group: 'Pemain & uang', items: [

@@ -3,7 +3,7 @@
   import { api } from '../lib/api';
   import { err, toast, dt, num, fromLocal } from '../lib/store.svelte';
   let data = $state<any>(null);
-  let f = $state({ title: '', body: '', url: '/', segment: 'all', sendAt: '' });
+  let f = $state({ title: '', body: '', url: '/', segment: 'all', sendAt: '', email: false });
   let busy = $state(false);
   const SEG: [string, string][] = [['all', 'Semua pemain'], ['active7', 'Aktif 7 hari terakhir'], ['inactive7', 'Tidak aktif lebih dari 7 hari'], ['payers', 'Pernah membeli Mutiara'], ['guests', 'Masih tamu (belum simpan progres)']];
   const URLS: [string, string][] = [['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko'], ['/#friends', 'Teman'], ['/#daily', 'Hadiah harian'], ['/#news', 'Kabar kampung'], ['/#pearls', 'Toko Mutiara']];
@@ -15,7 +15,7 @@
     try {
       await api.post('/api/admin/broadcasts', { ...f, sendAt: fromLocal(f.sendAt) });
       toast(f.sendAt ? 'Notifikasi dijadwalkan' : 'Notifikasi sedang dikirim');
-      f = { title: '', body: '', url: '/', segment: 'all', sendAt: '' }; load();
+      f = { title: '', body: '', url: '/', segment: 'all', sendAt: '', email: false }; load();
     } catch (e) { err(e); } finally { busy = false; }
   }
   async function cancel(id: number) { try { await api.del(`/api/admin/broadcasts/${id}`); toast('Dibatalkan'); load(); } catch (e) { err(e); } }
@@ -28,6 +28,7 @@
     <div class="kpi"><span>Perangkat berlangganan push</span><b>{num(data.stats.devices)}</b></div>
     <div class="kpi"><span>Pemain dengan push aktif</span><b>{num(data.stats.users)}</b></div>
     <div class="kpi"><span>Push terkirim 7 hari</span><b>{num(data.stats.sent7)}</b></div>
+    {#if data.stats.emailEnabled}<div class="kpi"><span>Pemain yang bisa dikirimi email</span><b>{num(data.stats.emailUsers)}</b></div>{/if}
   </div>
 {/if}
 <div class="cols">
@@ -40,6 +41,10 @@
       <label>Saat diketuk, buka<select bind:value={f.url}>{#each URLS as [v, l]}<option value={v}>{l}</option>{/each}</select></label>
     </div>
     <label>Jadwalkan (kosongkan = kirim sekarang)<input type="datetime-local" bind:value={f.sendAt} /></label>
+    {#if data?.stats.emailEnabled}
+      <label class="chk"><input type="checkbox" bind:checked={f.email} /> Kirim juga ke email (Mailketing)</label>
+      {#if f.email}<span class="help">Maksimal ±{num(data.stats.emailUsers)} email untuk semua pemain = ±{num(data.stats.emailUsers)} kredit Mailketing. Pemain tamu, yang mematikan email, atau alamat yang bounce dilewati.</span>{/if}
+    {/if}
     <button class="btn primary" disabled={busy}>{f.sendAt ? 'Jadwalkan' : 'Kirim sekarang'}</button>
   </form>
   <div class="phone" aria-label="Pratinjau notifikasi">
@@ -50,12 +55,12 @@
 {#if data}
   <h2>Riwayat</h2>
   <div class="tbl"><table>
-    <thead><tr><th>Dibuat</th><th>Judul</th><th>Penerima</th><th>Jadwal</th><th>Status</th><th class="num">Pemain</th><th class="num">Push OK</th><th></th></tr></thead>
+    <thead><tr><th>Dibuat</th><th>Judul</th><th>Penerima</th><th>Jadwal</th><th>Status</th><th class="num">Pemain</th><th class="num">Push OK</th><th class="num">Email</th><th></th></tr></thead>
     <tbody>{#each data.broadcasts as b (b.id)}<tr>
       <td>{dt(b.created_at)}</td><td><b>{b.title}</b><br /><span class="muted">{b.body}</span></td><td>{SEG.find((s) => s[0] === b.segment)?.[1] ?? b.segment}</td>
-      <td>{dt(b.send_at)}</td><td>{ST[b.status] ?? b.status}</td><td class="num">{num(b.recipients ?? 0)}</td><td class="num">{num(b.pushed ?? 0)}</td>
+      <td>{dt(b.send_at)}</td><td>{ST[b.status] ?? b.status}</td><td class="num">{num(b.recipients ?? 0)}</td><td class="num">{num(b.pushed ?? 0)}</td><td class="num">{b.email ? (b.emailed == null ? 'ya' : num(b.emailed)) : '—'}</td>
       <td>{#if b.status === 'scheduled'}<button class="btn sm danger" onclick={() => cancel(b.id)}>Batalkan</button>{/if}</td>
-    </tr>{:else}<tr><td colspan="8" class="muted">Belum ada notifikasi terkirim.</td></tr>{/each}</tbody>
+    </tr>{:else}<tr><td colspan="9" class="muted">Belum ada notifikasi terkirim.</td></tr>{/each}</tbody>
   </table></div>
 {/if}
 
@@ -71,4 +76,6 @@
   .note img { width: 36px; height: 36px; border-radius: 9px; }
   .note b { font-size: 14px; } .note p { margin: 2px 0 0; font-size: 13px; color: #3B3F55; }
   @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .chk { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; }
+  .chk input { width: auto; }
 </style>

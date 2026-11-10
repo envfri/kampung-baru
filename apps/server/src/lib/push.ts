@@ -1,6 +1,7 @@
 // Notifikasi: simpan ke kotak notifikasi di game + kirim Web Push ke semua perangkat pemain.
 import type { Db } from '../db/index';
 import { vapidConfig } from '../config';
+import { deliver, queueNoteEmail, queueNoteEmailMany } from './mail';
 
 let webpush: any = null;
 let keys: { publicKey: string; privateKey: string } | null = null;
@@ -79,13 +80,19 @@ export async function notify(db: Db, userId: string, n: Note, log?: any) {
     if (!prefsAllow(u.notify_prefs, n.kind)) return;
     const subs = await db.query(`select id, endpoint, p256dh, auth from push_subscriptions where user_id = $1`, [userId]);
     if (subs.length) await pushTo(db, subs, JSON.stringify({ title: n.title, body: n.body, url: n.url ?? '/', tag: n.tag ?? n.kind }), log);
+    // salinan ke email (Mailketing) sesuai pengaturan admin & preferensi pemain; langsung dicoba kirim
+    const mailId = await queueNoteEmail(db, userId, n, u.notify_prefs);
+    if (mailId) void deliver(db, { ids: [mailId], log }).catch((e) => log?.warn?.({ err: String(e) }, 'email notifikasi tertunda'));
   } catch (e) {
     log?.error?.(e, 'notify gagal');
   }
 }
 
-/** Kirim ke banyak pemain sekaligus (broadcast). Mengembalikan jumlah pemain & push yang berhasil. */
-export async function notifyMany(db: Db, userIds: string[], n: Note, log?: any) {
+/**
+ * Kirim ke banyak pemain sekaligus (broadcast). `email: true` juga mengantrekan email (dikirim worker).
+ * Mengembalikan jumlah pemain, push yang berhasil, dan email yang diantrekan.
+ */
+export async function notifyMany(db: Db, userIds: string[], n: Note, log?: any, opts: { email?: boolean } = {}) {
   let pushed = 0;
   for (let i = 0; i < userIds.length; i += 500) {
     const chunk = userIds.slice(i, i + 500);
@@ -100,5 +107,6 @@ export async function notifyMany(db: Db, userIds: string[], n: Note, log?: any) 
     );
     pushed += await pushTo(db, subs, JSON.stringify({ title: n.title, body: n.body, url: n.url ?? '/', tag: n.tag ?? 'broadcast' }), log);
   }
-  return { recipients: userIds.length, pushed };
+  const emailed = opts.email ? await queueNoteEmailMany(db, userIds, n).catch((e) => { log?.warn?.({ err: String(e) }, 'antrean email gagal'); return 0; }) : 0;
+  return { recipients: userIds.length, pushed, emailed };
 }

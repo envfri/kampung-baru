@@ -50,7 +50,7 @@ npm run dev
 - Admin: http://localhost:5174/admin/
 - API: http://localhost:8787
 
-Tanpa `DATABASE_URL`, server memakai PGlite (Postgres di dalam proses, data di `apps/server/.data/pglite`). Katalog awal, lokasi peta, event contoh, dan paket Mutiara dibuat otomatis saat pertama jalan. Kode OTP email muncul di log server bila `SMTP_URL` kosong. Pembayaran memakai halaman simulasi (`PAYMENT_PROVIDER=mock`).
+Tanpa `DATABASE_URL`, server memakai PGlite (Postgres di dalam proses, data di `apps/server/.data/pglite`). Katalog awal, lokasi peta, event contoh, dan paket Mutiara dibuat otomatis saat pertama jalan. Kode OTP email muncul di log server bila `MAILKETING_API_TOKEN` kosong. Pembayaran memakai halaman simulasi (`PAYMENT_PROVIDER=mock`).
 
 Mode produksi lokal:
 
@@ -98,8 +98,26 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 
 - **Tamu**: langsung main. Progres tersimpan di server dan bisa ditautkan ke Google/email kapan saja tanpa hilang.
 - **Google**: buat OAuth Client ID tipe Web di Google Cloud Console. Isi Authorized JavaScript origins dengan domain game, lalu isi `GOOGLE_CLIENT_ID`.
-- **Email OTP**: isi `SMTP_URL` (mis. `smtps://user:pass@smtp.mailgun.org:465`).
+- **Email OTP**: dikirim lewat Mailketing, lihat bagian Email di bawah.
 - **Facebook** (opsional): isi `FACEBOOK_APP_ID` dan `FACEBOOK_APP_SECRET`. Sistem teman tetap memakai kode/link, karena Facebook hanya memberi daftar teman yang juga memakai aplikasi.
+
+## Email (Mailketing)
+
+Semua email dikirim lewat [Mailketing](https://mailketing.co.id/docs/send-email-via-api/) API v2 (1 email = 1 kredit): kode masuk, dan salinan notifikasi game ke email pemain.
+
+1. Di Mailketing: tambahkan domain pengirim di **Setup Domain** sampai aktif, lalu salin token dari **Integrasi → Email Application API**.
+2. Isi di `.env`, lalu `docker compose up -d`:
+   ```
+   MAILKETING_API_TOKEN=…
+   MAIL_FROM=Kampung Bulu <noreply@domainmu>
+   ```
+3. Buka admin → **Email**: lihat sisa kredit, klik **Kirim email uji**, lalu salin **URL webhook** ke Mailketing → Integrasi → WebHook (kolom Bounce dan Unsubscribe). Alamat yang bounce otomatis tidak dikirimi lagi.
+
+Notifikasi mana yang ikut ke email diatur di admin → Ekonomi & fitur → **Email notifikasi**. Bawaannya: pembayaran & pesan admin (`system`) dan event (`events`) aktif; kebun, pet, harian, dan teman mati supaya kredit tidak boros. Ada juga batas `maxPerDay` per pemain (di luar pembayaran). Broadcast dari halaman Notifikasi punya centang **Kirim juga ke email** beserta perkiraan kreditnya.
+
+- Hanya pemain yang sudah menautkan email/Google yang menerima email. Pemain bisa mematikannya di Pengaturan game, atau lewat tautan **Berhenti menerima email notifikasi** di setiap email.
+- Kode masuk dikirim langsung. Notifikasi lewat antrean: dicoba langsung, lalu worker mengulang bila Mailketing gangguan atau kredit habis (2 mnt → 6 jam, maks. 6 kali). Setelah isi kredit, klik **Kirim ulang yang tertunda** di admin → Email.
+- Isi email kode masuk tidak disimpan; isi email notifikasi dihapus dari database setelah terkirim.
 
 ## Pembayaran QRIS (ZePay)
 
@@ -165,7 +183,7 @@ sudo bash deploy/install.sh amt.ai.id
 
 - Update ke versi terbaru: `bash deploy/update.sh`
 - Lihat log: `docker compose logs -f app`
-- Ubah konfigurasi (Google, SMTP, ZePay): edit `.env`, lalu `docker compose up -d`
+- Ubah konfigurasi (Google, Mailketing, ZePay): edit `.env`, lalu `docker compose up -d`
 - Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
 
 ## Pengujian
@@ -174,7 +192,7 @@ sudo bash deploy/install.sh amt.ai.id
 npm test
 ```
 
-32 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
+37 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), email Mailketing terhadap server Mailketing tiruan (kode masuk, notifikasi & escape isi, berhenti langganan, jenis & batas harian, broadcast email, webhook bounce, kredit habis & kirim ulang), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
 
 Uji alur di viewport HP (butuh server jalan dan Playwright):
 
@@ -195,6 +213,7 @@ npm run test:e2e
 ## Yang perlu dilakukan sebelum peluncuran
 
 - Uji push di HP Android dan iPhone sungguhan setelah deploy HTTPS.
+- Aktifkan domain pengirim di Mailketing, kirim email uji dari admin, dan pasang URL webhook bounce.
 - Uji QRIS ZePay dengan kunci mode uji dari awal sampai akhir, lalu ganti ke kunci live dan bayar satu paket kecil sungguhan.
 - Cek merek "Kampung Bulu" di PDKI, atau pilih nama final.
 - Halaman Kebijakan Privasi dan Syarat Layanan (wajib untuk login Google/Facebook dan pembayaran).

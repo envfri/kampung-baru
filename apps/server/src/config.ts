@@ -19,7 +19,10 @@ export const config = {
   googleClientId: env.GOOGLE_CLIENT_ID ?? '',
   facebookAppId: env.FACEBOOK_APP_ID ?? '',
   facebookAppSecret: env.FACEBOOK_APP_SECRET ?? '',
-  smtpUrl: env.SMTP_URL ?? '',
+  // email (kode masuk & notifikasi) lewat Mailketing API v2 (https://mailketing.co.id/docs/send-email-via-api/)
+  mailketingToken: env.MAILKETING_API_TOKEN ?? '',
+  mailketingBaseUrl: (env.MAILKETING_BASE_URL ?? 'https://api.mailketing.co.id').replace(/\/$/, ''),
+  // pengirim; domainnya harus sudah aktif di Mailketing → Setup Domain
   mailFrom: env.MAIL_FROM ?? 'Kampung Bulu <noreply@kampungbulu.local>',
   // pembayaran: zepay (QRIS) | midtrans | mock
   paymentProvider: (env.PAYMENT_PROVIDER ?? (env.NODE_ENV === 'production' ? 'zepay' : 'mock')) as 'mock' | 'midtrans' | 'zepay',

@@ -58,7 +58,8 @@ ADMIN_EMAIL=admin@$DOMAIN
 ADMIN_PASSWORD=$ADMIN_PW
 # Login Google & email (isi lalu jalankan: docker compose up -d)
 GOOGLE_CLIENT_ID=
-SMTP_URL=
+# Email lewat Mailketing (token dari Integrasi → Email Application API; domain $DOMAIN harus aktif di Setup Domain)
+MAILKETING_API_TOKEN=
 MAIL_FROM=Kampung Bulu <noreply@$DOMAIN>
 # PERHATIAN: mock = pembelian Mutiara simulasi (gratis). Sebelum dibuka untuk umum: ganti ke zepay,
 # isi kunci ZePay, docker compose up -d, lalu daftarkan webhook dari admin → Pembayaran.

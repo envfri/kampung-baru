@@ -3,6 +3,7 @@ import type { Db } from '../db/index';
 import { bad, notFound } from '../lib/core';
 import { audit, requireAdmin, requireUser } from '../lib/auth';
 import { notify, PREF_KINDS, vapidPublicKey } from '../lib/push';
+import { emailableUsers, mailEnabled } from '../lib/mail';
 import { runJobs } from '../lib/worker';
 import { isoDate, obj, oneOf, str } from '../lib/validate';
 
@@ -53,7 +54,7 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
   app.post('/api/notify/prefs', auth, async (req: any) => {
     const b = obj(req.body?.prefs, 'Preferensi');
     const prefs: Record<string, boolean> = {};
-    for (const k of PREF_KINDS) if (k in b) prefs[k] = b[k] === true;
+    for (const k of [...PREF_KINDS, 'email']) if (k in b) prefs[k] = b[k] === true;
     const r = await db.one<{ notify_prefs: any }>(`update users set notify_prefs = notify_prefs || $2::text::jsonb where id = $1 returning notify_prefs`, [req.user!.id, JSON.stringify(prefs)]);
     return { ok: true, prefs: r?.notify_prefs ?? {} };
   });
@@ -61,13 +62,14 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
   /* ---------------- admin ---------------- */
 
   app.get('/api/admin/broadcasts', { preHandler: requireAdmin(db, 'admin') }, async () => {
-    const [list, devices, users, sent7] = await Promise.all([
+    const [list, devices, users, sent7, emailUsers] = await Promise.all([
       db.query(`select * from broadcasts order by id desc limit 100`),
       db.one<{ c: number }>(`select count(*)::int c from push_subscriptions`),
       db.one<{ c: number }>(`select count(distinct user_id)::int c from push_subscriptions`),
       db.one<{ c: number }>(`select coalesce(sum(pushed),0)::int c from broadcasts where sent_at > now() - interval '7 days'`),
+      mailEnabled() ? emailableUsers(db) : Promise.resolve(0),
     ]);
-    return { broadcasts: list, stats: { devices: devices?.c ?? 0, users: users?.c ?? 0, sent7: sent7?.c ?? 0 } };
+    return { broadcasts: list, stats: { devices: devices?.c ?? 0, users: users?.c ?? 0, sent7: sent7?.c ?? 0, emailUsers, emailEnabled: mailEnabled() } };
   });
 
   app.post('/api/admin/broadcasts', { preHandler: requireAdmin(db, 'admin') }, async (req: any) => {
@@ -76,11 +78,12 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
     const url = oneOf(req.body?.url ?? '/', 'Tujuan', URLS);
     const segment = oneOf(req.body?.segment ?? 'all', 'Penerima', SEGMENTS);
     const sendAt = isoDate(req.body?.sendAt, 'Jadwal', true) ?? new Date();
+    const email = req.body?.email === true && mailEnabled();
     const r = await db.one<{ id: number }>(
-      `insert into broadcasts (title, body, url, segment, send_at, created_by) values ($1,$2,$3,$4,$5,$6) returning id`,
-      [title, body, url, segment, sendAt, req.admin!.email],
+      `insert into broadcasts (title, body, url, segment, send_at, created_by, email) values ($1,$2,$3,$4,$5,$6,$7) returning id`,
+      [title, body, url, segment, sendAt, req.admin!.email, email],
     );
-    await audit(db, req, 'broadcast_create', String(r!.id), { title, segment, sendAt });
+    await audit(db, req, 'broadcast_create', String(r!.id), { title, segment, sendAt, email });
     if (sendAt.getTime() <= Date.now() + 1000) void runJobs(db, req.log).catch((e) => req.log.error(e));
     return { ok: true, id: r!.id };
   });

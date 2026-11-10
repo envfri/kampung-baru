@@ -94,6 +94,16 @@ export const DEFAULT_SETTINGS = {
     fishing: true,
     gifts: true,
   },
+  email: {
+    enabled: true,
+    system: true,
+    events: true,
+    social: false,
+    garden: false,
+    needs: false,
+    daily: false,
+    maxPerDay: 3,
+  },
 };
 
 export type Settings = typeof DEFAULT_SETTINGS;
@@ -114,6 +124,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',
   starter: 'Barang awal pemain baru: isi tas, susunan ruangan, dinding, dan lantai (pakai ID item).',
   features: 'Nyalakan atau matikan fitur dan metode login.',
+  email: 'Notifikasi yang ikut dikirim ke email pemain lewat Mailketing (1 email = 1 kredit). system = pembayaran & pesan admin, events = event musiman. maxPerDay = batas email per pemain per hari di luar pembayaran. Broadcast dipilih per broadcast di halaman Notifikasi.',
 };
 
 export function mergeSettings(base: any, over: any): any {
