@@ -2,18 +2,22 @@
 // Memakai advisory lock Postgres agar hanya satu instance server yang menjalankannya.
 import type { Db } from '../db/index';
 import { getCatalog, getSettings, today } from './core';
-import { notify, notifyMany, type Note } from './push';
+import { eventOn, notifyEvent, notifyMany, type Vars } from './notify';
 import { eventJobs } from './events';
 import { paymentJobs } from './payments';
 import { zepayConfigured } from './zepay';
-import { deliver, mailEnabled } from './mail';
+import { mailEnabled } from './mail';
+import { waEnabled } from './klikflow';
+import { deliver } from './outbox';
 
 const LOCK = 7_420_011;
 
 export async function runJobs(db: Db, log?: any) {
   const s = await getSettings(db);
   const cat = await getCatalog(db);
-  const outbox: { userId: string; n: Note }[] = [];
+  const outbox: { userId: string; key: string; vars: Vars; url?: string }[] = [];
+  const on = { garden: await eventOn(db, 'garden_ready'), daily: await eventOn(db, 'daily_reminder'),
+    needs: (await Promise.all(['needs_kenyang', 'needs_bersih', 'needs_ceria', 'needs_energi'].map((k) => eventOn(db, k)))).some(Boolean) };
   let broadcasts: any[] = [];
 
   let locked = false;
@@ -23,7 +27,7 @@ export async function runJobs(db: Db, log?: any) {
     locked = true;
 
     // 1) kebun siap panen
-    if (s.notify.gardenReady) {
+    if (on.garden) {
       const ready = await t.query<{ user_id: string; seed_id: string }>(
         `update garden_plots set notified_at = now() where ready_at <= now() and notified_at is null returning user_id, seed_id`,
       );
@@ -31,12 +35,12 @@ export async function runJobs(db: Db, log?: any) {
       for (const r of ready) byUser.set(r.user_id, [...(byUser.get(r.user_id) ?? []), r.seed_id]);
       for (const [userId, seeds] of byUser) {
         const yieldName = cat.byId.get(cat.byId.get(seeds[0])?.data?.yieldItem)?.name ?? 'Tanaman';
-        outbox.push({ userId, n: { kind: 'garden', title: 'Kebun siap dipanen', body: seeds.length > 1 ? `${seeds.length} petak di kebunmu sudah bisa dipanen.` : `${yieldName} di kebunmu sudah bisa dipanen.`, url: '/#garden', tag: 'garden' } });
+        outbox.push({ userId, key: 'garden_ready', vars: { tanaman: seeds.length > 1 ? `${seeds.length} petak tanaman` : yieldName, jumlah: seeds.length } });
       }
     }
 
     // 2) pet butuh perhatian (hanya pemain yang sedang tidak membuka game)
-    if (s.notify.needsLow) {
+    if (on.needs) {
       const r = s.needs.decayPerHour;
       const rows = await t.query<{ user_id: string; name: string; kenyang: number; bersih: number; ceria: number; energi: number }>(
         `with c as (
@@ -54,15 +58,14 @@ export async function runJobs(db: Db, log?: any) {
       );
       for (const p of rows) {
         const [k] = (['kenyang', 'bersih', 'ceria', 'energi'] as const).map((k) => [k, p[k]] as const).sort((a, b) => a[1] - b[1])[0];
-        const msg = { kenyang: `${p.name} lapar. Ada makanan di tasmu?`, bersih: `${p.name} sudah kotor dan butuh mandi.`, ceria: `${p.name} kesepian. Ajak main sebentar, yuk.`, energi: `${p.name} kecapekan dan perlu tidur.` }[k];
         await t.query(`update pets set needs_notified_at = now() where user_id = $1`, [p.user_id]);
-        outbox.push({ userId: p.user_id, n: { kind: 'needs', title: `${p.name} butuh kamu`, body: msg, url: '/', tag: 'needs' } });
+        outbox.push({ userId: p.user_id, key: `needs_${k}`, vars: {} });
       }
     }
 
     // 3) pengingat hadiah harian (sekali sehari setelah jam tertentu WIB)
     const hourWib = (new Date().getUTCHours() + 7) % 24;
-    if (s.notify.dailyReminder && hourWib >= s.notify.dailyHourWib) {
+    if (on.daily && hourWib >= s.notify.dailyHourWib) {
       const rows = await t.query<{ id: string }>(
         `insert into daily_counters (user_id, key, day, count)
          select u.id, 'notif_daily', $1::date, 1 from users u
@@ -75,14 +78,14 @@ export async function runJobs(db: Db, log?: any) {
          returning user_id as id`,
         [today()],
       );
-      for (const r of rows) outbox.push({ userId: r.id, n: { kind: 'daily', title: 'Hadiah harian menunggu', body: 'Ambil hadiah hari ini sebelum tengah malam supaya beruntunmu tidak putus.', url: '/#daily', tag: 'daily' } });
+      for (const r of rows) outbox.push({ userId: r.id, key: 'daily_reminder', vars: {} });
     }
 
     // 4) broadcast terjadwal dari admin
     broadcasts = await t.query(`update broadcasts set status = 'sending' where status = 'scheduled' and send_at <= now() returning *`);
   });
 
-  for (const o of outbox) await notify(db, o.userId, o.n, log);
+  for (const o of outbox) await notifyEvent(db, o.userId, o.key, o.vars, { log });
 
   // QRIS yang lewat batas waktu tanpa kabar webhook: cek status langsung ke ZePay
   if (locked && zepayConfigured()) {
@@ -93,7 +96,7 @@ export async function runJobs(db: Db, log?: any) {
   const started = await eventJobs(db);
   for (const ev of started) {
     const ids = (await db.query<{ id: string }>(`select id from users where banned_at is null and last_seen_at > now() - interval '30 days'`)).map((r) => r.id);
-    const r = await notifyMany(db, ids, { kind: 'events', title: `${ev.name} dimulai!`, body: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.', url: '/#event', tag: 'event-' + ev.id }, log, { email: s.email.events });
+    const r = await notifyMany(db, ids, 'event_start', { event: ev.name, deskripsi: ev.description || 'Ada event baru di Kampung Bulu. Kumpulkan poin dan ambil hadiahnya.' }, { url: '/#event', tag: 'event-' + ev.id, log });
     log?.info?.({ event: ev.id, ...r }, 'pengumuman event terkirim');
   }
 
@@ -106,13 +109,16 @@ export async function runJobs(db: Db, log?: any) {
       guests: 'u.is_guest',
     };
     const ids = (await db.query<{ id: string }>(`select u.id from users u where u.banned_at is null and ${where[b.segment] ?? 'true'}`)).map((r) => r.id);
-    const r = await notifyMany(db, ids, { kind: 'events', title: b.title, body: b.body, url: b.url, tag: 'broadcast-' + b.id }, log, { email: !!b.email });
-    await db.query(`update broadcasts set status = 'sent', sent_at = now(), recipients = $2, pushed = $3, emailed = $4 where id = $1`, [b.id, r.recipients, r.pushed, b.email ? r.emailed : null]);
+    const r = await notifyMany(db, ids, 'broadcast', { judul: b.title, isi: b.body }, { url: b.url, tag: 'broadcast-' + b.id, log, email: !!b.email, whatsapp: !!b.whatsapp });
+    await db.query(
+      `update broadcasts set status = 'sent', sent_at = now(), recipients = $2, pushed = $3, emailed = $4, whatsapped = $5 where id = $1`,
+      [b.id, r.recipients, r.pushed, b.email ? r.emailed : null, b.whatsapp ? r.whatsapped : null],
+    );
     log?.info?.({ id: b.id, ...r }, 'broadcast terkirim');
   }
-  // antrean email (broadcast, event, percobaan ulang) lewat Mailketing
-  if (mailEnabled()) {
-    try { await deliver(db, { log }); } catch (e) { log?.warn?.({ err: String(e) }, 'pengiriman email gagal'); }
+  // antrean email & WhatsApp (broadcast, event, jam tenang, percobaan ulang)
+  if (mailEnabled() || waEnabled()) {
+    try { await deliver(db, { log }); } catch (e) { log?.warn?.({ err: String(e) }, 'pengiriman pesan gagal'); }
   }
   return { sent: outbox.length, broadcasts: broadcasts.length };
 }

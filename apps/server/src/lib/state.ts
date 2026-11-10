@@ -1,5 +1,6 @@
 import { decayNeeds, NEED_KEYS, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
+import { maskPhone } from './klikflow';
 import { getCatalog, getSettings, activeEvents, today, counter, type Catalog } from './core';
 import { questSummary } from './quests';
 
@@ -41,7 +42,7 @@ export function petView(p: PetRow, s: Settings) {
 export async function playerState(db: Db, userId: string) {
   const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
   const [user, pet, wallet, inv, room, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
-    db.one(`select id, display_name, friend_code, is_guest, created_at from users where id = $1`, [userId]),
+    db.one(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at from users where id = $1`, [userId]),
     db.one<PetRow>(`select * from pets where user_id = $1`, [userId]),
     db.one<{ coin: number; pearl: number }>(`select coin, pearl from wallets where user_id = $1`, [userId]),
     db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]),
@@ -69,7 +70,11 @@ export async function playerState(db: Db, userId: string) {
   return {
     serverNow: Date.now(),
     catalogVersion: cat.version,
-    user: { ...user, identities: identities.map((i) => ({ provider: i.provider, email: i.email })) },
+    user: {
+      ...user, wa_phone: undefined, wa_verified_at: undefined,
+      wa: user?.wa_verified_at ? { phone: maskPhone(user.wa_phone), verified: true } : null,
+      identities: identities.map((i) => ({ provider: i.provider, email: i.email })),
+    },
     pet: pet ? petView(pet, s) : null,
     wallet: wallet ?? { coin: 0, pearl: 0 },
     inventory: Object.fromEntries(inv.map((r) => [r.item_id, r.qty])),

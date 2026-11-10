@@ -41,7 +41,7 @@ config.mailFrom = 'Kampung Bulu <noreply@kampungbulu.id>';
 
 const { buildApp } = await import('../src/app');
 const { runJobs } = await import('../src/lib/worker');
-const { deliver } = await import('../src/lib/mail');
+const { deliver } = await import('../src/lib/outbox');
 let app: any;
 let db: any;
 
@@ -93,7 +93,7 @@ async function owner() {
 async function drain(ms = 4000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    const r = await db.one(`select count(*)::int c from email_outbox where status = 'sending' or (status = 'queued' and next_at <= now())`);
+    const r = await db.one(`select count(*)::int c from outbox where channel = 'email' and (status = 'sending' or (status = 'queued' and next_at <= now()))`);
     if (!r.c) return true;
     await new Promise((x) => setTimeout(x, 25));
   }
@@ -119,9 +119,9 @@ test('email: kode masuk dikirim lewat Mailketing; isi tidak disimpan; gagal kiri
   assert.equal(m.from, 'noreply@kampungbulu.id');
   assert.equal(m.fromName, 'Kampung Bulu');
   assert.ok(m.html.includes(st.body.devCode));
-  const row = await db.one(`select status, html, message_id from email_outbox where kind = 'otp' and to_email = 'otp@contoh.id'`);
+  const row = await db.one(`select status, body, message_id from outbox where kind = 'login_code' and to_addr = 'otp@contoh.id'`);
   assert.equal(row.status, 'sent');
-  assert.equal(row.html, null);
+  assert.equal(row.body, null);
   assert.match(row.message_id, /mailketing/);
 
   mk.failNext = 500;
@@ -166,20 +166,20 @@ test('email: notifikasi sistem ikut ke email, isi di-escape, berhenti langganan 
 test('email: jenis notifikasi diatur admin, batas harian per pemain', async () => {
   const { id } = await player('pemain2@contoh.id');
   const o = await owner();
-  const { notify } = await import('../src/lib/push');
+  const { notifyEvent } = await import('../src/lib/notify');
   const n = inbox.length;
-  await notify(db, id, { kind: 'social', title: 'Ada tamu', body: 'Temanmu mampir.' });
+  await notifyEvent(db, id, 'visit', { teman: 'Tamu' });
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(inbox.length, n, 'sosial mati secara bawaan');
 
-  const st = (await o.get('/api/admin/settings')).body.value;
-  st.email.social = true;
-  st.email.maxPerDay = 2;
-  assert.equal((await o.call('PUT', '/api/admin/settings', { value: st })).status, 200);
-  for (let i = 0; i < 3; i++) await notify(db, id, { kind: 'social', title: `Tamu ${i}`, body: 'Temanmu mampir.' });
+  // admin: nyalakan email untuk "Ada tamu", ubah judulnya, batas 2 email per hari
+  const put = await o.call('PUT', '/api/admin/notify/templates/visit', { channels: { email: true }, title: 'Tamu {teman} datang' });
+  assert.equal(put.status, 200, JSON.stringify(put.body));
+  assert.equal((await o.call('PUT', '/api/admin/notify/channels', { email: { maxPerDay: 2 } })).status, 200);
+  for (let i = 0; i < 3; i++) await notifyEvent(db, id, 'visit', { teman: `Tamu${i}` });
   await waitFor(() => inbox.length >= n + 2);
   await new Promise((r) => setTimeout(r, 100));
-  assert.equal(inbox.filter((m) => m.to === 'pemain2@contoh.id' && m.subject.startsWith('Tamu')).length, 2);
+  assert.equal(inbox.filter((m) => m.to === 'pemain2@contoh.id' && /^Tamu Tamu\d datang$/.test(m.subject)).length, 2);
 });
 
 test('email: broadcast admin dengan email dikirim worker, tamu tanpa email dilewati', async () => {
@@ -201,7 +201,7 @@ test('email: broadcast admin dengan email dikirim worker, tamu tanpa email dilew
   assert.ok(got.includes('pemain3@contoh.id'));
   assert.equal(b.emailed, got.length);
   assert.equal(new Set(got).size, got.length, 'satu email per pemain');
-  const queued = await db.one(`select count(*)::int c from email_outbox where status in ('queued','sending')`);
+  const queued = await db.one(`select count(*)::int c from outbox where channel = 'email' and status in ('queued','sending')`);
   assert.equal(queued.c, 0);
 });
 
@@ -228,7 +228,7 @@ test('email: webhook bounce menandai alamat, admin bisa melepasnya; kredit habis
   mk.failNext = 402;
   await o.post(`/api/admin/players/${id}/notify`, { title: 'Saat kredit habis', body: 'Ditunda.' });
   await new Promise((r) => setTimeout(r, 150));
-  const row = await db.one(`select id, status, error, next_at from email_outbox where subject = 'Saat kredit habis'`);
+  const row = await db.one(`select id, status, error, next_at from outbox where subject = 'Saat kredit habis'`);
   assert.equal(row.status, 'queued');
   assert.match(row.error, /credits/i);
   assert.ok(new Date(row.next_at).getTime() > Date.now());
@@ -237,7 +237,7 @@ test('email: webhook bounce menandai alamat, admin bisa melepasnya; kredit habis
   assert.ok(retry.body.requeued >= 1);
   await deliver(db);
   assert.ok(await drain());
-  assert.equal((await db.one(`select status from email_outbox where id = $1`, [row.id])).status, 'sent');
+  assert.equal((await db.one(`select status from outbox where id = $1`, [row.id])).status, 'sent');
 
   // email uji dari admin
   const t = await o.post('/api/admin/email/test', { to: 'admin@contoh.id' });

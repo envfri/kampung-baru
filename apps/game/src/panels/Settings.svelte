@@ -19,8 +19,26 @@
   const P: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook' };
 
   let push = $state<PushStatus>('off');
-  let nprefs = $state<Record<string, boolean>>({ garden: true, needs: true, daily: true, social: true, events: true, email: true, ...(G.me.notifyPrefs ?? {}) });
+  let nprefs = $state<Record<string, boolean>>({ garden: true, needs: true, daily: true, social: true, events: true, email: true, whatsapp: true, ...(G.me.notifyPrefs ?? {}) });
   const mailAddr = $derived((G.me.user.identities ?? []).find((i: any) => i.email)?.email as string | undefined);
+  let waStep = $state<'idle' | 'code'>('idle'), waPhone = $state(''), waCode = $state(''), waBusy = $state(false), waSentTo = $state('');
+  async function waStart(e: Event) {
+    e.preventDefault(); waBusy = true;
+    try { const r = await api.post('/api/wa/start', { phone: waPhone }); waSentTo = r.phone; waStep = 'code'; waCode = ''; toast('Kode dikirim ke WhatsApp', 'good'); } catch (x) { fail(x); }
+    waBusy = false;
+  }
+  async function waVerify(e: Event) {
+    e.preventDefault(); waBusy = true;
+    try {
+      const r = await api.post('/api/wa/verify', { code: waCode });
+      G.me.user.wa = r.wa; G.me.notifyPrefs = r.prefs; nprefs.whatsapp = true; waStep = 'idle'; waPhone = '';
+      toast('WhatsApp tersambung', 'good');
+    } catch (x) { fail(x); }
+    waBusy = false;
+  }
+  async function waRemove() {
+    try { await api.post('/api/wa/remove'); G.me.user.wa = null; toast('Nomor WhatsApp diputus'); } catch (x) { fail(x); }
+  }
   const NK: [string, string][] = [['garden', 'Kebun siap dipanen'], ['needs', 'Pet butuh perhatian'], ['daily', 'Pengingat hadiah harian'], ['social', 'Teman, kunjungan & hadiah'], ['events', 'Event & kabar kampung']];
   async function pushOn() { try { push = await enablePush(); if (push === 'on') toast('Notifikasi aktif', 'good'); else if (push === 'denied') toast('Notifikasi diblokir di browser.', 'error'); } catch (e) { fail(e); } }
   async function pushOff() { await disablePush(); push = await pushStatus(); toast('Notifikasi di perangkat ini dimatikan'); }
@@ -108,6 +126,28 @@
         <p class="muted small">Sambungkan email atau Google supaya kabar penting juga dikirim ke email.</p>
       {/if}
     {/if}
+    {#if G.config?.whatsapp}
+      <div class="wa">
+        <b>WhatsApp</b>
+        {#if G.me.user.wa}
+          <label class="tg"><input type="checkbox" checked={nprefs.whatsapp !== false} onchange={(e) => setNotif('whatsapp', (e.target as HTMLInputElement).checked)} /> Kirim kabar ke WhatsApp</label>
+          <p class="muted small">Tersambung ke {G.me.user.wa.phone}. Balas STOP di WhatsApp kapan saja untuk berhenti.</p>
+          <button class="link" onclick={waRemove}>Putuskan nomor</button>
+        {:else if waStep === 'code'}
+          <form class="row" onsubmit={waVerify}>
+            <input class="input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6 angka" bind:value={waCode} aria-label="Kode dari WhatsApp" />
+            <button class="btn hot" disabled={waBusy || waCode.length < 6}>Verifikasi</button>
+          </form>
+          <p class="muted small">Kode dikirim ke {waSentTo}. <button class="link" onclick={() => (waStep = 'idle')}>Ganti nomor</button></p>
+        {:else}
+          <form class="row" onsubmit={waStart}>
+            <input class="input" type="tel" inputmode="tel" autocomplete="tel" placeholder="0812 3456 7890" bind:value={waPhone} aria-label="Nomor WhatsApp" />
+            <button class="btn" disabled={waBusy || waPhone.replace(/\D/g, '').length < 9}>Kirim kode</button>
+          </form>
+          <p class="muted small">Dapat kabar penting (bukti pembelian, event) lewat WhatsApp. Kami kirim kode untuk memastikan nomornya milikmu.</p>
+        {/if}
+      </div>
+    {/if}
   </section>
 
   <section>
@@ -141,6 +181,8 @@
   p { margin: 0; font-weight: 600; }
   .warn { background: #FBEFD2; border-radius: 10px; padding: 8px 10px; }
   .muted { color: var(--muted); } .small { font-size: 13px; }
+  .wa { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .wa .row input { flex: 1; min-width: 0; }
   form { display: flex; flex-direction: column; gap: 4px; }
   label { font-weight: 700; font-size: 14px; }
   .row { display: flex; gap: 8px; } .row .input { flex: 1; min-width: 0; }

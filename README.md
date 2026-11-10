@@ -80,7 +80,7 @@ Yang bisa diatur tanpa deploy:
 - **Peta & toko**: nama, posisi, warna bangunan, tampil/sembunyi, toko yang membeli barang pemain.
 - **Ekonomi & fitur**: modal awal, kurva level, laju kebutuhan, hadiah & cooldown aksi, hadiah harian, lomba, kolam, kebun, ukuran ruangan, barang awal, notifikasi otomatis, nyala/matikan fitur dan metode login.
 - **Notifikasi**: kirim sekarang atau jadwalkan ke semua pemain, yang aktif 7 hari, yang tidak aktif, pembeli, atau tamu.
-- **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Admin**.
+- **Pusat notifikasi**, **Broadcast**, **Email**, **WhatsApp**, **Paket Mutiara**, **Pengumuman**, **Pemain**, **Pembayaran**, **Moderasi kata**, **Media**, **Log audit**, **Admin**.
 
 Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server), lalu disimpan di HP pemain untuk dipakai offline.
 
@@ -101,23 +101,42 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 - **Email OTP**: dikirim lewat Mailketing, lihat bagian Email di bawah.
 - **Facebook** (opsional): isi `FACEBOOK_APP_ID` dan `FACEBOOK_APP_SECRET`. Sistem teman tetap memakai kode/link, karena Facebook hanya memberi daftar teman yang juga memakai aplikasi.
 
-## Email (Mailketing)
+## Notifikasi: Pusat notifikasi, email & WhatsApp
 
-Semua email dikirim lewat [Mailketing](https://mailketing.co.id/docs/send-email-via-api/) API v2 (1 email = 1 kredit): kode masuk, dan salinan notifikasi game ke email pemain.
+Semua notifikasi diatur dari admin → **Pusat notifikasi**, tanpa deploy:
+
+- Daftar 18 jenis notifikasi (pembayaran, pesan admin, broadcast, event, kebun, pet, harian, teman, akun). Tiap jenis bisa dinyalakan/dimatikan, dan tiap saluran dipilih sendiri: **kotak masuk** di game, **push** HP, **email**, **WhatsApp**.
+- Teks bisa diubah dengan variabel, mis. `{pet} lapar. Ada makanan di tasmu?`. Klik variabel untuk menyisipkan. Variabel yang salah ketik ditandai. Pratinjau push, email, dan WhatsApp tampil langsung dengan contoh isian, dan bisa **kirim uji** ke email/nomor admin.
+- **Kembalikan ke bawaan** per jenis. Yang disimpan hanya bagian yang diubah.
+- Kartu **Saluran**: email & WhatsApp nyala/mati, batas pesan per pemain per hari, dan **jam tenang** WhatsApp (bawaan 21.00–07.00 WIB; pesan biasa ditunda sampai pagi).
+- Notifikasi **penting** (bukti pembelian, pesan admin, kode) tidak dihitung batas harian dan tidak ditunda jam tenang. Kode masuk & kode verifikasi WhatsApp tidak bisa dimatikan, tapi teksnya bisa diubah.
+- Ambang & jeda (kebutuhan pet, jam pengingat harian, jeda kunjungan) ada di Ekonomi & fitur › Waktu notifikasi otomatis.
+- Pemain bisa mematikan kategori, email, atau WhatsApp di Pengaturan game.
+
+### Email (Mailketing)
+
+Semua email dikirim lewat [Mailketing](https://mailketing.co.id/docs/send-email-via-api/) API v2 (1 email = 1 kredit).
 
 1. Di Mailketing: tambahkan domain pengirim di **Setup Domain** sampai aktif, lalu salin token dari **Integrasi → Email Application API**.
-2. Isi di `.env`, lalu `docker compose up -d`:
-   ```
-   MAILKETING_API_TOKEN=…
-   MAIL_FROM=Kampung Bulu <noreply@domainmu>
-   ```
-3. Buka admin → **Email**: lihat sisa kredit, klik **Kirim email uji**, lalu salin **URL webhook** ke Mailketing → Integrasi → WebHook (kolom Bounce dan Unsubscribe). Alamat yang bounce otomatis tidak dikirimi lagi.
+2. Isi `MAILKETING_API_TOKEN` dan `MAIL_FROM=Kampung Bulu <noreply@domainmu>` di `.env`, lalu `docker compose up -d`.
+3. Admin → **Email**: lihat sisa kredit, **Kirim email uji**, lalu salin **URL webhook** ke Mailketing → Integrasi → WebHook (kolom Bounce dan Unsubscribe). Alamat yang bounce otomatis tidak dikirimi lagi.
 
-Notifikasi mana yang ikut ke email diatur di admin → Ekonomi & fitur → **Email notifikasi**. Bawaannya: pembayaran & pesan admin (`system`) dan event (`events`) aktif; kebun, pet, harian, dan teman mati supaya kredit tidak boros. Ada juga batas `maxPerDay` per pemain (di luar pembayaran). Broadcast dari halaman Notifikasi punya centang **Kirim juga ke email** beserta perkiraan kreditnya.
+Hanya pemain yang menautkan email/Google yang menerima email. Setiap email punya tautan berhenti langganan. Isi email kode masuk tidak disimpan; isi email notifikasi dihapus dari database setelah terkirim.
 
-- Hanya pemain yang sudah menautkan email/Google yang menerima email. Pemain bisa mematikannya di Pengaturan game, atau lewat tautan **Berhenti menerima email notifikasi** di setiap email.
-- Kode masuk dikirim langsung. Notifikasi lewat antrean: dicoba langsung, lalu worker mengulang bila Mailketing gangguan atau kredit habis (2 mnt → 6 jam, maks. 6 kali). Setelah isi kredit, klik **Kirim ulang yang tertunda** di admin → Email.
-- Isi email kode masuk tidak disimpan; isi email notifikasi dihapus dari database setelah terkirim.
+### WhatsApp (Klik Flow)
+
+WhatsApp dikirim lewat [Klik Flow](https://klikflow.id/docs/api) API v2.
+
+1. Di Klik Flow: Pengaturan › API & Webhook › **Buat kunci** dengan izin `messages:send`, `business:read`, `templates:read` (dan `messages:new` untuk WhatsApp scan QR ke nomor baru). Mulai dengan kunci tes `kf_test_…` dan daftarkan nomor uji (maks. 5).
+2. Isi `KLIKFLOW_API_KEY` di `.env`, lalu `docker compose up -d`.
+3. Admin → **WhatsApp**: pilih saluran dan nomor pengirim.
+   - **Scan QR**: teks bebas dari Pusat notifikasi.
+   - **WhatsApp Official**: di luar 24 jam hanya template yang disetujui. Pilih template Autentikasi untuk kode verifikasi, lalu di Pusat notifikasi pilih template + isi variabelnya untuk tiap jenis yang dikirim ke WhatsApp.
+4. Dengan kunci live, klik **Daftarkan webhook** (status sampai/dibaca/gagal dan balasan STOP/MULAI). Dengan kunci tes, isi URL webhook manual di Klik Flow dan salin secret-nya ke `KLIKFLOW_WEBHOOK_SECRET`.
+
+Pemain menyambungkan nomor di Pengaturan game, lalu memasukkan kode 6 angka yang dikirim ke WhatsApp itu. Satu nomor hanya untuk satu akun. Balasan **STOP** ke nomor bisnis mematikan WhatsApp pemain itu, dan **MULAI** menyalakan lagi. Broadcast punya pilihan **Kirim juga ke WhatsApp**.
+
+Pengiriman email & WhatsApp lewat antrean: dicoba langsung, lalu worker mengulang bila penyedia gangguan, kredit/kuota habis, atau nomor dijeda (2 mnt → 6 jam, maks. 6 kali). Tombol **Kirim ulang yang tertunda** ada di halaman Email dan WhatsApp.
 
 ## Pembayaran QRIS (ZePay)
 
@@ -183,7 +202,7 @@ sudo bash deploy/install.sh amt.ai.id
 
 - Update ke versi terbaru: `bash deploy/update.sh`
 - Lihat log: `docker compose logs -f app`
-- Ubah konfigurasi (Google, Mailketing, ZePay): edit `.env`, lalu `docker compose up -d`
+- Ubah konfigurasi (Google, Mailketing, Klik Flow, ZePay): edit `.env`, lalu `docker compose up -d`
 - Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
 
 ## Pengujian
@@ -192,7 +211,7 @@ sudo bash deploy/install.sh amt.ai.id
 npm test
 ```
 
-37 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), email Mailketing terhadap server Mailketing tiruan (kode masuk, notifikasi & escape isi, berhenti langganan, jenis & batas harian, broadcast email, webhook bounce, kredit habis & kirim ulang), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
+43 uji API (PGlite di memori): login & moderasi nama, makan/mandi/cooldown, beli dengan idempotensi, validasi ruangan (barang tak dimiliki, bertumpuk, versi lama), teman, kunjungan & hadiah, kebun, anti-curang lomba karung, kolam, hadiah harian, pembelian Mutiara mock + kredit tidak dobel, tanda tangan Midtrans, QRIS ZePay terhadap server ZePay tiruan (tanda tangan request & webhook, QR dipakai ulang, kredit sekali, cek status cadangan, batal, gateway gangguan, simulasi admin, worker QR kedaluwarsa), email Mailketing terhadap server Mailketing tiruan (kode masuk, notifikasi & escape isi, berhenti langganan, jenis & batas harian, broadcast email, webhook bounce, kredit habis & kirim ulang), Pusat notifikasi (matikan/ubah teks/saluran/reset, migrasi saklar lama, kunci login), WhatsApp Klik Flow terhadap server tiruan (verifikasi nomor, kunci tes, template Official & OTP, jam tenang, batas harian, nomor dijeda, webhook bertanda tangan, STOP/MULAI, status gagal, broadcast), peran admin, blokir, notifikasi (kotak masuk, worker kebun, broadcast, preferensi), dan pengiriman Web Push terenkripsi ke endpoint tiruan.
 
 Uji alur di viewport HP (butuh server jalan dan Playwright):
 
@@ -214,6 +233,7 @@ npm run test:e2e
 
 - Uji push di HP Android dan iPhone sungguhan setelah deploy HTTPS.
 - Aktifkan domain pengirim di Mailketing, kirim email uji dari admin, dan pasang URL webhook bounce.
+- Uji WhatsApp Klik Flow dengan kunci tes & nomor uji, siapkan template Official bila memakai WhatsApp Official, lalu ganti ke kunci live dan daftarkan webhook.
 - Uji QRIS ZePay dengan kunci mode uji dari awal sampai akhir, lalu ganti ke kunci live dan bayar satu paket kecil sungguhan.
 - Cek merek "Kampung Bulu" di PDKI, atau pilih nama final.
 - Halaman Kebijakan Privasi dan Syarat Layanan (wajib untuk login Google/Facebook dan pembayaran).

@@ -299,7 +299,8 @@ test('push: server mengirim Web Push terenkripsi dan menghapus langganan yang ma
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   const { createECDH, randomBytes } = await import('node:crypto');
-  const { notify, setPushAgent } = await import('../src/lib/push');
+  const { setPushAgent } = await import('../src/lib/push');
+  const { notifyEvent } = await import('../src/lib/notify');
   // sertifikat lokal sementara untuk endpoint push tiruan
   const dir = mkdtempSync(join(tmpdir(), 'kbpush-'));
   execFileSync('openssl', ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-days', '1', '-subj', '/CN=127.0.0.1', '-addext', 'subjectAltName=IP:127.0.0.1', '-keyout', join(dir, 'k.pem'), '-out', join(dir, 'c.pem')], { stdio: 'ignore' });
@@ -320,7 +321,7 @@ test('push: server mengirim Web Push terenkripsi dan menghapus langganan yang ma
     const ecdh = createECDH('prime256v1');
     ecdh.generateKeys();
     await db.query(`insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1,$2,$3,$4)`, [me.user.id, `https://127.0.0.1:${port}/push/abc`, ecdh.getPublicKey().toString('base64url'), randomBytes(16).toString('base64url')]);
-    await notify(db, me.user.id, { kind: 'garden', title: 'Kebun siap dipanen', body: 'Tomat siap.', url: '/#garden' });
+    await notifyEvent(db, me.user.id, 'garden_ready', { tanaman: 'Tomat', jumlah: 1 });
     assert.equal(got.length, 1);
     assert.equal(got[0].headers['content-encoding'], 'aes128gcm');
     assert.match(String(got[0].headers.authorization), /^vapid t=/);
@@ -328,11 +329,11 @@ test('push: server mengirim Web Push terenkripsi dan menghapus langganan yang ma
     assert.ok((await db.one(`select last_ok_at from push_subscriptions where user_id = $1`, [me.user.id])).last_ok_at);
     // preferensi dimatikan: tetap masuk kotak notifikasi, tapi tidak dikirim ke HP
     await c.post('/api/notify/prefs', { prefs: { garden: false } });
-    await notify(db, me.user.id, { kind: 'garden', title: 'Kebun lagi', body: 'x' });
+    await notifyEvent(db, me.user.id, 'garden_ready', { tanaman: 'Tomat', jumlah: 1 });
     assert.equal(got.length, 1);
     // endpoint mati (410) dihapus
     status = 410;
-    await notify(db, me.user.id, { kind: 'social', title: 'Hadiah', body: 'x' });
+    await notifyEvent(db, me.user.id, 'gift', { teman: 'Budi', pesan: '' });
     assert.equal(got.length, 2);
     assert.equal(await db.one(`select 1 from push_subscriptions where user_id = $1`, [me.user.id]), undefined);
   } finally {

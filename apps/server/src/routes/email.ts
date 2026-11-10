@@ -5,7 +5,8 @@ import { config } from '../config';
 import { bad, notFound } from '../lib/core';
 import { audit, requireAdmin } from '../lib/auth';
 import { email as vEmail } from '../lib/validate';
-import { checkUnsub, checkWebhookKey, deliver, mailEnabled, mailFrom, mailketingCredits, testEmail, webhookPath } from '../lib/mail';
+import { checkUnsub, checkWebhookKey, mailEnabled, mailFrom, mailketingCredits, testEmail, webhookPath } from '../lib/mail';
+import { deliver } from '../lib/outbox';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -53,7 +54,7 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
         [addr, type, detail],
       );
       if (type === 'bounce' && typeof b.message_id === 'string') {
-        await db.query(`update email_outbox set error = $2 where message_id = $1`, [b.message_id, `bounce: ${detail ?? '-'}`]);
+        await db.query(`update outbox set error = $2, delivery = 'bounce' where channel = 'email' and message_id = $1`, [b.message_id, `bounce: ${detail ?? '-'}`]);
       }
       req.log.info({ type }, 'mailketing: alamat email ditandai tidak dikirimi lagi');
     }
@@ -71,10 +72,10 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
                 count(*) filter (where status = 'sent' and sent_at >= $1)::int sent24,
                 count(*) filter (where status = 'failed' and created_at >= $1)::int failed24,
                 (select count(*)::int from email_suppressions) suppressed
-           from email_outbox`,
+           from outbox where channel = 'email'`,
         [since],
       ),
-      db.query(`select id, to_email, kind, subject, status, attempts, error, created_at, sent_at from email_outbox order by id desc limit 50`),
+      db.query(`select id, to_addr, kind, subject, status, attempts, error, delivery, created_at, sent_at from outbox where channel = 'email' order by id desc limit 50`),
       db.query(`select email, reason, detail, created_at from email_suppressions order by created_at desc limit 100`),
       db.one<{ value: any }>(`select value from settings where key = 'mail_status'`),
     ]);
@@ -96,9 +97,9 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
     if (!mailEnabled()) throw bad('mail_off', 'Isi MAILKETING_API_TOKEN di .env lalu restart server.');
     const to = vEmail(req.body?.to ?? req.admin!.email);
     const m = testEmail();
-    const r = await db.one<{ id: string }>(`insert into email_outbox (to_email, kind, subject, html) values ($1,'test',$2,$3) returning id`, [to, m.subject, m.html]);
+    const r = await db.one<{ id: string }>(`insert into outbox (channel, to_addr, kind, subject, body) values ('email',$1,'test',$2,$3) returning id`, [to, m.subject, m.html]);
     await deliver(db, { ids: [Number(r!.id)], log: req.log });
-    const row = await db.one<{ status: string; error: string | null; message_id: string | null }>(`select status, error, message_id from email_outbox where id = $1`, [r!.id]);
+    const row = await db.one<{ status: string; error: string | null; message_id: string | null }>(`select status, error, message_id from outbox where id = $1`, [r!.id]);
     await audit(db, req, 'email_test', to, { status: row?.status });
     if (row?.status !== 'sent') throw bad('mail_error', 'Mailketing menolak: ' + (row?.error ?? 'tidak diketahui'));
     return { ok: true, messageId: row.message_id };
@@ -115,8 +116,8 @@ export default async function emailRoutes(app: FastifyInstance, { db }: { db: Db
   /* Kirim ulang email notifikasi yang gagal dalam 24 jam terakhir (mis. setelah kredit diisi). */
   app.post('/api/admin/email/retry', adm, async (req: any) => {
     const rows = await db.query(
-      `update email_outbox set status = 'queued', next_at = now(), attempts = 0, error = null
-        where status = 'queued' and next_at > now() returning id`,
+      `update outbox set status = 'queued', next_at = now(), attempts = 0, error = null
+        where channel = 'email' and status = 'queued' and next_at > now() returning id`,
     );
     await audit(db, req, 'email_retry', String(rows.length));
     void deliver(db, { log: req.log }).catch(() => {});

@@ -71,15 +71,10 @@ export const DEFAULT_SETTINGS = {
     floor: 'fl-papan',
   },
   notify: {
-    gardenReady: true,
-    needsLow: true,
     needsThreshold: 25,
     needsEveryHours: 8,
-    dailyReminder: true,
     dailyHourWib: 19,
-    socialVisits: true,
     visitThrottleMin: 60,
-    giftsAndFriends: true,
   },
   features: {
     quests: true,
@@ -93,16 +88,6 @@ export const DEFAULT_SETTINGS = {
     karung: true,
     fishing: true,
     gifts: true,
-  },
-  email: {
-    enabled: true,
-    system: true,
-    events: true,
-    social: false,
-    garden: false,
-    needs: false,
-    daily: false,
-    maxPerDay: 3,
   },
 };
 
@@ -119,12 +104,11 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   fishing: 'Kolam Pancing: jatah lempar per hari, jeda gigitan, dan lama jendela tarik (ms).',
   garden: 'Jumlah petak kebun dan XP panen.',
   room: 'Ukuran ruangan (petak) dan batas jumlah barang terpasang.',
-  notify: 'Notifikasi otomatis ke HP: kebun siap panen, pet butuh perhatian (ambang & jeda jam), pengingat hadiah harian (jam WIB), kunjungan & hadiah teman.',
+  notify: 'Waktu notifikasi otomatis: ambang kebutuhan pet & jeda jam, jam pengingat hadiah harian (WIB), jeda notifikasi kunjungan (menit). Nyala/mati dan teks tiap notifikasi diatur di Pusat notifikasi.',
   games: 'Mini-game Balai Main. Panen Buah: hadiah = skor × koin per poin (maks maxCoins). Ingat Jajanan: hadiah koin untuk 1, 2, dan 3 bintang.',
   quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',
   starter: 'Barang awal pemain baru: isi tas, susunan ruangan, dinding, dan lantai (pakai ID item).',
   features: 'Nyalakan atau matikan fitur dan metode login.',
-  email: 'Notifikasi yang ikut dikirim ke email pemain lewat Mailketing (1 email = 1 kredit). system = pembayaran & pesan admin, events = event musiman. maxPerDay = batas email per pemain per hari di luar pembayaran. Broadcast dipilih per broadcast di halaman Notifikasi.',
 };
 
 export function mergeSettings(base: any, over: any): any {

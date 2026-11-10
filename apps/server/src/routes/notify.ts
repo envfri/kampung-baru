@@ -2,8 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index';
 import { bad, notFound } from '../lib/core';
 import { audit, requireAdmin, requireUser } from '../lib/auth';
-import { notify, PREF_KINDS, vapidPublicKey } from '../lib/push';
+import { PREF_KINDS, vapidPublicKey } from '../lib/push';
+import { notifyEvent } from '../lib/notify';
 import { emailableUsers, mailEnabled } from '../lib/mail';
+import { waEnabled } from '../lib/klikflow';
 import { runJobs } from '../lib/worker';
 import { isoDate, obj, oneOf, str } from '../lib/validate';
 
@@ -37,7 +39,7 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
 
   app.post('/api/push/test', { ...auth, config: { rateLimit: { max: 5, timeWindow: '10 minutes' } } }, async (req: any) => {
     const n = (await db.one<{ c: number }>(`select count(*)::int c from push_subscriptions where user_id = $1`, [req.user!.id]))!.c;
-    await notify(db, req.user!.id, { kind: 'system', title: 'Notifikasi aktif', body: 'Kamu akan dikabari saat kebun siap panen, ada hadiah teman, dan lainnya.', url: '/' }, req.log);
+    await notifyEvent(db, req.user!.id, 'push_test', {}, { log: req.log });
     return { ok: true, devices: n };
   });
 
@@ -54,7 +56,7 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
   app.post('/api/notify/prefs', auth, async (req: any) => {
     const b = obj(req.body?.prefs, 'Preferensi');
     const prefs: Record<string, boolean> = {};
-    for (const k of [...PREF_KINDS, 'email']) if (k in b) prefs[k] = b[k] === true;
+    for (const k of [...PREF_KINDS, 'email', 'whatsapp']) if (k in b) prefs[k] = b[k] === true;
     const r = await db.one<{ notify_prefs: any }>(`update users set notify_prefs = notify_prefs || $2::text::jsonb where id = $1 returning notify_prefs`, [req.user!.id, JSON.stringify(prefs)]);
     return { ok: true, prefs: r?.notify_prefs ?? {} };
   });
@@ -62,14 +64,18 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
   /* ---------------- admin ---------------- */
 
   app.get('/api/admin/broadcasts', { preHandler: requireAdmin(db, 'admin') }, async () => {
-    const [list, devices, users, sent7, emailUsers] = await Promise.all([
+    const [list, devices, users, sent7, emailUsers, waUsers] = await Promise.all([
       db.query(`select * from broadcasts order by id desc limit 100`),
       db.one<{ c: number }>(`select count(*)::int c from push_subscriptions`),
       db.one<{ c: number }>(`select count(distinct user_id)::int c from push_subscriptions`),
       db.one<{ c: number }>(`select coalesce(sum(pushed),0)::int c from broadcasts where sent_at > now() - interval '7 days'`),
       mailEnabled() ? emailableUsers(db) : Promise.resolve(0),
+      db.one<{ c: number }>(`select count(*)::int c from users where wa_verified_at is not null and banned_at is null and coalesce((notify_prefs->>'whatsapp')::boolean, true)`),
     ]);
-    return { broadcasts: list, stats: { devices: devices?.c ?? 0, users: users?.c ?? 0, sent7: sent7?.c ?? 0, emailUsers, emailEnabled: mailEnabled() } };
+    return {
+      broadcasts: list,
+      stats: { devices: devices?.c ?? 0, users: users?.c ?? 0, sent7: sent7?.c ?? 0, emailUsers, emailEnabled: mailEnabled(), waUsers: waUsers?.c ?? 0, waEnabled: waEnabled() },
+    };
   });
 
   app.post('/api/admin/broadcasts', { preHandler: requireAdmin(db, 'admin') }, async (req: any) => {
@@ -79,11 +85,12 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
     const segment = oneOf(req.body?.segment ?? 'all', 'Penerima', SEGMENTS);
     const sendAt = isoDate(req.body?.sendAt, 'Jadwal', true) ?? new Date();
     const email = req.body?.email === true && mailEnabled();
+    const whatsapp = req.body?.whatsapp === true && waEnabled();
     const r = await db.one<{ id: number }>(
-      `insert into broadcasts (title, body, url, segment, send_at, created_by, email) values ($1,$2,$3,$4,$5,$6,$7) returning id`,
-      [title, body, url, segment, sendAt, req.admin!.email, email],
+      `insert into broadcasts (title, body, url, segment, send_at, created_by, email, whatsapp) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
+      [title, body, url, segment, sendAt, req.admin!.email, email, whatsapp],
     );
-    await audit(db, req, 'broadcast_create', String(r!.id), { title, segment, sendAt, email });
+    await audit(db, req, 'broadcast_create', String(r!.id), { title, segment, sendAt, email, whatsapp });
     if (sendAt.getTime() <= Date.now() + 1000) void runJobs(db, req.log).catch((e) => req.log.error(e));
     return { ok: true, id: r!.id };
   });
@@ -99,7 +106,7 @@ export default async function notifyRoutes(app: FastifyInstance, { db }: { db: D
     const id = String(req.params.id);
     const title = str(req.body?.title, 'Judul', { min: 2, max: 60 })!;
     const body = str(req.body?.body, 'Isi', { min: 2, max: 160 })!;
-    await notify(db, id, { kind: 'system', title, body, url: '/' }, req.log);
+    await notifyEvent(db, id, 'admin_message', { judul: title, isi: body }, { log: req.log });
     await audit(db, req, 'player_notify', id, { title });
     return { ok: true };
   });

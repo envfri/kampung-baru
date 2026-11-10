@@ -8,6 +8,8 @@ import { createSession, createUser, destroySession, loadUser, requireUser } from
 import { playerState } from '../lib/state';
 import { email as vEmail, str } from '../lib/validate';
 import { mailEnabled, sendOtp } from '../lib/mail';
+import { waEnabled } from '../lib/klikflow';
+import { getChannels } from '../lib/notify-config';
 
 let googleJwks: any = null;
 
@@ -50,6 +52,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
       payments: f.payments ? config.paymentProvider : null,
       paymentsTest: config.paymentProvider === 'zepay' && zepayMode() === 'test',
       email: mailEnabled(),
+      whatsapp: waEnabled() && (await getChannels(db)).whatsapp.enabled,
       midtransClientKey: config.paymentProvider === 'midtrans' ? config.midtransClientKey : null,
       midtransProduction: config.midtransProduction,
     };

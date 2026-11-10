@@ -21,6 +21,8 @@
   import Account from './pages/Account.svelte';
   import Quests from './pages/Quests.svelte';
   import Email from './pages/Email.svelte';
+  import NotifyCenter from './pages/NotifyCenter.svelte';
+  import WhatsApp from './pages/WhatsApp.svelte';
 
   const NAV = [
     { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', min: 'moderator', C: Dashboard }] },
@@ -33,8 +35,10 @@
       { k: 'media', label: 'Media', min: 'moderator', C: Media },
     ] },
     { group: 'Komunikasi', items: [
-      { k: 'broadcasts', label: 'Notifikasi', min: 'admin', C: Broadcasts },
+      { k: 'notifcenter', label: 'Pusat notifikasi', min: 'moderator', C: NotifyCenter },
+      { k: 'broadcasts', label: 'Broadcast', min: 'admin', C: Broadcasts },
       { k: 'email', label: 'Email', min: 'admin', C: Email },
+      { k: 'whatsapp', label: 'WhatsApp', min: 'admin', C: WhatsApp },
       { k: 'announcements', label: 'Pengumuman', min: 'moderator', C: Announcements },
     ] },
     { group: 'Pemain & uang', items: [

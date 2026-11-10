@@ -1,15 +1,16 @@
 // Status pembayaran Mutiara: kredit tepat sekali, penutupan, dan sinkron dengan ZePay.
 import type { Db } from '../db/index';
 import { credit, track } from './core';
-import { notify } from './push';
+import { notifyEvent } from './notify';
 import { zepay, zepayMode, type ZePayment } from './zepay';
 
 /** Tandai pembayaran lunas dan kreditkan Mutiara tepat sekali. */
 export async function markPaid(db: Db, paymentId: string, raw?: unknown) {
-  let paid: { user_id: string; pearls: number; amount_idr: number } | null = null;
+  type Paid = { user_id: string; pearls: number; amount_idr: number; invoice: string | null };
+  let paid: Paid | null = null;
   const done = await db.tx(async (t) => {
-    const p = await t.one<{ user_id: string; pearls: number; amount_idr: number }>(
-      `update payments set status = 'paid', paid_at = now(), raw = coalesce($2::text::jsonb, raw) where id = $1 and status <> 'paid' returning user_id, pearls, amount_idr`,
+    const p = await t.one<Paid>(
+      `update payments set status = 'paid', paid_at = now(), raw = coalesce($2::text::jsonb, raw) where id = $1 and status <> 'paid' returning user_id, pearls, amount_idr, invoice`,
       [paymentId, raw === undefined ? null : JSON.stringify(raw)],
     );
     if (!p) return false;
@@ -19,14 +20,12 @@ export async function markPaid(db: Db, paymentId: string, raw?: unknown) {
     return true;
   });
   if (paid) {
-    const p = paid as { user_id: string; pearls: number; amount_idr: number };
-    void notify(db, p.user_id, {
-      kind: 'system',
-      title: 'Mutiara masuk',
-      body: `+${p.pearls} Mutiara (Rp${p.amount_idr.toLocaleString('id-ID')}) sudah ada di dompetmu. Terima kasih!`,
-      url: '/#pearls',
-      tag: 'payment',
-    });
+    const p = paid as Paid;
+    void notifyEvent(db, p.user_id, 'payment_paid', {
+      mutiara: p.pearls,
+      nominal: 'Rp' + p.amount_idr.toLocaleString('id-ID'),
+      invoice: p.invoice ?? paymentId.slice(0, 8).toUpperCase(),
+    }, { tag: 'payment' });
   }
   return done;
 }

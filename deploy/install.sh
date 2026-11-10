@@ -61,6 +61,9 @@ GOOGLE_CLIENT_ID=
 # Email lewat Mailketing (token dari Integrasi → Email Application API; domain $DOMAIN harus aktif di Setup Domain)
 MAILKETING_API_TOKEN=
 MAIL_FROM=Kampung Bulu <noreply@$DOMAIN>
+# WhatsApp lewat Klik Flow (kunci dari Pengaturan › API & Webhook)
+KLIKFLOW_API_KEY=
+KLIKFLOW_WEBHOOK_SECRET=
 # PERHATIAN: mock = pembelian Mutiara simulasi (gratis). Sebelum dibuka untuk umum: ganti ke zepay,
 # isi kunci ZePay, docker compose up -d, lalu daftarkan webhook dari admin → Pembayaran.
 PAYMENT_PROVIDER=mock

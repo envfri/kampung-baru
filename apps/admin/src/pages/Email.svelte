@@ -2,11 +2,12 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { A, err, toast, dt, num } from '../lib/store.svelte';
+  import { NOTIFY_EVENT_BY_KEY } from '@kb/shared';
   let d = $state<any>(null), busy = $state(false), to = $state(''), filter = $state('');
   async function load() { try { d = await api.get('/api/admin/email'); } catch (e) { err(e); } }
   onMount(() => { to = A.me?.admin?.email ?? ''; load(); });
 
-  const KIND: Record<string, string> = { otp: 'Kode masuk', test: 'Uji', system: 'Sistem & pembayaran', events: 'Event & broadcast', social: 'Teman', garden: 'Kebun', needs: 'Pet', daily: 'Harian' };
+  const kindLabel = (k: string) => NOTIFY_EVENT_BY_KEY[k]?.label ?? (k === 'test' ? 'Uji' : k);
   const ST: Record<string, string> = { queued: '<span class="chip warn">Antre</span>', sending: '<span class="chip warn">Mengirim</span>', sent: '<span class="chip">Terkirim</span>', failed: '<span class="chip no">Gagal</span>' };
   const rows = $derived((d?.recent ?? []).filter((r: any) => !filter || r.status === filter));
 
@@ -27,7 +28,7 @@
 </script>
 
 <h1>Email</h1>
-<p class="muted">Kode masuk dan notifikasi pemain dikirim lewat Mailketing (1 email = 1 kredit). Jenis notifikasi yang ikut ke email dan batas per hari diatur di <b>Ekonomi & fitur › Email notifikasi</b>; broadcast dipilih per kiriman di halaman Notifikasi.</p>
+<p class="muted">Kode masuk dan notifikasi pemain dikirim lewat Mailketing (1 email = 1 kredit). Jenis notifikasi yang ikut ke email, teksnya, dan batas per hari diatur di <b>Pusat notifikasi</b>; broadcast dipilih per kiriman di halaman Broadcast.</p>
 
 {#if !d}
   <p class="muted">Memuat…</p>
@@ -69,7 +70,7 @@ MAIL_FROM=Kampung Bulu &lt;noreply@domainmu&gt;</pre>
   <div class="tbl"><table>
     <thead><tr><th>Waktu</th><th>Kepada</th><th>Jenis</th><th>Judul</th><th>Status</th><th>Keterangan</th></tr></thead>
     <tbody>{#each rows as r (r.id)}<tr>
-      <td>{dt(r.sent_at ?? r.created_at)}</td><td class="mono">{r.to_email}</td><td>{KIND[r.kind] ?? r.kind}</td><td>{r.subject}</td>
+      <td>{dt(r.sent_at ?? r.created_at)}</td><td class="mono">{r.to_addr}</td><td>{kindLabel(r.kind)}</td><td>{r.subject}</td>
       <td>{@html ST[r.status] ?? r.status}</td><td class="muted">{r.error ?? (r.attempts > 1 ? `${r.attempts}× coba` : '')}</td>
     </tr>{:else}<tr><td colspan="6" class="muted">Belum ada email.</td></tr>{/each}</tbody>
   </table></div>

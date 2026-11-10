@@ -5,7 +5,7 @@ import { requireUser } from '../lib/auth';
 import { petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
-import { notify } from '../lib/push';
+import { eventOn, notifyEvent } from '../lib/notify';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -50,7 +50,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       await t.query(`insert into friendships (user_id, friend_id) values ($1,$2),($2,$1) on conflict do nothing`, [me.id, other.id]);
     });
     await track(db, me.id, 'friend_added');
-    if (s.notify.giftsAndFriends) void notify(db, other.id, { kind: 'social', title: 'Teman baru', body: `${me.display_name} menambahkanmu sebagai teman. Kunjungi rumahnya, yuk!`, url: '/#friends', tag: 'friend' }, req.log);
+    void notifyEvent(db, other.id, 'friend_added', { teman: me.display_name }, { log: req.log });
     return { ok: true, friend: other };
   });
 
@@ -97,14 +97,14 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       await track(t, me.id, 'visit', { host: id });
       return { ok: true, coins, xp: s.social.visitXp, ...(await patch(t, me.id, ['wallet', 'pet'])) };
     }).then(async (res) => {
-      if (s.notify.socialVisits) {
+      if (await eventOn(db, 'visit')) {
         // maksimal satu notifikasi kunjungan per jeda waktu per tuan rumah
         const ok = await db.one(
           `insert into cooldowns (user_id, key, until) values ($1, 'notif_visit', now() + ($2::int * interval '1 minute'))
            on conflict (user_id, key) do update set until = excluded.until where cooldowns.until < now() returning 1 as ok`,
           [id, s.notify.visitThrottleMin],
         );
-        if (ok) void notify(db, id, { kind: 'social', title: 'Ada tamu!', body: `${me.display_name} mampir ke rumahmu.`, url: '/#friends', tag: 'visit' }, req.log);
+        if (ok) void notifyEvent(db, id, 'visit', { teman: me.display_name }, { log: req.log });
       }
       return res;
     });
@@ -141,7 +141,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       await track(t, me.id, 'gift_sent', { itemId });
       return { ok: true, ...(await patch(t, me.id, ['inventory'])) };
     }).then((res) => {
-      if (s.notify.giftsAndFriends) void notify(db, to, { kind: 'social', title: 'Kamu dapat hadiah', body: `${me.display_name} mengirim hadiah${message ? `: “${message}”.` : '.'} Buka di menu Teman.`, url: '/#friends', tag: 'gift' }, req.log);
+      void notifyEvent(db, to, 'gift', { teman: me.display_name, pesan: message ? `: “${message}”` : '' }, { log: req.log });
       return res;
     });
   });

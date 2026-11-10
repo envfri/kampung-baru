@@ -6,7 +6,7 @@
   let busy = $state(false);
   let jsonErr = $state<Record<string, string>>({});
   const editable = $derived(can('admin'));
-  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Notifikasi otomatis', quests: 'Tugas', email: 'Email notifikasi' };
+  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Waktu notifikasi otomatis', quests: 'Tugas' };
   onMount(async () => { try { const r = await api.get('/api/admin/settings'); value = r.value; help = r.help; defaults = r.defaults; } catch (e) { err(e); } });
 
   // daftar field datar untuk satu bagian (angka/boolean), objek kompleks diedit sebagai JSON

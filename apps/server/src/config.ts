@@ -22,6 +22,10 @@ export const config = {
   // email (kode masuk & notifikasi) lewat Mailketing API v2 (https://mailketing.co.id/docs/send-email-via-api/)
   mailketingToken: env.MAILKETING_API_TOKEN ?? '',
   mailketingBaseUrl: (env.MAILKETING_BASE_URL ?? 'https://api.mailketing.co.id').replace(/\/$/, ''),
+  // WhatsApp lewat Klik Flow API v2 (https://klikflow.id/docs/api): kunci kf_live_… atau kf_test_…
+  klikflowKey: env.KLIKFLOW_API_KEY ?? '',
+  klikflowBaseUrl: (env.KLIKFLOW_BASE_URL ?? 'https://klikflow.id').replace(/\/$/, ''),
+  klikflowWebhookSecret: env.KLIKFLOW_WEBHOOK_SECRET ?? '',
   // pengirim; domainnya harus sudah aktif di Mailketing → Setup Domain
   mailFrom: env.MAIL_FROM ?? 'Kampung Bulu <noreply@kampungbulu.local>',
   // pembayaran: zepay (QRIS) | midtrans | mock
