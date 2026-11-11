@@ -11,7 +11,12 @@
     if (confirm !== r.id) { confirm = r.id; sfx.tap(); return; }
     confirm = '';
     const res: any = await run(() => api.post('/api/room/expand', { roomId: r.id }));
-    if (res) { sfx.level(); toast(`${r.name} sekarang ${res.size}×${res.size}. Lebih lega untuk main bareng teman!`, 'good'); }
+    if (res) {
+      sfx.level();
+      toast(`${r.name} sekarang ${res.size}×${res.size}. Lebih lega untuk main bareng teman!`, 'good');
+      // ruangan yang membesar menabrak ruangan lain di denah buatanmu: denah kembali tersusun otomatis
+      if (res.planReset) setTimeout(() => toast('Denah rumah kembali tersusun otomatis karena ruangannya membesar. Atur lagi di Rumahku › Atur denah.'), 2600);
+    }
   }
 </script>
 

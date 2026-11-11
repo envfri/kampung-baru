@@ -1,9 +1,11 @@
-// Denah rumah tersambung: semua ruangan disusun otomatis jadi satu rumah isometrik.
-// Ruangan dalam (kamar, ruang tamu, dapur, ...) dirapatkan supaya rumahnya kotak & padat; halaman di depan rumah.
+// Denah rumah tersambung: semua ruangan disusun jadi satu rumah isometrik.
+// Pemain bisa mengatur letak ruangan sendiri (gx, gy tersimpan); ruangan yang belum diatur (mis. baru dibeli) disusun
+// otomatis: ruangan dalam (kamar, ruang tamu, dapur, ...) dirapatkan supaya rumahnya kotak & padat; halaman di depan rumah.
 // Dua ruangan yang bersebelahan dipisah dinding rendah dengan satu pintu. Dinding tinggi (berjendela & berlukisan)
 // hanya di sisi belakang rumah, supaya tidak menutupi ruangan lain.
 
-export interface HouseRoomIn { id: string; size: number; theme?: string | null }
+/** gx, gy: letak yang diatur pemain (boleh kosong = disusun otomatis) */
+export interface HouseRoomIn { id: string; size: number; theme?: string | null; gx?: number | null; gy?: number | null }
 /** jenis tiap petak dinding belakang ruangan */
 export type WallKind = 'tall' | 'low' | 'part' | 'door';
 export interface WallSeg { k: WallKind; by?: string }
@@ -52,10 +54,53 @@ function sharedEdge(a: { gx: number; gy: number; s: number }, b: { gx: number; g
 }
 const touches = (a: Rect, b: { gx: number; gy: number; s: number }) => !!(sharedEdge(a, b) ?? sharedEdge(b, a));
 
-export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Set<string> | undefined): HousePlan {
-  const list: Rect[] = input.map((r, i) => ({ id: r.id, i, gx: 0, gy: 0, s: Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(r.size) || 6))), outdoor: r.theme === 'luar' }));
-  const order = [...list.filter((r) => !r.outdoor), ...list.filter((r) => r.outdoor)];
+const sizeOf = (v: unknown) => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(v) || 6)));
+const isPos = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) <= 200;
+
+/** Ruangan yang menempel satu sama lain, mulai dari ruangan pertama (indeks dalam `list`). */
+function linked<T extends { gx: number; gy: number; s: number }>(list: T[]) {
+  const seen = new Set<number>(list.length ? [0] : []);
+  const q = list.length ? [0] : [];
+  for (let k = 0; k < q.length; k++)
+    list.forEach((b, j) => { if (!seen.has(j) && touches(list[q[k]] as any, b)) { seen.add(j); q.push(j); } });
+  return seen;
+}
+
+/**
+ * Masalah pada denah buatan pemain (null = sah): bertumpuk, ada ruangan yang tidak menempel (tidak ada pintunya),
+ * atau koordinat tidak wajar. Dipakai server saat menyimpan dan client saat mengatur denah.
+ */
+export function planProblem(rooms: { id: string; size: number; gx: number; gy: number }[]): null | 'range' | 'overlap' | 'apart' {
+  if (rooms.some((r) => !isPos(r.gx) || !isPos(r.gy))) return 'range';
+  const rs = rooms.map((r) => ({ gx: r.gx, gy: r.gy, s: sizeOf(r.size) }));
+  for (let a = 0; a < rs.length; a++) for (let b = a + 1; b < rs.length; b++) if (overlaps(rs[a] as Rect, rs[b])) return 'overlap';
+  if (linked(rs).size !== rs.length) return 'apart';
+  return null;
+}
+
+/**
+ * Susun denah. Ruangan dengan gx/gy dipakai apa adanya bila tidak bertumpuk & tetap tersambung; sisanya ditempel otomatis.
+ * `strict`: semua posisi dipakai persis (layar Atur denah, saat pemain sedang menggeser ruangan).
+ */
+export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Set<string> | undefined, opts: { strict?: boolean } = {}): HousePlan {
+  const list: (Rect & { fixed: boolean })[] = input.map((r, i) => ({ id: r.id, i, gx: isPos(r.gx) ? r.gx : 0, gy: isPos(r.gy) ? r.gy : 0, s: sizeOf(r.size), outdoor: r.theme === 'luar', fixed: isPos(r.gx) && isPos(r.gy) }));
   const placed: Rect[] = [];
+  // 1. letak buatan pemain (yang bertumpuk dengan ruangan sebelumnya disusun ulang otomatis)
+  for (const r of list) {
+    if (!r.fixed && !opts.strict) continue;
+    if (!opts.strict && placed.some((p) => overlaps(p, r))) { r.fixed = false; continue; }
+    r.fixed = true;
+    placed.push(r);
+  }
+  // 2. yang terpisah dari ruangan pertama (mis. setelah ruangan lain diperluas) ikut disusun ulang
+  if (!opts.strict && placed.length > 1) {
+    const keep = linked(placed);
+    for (let k = placed.length - 1; k >= 0; k--) if (!keep.has(k)) { (placed[k] as any).fixed = false; placed.splice(k, 1); }
+  }
+  const anyFixed = placed.length > 0;
+  // 3. sisanya ditempel otomatis: ruangan dalam dulu, halaman terakhir (di depan rumah)
+  const free = list.filter((r) => !r.fixed);
+  const order = [...free.filter((r) => !r.outdoor), ...free.filter((r) => r.outdoor)];
   const bbox = (extra?: { gx: number; gy: number; s: number }) => {
     const all = extra ? [...placed, extra] : placed;
     const x0 = Math.min(...all.map((r) => r.gx)), y0 = Math.min(...all.map((r) => r.gy));
@@ -65,7 +110,7 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
   for (const r of order) {
     if (!placed.length) { placed.push(r); continue; }
     const inside = placed.filter((p) => !p.outdoor);
-    const pool = r.outdoor ? placed : inside;
+    const pool = r.outdoor || !inside.length ? placed : inside;
     const cands: { gx: number; gy: number }[] = [];
     for (const p of pool) {
       const al = [p.gy, p.gy + p.s - r.s, p.gy + Math.floor((p.s - r.s) / 2)];
@@ -82,7 +127,7 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
     let best: { gx: number; gy: number; score: number[] } | null = null;
     for (const c of cands) {
       const rect = { gx: c.gx, gy: c.gy, s: r.s };
-      if (!r.outdoor && (c.gx < 0 || c.gy < 0)) continue;
+      if (!r.outdoor && !anyFixed && (c.gx < 0 || c.gy < 0)) continue;
       if (placed.some((p) => overlaps(p, rect))) continue;
       if (!placed.some((p) => touches(p, rect))) continue;
       let centre = c.gx + c.gy;
@@ -98,15 +143,15 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
       if (!best || lexLess(score, best.score)) best = { gx: c.gx, gy: c.gy, score };
     }
     if (!best) {
-      // tidak ada tempat menempel (seharusnya tidak terjadi): taruh di kanan rumah
-      const b = bbox();
-      best = { gx: b.W, gy: 0, score: [] };
+      // tidak ada tempat menempel (seharusnya tidak terjadi): taruh di kanan ruangan paling kanan
+      const far = placed.reduce((a, p) => (p.gx + p.s > a.gx + a.s ? p : a));
+      best = { gx: far.gx + far.s, gy: far.gy, score: [] };
     }
     r.gx = best.gx; r.gy = best.gy;
     placed.push(r);
   }
   // geser supaya koordinat mulai dari 0
-  const x0 = Math.min(...placed.map((r) => r.gx)), y0 = Math.min(...placed.map((r) => r.gy));
+  const x0 = placed.length ? Math.min(...placed.map((r) => r.gx)) : 0, y0 = placed.length ? Math.min(...placed.map((r) => r.gy)) : 0;
   for (const r of placed) { r.gx -= x0; r.gy -= y0; }
   const W = placed.length ? Math.max(...placed.map((r) => r.gx + r.s)) : 0;
   const D = placed.length ? Math.max(...placed.map((r) => r.gy + r.s)) : 0;

@@ -1,6 +1,6 @@
 // State global game (Svelte 5 runes). Semua angka penting berasal dari server;
 // client hanya menghitung ulang tampilan kebutuhan pet di antara respons.
-import { decayNeeds, needsWithSleep, petLookState, type ItemLike, type Needs } from '@kb/shared';
+import { decayNeeds, houseLayout, needsWithSleep, petLookState, planProblem, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
@@ -33,6 +33,8 @@ export const G = $state({
   roomId: '' as string,
   /** kamera rumah: fokus ke ruangan, seluruh rumah, atau bebas (digeser/dicubit pemain) */
   cam: 'room' as 'room' | 'house' | 'free',
+  /** mode Atur denah: letak ruangan (petak) yang sedang diatur & ruangan terpilih; auto = susunan otomatis */
+  plan: null as null | { pos: Record<string, { gx: number; gy: number }>; sel: string | null; auto: boolean; start: string },
   /** posisi pet di peta kampung (id lokasi) dan tujuan jalan berikutnya */
   mapAt: 'rumah',
   mapGoal: null as null | string,
@@ -225,7 +227,7 @@ export function sayLine(mood: string) {
 
 /* -------- rumah multi-ruangan -------- */
 
-export interface RoomState { id: string; item: string | null; name: string; layout: { i: string; x: number; y: number }[]; wall: string | null; floor: string | null; version: number; size: number; theme: 'dalam' | 'luar' }
+export interface RoomState { id: string; item: string | null; name: string; layout: { i: string; x: number; y: number }[]; wall: string | null; floor: string | null; version: number; size: number; theme: 'dalam' | 'luar'; gx?: number | null; gy?: number | null }
 
 /** Ruangan yang sedang dilihat di rumah sendiri (default: kamar awal). */
 export function curRoom(): RoomState {
@@ -235,15 +237,59 @@ export function curRoom(): RoomState {
 
 /** Pindah ke ruangan lain: kamera ke ruangan itu dan pet berjalan ke sana (lewat pintu). */
 export function switchRoom(id: string) {
-  if (G.edit) return;
+  if (G.edit || G.plan) return;
   G.roomId = id;
   G.cam = 'room';
   G.view = 'home';
 }
 
+/* -------- atur denah rumah (letak ruangan) -------- */
+
+const houseRooms = (): RoomState[] => G.me?.rooms ?? [];
+/** letak tiap ruangan di denah saat ini (atau susunan otomatis) */
+function layoutPos(auto = false) {
+  const p = houseLayout(houseRooms().map((r) => ({ id: r.id, size: r.size, theme: r.theme, gx: auto ? null : r.gx, gy: auto ? null : r.gy })));
+  return Object.fromEntries(p.rooms.map((r) => [r.id, { gx: r.gx, gy: r.gy }]));
+}
+export function startPlan() {
+  if (G.edit || houseRooms().length < 2) return;
+  const pos = layoutPos();
+  G.plan = { pos, sel: null, auto: houseRooms().every((r) => r.gx == null || r.gy == null), start: JSON.stringify(pos) };
+  G.sheet = null; G.view = 'home'; G.feeding = false; G.bath = null; G.cam = 'house';
+}
+/** ruangan & letaknya selama mengatur denah */
+export const planRooms = () => (G.plan ? houseRooms().map((r) => ({ id: r.id, size: r.size, theme: r.theme, gx: G.plan!.pos[r.id]?.gx ?? 0, gy: G.plan!.pos[r.id]?.gy ?? 0 })) : []);
+/** masalah denah yang sedang diatur (null = boleh disimpan) */
+export const planIssue = () => (G.plan ? planProblem(planRooms()) : null);
+/** Pindahkan ruangan di denah; ditolak bila menumpuk ruangan lain. */
+export function movePlanRoom(id: string, gx: number, gy: number) {
+  const pl = G.plan;
+  const cur = pl?.pos[id];
+  if (!pl || !cur || (cur.gx === gx && cur.gy === gy)) return false;
+  const test = planRooms().map((r) => (r.id === id ? { ...r, gx, gy } : r));
+  if (planProblem(test) === 'overlap') return false;
+  pl.pos = { ...pl.pos, [id]: { gx, gy } };
+  pl.auto = false;
+  return true;
+}
+export function autoPlan() {
+  if (!G.plan) return;
+  G.plan.pos = layoutPos(true);
+  G.plan.auto = true;
+}
+export async function savePlan() {
+  const pl = G.plan;
+  if (!pl) return;
+  const body = pl.auto ? { auto: true } : { rooms: Object.entries(pl.pos).map(([id, p]) => ({ id, gx: p.gx, gy: p.gy })) };
+  const r = await run(() => api.post('/api/room/plan', body));
+  if (r) { G.plan = null; G.cam = 'house'; sfx.pop(); toast('Denah rumah disimpan', 'good'); }
+}
+export function cancelPlan() { G.plan = null; G.cam = 'house'; }
+
 /** Jalan ke tempat di peta kampung (pet berjalan dulu, lalu tempatnya dibuka). */
 export function goTo(locId: string, opts: { tab?: 'buy' | 'sell' } = {}) {
   if (G.edit) { G.edit = false; G.draft = null; G.sel = -1; }
+  G.plan = null;
   G.sheet = null;
   G.visit = null;
   if (opts.tab) G.shopTab = opts.tab;
@@ -256,7 +302,7 @@ export function goTo(locId: string, opts: { tab?: 'buy' | 'sell' } = {}) {
 /* -------- mode atur ruangan -------- */
 
 export function startEdit() {
-  if (G.edit) return;
+  if (G.edit || G.plan) return;
   G.draft = (curRoom()?.layout ?? []).map((p: any) => ({ ...p }));
   G.sel = -1;
   G.edit = true;

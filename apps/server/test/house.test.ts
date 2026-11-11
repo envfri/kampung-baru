@@ -214,3 +214,43 @@ test('perluas ruangan: lantai bertambah bertahap, mebel tetap, harga bertingkat,
   me = (await c.get('/api/me')).body;
   assert.equal(me.wallet.coin, 30000 - 1500 - 3500 - 7000);
 });
+
+test('atur denah: letak ruangan disimpan, ditolak bila bertumpuk/terpisah, kembali otomatis saat perluasan menabrak', async () => {
+  const { c } = await rich(30000);
+  for (const id of ['ruang-tamu', 'halaman']) assert.equal((await c.post('/api/shop/buy', { itemId: id })).status, 200);
+  let me = (await c.get('/api/me')).body;
+  const [k, rt, hal] = me.rooms;
+  assert.equal(k.gx, null, 'awalnya disusun otomatis');
+  // kamar 6×6 di (0,0), ruang tamu 6×6 di depan-kiri kamar, halaman 7×7 di kanan kamar
+  const ok = await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 10, gy: 10 }, { id: rt.id, gx: 10, gy: 16 }, { id: hal.id, gx: 16, gy: 10 }] });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  const saved = Object.fromEntries(ok.body.rooms.map((r: any) => [r.id, [r.gx, r.gy]]));
+  assert.deepEqual(saved, { [k.id]: [0, 0], [rt.id]: [0, 6], [hal.id]: [6, 0] }, 'disimpan relatif ke pojok belakang');
+  // bertumpuk, terpisah, tidak lengkap, ruangan orang lain
+  assert.equal((await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 0, gy: 0 }, { id: rt.id, gx: 3, gy: 3 }, { id: hal.id, gx: 6, gy: 0 }] })).body.error?.code, 'plan_overlap');
+  assert.equal((await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 0, gy: 0 }, { id: rt.id, gx: 0, gy: 6 }, { id: hal.id, gx: 9, gy: 0 }] })).body.error?.code, 'plan_apart');
+  assert.equal((await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 0, gy: 0 }] })).body.error?.code, 'invalid');
+  const other = await rich();
+  const theirs = other.state.rooms[0].id;
+  assert.equal((await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 0, gy: 0 }, { id: rt.id, gx: 0, gy: 6 }, { id: theirs, gx: 6, gy: 0 }] })).body.error?.code, 'invalid');
+  assert.equal((await c.post('/api/room/plan', { rooms: [{ id: k.id, gx: 0.5, gy: 0 }, { id: rt.id, gx: 0, gy: 6 }, { id: hal.id, gx: 6, gy: 0 }] })).body.error?.code, 'invalid');
+  // ruangan baru tanpa letak tetap ikut tampil (disusun otomatis di client); denah lama tetap tersimpan
+  assert.equal((await c.post('/api/shop/buy', { itemId: 'dapur' })).status, 200);
+  me = (await c.get('/api/me')).body;
+  assert.equal(me.rooms.find((r: any) => r.item === 'dapur').gx, null);
+  assert.equal(me.rooms.find((r: any) => r.id === hal.id).gx, 6);
+  // perluas halaman (ke depan-kanan, tidak menabrak) → denah tetap
+  const e1 = await c.post('/api/room/expand', { roomId: hal.id });
+  assert.equal(e1.status, 200, JSON.stringify(e1.body));
+  assert.equal(e1.body.planReset, false);
+  // perluas kamar sampai menabrak halaman di kanannya → denah kembali otomatis
+  const e2 = await c.post('/api/room/expand', { roomId: k.id });
+  assert.equal(e2.status, 200, JSON.stringify(e2.body));
+  assert.equal(e2.body.planReset, true);
+  assert.ok(e2.body.rooms.every((r: any) => r.gx === null && r.gy === null));
+  // kembali otomatis atas permintaan
+  await c.post('/api/room/plan', { rooms: e2.body.rooms.map((r: any, i: number) => ({ id: r.id, gx: i * 20, gy: 0 })) });
+  const auto = await c.post('/api/room/plan', { auto: true });
+  assert.equal(auto.status, 200);
+  assert.ok(auto.body.rooms.every((r: any) => r.gx === null));
+});

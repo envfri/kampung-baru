@@ -6,7 +6,7 @@
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY } from '../lib/house.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
-  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow } from '../lib/game.svelte';
+  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' } = $props();
@@ -30,7 +30,12 @@
   const roomOf = (id: string) => rooms.find((r) => r.id === id);
   const layoutOf = (r: any): any[] => (r && r.id === editId && G.draft ? G.draft : r?.layout ?? []);
   const occ = $derived(new Map<string, Set<string>>(rooms.map((r) => [r.id, occupied(layoutOf(r), itemMap)])));
-  const plan = $derived(houseLayout(rooms.map((r) => ({ id: r.id, size: r.size ?? defSize(), theme: r.theme })), (id) => occ.get(id)));
+  /** mode Atur denah: letak ruangan diambil dari yang sedang diatur, persis apa adanya */
+  const planning = $derived(mode === 'home' && !!G.plan);
+  const plan = $derived(houseLayout(
+    rooms.map((r) => ({ id: r.id, size: r.size ?? defSize(), theme: r.theme, gx: planning ? G.plan!.pos[r.id]?.gx : r.gx, gy: planning ? G.plan!.pos[r.id]?.gy : r.gy })),
+    (id) => occ.get(id), { strict: planning },
+  ));
   /** petak yang tertutup mebel (koordinat rumah) */
   const blocked = $derived.by(() => {
     const s = new Set<string>();
@@ -205,12 +210,12 @@
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
   type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string } };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
-  const mainMarkup = $derived(petData && !hideMain ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop }) : '');
+  const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop }) : '');
   const petDraws = $derived.by(() => {
     void compVer;
     const out: Draw[] = [];
     if (mainMarkup && pos) out.push({ key: 'pet', d: pos[0] + pos[1] + 0.01, h: mainMarkup, pet: { cls: `pet${pose?.pose ? ' pose-' + pose.pose : ''}`, tf: tf(pos, pose?.lift ?? 0) } });
-    if (!(mode === 'home' && G.edit))
+    if (!(mode === 'home' && (G.edit || G.plan)))
       for (const c of comps.values())
         out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip }), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
     return out;
@@ -320,7 +325,7 @@
     idleTimer = setTimeout(wander, 2500 + Math.random() * 5000);
   }
   function wander() {
-    if (!live || hideMain || G.edit || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
+    if (!live || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     // jalan-jalan kecil di dalam ruangan yang sama
     const options = freeIn(roomAt(live)?.id).filter(([x, y]) => { const m = Math.abs(x - cx) + Math.abs(y - cy); return m > 0 && m <= 3; });
@@ -343,7 +348,7 @@
 
   // mode atur & mandi: pet diam supaya mudah ditata / digosok
   $effect(() => {
-    if (G.edit || G.bath) { halt(); untrack(() => (menu = null)); }
+    if (G.edit || G.bath || G.plan) { halt(); untrack(() => (menu = null)); }
     else untrack(() => scheduleIdle());
   });
 
@@ -351,7 +356,7 @@
   let followed = '';
   $effect(() => {
     const r = petRoomId;
-    if (mode !== 'home' || !r || G.edit) return;
+    if (mode !== 'home' || !r || G.edit || G.plan) return;
     untrack(() => { if ((curRoom()?.id ?? '') !== r) { followed = r; G.roomId = r; } });
   });
   // ruangan dipilih pemain (Rumahku / toko): pet berjalan ke sana
@@ -360,7 +365,7 @@
     if (mode !== 'home' || !f) return;
     untrack(() => {
       if (f === followed) { followed = ''; return; }
-      if (!live || !placedSig || petRoomId === f || G.edit || G.bath || acting || asleep) return;
+      if (!live || !placedSig || petRoomId === f || G.edit || G.plan || G.bath || acting || asleep) return;
       goRoom(f);
     });
   });
@@ -374,9 +379,10 @@
   let camReady = false, camRaf = 0;
   const wide = $derived(vw >= 900 && vw >= vh);
   // panel tamu di rumah sendiri (menutup bagian bawah layar)
-  const guestBar = $derived(mode === 'home' && !G.edit && !G.bath && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
+  const guestBar = $derived(mode === 'home' && !G.edit && !G.bath && !G.plan && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
   /** ruang layar yang tertutup tombol & panel (px) */
   function insets() {
+    if (planning) return wide ? { t: 92, b: 230, l: 24, r: 24 } : vw > vh ? { t: 64, b: 150, l: 16, r: 16 } : { t: Math.min(vh * 0.17, 140), b: Math.min(vh * 0.36, 320), l: 8, r: 8 };
     if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 110, l: 24, r: guestBar ? 520 : 170 };
     if (vw > vh) return { t: 64, b: 84, l: 16, r: 16 };
     if (mode === 'visit') return { t: Math.min(vh * 0.3, 270), b: Math.min(vh * 0.27, 250), l: 8, r: 8 };
@@ -416,12 +422,18 @@
   }
   onMount(() => { G.cam = 'room'; });
   $effect(() => {
-    const m = G.cam, f = focusId, w = vw, h = vh;
-    void plan.sig; void editId; void guestBar;
+    const m = G.cam, f = focusId, w = vw, h = vh, pl = planning;
+    // saat mengatur denah kamera tidak ikut bergeser setiap ruangan dipindah
+    if (!pl) void plan.sig;
+    void editId; void guestBar;
     if (!w || !h || !plan.rooms.length) return;
     untrack(() => {
       if (m === 'free') { cam = clampCam(); return; }
-      aim(m === 'house' ? fit(houseBounds(plan)) : fit(houseBounds(plan, f), true));
+      if (m === 'house') {
+        const b = houseBounds(plan);
+        // ruang kosong di sekeliling rumah untuk memindah ruangan
+        aim(fit(pl ? { x: b.x - b.w * 0.15, y: b.y - b.h * 0.1, w: b.w * 1.3, h: b.h * 1.2 } : b));
+      } else aim(fit(houseBounds(plan, f), true));
     });
   });
   // mandi, makan & atur: kamera kembali ke ruangan
@@ -436,9 +448,22 @@
     const r = wrapEl!.getBoundingClientRect();
     return [c.x + (sx - r.left - vw / 2) / c.k, c.y + (sy - r.top - vh / 2) / c.k];
   };
+  /** mode Atur denah: ruangan yang sedang digeser */
+  let roomDrag: null | { id: string; pid: number; x0: number; y0: number; gx0: number; gy0: number; moved: boolean } = null;
   function down(e: PointerEvent) {
     if (G.bath) return bathDown(e);
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (planning && G.plan && !ptrs.size) {
+      const el = (e.target as Element).closest('[data-r]') as SVGElement | null;
+      const id = el?.dataset.r;
+      const at = id !== undefined ? G.plan.pos[id] : undefined;
+      if (id !== undefined && at) {
+        G.plan.sel = id;
+        roomDrag = { id, pid: e.pointerId, x0: e.clientX, y0: e.clientY, gx0: at.gx, gy0: at.gy, moved: false };
+        try { svgEl?.setPointerCapture(e.pointerId); } catch { /* tidak apa */ }
+        return;
+      }
+    }
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false, id: e.pointerId };
     else if (ptrs.size === 2) {
@@ -449,6 +474,15 @@
     }
   }
   function panMove(e: PointerEvent) {
+    if (roomDrag && roomDrag.pid === e.pointerId) {
+      // geser layar → geser petak (kebalikan proyeksi isometrik), lompat ke letak terdekat yang tidak bertumpuk
+      const dx = (e.clientX - roomDrag.x0) / cam.k, dy = (e.clientY - roomDrag.y0) / cam.k;
+      if (!roomDrag.moved && Math.hypot(e.clientX - roomDrag.x0, e.clientY - roomDrag.y0) > 8) roomDrag.moved = true;
+      if (!roomDrag.moved) return;
+      const ux = Math.round((dx / HOUSE_T + dy / (HOUSE_T / 2)) / 2), uy = Math.round((dy / (HOUSE_T / 2) - dx / HOUSE_T) / 2);
+      movePlanRoom(roomDrag.id, roomDrag.gx0 + ux, roomDrag.gy0 + uy);
+      return;
+    }
     if (!ptrs.has(e.pointerId) || G.bath) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && ptrs.size >= 2) {
@@ -476,6 +510,7 @@
     drag.lx = e.clientX; drag.ly = e.clientY;
   }
   function panUp(e: PointerEvent) {
+    if (roomDrag && roomDrag.pid === e.pointerId) { if (roomDrag.moved) suppressAt = Date.now(); roomDrag = null; return; }
     if (!ptrs.has(e.pointerId)) return;
     ptrs.delete(e.pointerId);
     if (drag?.moved || pinch) suppressAt = Date.now();
@@ -987,6 +1022,13 @@
     if (Date.now() - suppressAt < 300) return;
     const t = e.target as Element;
     if (G.bath) return;
+    if (planning && G.plan) {
+      // ketuk ruangan untuk memilih; ketuk di luar rumah untuk melepas pilihan
+      const r = t.closest('[data-r]') as SVGElement | null;
+      G.plan.sel = r?.dataset.r ?? null;
+      if (r) sfx.tap();
+      return;
+    }
     if (menu) { menu = null; if (!t.closest('.furn, .spot')) return; }
     const cr = t.closest('.crumb') as SVGElement | null;
     if (cr && homeLive) return sweepCrumb(Number(cr.dataset.c), e);
@@ -1156,6 +1198,27 @@
     const top = menu.y > h * 0.55 ? Math.max(8, menu.y - 18 - 64 * menu.acts.length - 40) : Math.min(h - 80, menu.y + 18);
     return `left:${left}px;top:${top}px`;
   });
+  /* ---------------- mode Atur denah: garis ruangan terpilih, ruangan terpisah, nama ruangan ---------------- */
+  const roomPoly = (r: { gx: number; gy: number; size: number }) => [houseIso(r.gx, r.gy), houseIso(r.gx + r.size, r.gy), houseIso(r.gx + r.size, r.gy + r.size), houseIso(r.gx, r.gy + r.size)].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ');
+  /** ruangan yang tidak tersambung (lewat pintu) ke ruangan pertama */
+  const apart = $derived.by(() => {
+    if (!planning || !plan.rooms.length) return new Set<string>();
+    const seen = new Set([plan.rooms[0].id]), q = [plan.rooms[0].id];
+    for (let k = 0; k < q.length; k++)
+      for (const d of plan.doors) {
+        const o = d.a === q[k] ? d.b : d.b === q[k] ? d.a : null;
+        if (o && !seen.has(o)) { seen.add(o); q.push(o); }
+      }
+    return new Set(plan.rooms.filter((r) => !seen.has(r.id)).map((r) => r.id));
+  });
+  const planLabels = $derived.by(() => {
+    if (!planning || !vw) return [];
+    return plan.rooms.map((r) => {
+      const [x, y] = houseIso(r.gx + r.size / 2, r.gy + r.size / 2);
+      return { id: r.id, name: roomOf(r.id)?.name ?? 'Ruangan', x: (x - cam.x) * cam.k + vw / 2, y: (y - cam.y) * cam.k + vh / 2, sel: G.plan?.sel === r.id, apart: apart.has(r.id) };
+    });
+  });
+
   const label = $derived(mode === 'visit' ? `Rumah ${G.visit?.owner?.display_name ?? 'teman'}` : `Rumahmu${rooms.length > 1 ? `, ${rooms.length} ruangan` : ''}`);
 </script>
 
@@ -1168,10 +1231,19 @@
     {#each draws as d (d.key)}
       {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
     {/each}
+    {#if planning}
+      <g class="planmarks" pointer-events="none">
+        {#each plan.rooms as r (r.id)}
+          {#if apart.has(r.id)}<polygon class="apart" points={roomPoly(r)} />{/if}
+          {#if G.plan?.sel === r.id}<polygon class="selroom" points={roomPoly(r)} />{/if}
+        {/each}
+      </g>
+    {/if}
     <g bind:this={foamLayer} pointer-events="none"></g>
     <g bind:this={fxLayer} pointer-events="none"></g>
   </svg>
   {#each tags as t (t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>{/each}
+  {#each planLabels as l (l.id)}<span class="plabel" class:sel={l.sel} class:apart={l.apart} style="left:{l.x}px;top:{l.y}px">{l.name}</span>{/each}
   {#each H.bubbles as b (b.id)}
     {@const at = bpos[b.who]}
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
@@ -1210,6 +1282,12 @@
   .room :global(.opet) { cursor: pointer; }
   .tag { position: absolute; z-index: 10; transform: translateX(-50%); background: rgba(255, 253, 247, .92); border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
   .tag.self { background: #FFE8A3; z-index: 11; }
+  .room :global(.planmarks polygon) { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .room :global(.planmarks .selroom) { stroke: #F2B632; stroke-width: 5; fill: rgba(242, 182, 50, .16); }
+  .room :global(.planmarks .apart) { stroke: #D9534F; stroke-width: 3.5; stroke-dasharray: 9 6; fill: rgba(217, 83, 79, .12); }
+  .plabel { position: absolute; z-index: 9; transform: translate(-50%, -50%); background: rgba(255, 253, 247, .94); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 9px; font-size: 13px; font-weight: 800; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 0 var(--ink); }
+  .plabel.sel { background: #FFE8A3; }
+  .plabel.apart { background: #FBE1DF; color: #A93A27; }
   .bubble.hb { z-index: 12; }
   .bubble.hb.emo { padding: 3px 6px; z-index: 10; }
   .bubble.hb.emo :global(svg) { width: 30px; height: 30px; display: block; }

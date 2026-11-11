@@ -139,10 +139,11 @@ export const maxItemsFor = (s: Settings, size: number) => Math.max(s.room.maxIte
 
 /** Semua ruangan rumah pemain, urut (kamar awal dulu). */
 export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Settings, withVersion = true) {
-  const rows = await db.query<any>(`select id, room_item, name, layout, wall, floor, version, size from rooms where user_id = $1 order by sort, id`, [userId]);
+  const rows = await db.query<any>(`select id, room_item, name, layout, wall, floor, version, size, gx, gy from rooms where user_id = $1 order by sort, id`, [userId]);
   return rows.map((r) => {
     const meta = roomMeta(r.room_item, cat, s, r.size);
-    return { id: r.id, item: r.room_item, name: r.name, layout: r.layout ?? [], wall: r.wall, floor: r.floor, ...(withVersion ? { version: r.version, expand: meta.expand } : {}), size: meta.size, theme: meta.theme, maxItems: maxItemsFor(s, meta.size) };
+    // gx, gy: letak di denah rumah yang diatur pemain (null = disusun otomatis di client)
+    return { id: r.id, item: r.room_item, name: r.name, layout: r.layout ?? [], wall: r.wall, floor: r.floor, ...(withVersion ? { version: r.version, expand: meta.expand } : {}), size: meta.size, theme: meta.theme, maxItems: maxItemsFor(s, meta.size), gx: r.gx ?? null, gy: r.gy ?? null };
   });
 }
 

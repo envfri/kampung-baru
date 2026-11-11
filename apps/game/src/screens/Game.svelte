@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom, isSleeping, setSleep, needsNow } from '../lib/game.svelte';
+  import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom, isSleeping, setSleep, needsNow, movePlanRoom, autoPlan, savePlan, cancelPlan, planIssue } from '../lib/game.svelte';
   import FoodTray from '../components/FoodTray.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
@@ -84,6 +84,22 @@
       if (r.result?.coins) { sfx.coin(); toast(`+${r.result.coins} koin dari bermain`, 'good'); }
       if (r.result?.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.result.levelUp}!`, 'good'); }
     }
+  }
+
+  // Atur denah: panah menggeser ruangan terpilih satu petak (melompati ruangan lain bila bertumpuk)
+  const ARROWS = [
+    { label: 'Geser ke kiri atas', dx: -1, dy: 0, rot: -63 },
+    { label: 'Geser ke kanan atas', dx: 0, dy: -1, rot: 63 },
+    { label: 'Geser ke kiri bawah', dx: 0, dy: 1, rot: -117 },
+    { label: 'Geser ke kanan bawah', dx: 1, dy: 0, rot: 117 },
+  ];
+  function nudge(dx: number, dy: number) {
+    const pl = G.plan;
+    const id = pl?.sel;
+    if (!pl || !id || !pl.pos[id]) return;
+    const { gx, gy } = pl.pos[id];
+    for (let k = 1; k <= 16; k++) if (movePlanRoom(id, gx + dx * k, gy + dy * k)) { sfx.tap(); return; }
+    sfx.error();
   }
 
   async function saveEdit() {
@@ -201,7 +217,7 @@
 
   {#if !G.immersive}<Hud />{/if}
 
-  {#if G.view === 'home' && !G.edit}
+  {#if G.view === 'home' && !G.edit && !G.plan}
     <div class="roombar">
       <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk melihat semua ruangan">
         {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -256,7 +272,25 @@
     </div>
   {/if}
 
-  {#if G.view === 'home' && !G.edit && !G.bath && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
+  {#if G.view === 'home' && G.plan}
+    {@const sel = G.plan.sel ? (G.me.rooms ?? []).find((r: any) => r.id === G.plan?.sel) : null}
+    <div class="editbar planbar">
+      <p><b class="ename">Atur denah</b>{sel ? `${sel.name} dipilih. Geser ruangannya dengan jari, atau pakai tombol panah.` : 'Ketuk ruangan untuk memilih, lalu geser ke tempat baru. Pintu muncul sendiri di dinding yang menempel.'}</p>
+      {#if planIssue() === 'apart'}<p class="warn">Ruangan bergaris merah belum menempel ke ruangan lain, jadi belum ada pintunya. Tempelkan dulu supaya bisa disimpan.</p>{/if}
+      {#if sel}
+        <div class="arrows" role="group" aria-label="Geser {sel.name}">
+          {#each ARROWS as a}<button class="btn sm arrow" aria-label={a.label} onclick={() => nudge(a.dx, a.dy)}><svg viewBox="0 0 24 24" aria-hidden="true" style="transform:rotate({a.rot}deg)"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>{/each}
+        </div>
+      {/if}
+      <div class="row">
+        <button class="btn sm" disabled={G.busy || G.plan.auto} onclick={() => { sfx.tap(); autoPlan(); }}>Susun otomatis</button>
+        <button class="btn sm" onclick={() => { sfx.tap(); cancelPlan(); }}>Batal</button>
+        <button class="btn sm hot" disabled={G.busy || !!planIssue() || (JSON.stringify(G.plan.pos) === G.plan.start && !G.plan.auto)} onclick={savePlan}>Simpan</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if G.view === 'home' && !G.edit && !G.bath && !G.plan && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
   {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false}<HouseBar mode="visit" />{/if}
   {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
 
@@ -278,7 +312,7 @@
   <PushPrompt />
   {#if !G.online}<div class="offline">Kamu sedang offline. Beberapa aksi butuh internet.</div>{/if}
 
-  {#if !G.immersive && !G.edit}<Dock />{/if}
+  {#if !G.immersive && !G.edit && !G.plan}<Dock />{/if}
 
   {#if G.sheet === 'rooms'}<Rooms />
   {:else if G.sheet === 'bag' || G.sheet === 'feed'}<Bag />
@@ -327,6 +361,10 @@
   .editbar, .visit { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(560px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
   .visit { top: calc(var(--safe-t) + 118px); bottom: auto; flex-direction: column; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
+  .planbar .warn { color: #A93A27; font-size: 13.5px; }
+  .arrows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .arrow { min-height: 44px; }
+  .arrow :global(svg) { width: 24px; height: 24px; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .who { display: flex; flex-direction: column; }
   .who b { font-size: 18px; } .who span { font-size: 13.5px; color: var(--muted); font-weight: 600; }

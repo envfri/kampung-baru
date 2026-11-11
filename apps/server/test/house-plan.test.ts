@@ -2,7 +2,7 @@
 // halaman di depan, dinding tinggi hanya di belakang, pintu menghindari mebel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { houseLayout } from '@kb/shared';
+import { houseLayout, planProblem } from '@kb/shared';
 
 const sets = [
   [{ id: 'K', size: 6 }],
@@ -59,4 +59,31 @@ test('pintu pindah ke petak kosong bila tertutup mebel', () => {
   const moved = houseLayout(rooms, (id) => (id === 'K' ? new Set([kTile]) : undefined));
   assert.notEqual(moved.doors[0].at, d0.at, 'pintu bergeser dari mebel');
   assert.equal(moved.sig, free.sig, 'letak ruangan tetap');
+});
+
+test('denah buatan pemain: letak dipakai, ruangan baru ditempel, yang bertumpuk/terpisah disusun ulang', () => {
+  const pos = (p: ReturnType<typeof houseLayout>) => Object.fromEntries(p.rooms.map((r) => [r.id, [r.gx, r.gy]]));
+  // halaman di kanan kamar, dapur di depan kamar (tidak seperti susunan otomatis)
+  const custom = houseLayout([{ id: 'K', size: 6, gx: 3, gy: 3 }, { id: 'H', size: 7, theme: 'luar', gx: 9, gy: 3 }, { id: 'D', size: 5, gx: 3, gy: 9 }]);
+  assert.deepEqual(pos(custom), { K: [0, 0], H: [6, 0], D: [0, 6] });
+  assert.equal(custom.doors.length, 2);
+  // ruangan baru (tanpa letak) menempel ke denah buatan pemain
+  const added = houseLayout([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'H', size: 7, theme: 'luar', gx: 6, gy: 0 }, { id: 'KM', size: 4 }]);
+  assert.deepEqual(pos(added).K, [0, 0]);
+  assert.deepEqual(pos(added).H, [6, 0]);
+  assert.equal(planProblem(added.rooms.map((r) => ({ id: r.id, size: r.size, gx: r.gx, gy: r.gy }))), null, 'ruangan baru menempel & tidak bertumpuk');
+  // kamar membesar menabrak halaman → halaman disusun ulang, tetap tersambung
+  const grown = houseLayout([{ id: 'K', size: 8, gx: 0, gy: 0 }, { id: 'H', size: 7, theme: 'luar', gx: 6, gy: 0 }]);
+  assert.deepEqual(pos(grown).K, [0, 0]);
+  assert.equal(planProblem(grown.rooms.map((r) => ({ id: r.id, size: r.size, gx: r.gx, gy: r.gy }))), null);
+  // ruangan yang terpisah jauh ditempel kembali
+  const far = houseLayout([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'D', size: 5, gx: 30, gy: 30 }]);
+  assert.equal(far.doors.length, 1);
+  // mode atur denah: letak dipakai persis walau terpisah (penanda merah di layar)
+  const strict = houseLayout([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'D', size: 5, gx: 30, gy: 30 }], undefined, { strict: true });
+  assert.deepEqual(pos(strict), { K: [0, 0], D: [30, 30] });
+  assert.equal(strict.doors.length, 0);
+  assert.equal(planProblem([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'D', size: 5, gx: 30, gy: 30 }]), 'apart');
+  assert.equal(planProblem([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'D', size: 5, gx: 5, gy: 0 }]), 'overlap');
+  assert.equal(planProblem([{ id: 'K', size: 6, gx: 0, gy: 0 }, { id: 'D', size: 5, gx: 6, gy: 5 }]), null, 'menempel satu petak sudah cukup untuk pintu');
 });

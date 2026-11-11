@@ -3,7 +3,7 @@
   import Sheet from '../components/Sheet.svelte';
   import ExpandRooms from '../components/ExpandRooms.svelte';
   import { itemIcon } from '@kb/shared';
-  import { G, item, curRoom, switchRoom, goTo, settings } from '../lib/game.svelte';
+  import { G, item, curRoom, switchRoom, goTo, settings, startPlan } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   const rooms = $derived<any[]>(G.me.rooms ?? []);
@@ -23,8 +23,13 @@
 </script>
 
 <Sheet title="Rumahku">
-  <p class="muted">Semua ruangan menyambung jadi satu rumah. Ketuk ruangan: {G.me.pet.name} berjalan ke sana lewat pintu. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
-  {#if rooms.length > 1}<button class="btn block" onclick={() => { sfx.tap(); G.cam = 'house'; G.sheet = null; G.view = 'home'; }}>Lihat seluruh rumah</button>{/if}
+  <p class="muted">Semua ruangan menyambung jadi satu rumah; letaknya bisa kamu atur lewat Atur denah. Ketuk ruangan: {G.me.pet.name} berjalan ke sana lewat pintu. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
+  {#if rooms.length > 1}
+    <div class="two">
+      <button class="btn" onclick={() => { sfx.tap(); G.cam = 'house'; G.sheet = null; G.view = 'home'; }}>Lihat seluruh rumah</button>
+      <button class="btn hot" disabled={G.edit} onclick={() => { sfx.tap(); startPlan(); }}>Atur denah</button>
+    </div>
+  {/if}
   <div class="list">
     {#each rooms as r (r.id)}
       <button class="room" class:on={r.id === cur?.id} onclick={() => pick(r)} aria-current={r.id === cur?.id}>
@@ -49,6 +54,7 @@
 
 <style>
   .muted { margin: 0; font-weight: 600; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .list { display: flex; flex-direction: column; gap: 8px; }
   .room { display: flex; align-items: center; gap: 10px; border: 2px solid var(--ink); border-radius: 14px; padding: 6px 10px 6px 6px; background: var(--card); cursor: pointer; text-align: left; min-height: 64px; }
   .room.on { background: var(--soft); box-shadow: 0 3px 0 var(--ink); }

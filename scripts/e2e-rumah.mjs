@@ -1,6 +1,6 @@
 // Uji rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman) tampil sekaligus sebagai satu rumah.
 // Pet berjalan antarruangan lewat pintu, kamera mengikuti ruangan / melihat seluruh rumah / digeser, mode Atur per ruangan,
-// dan tamu yang berada di ruangan berbeda tetap saling terlihat.
+// Atur denah sendiri (pilih, panah, geser, simpan, susun otomatis), dan tamu di ruangan berbeda tetap saling terlihat.
 // Jalankan server dulu dengan admin (ADMIN_EMAIL & ADMIN_PASSWORD), lalu: npm run test:e2e:rumah
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -95,6 +95,40 @@ check((await A.p.locator('.editbar .ename').textContent()).includes('Ruang Tamu'
 await shot(A, '06-hp-atur-ruang-tamu');
 await A.p.click('.editbar .btn:has-text("Batal")'); await W(600);
 
+// 6b. Atur denah sendiri: pilih halaman, geser dengan panah & jari, simpan, muat ulang
+const halId = R['halaman'].id;
+await A.p.click('.roompill'); await A.p.waitForSelector('.sheet .two');
+await A.p.click('.sheet .btn:has-text("Atur denah")'); await A.p.waitForSelector('.planbar'); await W(1000);
+check(await A.p.locator('.plabel').count() === 5, 'atur denah: nama kelima ruangan tampil');
+check(await A.p.locator('.dock, .acts').count() === 0, 'atur denah: tombol lain disembunyikan');
+await shot(A, 'd1-hp-atur-denah');
+await A.p.evaluate((id) => document.querySelector(`.room .fl[data-r="${id}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true })), halId);
+await W(300);
+check((await A.p.locator('.planbar').textContent()).includes('Halaman'), 'ketuk ruangan: halaman terpilih');
+const lab0 = await A.p.locator('.plabel.sel').boundingBox();
+for (let i = 0; i < 2; i++) { await A.p.click('.arrow[aria-label="Geser ke kanan bawah"]'); await W(250); }
+await W(300);
+const lab1 = await A.p.locator('.plabel.sel').boundingBox();
+check(lab1.x > lab0.x + 10 && lab1.y > lab0.y + 5, 'tombol panah menggeser halaman ke kanan bawah');
+await shot(A, 'd2-hp-denah-panah');
+const tb = await A.p.locator(`.room .fl[data-r="${halId}"][data-x="3"][data-y="3"]`).boundingBox();
+await A.p.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2); await A.p.mouse.down();
+// satu petak ke kiri atas (bersih +1 petak dari letak awal, tetap menempel)
+await A.p.mouse.move(tb.x + tb.width / 2 - 16, tb.y + tb.height / 2 - 8, { steps: 8 }); await A.p.mouse.up(); await W(400);
+const lab2 = await A.p.locator('.plabel.sel').boundingBox();
+check(lab2.x < lab1.x - 5, 'ruangan bisa digeser dengan jari');
+await shot(A, 'd2b-hp-denah-digeser-jari');
+const save = A.p.locator('.planbar .btn:has-text("Simpan")');
+check(!(await save.isDisabled()), 'denah sah & bisa disimpan');
+await save.click(); await W(1000);
+st = await me(A);
+const saved = st.rooms.find((r) => r.id === halId);
+check(st.rooms.every((r) => Number.isInteger(r.gx) && Number.isInteger(r.gy)), `denah tersimpan (halaman di ${saved.gx},${saved.gy})`);
+await A.p.reload(); await W(1800); await closeSheets(A); await A.p.click('.cambtn'); await W(1000);
+check(await roomsShown(A) === 5, 'setelah muat ulang semua ruangan tetap tampil di letak barunya');
+await shot(A, 'd3-hp-denah-baru');
+await A.p.click('.cambtn'); await W(600);
+
 // 7. desktop & tamu: tuan rumah di Kamar Mandi, tamu di ruangan lain tetap saling terlihat
 const B = await mk('Kopi', '#9FD0E8', 'kucing', { viewport: { width: 1366, height: 820 } });
 await B.ctx.request.post(BASE + '/api/friends', { data: { code: A.code } });
@@ -121,6 +155,14 @@ await shot(A, '09-hp-tuan-rumah-lihat-tamu');
 // tampilan desktop rumah sendiri
 await B.p.click('.visit .btn:has-text("Pulang")'); await W(1500); await closeSheets(B);
 await shot(B, '10-desktop-rumah-sendiri');
+
+// 8. kembali ke susunan otomatis
+await A.p.click('.roompill'); await A.p.waitForSelector('.sheet .two');
+await A.p.click('.sheet .btn:has-text("Atur denah")'); await A.p.waitForSelector('.planbar'); await W(600);
+await A.p.click('.planbar .btn:has-text("Susun otomatis")'); await W(400);
+await A.p.click('.planbar .btn:has-text("Simpan")'); await W(1000);
+st = await me(A);
+check(st.rooms.every((r) => r.gx === null && r.gy === null), 'Susun otomatis: denah kembali otomatis');
 
 console.log('viewBox seluruh rumah:', vbHouse);
 if (errors.length) { console.log('Error halaman:'); for (const e of errors) console.log('  ' + e); }

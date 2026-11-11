@@ -39,9 +39,24 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.20.0',
+    date: '2026-11-11',
+    title: 'Atur denah sendiri',
+    summary: 'Sekarang kamu bisa mengatur letak ruangan sendiri: halaman di samping, dapur di belakang, sesukamu. Pintunya muncul sendiri.',
+    items: [
+      { kind: 'baru', text: 'Atur denah (Rumahku › Atur denah): ketuk ruangan, lalu geser dengan jari atau tombol panah. Pintu muncul sendiri di dinding yang menempel, dinding tinggi berjendela menyesuaikan sisi belakang rumah.', player: true },
+      { kind: 'baru', text: 'Ruangan tidak bisa ditumpuk. Ruangan yang belum menempel ke ruangan lain diberi garis merah dan harus ditempelkan dulu sebelum disimpan, supaya pet selalu bisa berjalan ke semua ruangan.', player: true },
+      { kind: 'baru', text: 'Susun otomatis: kembalikan denah ke susunan rapi bawaan kapan saja. Ruangan yang baru dibeli langsung menempel ke denahmu.', player: true },
+      { kind: 'ubah', text: 'Kalau ruangan yang diperluas jadi menabrak ruangan lain di denahmu, denah kembali tersusun otomatis (ada pemberitahuan) dan bisa diatur lagi.', player: true },
+      { kind: 'ubah', text: 'Teman yang berkunjung melihat denah rumahmu persis seperti yang kamu atur.' },
+      { kind: 'baru', text: 'Migrasi 018 (rooms.gx, rooms.gy). API: POST /api/room/plan { rooms: [{ id, gx, gy }] } atau { auto: true }, kode galat plan_overlap / plan_apart; /api/room/expand mengembalikan planReset. @kb/shared: houseLayout memakai letak tersimpan (yang bertumpuk/terpisah disusun ulang), opsi strict, dan planProblem untuk validasi.' },
+    ],
+  },
+  {
     version: '0.19.0',
     date: '2026-11-11',
     title: 'Rumah tersambung',
+    commits: ['f423382'],
     summary: 'Semua ruanganmu kini menyambung jadi satu rumah: kamar, ruang tamu, dapur, kamar mandi, dan halaman tampil sekaligus. Pet berjalan antarruangan lewat pintu.',
     items: [
       { kind: 'baru', text: 'Rumah tersambung: ruangan yang kamu beli tidak lagi dipilih satu per satu, tapi tampil menyambung jadi satu rumah. Ruangan dalam disusun rapat dengan dinding rendah berpintu di antaranya, dan halaman ada di depan rumah.', player: true },

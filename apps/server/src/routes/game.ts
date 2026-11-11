@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, type Needs } from '@kb/shared';
+import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -417,6 +417,51 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     });
   });
 
+  /** Denah buatan pemain masih sah? Bila tidak (bertumpuk / terpisah), semua ruangan kembali disusun otomatis. */
+  async function resetPlanIfBroken(t: Db, userId: string, cat: any, s: any) {
+    const rows = await t.query<{ id: string; room_item: string | null; size: number | null; gx: number | null; gy: number | null }>(
+      `select id, room_item, size, gx, gy from rooms where user_id = $1 order by sort, id`, [userId]);
+    const fixed = rows.filter((r) => r.gx !== null && r.gy !== null);
+    if (!fixed.length) return false;
+    const problem = planProblem(fixed.map((r) => ({ id: r.id, size: roomMeta(r.room_item, cat, s, r.size).size, gx: r.gx!, gy: r.gy! })));
+    if (!problem) return false;
+    await t.query(`update rooms set gx = null, gy = null where user_id = $1`, [userId]);
+    return true;
+  }
+
+  /** Atur denah sendiri: simpan letak semua ruangan (harus tidak bertumpuk & saling menempel), atau kembali otomatis. */
+  app.post('/api/room/plan', auth, async (req: any) => {
+    const u = req.user!;
+    const body = obj(req.body ?? {}, 'Denah');
+    const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
+    return db.tx(async (t) => {
+      const rows = await t.query<{ id: string; room_item: string | null; size: number | null }>(
+        `select id, room_item, size from rooms where user_id = $1 order by sort, id for update`, [u.id]);
+      if (body.auto === true) {
+        await t.query(`update rooms set gx = null, gy = null where user_id = $1`, [u.id]);
+        return { ok: true, ...(await patch(t, u.id, ['room'])) };
+      }
+      const list = Array.isArray(body.rooms) ? body.rooms : null;
+      if (!list || list.length !== rows.length) throw bad('invalid', 'Denah harus berisi semua ruanganmu.');
+      const pos = new Map<string, { gx: number; gy: number }>();
+      for (const p of list) {
+        const id = String(p?.id ?? '');
+        if (!rows.some((r) => r.id === id) || pos.has(id)) throw bad('invalid', 'Ruangan di denah tidak dikenal.');
+        pos.set(id, { gx: int(p?.gx, 'Letak', { min: -200, max: 200 }), gy: int(p?.gy, 'Letak', { min: -200, max: 200 }) });
+      }
+      const plan = rows.map((r) => ({ id: r.id, size: roomMeta(r.room_item, cat, s, r.size).size, ...pos.get(r.id)! }));
+      const problem = planProblem(plan);
+      if (problem === 'overlap') throw bad('plan_overlap', 'Ada ruangan yang bertumpuk. Geser dulu supaya tidak menumpuk.');
+      if (problem === 'apart') throw bad('plan_apart', 'Semua ruangan harus menempel ke ruangan lain supaya ada pintunya.');
+      if (problem) throw bad('invalid', 'Letak ruangan tidak valid.');
+      // simpan relatif terhadap pojok belakang rumah
+      const x0 = Math.min(...plan.map((r) => r.gx)), y0 = Math.min(...plan.map((r) => r.gy));
+      for (const r of plan) await t.query(`update rooms set gx = $2, gy = $3, updated_at = now() where id = $1`, [r.id, r.gx - x0, r.gy - y0]);
+      await track(t, u.id, 'house_plan', { rooms: plan.length });
+      return { ok: true, ...(await patch(t, u.id, ['room'])) };
+    });
+  });
+
   /** Perluas ruangan: lantai bertambah di sisi depan, mebel yang sudah ada tetap di tempatnya. */
   app.post('/api/room/expand', auth, async (req: any) => {
     const u = req.user!;
@@ -431,7 +476,9 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       if (meta.expand.coins) await credit(t, u.id, 'coin', -meta.expand.coins, 'room_expand', `${room.id}:${meta.expand.size}`);
       await t.query(`update rooms set size = $2, version = version + 1, updated_at = now() where id = $1`, [room.id, meta.expand.size]);
       await track(t, u.id, 'room_expand', { size: meta.expand.size, coins: meta.expand.coins });
-      return { ok: true, roomId: room.id, size: meta.expand.size, coins: meta.expand.coins, ...(await patch(t, u.id, ['wallet', 'room'])) };
+      // denah buatan pemain yang jadi bertumpuk / terpisah karena ruangan membesar: kembali disusun otomatis
+      const planReset = await resetPlanIfBroken(t, u.id, cat, s);
+      return { ok: true, roomId: room.id, size: meta.expand.size, coins: meta.expand.coins, planReset, ...(await patch(t, u.id, ['wallet', 'room'])) };
     });
   });
 
