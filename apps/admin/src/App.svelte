@@ -67,7 +67,8 @@
   let menu = $state(false);
   const page = $derived(flat.find((p) => p.k === A.route && can(p.min as any)) ?? flat[0]);
 
-  function route() { A.route = location.hash.replace(/^#\/?/, '') || 'dashboard'; menu = false; }
+  // tautan langsung: #/players/<id> membuka detail pemain
+  function route() { const [r, ...rest] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('/'); A.route = r; A.arg = rest.join('/'); menu = false; }
   async function load() {
     try { A.me = await api.get('/api/admin/me'); } catch { A.me = null; }
     loading = false;

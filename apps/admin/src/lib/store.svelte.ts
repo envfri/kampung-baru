@@ -3,6 +3,8 @@ export const A = $state({
   me: null as null | { admin: { id: string; email: string; name: string; role: 'owner' | 'admin' | 'moderator' }; builtins: any; kinds: string[]; locationKinds: string[]; settingsHelp: any; paymentProvider: string },
   toast: { text: '', kind: 'ok' as 'ok' | 'err', n: 0 },
   route: 'dashboard',
+  /** bagian setelah halaman di tautan (#/players/<id>) */
+  arg: '' as string,
 });
 const RANK = { moderator: 1, admin: 2, owner: 3 } as const;
 export const can = (min: keyof typeof RANK) => !!A.me && RANK[A.me.admin.role] >= RANK[min];

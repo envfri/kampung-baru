@@ -12,6 +12,7 @@ import { requireUser } from '../lib/auth';
 import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
 import { grantXp, patch } from './game';
+import { forgetBlocks } from './square';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 // HP yang sedang sibuk / sinyal lemah bisa telat beberapa kali sinkron: jangan langsung dianggap pulang
@@ -87,6 +88,8 @@ function prune(h: House) {
   for (const m of h.members.values()) if (!fresh(m, now)) { h.members.delete(m.id); push(h, { kind: 'leave', from: m.id, name: m.name }); }
 }
 
+/** Catat posisi online pemain (dipakai juga oleh alun-alun). */
+export function markPresence(uid: string, where: string, host?: string) { PRESENCE.set(uid, { at: Date.now(), where, host }); }
 /** Status online untuk daftar teman (null = disembunyikan / offline). */
 export function presenceOf(userId: string, lastSeen?: Date | string | null) {
   const p = PRESENCE.get(userId);
@@ -617,6 +620,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       await t.query(`delete from friendships where (user_id = $1 and friend_id = $2) or (user_id = $2 and friend_id = $1)`, [uid, other]);
     });
     forgetFriend(uid, other);
+    forgetBlocks(uid, other);
     const h = HOUSES.get(uid);
     if (h?.members.has(other)) { const m = h.members.get(other)!; h.members.delete(other); push(h, { kind: 'kick', target: other, name: m.name }); }
     return { ok: true };
@@ -626,6 +630,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
   }));
   app.delete('/api/blocks/:id', auth, async (req: any) => {
     await db.query(`delete from blocks where user_id = $1 and blocked_id = $2`, [req.user!.id, String(req.params.id)]);
+    forgetBlocks(req.user!.id, String(req.params.id));
     return { ok: true };
   });
 

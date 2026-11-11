@@ -2,7 +2,7 @@
   // Peta kampung: pet berjalan menyusuri jalan ke tempat yang diketuk (toko, kebun, kolam, ...), lalu masuk.
   import { onDestroy, onMount, untrack } from 'svelte';
   import { renderMap, renderPet, MAP_VIEWBOX } from '@kb/shared';
-  import { G, toast, activeDecor, wearItems } from '../lib/game.svelte';
+  import { G, toast, activeDecor, wearItems, isSleeping } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   let wrap: HTMLDivElement | undefined = $state();
@@ -20,7 +20,7 @@
   function door(l: any): [number, number] {
     if (!l) return [80, ROAD];
     if (l.y <= ROAD + 10) return [l.x, Math.min(ROAD - 6, l.y + 8)];
-    const top = l.kind === 'race' ? l.y - 104 : l.y - 92;
+    const top = l.kind === 'race' ? l.y - 104 : l.kind === 'square' ? l.y - 140 : l.y - 92;
     return [l.x, Math.max(ROAD + 20, top)];
   }
   const home = () => locs.find((l) => l.id === G.mapAt) ?? locs.find((l) => l.kind === 'home');
@@ -35,6 +35,7 @@
   function closed(l: any) {
     const shut: Record<string, [string, string]> = { garden: ['garden', 'Kebun'], race: ['karung', 'Lapangan Lomba'], pond: ['fishing', 'Kolam Pancing'], games: ['minigames', 'Balai Main'] };
     const s = shut[l.kind];
+    if (l.kind === 'square' && G.catalog?.settings?.square?.enabled === false) return 'Alun-alun sedang ditutup.';
     return s && f[s[0]] === false ? `${s[1]} sedang ditutup.` : '';
   }
 
@@ -47,6 +48,10 @@
       case 'race': G.view = 'karung'; break;
       case 'pond': G.view = 'fishing'; break;
       case 'games': G.sheet = 'games'; break;
+      case 'square':
+        if (isSleeping()) { toast(`${G.me.pet.name} sedang tidur. Bangunkan dulu, ya.`); break; }
+        G.view = 'alun';
+        break;
     }
   }
 

@@ -377,6 +377,26 @@ export async function seedPackV6(db: Db) {
 }
 
 /** Paket konten v7: kunjungan bareng (tugas harian & lencana main di rumah teman, masak bareng, foto bareng). */
+/** v8: Alun-alun di peta kampung + tugas & lencana. */
+export async function seedPackV8(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 8) return false;
+  await db.query(
+    `insert into locations (id, name, kind, x, y, style, sort) values ('alun', 'Alun-alun', 'square', 1150, 412, '{}'::jsonb, 13) on conflict (id) do nothing`,
+  );
+  const q = (id: string, kind: string, title: string, desc: string, event: string, filter: object, target: number, coin: number, pearl: number, xp: number, url: string, sort: number) =>
+    db.query(
+      `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_pearl, reward_xp, url, sort)
+       values ($1,$2,$3,$4,$5,$6::text::jsonb,$7,$8,$9,$10,$11,$12) on conflict (id) do nothing`,
+      [id, kind, title, desc, event, JSON.stringify(filter), target, coin, pearl, xp, url, sort],
+    ).catch(() => {});
+  await q('h-alun', 'daily', 'Jalan-jalan ke Alun-alun', 'Main 3 kali di Alun-alun: nonton, naik komidi putar, ayunan, joget, ...', 'square_act', {}, 3, 20, 0, 4, '/#alun', 157);
+  await q('b-alun', 'badge', 'Anak Alun-alun', 'Main 30 kali di Alun-alun.', 'square_act', {}, 30, 0, 2, 20, '/#alun', 700);
+  await q('b-joget', 'badge', 'Raja Joget', 'Joget bareng di depan panggung 15 kali.', 'square_act', { kind: 'joget' }, 15, 0, 2, 20, '/#alun', 710);
+  await db.query(`insert into settings (key, value) values ('content_pack', '8'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}
+
 export async function seedPackV7(db: Db) {
   const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
   if (Number(row?.value ?? 1) >= 7) return false;

@@ -254,6 +254,9 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       garden: s.garden,
       room: s.room,
       house: (s as any).house,
+      // obrolan rumah & alun-alun: frasa siap pakai & aturan ketik bebas (tanpa angka hadiah internal)
+      visit: (() => { const v = (s as any).visit ?? {}; return { together: v.together, maxLive: v.maxLive, freeChat: v.freeChat, chatMax: v.chatMax, phrases: v.phrases }; })(),
+      square: (() => { const q = (s as any).square ?? {}; return { enabled: q.enabled, max: q.max, freeChat: q.freeChat, chatMax: q.chatMax, phrases: q.phrases, actsPerDay: q.actsPerDay, snacksPerDay: q.snacksPerDay }; })(),
       features: s.features,
     },
   };

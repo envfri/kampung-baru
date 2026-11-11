@@ -4,6 +4,28 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.21.0 · 2026-11-11 · Alun-alun kampung
+
+_Alun-alun sudah dibuka! Jalan-jalan ke sana dari peta kampung, ketemu pemain lain, nonton panggung, naik komidi putar, jajan, dan joget bareng._
+
+### Baru
+
+- Alun-alun di peta kampung: lapangan luas tempat semua pemain berkumpul, dengan beringin kembar, air mancur, jalan batu, bangku, lampu taman, komidi putar, ayunan, dan gerobak jajanan. _(pemain)_
+- Panggung hiburan bergiliran: Orkes Kampung, Wayang Kardus, Tari Payung, dan Sulap Pak Badut. Semua orang menonton acara yang sama; saat musik main, tekan Joget untuk joget bareng (makin ramai makin ceria). _(pemain)_
+- Main di alun-alun: ketuk benda untuk nonton, naik komidi putar, main ayunan, berteduh di bawah beringin, duduk santai, atau jajan Es Dawet, Bakso, dan Arum Manis. Ada hadiah kunjungan harian dan hadiah main (dibatasi per hari). _(pemain)_
+- Ngobrol, ekspresi, dan foto bareng dengan pet di sekitarmu, seperti saat berkunjung ke rumah teman. Satu alun-alun maksimal 20 orang; kalau penuh otomatis dibuka Alun-alun 2. Teman yang sedang di alun-alun bisa disusul dari daftar Teman. _(pemain)_
+- Tugas harian "Jalan-jalan ke Alun-alun" serta lencana Anak Alun-alun dan Raja Joget. _(pemain)_
+- Admin: Moderasi menampilkan laporan pemain (dengan obrolan terakhirnya, tandai selesai) dan obrolan alun-alun; pengaturan Ekonomi & fitur › Alun-alun (buka/tutup, kapasitas, ketik bebas atau frasa saja, hadiah). Tautan langsung #/players/<id> membuka detail pemain.
+- Migrasi 019 (square_chat, reports, jenis lokasi square), paket konten v8. API: /api/square (sync, leave, say, act, photo, report), /api/admin/square-chat, /api/admin/reports. Peta kampung diperlebar ke 1260. Tes: square.test.ts & npm run test:e2e:alun.
+
+### Perbaikan
+
+- Frasa siap pakai obrolan di rumah sendiri kini muncul (pengaturan kunjungan sebelumnya tidak terkirim ke game). _(pemain)_
+
+### Keamanan
+
+- Karena di alun-alun bisa bertemu orang yang bukan teman: obrolan disaring (kata terlarang, tautan & nomor ditolak) dengan frasa siap pakai, pemain bisa Laporkan atau Blokir (yang diblokir tidak saling melihat & mendengar sama sekali), tiga laporan dari pemain berbeda dalam satu jam membisukan obrolan pemain itu 30 menit, dan semua obrolan tercatat untuk moderasi. _(pemain)_
+
 ## 0.20.1 · 2026-11-11 · Audit rumah tersambung & atur denah
 
 ### Baru
@@ -27,6 +49,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 - Pemain yang saling memblokir tidak pernah ikut main bareng yang sama dan tidak ada di foto yang sama (foto tidak masuk album / lukisan mereka).
 - Sinkron rumah live: ruangan yang dikirim harus milik tuan rumah dan posisi dibatasi ukuran ruangannya (cache daftar ruangan dibersihkan saat ruangan dibeli/diperluas). Batas koordinat denah diperlebar (±1000) supaya denah yang sah tidak tertolak setelah digeser.
+
+Commit: [`d297ac2`](https://github.com/envfri/kampung-baru/commit/d297ac2)
 
 ## 0.20.0 · 2026-11-11 · Atur denah sendiri
 

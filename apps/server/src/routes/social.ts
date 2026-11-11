@@ -40,7 +40,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const friends = rows.map((r: any) => {
       const p = r.show_online ? presenceOf(r.id, r.last_seen_at) : null;
       const { show_online, live_visits, ...rest } = r;
-      return { ...rest, online: !!p, where: p?.where ?? null, at: p?.where === 'visit' && p.host ? names.get(p.host) ?? 'teman' : null, guests: live_visits ? guestsAt(r.id) : 0 };
+      return { ...rest, online: !!p, where: p?.where ?? null, at: p?.where === 'visit' && p.host ? names.get(p.host) ?? 'teman' : null, alun: p?.where === 'alun' ? Number(p.host) || 1 : null, guests: live_visits ? guestsAt(r.id) : 0 };
     });
     friends.sort((a: any, b: any) => Number(b.online) - Number(a.online) || b.guests - a.guests);
     return { friends };

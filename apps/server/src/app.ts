@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
-import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7 } from './db/seed';
+import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7, seedPackV8 } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
@@ -24,6 +24,7 @@ import systemRoutes from './routes/system';
 import duelRoutes from './routes/duels';
 import launchRoutes from './routes/launch';
 import houseRoutes from './routes/house';
+import squareRoutes from './routes/square';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -55,6 +56,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV5(db)) app.log.info('Paket konten v5 (Warung Jamu, olahraga, lencana) ditambahkan');
   if (await seedPackV6(db)) app.log.info('Paket konten v6 (duel dengan teman) ditambahkan');
   if (await seedPackV7(db)) app.log.info('Paket konten v7 (kunjungan bareng) ditambahkan');
+  if (await seedPackV8(db)) app.log.info('Paket konten v8 (alun-alun) ditambahkan');
   await migrateNotifySettings(db);
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
   setTrackHook(async (d, u, n, p) => { await questEvent(d, u, n, p); await eventPoints(d, u, n, p); });
@@ -122,6 +124,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(duelRoutes, { db });
   await app.register(launchRoutes, { db });
   await app.register(houseRoutes, { db });
+  await app.register(squareRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

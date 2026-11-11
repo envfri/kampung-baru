@@ -2,14 +2,17 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
-  import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY } from '../lib/house.svelte';
+  import { fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
-  let { mode = 'home' }: { mode?: 'home' | 'visit' } = $props();
+  let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
+  /** alun-alun: lapangan bersama semua pemain (pet sendiri jalan-jalan, pemain lain live) */
+  const square = untrack(() => mode === 'square');
+  const ALUN_FLOOR: any = { id: 'alun-rumput', kind: 'floor', name: 'Rumput', art: { type: 'builtin', key: 'rumput', colors: { main: '#8CC56E', accent: '#7FB862' } } };
   let svgEl: SVGSVGElement | undefined = $state();
   let wrapEl: HTMLDivElement | undefined = $state();
   let fxLayer: SVGGElement | undefined = $state();
@@ -19,12 +22,14 @@
   /* ---------------- denah rumah ---------------- */
   const defSize = () => G.catalog?.settings?.room?.size ?? 6;
   const rooms = $derived.by<any[]>(() => {
+    if (square) return [{ id: ALUN_ROOM, name: 'Alun-alun', size: ALUN_SIZE, theme: 'luar', layout: ALUN_LAYOUT, floorItem: ALUN_FLOOR }];
     if (mode === 'visit') return G.visit?.rooms?.length ? G.visit.rooms : G.visit?.room ? [{ id: '', name: 'Kamar', ...G.visit.room }] : [];
     if (G.me?.rooms?.length) return G.me.rooms;
     const c = curRoom();
     return c ? [c] : [];
   });
-  const itemMap = $derived(Object.fromEntries(items()));
+  const itemMap = $derived<Record<string, any>>(square ? { ...Object.fromEntries(items()), ...ALUN_ITEMS } : Object.fromEntries(items()));
+  const itemOf = (id: string | undefined) => (id ? itemMap[id] ?? item(id) : undefined);
   /** ruangan yang sedang diatur (mode Atur) */
   const editId = $derived<string | null>(mode === 'home' && G.edit ? curRoom()?.id ?? '' : null);
   const roomOf = (id: string) => rooms.find((r) => r.id === id);
@@ -70,13 +75,20 @@
     return [r.gx + p[0], r.gy + p[1]];
   }
 
+  /** alun-alun: masuk lewat gerbang depan (petak kosong acak dekat jalan utama) */
+  function entrySpot(): [number, number] {
+    // sedikit masuk ke lapangan (bukan di tepi) supaya alun-alun terlihat luas sejak datang
+    const near = freeIn(ALUN_ROOM).filter(([x, y]) => y >= ALUN_SIZE - 6 && y <= ALUN_SIZE - 4 && Math.abs(x - 10) <= 3);
+    const t = near[Math.floor(Math.random() * near.length)] ?? [10, ALUN_SIZE - 1];
+    return [t[0] + 0.5, t[1] + 0.5];
+  }
   // ruangan yang difokuskan: di rumah sendiri = ruangan aktif (ikut pet), saat berkunjung = ruangan pet sendiri
   let visitFocus = $state('');
-  const focusId = $derived(mode === 'home' ? (curRoom()?.id ?? plan.rooms[0]?.id ?? '') : plan.byId.has(visitFocus) ? visitFocus : (plan.rooms[0]?.id ?? ''));
+  const focusId = $derived(square ? ALUN_ROOM : mode === 'home' ? (curRoom()?.id ?? plan.rooms[0]?.id ?? '') : plan.byId.has(visitFocus) ? visitFocus : (plan.rooms[0]?.id ?? ''));
 
   const petData = $derived<any>(mode === 'visit' ? G.visit?.pet : G.me.pet);
   const asleep = $derived(!!petData && G.now > 0 && isSleeping(petData));
-  const homeLive = $derived(mode === 'home' && !G.edit);
+  const homeLive = $derived((mode === 'home' || square) && !G.edit);
   // berkunjung saat tuan rumah juga ada di rumahnya: pet tuan rumah digerakkan pemiliknya (dari sinkron)
   const hostMember = $derived(mode === 'visit' ? H.members.find((m) => m.host) ?? null : null);
   const hideMain = $derived(!!hostMember);
@@ -121,7 +133,7 @@
         planGen++;
         halt();
         pose = null; acting = false; menu = null; bedSpot = null;
-        if (!at || b.has(tileOf(at)) || !p.at(at[0], at[1])) at = spotIn(nr?.id ?? (mode === 'home' ? focusId : p.rooms[0]?.id ?? ''));
+        if (!at || b.has(tileOf(at)) || !p.at(at[0], at[1])) at = square ? entrySpot() : spotIn(nr?.id ?? (mode === 'home' ? focusId : p.rooms[0]?.id ?? ''));
         pos = [...at];
         live = [...at];
         for (const c of comps.values()) {
@@ -205,7 +217,7 @@
     const out: Record<string, HouseRoomArt> = {};
     for (const r of rooms)
       out[r.id] = {
-        layout: layoutOf(r), wall: item(r.wall), floor: item(r.floor),
+        layout: layoutOf(r), wall: item(r.wall), floor: r.floorItem ?? item(r.floor),
         edit: r.id === editId, dim: editId !== null && r.id !== editId, sel: r.id === editId ? G.sel : -1,
         photo: r.id === photoRoom ? photoSvg : '',
       };
@@ -227,7 +239,7 @@
         out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip }), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
     return out;
   });
-  const draws = $derived<Draw[]>([...fixedDraws, ...petDraws].sort(houseDrawOrder));
+  const draws = $derived<Draw[]>([...fixedDraws, ...petDraws, ...npcDraws].sort(houseDrawOrder));
 
   const petEl = () => svgEl?.querySelector('.pet') as SVGGElement | null;
   function place() {
@@ -394,6 +406,7 @@
   const guestBar = $derived(mode === 'home' && !G.edit && !G.bath && !G.plan && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
   /** ruang layar yang tertutup tombol & panel (px) */
   function insets() {
+    if (square) return wide ? { t: 92, b: 110, l: 24, r: 340 } : vw > vh ? { t: 64, b: 120, l: 16, r: 16 } : { t: Math.min(vh * 0.2, 175), b: Math.min(vh * 0.34, 310), l: 8, r: 8 };
     if (planning) return wide ? { t: 92, b: 230, l: 24, r: 24 } : vw > vh ? { t: 64, b: 150, l: 16, r: 16 } : { t: Math.min(vh * 0.17, 140), b: Math.min(vh * 0.36, 320), l: 8, r: 8 };
     if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 110, l: 24, r: guestBar ? 520 : 170 };
     if (vw > vh) return { t: 64, b: 84, l: 16, r: 16 };
@@ -442,6 +455,7 @@
     untrack(() => {
       if (!plan.rooms.length) return;
       if (m === 'free') { cam = clampCam(); return; }
+      if (square && m === 'room') { const t = petCam(); if (t) aim(t); return; }
       if (m === 'house') {
         const b = houseBounds(plan);
         // ruang kosong di sekeliling rumah untuk memindah ruangan
@@ -449,6 +463,16 @@
       } else aim(fit(houseBounds(plan, f), true));
     });
   });
+  /** alun-alun: kamera mengikuti pet sendiri dengan zoom senyaman ruangan 9×9 */
+  function petCam() {
+    const p = live ?? pos;
+    if (!p || !vw) return null;
+    const [x, y] = houseIso(p[0], p[1]);
+    const [lo, hi] = kRange(), i = insets();
+    const k = Math.max(lo, Math.min(hi, fitRaw({ x: 0, y: 0, w: 612, h: 420 }).k));
+    return { k, x: x - (i.l - i.r) / 2 / k, y: y - 50 - (i.t - i.b) / 2 / k };
+  }
+  $effect(() => { void pos; if (square && G.cam === 'room') untrack(() => { const t = petCam(); if (t) aim(t); }); });
   // mulai mandi, makan, atau atur: kamera kembali ke ruangan (sesudahnya pemain tetap boleh menggeser)
   let careOn = false;
   $effect(() => {
@@ -672,7 +696,7 @@
         let c = comps.get(m.id);
         if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
         else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
-        const pz = m.act === 'duduk' ? 'duduk' : undefined;
+        const pz = m.act === 'duduk' ? 'duduk' : m.act === 'joget' ? 'joget' : undefined;
         if (pz !== c.pose) { c.pose = pz; changed = true; }
         const tk = `${tgt[0].toFixed(2)},${tgt[1].toFixed(2)}`;
         if (tk !== c.target) {
@@ -721,14 +745,14 @@
       H.pos.x = +(at[0] - (r?.gx ?? 0)).toFixed(2);
       H.pos.y = +(at[1] - (r?.gy ?? 0)).toFixed(2);
       if (mode === 'visit' && me) { H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
-      else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' ? 'duduk' : walking ? 'jalan' : null; }
+      else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' || pose?.pose === 'naik' || pose?.pose === 'ayun' ? 'duduk' : pose?.pose === 'joget' ? 'joget' : pose?.pose === 'lihat' ? 'lihat' : walking ? 'jalan' : null; }
     }, 200);
     return () => { clearInterval(selfWander); clearInterval(rep); clearInterval(sweep); cancelAnimationFrame(compRaf); };
   });
   // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
   let entered = '';
   $effect(() => {
-    const hid = mode === 'visit' ? G.visit?.owner?.id : G.me?.user?.id;
+    const hid = square ? SQUARE : mode === 'visit' ? G.visit?.owner?.id : G.me?.user?.id;
     if (!hid || (mode === 'visit' && G.visit?.together && !G.visit.together.on)) return;
     untrack(() => { enterHouse(hid, focusId); entered = hid; });
   });
@@ -790,7 +814,7 @@
     H.pos.act = null;
     selfBusy = false;
   }
-  $effect(() => { const q = H.actReq; if (q) untrack(() => { H.actReq = null; doVisitAct(q.kind, q.itemId); }); });
+  $effect(() => { const q = H.actReq; if (q) untrack(() => { H.actReq = null; if (square) { if (q.kind === 'joget') doJoget(); } else doVisitAct(q.kind, q.itemId); }); });
 
   /* ---------------- gelembung obrolan & label nama di atas pet ---------------- */
   let tags = $state<{ id: string; x: number; y: number; name: string; self: boolean }[]>([]);
@@ -892,7 +916,17 @@
   function activitiesFor(t: Target) {
     const list = G.catalog?.activities ?? [];
     if (t.spot) return plan.byId.get(t.room)?.outdoor ? [] : list.filter((a: any) => activityFits(a.targets, null, t.spot));
-    const it = item(placedAt(t)?.i);
+    const it = itemOf(placedAt(t)?.i);
+    if (square) {
+      // alun-alun: aksi tetap per benda (lihat SQUARE_ACTS)
+      const key = it?.art?.type === 'builtin' ? it.art.key : '';
+      return (SQUARE_ACTS[key] ?? []).map((a) => {
+        if (a.id === 'jajan' && it && SQUARE_SNACKS[it.id]) return { ...a, name: `Jajan ${SQUARE_SNACKS[it.id].name}`, note: `${SQUARE_SNACKS[it.id].coins} koin`, item: it.id };
+        if (a.id === 'nonton' && show && !show.playing) return { ...a, note: `${show.next.name} mulai ${Math.max(1, Math.ceil((show.until - serverNow()) / 1000))} dtk lagi` };
+        if (a.id === 'nonton' && show) return { ...a, note: `Sedang tampil: ${show.name}` };
+        return { ...a, note: a.id === 'foto' ? 'Bersama pet di dekatmu' : '' };
+      });
+    }
     const acts = list.filter((a: any) => activityFits(a.targets, it as any));
     // kasur & lampu: matikan lampu untuk tidur sungguhan
     const key = it?.art?.type === 'builtin' ? it.art.key : '';
@@ -907,7 +941,7 @@
     if (t.spot) return { goals: inRoom([...ROOM_SPOTS[t.spot].tiles(r.size)]), center: null, faceTo: null, flipTo: ROOM_SPOTS[t.spot].flip };
     const p = placedAt(t);
     if (!p) return { goals: [], center: null, faceTo: null, flipTo: null };
-    const f = footprint(item(p.i));
+    const f = footprint(itemOf(p.i));
     const goals: [number, number][] = [];
     for (let a = 0; a < f.w; a++) goals.push([p.x + a, p.y - 1], [p.x + a, p.y + f.d]);
     for (let b = 0; b < f.d; b++) goals.push([p.x - 1, p.y + b], [p.x + f.w, p.y + b]);
@@ -919,7 +953,7 @@
   function openMenu(e: MouseEvent, t: Target) {
     if (acting) return;
     const acts = activitiesFor(t);
-    const title = t.spot ? ACTIVITY_SPOTS[t.spot] : item(placedAt(t)?.i)?.name ?? 'Mebel';
+    const title = t.spot ? ACTIVITY_SPOTS[t.spot] : itemOf(placedAt(t)?.i)?.name ?? 'Mebel';
     if (!acts.length) {
       // belum ada aktivitas untuk mebel ini: pet tetap menghampirinya
       const g = goalsFor(t);
@@ -936,6 +970,7 @@
   const fmtCd = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)} j ${Math.ceil((s % 3600) / 60)} mnt` : s >= 60 ? `${Math.ceil(s / 60)} mnt` : `${s} dtk`);
 
   async function doActivity(a: any, t: Target) {
+    if (square) return doSquareAct(a, t);
     menu = null;
     if (acting || G.busy) return;
     if (a.id === '__sleep') { await setSleep(true); return; }
@@ -974,6 +1009,94 @@
     acting = false;
     scheduleIdle();
   }
+
+  /* ---------------- alun-alun: main di benda, joget, panggung ---------------- */
+
+  /** acara panggung sekarang (dari jam server: semua orang melihat yang sama) */
+  const show = $derived(square ? squareShow(serverNow()) : null);
+
+  async function doSquareAct(a: any, t: Target) {
+    menu = null;
+    if (acting || G.busy) return;
+    const g = goalsFor(t);
+    const gen = planGen;
+    acting = true;
+    clearTimeout(idleTimer);
+    const p = routeToAny(g.goals);
+    if (p) await walkPath(p);
+    if (gen !== planGen) return;
+    if (g.faceTo && live) { const sx = (g.faceTo[0] - live[0]) - (g.faceTo[1] - live[1]); if (Math.abs(sx) > 0.01) flip = sx < 0; }
+    if (a.id === 'foto') {
+      // foto bareng dengan pet di sekitar (pratinjau foto muncul sendiri)
+      pose = { pose: 'lihat', lift: 0 };
+      await takePhoto('senyum');
+      pose = null; acting = false; scheduleIdle();
+      return;
+    }
+    const r: any = await run(() => api.post('/api/square/act', { kind: a.id, item: a.item }));
+    if (!r) { acting = false; scheduleIdle(); return; }
+    const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
+    const standAt: [number, number] | null = live ? [...live] : null;
+    // naik komidi putar: duduk di pinggir piringan (bukan di tiang tengah); ayunan & bangku: di tengahnya
+    const seat: [number, number] | null = anim.on && g.center ? (a.id === 'naik' ? [g.center[0] + 0.85, g.center[1] + 0.85] : g.center) : null;
+    if (seat) { live = [...seat]; pos = [...seat]; }
+    pose = { pose: a.id === 'naik' || a.id === 'ayun' ? a.id : a.anim, lift: anim.on ? anim.lift : 0 };
+    queueMicrotask(place);
+    if (r.kind === 'jajan') { sfx.eat(); fx('food'); } else sfx.pop();
+    const beats = Math.max(2, Math.round(anim.ms / 700));
+    for (let i = 0; i < beats; i++) { fx((r.kind === 'jajan' ? 'food' : a.id === 'nonton' ? 'notes' : anim.fx) as any); await sleep(anim.ms / beats + 200); }
+    if (gen !== planGen) return;
+    pose = null;
+    if (seat && standAt) { live = standAt; pos = [...standAt]; }
+    queueMicrotask(place);
+    if (r.kind === 'jajan') toast(`Nyam, ${r.snack}! ${G.me.pet.name} kenyang & ceria.`, 'good');
+    else toast(r.rewarded ? `+${r.coins} koin${r.xp ? `, +${r.xp} XP` : ''} · sisa main berhadiah hari ini ${r.left}` : `${G.me.pet.name} senang! (hadiah main hari ini sudah habis)`, 'good');
+    if (r.coins) sfx.coin();
+    if (r.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.levelUp}!`, 'good'); }
+    acting = false;
+    scheduleIdle();
+  }
+
+  /** Joget saat musik di panggung: pet joget 6 detik; makin banyak yang joget bareng, makin ceria. */
+  async function doJoget() {
+    if (!square || acting || G.busy || !live) return;
+    if (!show?.music) { toast('Joget saat ada musik di panggung, ya.'); return; }
+    halt();
+    acting = true;
+    pose = { pose: 'joget', lift: 0 };
+    queueMicrotask(place);
+    const r: any = await run(() => api.post('/api/square/act', { kind: 'joget' }));
+    for (let i = 0; i < 4; i++) { fx('notes'); await sleep(1500); }
+    pose = null;
+    queueMicrotask(place);
+    acting = false;
+    scheduleIdle();
+    if (r) {
+      toast(`${r.crowd >= 3 ? `Joget bareng ${r.crowd} pet! ` : ''}${r.rewarded ? `+${r.coins} koin` : 'Asyik!'}`, 'good');
+      if (r.coins) sfx.coin();
+    }
+  }
+
+  // pengisi acara di panggung (pet kampung) sesuai acara yang sedang tampil
+  const NPC_LOOKS = [{ color: '#F2C94C', ear: 'kucing', eyes: 'bulat' }, { color: '#9FD3C2', ear: 'kelinci' }, { color: '#E7A6C8', ear: 'tunas' }];
+  const SHOW_PROPS: Record<string, (string | undefined)[]> = { orkes: ['gitar', 'kendang', 'gitar'], wayang: ['wayang', undefined, 'wayang'], tari: ['payungtari', 'payungtari', 'payungtari'], sulap: [undefined, 'topi', undefined] };
+  const NPC_AT: [number, number][] = [[8.9, 1.25], [10, 1.35], [11.1, 1.25]];
+  const npcDraws = $derived.by(() => {
+    if (!square || !show?.playing) return [] as Draw[];
+    const props = SHOW_PROPS[show.key] ?? [];
+    const dance = show.key === 'tari';
+    return NPC_AT.map((p, i) => {
+      const at = show.key === 'sulap' && i !== 1 ? null : p;
+      if (!at) return null;
+      return { key: `npc:${i}`, d: at[0] + at[1] + 0.03, h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: i === 2, prop: props[i] }), pet: { cls: `npc ${dance ? 'pose-joget' : 'pose-tampil'}`, tf: tf(at, 22.6) } } as Draw;
+    }).filter(Boolean) as Draw[];
+  });
+  // not musik melayang dari panggung saat musik dimainkan
+  $effect(() => {
+    if (!square || !show?.music) return;
+    const t = setInterval(() => { const [x, y] = houseIso(10, 1); spawn(x, y - 110, 'notes'); }, 1800);
+    return () => clearInterval(t);
+  });
 
   /* ---------------- mandi: gosok sabun lalu bilas ---------------- */
 
@@ -1096,7 +1219,7 @@
     // pet tuan rumah yang tidur / beraktivitas tidak menghalangi tamu berjalan
     if (mode === 'home' && acting) return;
     if (mode === 'home' && asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
-    if (mode === 'home') {
+    if (mode === 'home' || square) {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) return openMenu(e, { room: f.dataset.r ?? '', index: Number(f.dataset.i) });
       const sp = t.closest('.spot') as SVGElement | null;
@@ -1259,7 +1382,7 @@
     });
   });
 
-  const label = $derived(mode === 'visit' ? `Rumah ${G.visit?.owner?.display_name ?? 'teman'}` : `Rumahmu${rooms.length > 1 ? `, ${rooms.length} ruangan` : ''}`);
+  const label = $derived(square ? 'Alun-alun kampung' : mode === 'visit' ? `Rumah ${G.visit?.owner?.display_name ?? 'teman'}` : `Rumahmu${rooms.length > 1 ? `, ${rooms.length} ruangan` : ''}`);
 </script>
 
 <svelte:window onkeydown={key} onpointermove={onPointer} onpointerup={onUp} onpointercancel={onUp} />
@@ -1325,6 +1448,21 @@
   .room :global(.crumb) { animation: crumbIn .4s ease-out; }
   .room.walking :global(.pet-bob), .room :global(.opet.moving .pet-bob) { animation: waddle 0.3s ease-in-out infinite alternate; }
   .room :global(.opet) { cursor: pointer; }
+  /* alun-alun: air mancur, kuda komidi putar, ayunan, pengisi acara, joget */
+  .room :global(.water) { animation: water 0.8s linear infinite; }
+  .room :global(.ride) { animation: ride 1.6s ease-in-out infinite alternate; }
+  .room :global(.swing) { animation: swing 2.2s ease-in-out infinite alternate; }
+  .room :global(.npc.pose-tampil .pet-bob) { animation: tampil 0.9s ease-in-out infinite alternate; }
+  .room :global(.pose-joget .pet-bob) { animation: joget 0.45s ease-in-out infinite alternate; }
+  .room :global(.pet.pose-naik .pet-bob) { animation: ride 1.6s ease-in-out infinite alternate; }
+  .room :global(.pet.pose-ayun .pet-bob) { animation: swingpet 2.2s ease-in-out infinite alternate; }
+  .room :global(.dove) { animation: ride 1.2s ease-in-out infinite alternate; }
+  @keyframes water { to { stroke-dashoffset: -22; } }
+  @keyframes ride { from { transform: translateY(0); } to { transform: translateY(-9px); } }
+  @keyframes swing { from { rotate: -14deg; } to { rotate: 14deg; } }
+  @keyframes swingpet { from { transform: rotate(-10deg) translateX(-6px); } to { transform: rotate(10deg) translateX(6px); } }
+  @keyframes tampil { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-6px) rotate(3deg); } }
+  @keyframes joget { from { transform: rotate(-12deg) translateY(0); } to { transform: rotate(12deg) translateY(-8px); } }
   .tag { position: absolute; z-index: 10; transform: translateX(-50%); background: rgba(255, 253, 247, .92); border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
   .tag.self { background: #FFE8A3; z-index: 11; }
   .room :global(.planmarks polygon) { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
@@ -1350,5 +1488,5 @@
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; }
   .menu .nm { font-weight: 800; }
   .menu .ef { font-size: 12px; font-weight: 700; color: var(--muted); white-space: normal; text-align: right; }
-  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob) { animation: none; } .bubble { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob) { animation: none; } .bubble { animation: none; } }
 </style>

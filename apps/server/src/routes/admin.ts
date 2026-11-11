@@ -18,7 +18,7 @@ import { zepay, zepayConfigured, zepayMode, zepayWebhookUrl, ZePayError, type Ze
 const zErr = (e: unknown) => (e instanceof ZePayError ? `${e.message} (${e.code})` : String((e as any)?.message ?? e));
 
 const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material', 'room'] as const;
-const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games'] as const;
+const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games', 'square'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const MIME = ['image/png', 'image/webp', 'image/jpeg', 'image/svg+xml'];
@@ -377,7 +377,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     for (const k of ['body', 'roof']) if (typeof st[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(st[k])) style[k] = st[k];
     if (st.w !== undefined && st.w !== '') style.w = int(Number(st.w), 'Lebar bangunan', { min: 70, max: 140 });
     const kind = oneOf(b.kind, 'Jenis lokasi', LOC_KINDS);
-    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 1040 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
+    const vals = [id, str(b.name, 'Nama', { min: 2, max: 30 }), kind, int(Number(b.x), 'Posisi X', { min: 40, max: 1220 }), int(Number(b.y), 'Posisi Y', { min: 120, max: 420 }),
       J(style), bool(b.enabled, true), int(Number(b.sort ?? 0), 'Urutan', { min: -1000, max: 1000 }), bool(b.sells_back, false)];
     if (creating) {
       if (await db.one('select 1 from locations where id = $1', [id])) throw bad('exists', 'ID lokasi sudah dipakai.');
@@ -699,6 +699,27 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
       `select c.id, c.text, c.created_at, u.id as user_id, u.display_name as user_name, h.display_name as host_name
          from house_chat c join users u on u.id = c.user_id join users h on h.id = c.host_id order by c.created_at desc limit 150`),
   }));
+  // alun-alun: obrolan terbaru & laporan pemain
+  app.get('/api/admin/square-chat', mod, async () => ({
+    chats: await db.query(
+      `select c.id, c.inst, c.text, c.created_at, u.id as user_id, u.display_name as user_name
+         from square_chat c join users u on u.id = c.user_id order by c.created_at desc limit 200`),
+  }));
+  app.get('/api/admin/reports', mod, async (req: any) => ({
+    reports: await db.query(
+      `select r.id, r.place, r.reason, r.evidence, r.created_at, r.handled_at, r.handled_by,
+              t.id as target_id, t.display_name as target_name, t.banned_at, rp.display_name as reporter_name,
+              (select count(*)::int from reports x where x.target_id = r.target_id and x.created_at > now() - interval '7 days') as week
+         from reports r join users t on t.id = r.target_id left join users rp on rp.id = r.reporter_id
+        where ($1::boolean or r.handled_at is null) order by r.created_at desc limit 200`, [req.query?.all === '1']),
+  }));
+  app.post('/api/admin/reports/:id/handle', mod, async (req: any) => {
+    const id = int(Number(req.params.id), 'Laporan', { min: 1 });
+    const r = await db.one(`update reports set handled_at = now(), handled_by = $2 where id = $1 and handled_at is null returning target_id`, [id, req.admin!.email]);
+    if (!r) throw notFound('Laporan tidak ditemukan atau sudah ditangani.');
+    await audit(db, req, 'report_handle', String(id), {});
+    return { ok: true };
+  });
   app.get('/api/admin/banned-words', mod, async () => ({ words: (await db.query<{ word: string }>(`select word from banned_words order by word`)).map((r) => r.word) }));
   app.post('/api/admin/banned-words', mod, async (req: any) => {
     const w = str(req.body?.word, 'Kata', { min: 2, max: 40 })!.toLowerCase();

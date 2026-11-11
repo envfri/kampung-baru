@@ -1,10 +1,10 @@
 <script lang="ts">
   import CrudPage from '../components/CrudPage.svelte';
   import { renderMap, MAP_VIEWBOX } from '@kb/shared';
-  const KIND: [string, string][] = [['shop', 'Toko'], ['pearl', 'Toko Mutiara'], ['social', 'Tempat nongkrong (teman)'], ['garden', 'Kebun'], ['race', 'Lapangan lomba'], ['pond', 'Kolam pancing'], ['home', 'Rumah']];
+  const KIND: [string, string][] = [['shop', 'Toko'], ['pearl', 'Toko Mutiara'], ['social', 'Tempat nongkrong (teman)'], ['garden', 'Kebun'], ['race', 'Lapangan lomba'], ['pond', 'Kolam pancing'], ['games', 'Balai Main'], ['square', 'Alun-alun (tempat berkumpul semua pemain)'], ['home', 'Rumah']];
   const label = Object.fromEntries(KIND);
 </script>
-<CrudPage title="Peta & toko" desc="Lokasi di Peta Kampung. Toko menjual item yang kolom Toko-nya berisi ID lokasi ini. Geser posisi X (40–760) dan Y (120–420) untuk menata peta."
+<CrudPage title="Peta & toko" desc="Lokasi di Peta Kampung. Toko menjual item yang kolom Toko-nya berisi ID lokasi ini. Geser posisi X (40–1220) dan Y (120–420) untuk menata peta."
   endpoint="/api/admin/locations" listKey="locations"
   columns={[
     { key: 'name', label: 'Nama' },

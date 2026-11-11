@@ -3,7 +3,8 @@
   import Sheet from '../components/Sheet.svelte';
   import { petSVG, renderPhoto } from '@kb/shared';
   import PhotoPreview from '../components/PhotoPreview.svelte';
-  import { G, item, wearItems, run, toast, fail, track } from '../lib/game.svelte';
+  import { G, item, wearItems, run, toast, fail, track, goTo } from '../lib/game.svelte';
+  import { H } from '../lib/house.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -22,7 +23,9 @@
   $effect(() => { if (tab === 'book' && book === null) loadBook(); if (tab === 'album' && album === null) loadAlbum(); });
   const BOOK: Record<string, string> = { sapa: 'menyapa', peluk: 'memeluk', camilan: 'memberi camilan untuk', kejar: 'main kejar-kejaran dengan', duduk: 'duduk santai bareng' };
   const photoSvg = (p: any) => renderPhoto(p.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), p.pose, item(p.scene?.wall), item(p.scene?.floor), p.scene?.theme);
-  const whereText = (f: any) => (f.where === 'home' ? 'di rumah' : f.where === 'visit' ? (f.at ? `main ke rumah ${f.at}` : 'sedang berkunjung') : 'di kampung');
+  const whereText = (f: any) => (f.where === 'home' ? 'di rumah' : f.where === 'visit' ? (f.at ? `main ke rumah ${f.at}` : 'sedang berkunjung') : f.where === 'alun' ? `di Alun-alun${f.alun > 1 ? ` ${f.alun}` : ''}` : 'di kampung');
+  /** susul teman ke alun-alun yang sama (bila masih muat) */
+  function joinSquare(f: any) { sfx.tap(); H.inst = f.alun || 0; G.sheet = null; goTo('alun'); }
   let top = $state<any>(null);
   async function loadTop() { tab = 'top'; try { top = await api.get('/api/houses/top'); } catch (e) { fail(e); top = { top: [], mine: 0 }; } }
   const myCode = $derived(G.me.user.friend_code);
@@ -124,6 +127,7 @@
             {:else}<em class:hot={!f.visited_today}>{f.visited_today ? 'Sudah dikunjungi hari ini' : 'Hadiah kunjungan tersedia'}</em>{/if}
           </div>
           <div class="btns">
+            {#if f.online && f.where === 'alun'}<button class="btn sm hot" onclick={() => joinSquare(f)}>Susul ke Alun-alun</button>{/if}
             <button class="btn sm" class:hot={f.online && f.where === 'home'} onclick={() => visit(f)}>{f.online && (f.where === 'home' || f.guests) ? 'Main bareng' : 'Kunjungi'}</button>
             <button class="btn sm" aria-label="Tantang {f.display_name} duel" onclick={() => { sfx.tap(); G.sheetArg = { friendId: f.id }; G.sheet = 'duels'; }}>Duel</button>
             <button class="btn sm" aria-label="Kirim hadiah ke {f.display_name}" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: f.id, name: f.display_name }; }}>{@html I.gift}</button>

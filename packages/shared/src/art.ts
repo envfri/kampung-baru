@@ -401,6 +401,148 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       return o;
     },
   },
+  /* ---------- properti Alun-alun ---------- */
+  beringin: {
+    label: 'Pohon beringin',
+    colors: { main: '#3F8F4E', accent: '#7A5232' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + w / 2, y + d / 2), cx = ctr[0], cy = ctr[1];
+      let o = `<ellipse cx="${f1(cx)}" cy="${f1(cy + 2 * s)}" rx="${f1(62 * s)}" ry="${f1(24 * s)}" fill="${INK}" opacity=".14"/>`;
+      // akar gantung & batang besar
+      o += `<path d="M${f1(cx - 16 * s)} ${f1(cy)}C${f1(cx - 14 * s)} ${f1(cy - 50 * s)} ${f1(cx - 10 * s)} ${f1(cy - 90 * s)} ${f1(cx - 6 * s)} ${f1(cy - 120 * s)}L${f1(cx + 8 * s)} ${f1(cy - 120 * s)}C${f1(cx + 12 * s)} ${f1(cy - 90 * s)} ${f1(cx + 16 * s)} ${f1(cy - 50 * s)} ${f1(cx + 18 * s)} ${f1(cy)}Z" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(2.2 * s)}" stroke-linejoin="round"/>`;
+      for (const dx of [-46, -30, 30, 44]) o += `<path d="M${f1(cx + dx * s)} ${f1(cy - 104 * s)}q${f1(dx > 0 ? 4 * s : -4 * s)} ${f1(40 * s)} 0 ${f1(84 * s)}" stroke="${shade(c.accent, -0.1)}" stroke-width="${f1(2.2 * s)}" fill="none" stroke-linecap="round"/>`;
+      for (const [dx, dy, r, k] of [[0, -168, 40, 0], [-44, -140, 36, 1], [44, -142, 36, 1], [-24, -120, 32, 0], [26, -118, 32, 0], [-62, -116, 22, 1], [62, -118, 22, 1]])
+        o += `<circle cx="${f1(cx + dx * s)}" cy="${f1(cy + dy * s)}" r="${f1(r * s)}" fill="${k ? shade(c.main, -0.12) : c.main}" stroke="${INK}" stroke-width="${f1(2 * s)}"/>`;
+      return o + `<circle cx="${f1(cx - 14 * s)}" cy="${f1(cy - 182 * s)}" r="${f1(10 * s)}" fill="${shade(c.main, 0.3)}"/><circle cx="${f1(cx + 30 * s)}" cy="${f1(cy - 150 * s)}" r="${f1(6 * s)}" fill="${shade(c.main, 0.3)}"/>`;
+    },
+  },
+  airmancur: {
+    label: 'Air mancur',
+    colors: { main: '#D9D2C3', accent: '#7FC4E8' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + w / 2, y + d / 2), cx = ctr[0], cy = ctr[1];
+      const rx = (w + d) * 15 * s, ry = rx / 2;
+      let o = `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${shade(c.main, -0.25)}" stroke="${INK}" stroke-width="${f1(2 * s)}"/>`;
+      o += `<path d="M${f1(cx - rx)} ${f1(cy)}v${f1(-14 * s)}a${f1(rx)} ${f1(ry)} 0 0 0 ${f1(2 * rx)} 0v${f1(14 * s)}a${f1(rx)} ${f1(ry)} 0 0 1 ${f1(-2 * rx)} 0Z" fill="${c.main}" stroke="${INK}" stroke-width="${f1(2 * s)}"/>`;
+      o += `<ellipse cx="${f1(cx)}" cy="${f1(cy - 14 * s)}" rx="${f1(rx - 6 * s)}" ry="${f1(ry - 3 * s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.6 * s)}"/>`;
+      o += `<path d="M${f1(cx - 9 * s)} ${f1(cy - 14 * s)}V${f1(cy - 44 * s)}h${f1(18 * s)}V${f1(cy - 14 * s)}" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/>`;
+      o += `<ellipse cx="${f1(cx)}" cy="${f1(cy - 44 * s)}" rx="${f1(22 * s)}" ry="${f1(9 * s)}" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/><ellipse cx="${f1(cx)}" cy="${f1(cy - 46 * s)}" rx="${f1(17 * s)}" ry="${f1(6 * s)}" fill="${c.accent}"/>`;
+      // pancuran (bergerak lewat kelas .water)
+      let jets = '';
+      for (const dx of [-1, 0, 1]) jets += `<path class="water" d="M${f1(cx)} ${f1(cy - 50 * s)}q${f1(dx * 20 * s)} ${f1(-34 * s)} ${f1(dx * 34 * s + (dx ? 0 : 1))} ${f1(dx ? 24 * s : -8 * s)}" fill="none" stroke="#BFE6F7" stroke-width="${f1(3.4 * s)}" stroke-linecap="round" stroke-dasharray="${f1(6 * s)} ${f1(5 * s)}"/>`;
+      return o + jets + `<ellipse cx="${f1(cx - rx * 0.4)}" cy="${f1(cy - 16 * s)}" rx="${f1(8 * s)}" ry="${f1(2.4 * s)}" fill="#FFFFFF" opacity=".8"/>`;
+    },
+  },
+  panggung: {
+    label: 'Panggung hiburan',
+    colors: { main: '#B9804A', accent: '#C0392B' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = g.box(x, y, 0, w, d, 24, C3(c.main));
+      // papan lantai panggung
+      for (let k = 1; k < w * 2; k++) { const a = g.iso(x + k / 2, y), b = g.iso(x + k / 2, y + d); o += `<line x1="${f1(a[0])}" y1="${f1(a[1] - 24 * s)}" x2="${f1(b[0])}" y2="${f1(b[1] - 24 * s)}" stroke="${shade(c.main, -0.18)}" stroke-width="${f1(s)}"/>`; }
+      // tiang & latar belakang bertirai
+      o += g.box(x, y, 24, 0.14, 0.14, 120, C3('#8A5A36')) + g.box(x + w - 0.14, y, 24, 0.14, 0.14, 120, C3('#8A5A36'));
+      o += g.quadY(y, x + 0.14, x + w - 0.14, 24 * 1, 144 * 1, shade(c.accent, -0.25));
+      for (let k = 0; k < 8; k++) { const u = x + 0.2 + (k * (w - 0.4)) / 7, p = g.iso(u, y); o += `<path d="M${f1(p[0])} ${f1(p[1] - 30 * s)}V${f1(p[1] - 140 * s)}" stroke="${shade(c.accent, -0.4)}" stroke-width="${f1(1.4 * s)}"/>`; }
+      // tirai kiri-kanan & papan nama
+      const L0 = g.iso(x + 0.14, y), L1 = g.iso(x + 0.9, y), R0 = g.iso(x + w - 0.9, y), R1 = g.iso(x + w - 0.14, y);
+      const up = (p: number[], v: number) => [p[0], p[1] - v * s];
+      o += g.poly([up(L0, 24), up(L0, 150), up(L1, 150), up(L1, 110), up(L0, 40)], c.accent) + g.poly([up(R1, 24), up(R1, 150), up(R0, 150), up(R0, 110), up(R1, 40)], c.accent);
+      const T0 = g.iso(x - 0.1, y), T1 = g.iso(x + w + 0.1, y);
+      o += g.poly([up(T0, 144), up(T1, 144), up(T1, 162), up(T0, 162)], '#F2B632');
+      for (let k = 0; k < 9; k++) { const u = x + (k * w) / 8, p = g.iso(u, y); o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] - 153 * s)}" r="${f1(2.6 * s)}" fill="${k % 2 ? '#FFFFFF' : '#E0583F'}"/>`; }
+      return o;
+    },
+  },
+  komidi: {
+    label: 'Komidi putar',
+    colors: { main: '#E0583F', accent: '#FFF4D6' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + w / 2, y + d / 2), cx = ctr[0], cy = ctr[1];
+      const rx = (w + d) * 15 * s, ry = rx / 2;
+      let o = `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${INK}" opacity=".14"/>`;
+      o += `<path d="M${f1(cx - rx)} ${f1(cy - 4 * s)}v${f1(-10 * s)}a${f1(rx)} ${f1(ry)} 0 0 0 ${f1(2 * rx)} 0v${f1(10 * s)}a${f1(rx)} ${f1(ry)} 0 0 1 ${f1(-2 * rx)} 0Z" fill="${shade(c.main, -0.2)}" stroke="${INK}" stroke-width="${f1(2 * s)}"/>`;
+      o += `<ellipse cx="${f1(cx)}" cy="${f1(cy - 14 * s)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(2 * s)}"/>`;
+      o += `<rect x="${f1(cx - 5 * s)}" y="${f1(cy - 128 * s)}" width="${f1(10 * s)}" height="${f1(116 * s)}" fill="#F2B632" stroke="${INK}" stroke-width="${f1(1.8 * s)}"/>`;
+      // kuda-kuda naik-turun (kelas .ride)
+      const horse = (hx: number, hy: number, col: string, k: number) =>
+        `<g class="ride" style="animation-delay:${k * 0.35}s"><line x1="${f1(hx)}" y1="${f1(hy - 92 * s)}" x2="${f1(hx)}" y2="${f1(hy)}" stroke="#C9A13B" stroke-width="${f1(2.4 * s)}"/><path d="M${f1(hx - 16 * s)} ${f1(hy - 38 * s)}q${f1(4 * s)} ${f1(-14 * s)} ${f1(20 * s)} ${f1(-12 * s)}l${f1(8 * s)} ${f1(-12 * s)}l${f1(6 * s)} ${f1(6 * s)}l${f1(-6 * s)} ${f1(12 * s)}q${f1(-2 * s)} ${f1(14 * s)} ${f1(-14 * s)} ${f1(14 * s)}h${f1(-12 * s)}Z" fill="${col}" stroke="${INK}" stroke-width="${f1(1.8 * s)}" stroke-linejoin="round"/><path d="M${f1(hx - 12 * s)} ${f1(hy - 26 * s)}v${f1(10 * s)}M${f1(hx + 6 * s)} ${f1(hy - 26 * s)}v${f1(10 * s)}" stroke="${INK}" stroke-width="${f1(2 * s)}"/></g>`;
+      o += horse(cx - rx * 0.55, cy - 16 * s, '#FFFFFF', 0) + horse(cx + rx * 0.5, cy - 18 * s, '#F7A8C4', 1) + horse(cx - rx * 0.15, cy + ry * 0.45 - 14 * s, '#9FD3EC', 2);
+      // atap kerucut bergaris
+      const top = cy - 150 * s, rim = cy - 104 * s;
+      for (let i = 0; i < 8; i++) {
+        const a0 = -rx - 6 * s + (i * (2 * rx + 12 * s)) / 8, a1 = -rx - 6 * s + ((i + 1) * (2 * rx + 12 * s)) / 8;
+        o += `<path d="M${f1(cx)} ${f1(top)}L${f1(cx + a0)} ${f1(rim)}Q${f1(cx + (a0 + a1) / 2)} ${f1(rim + 9 * s)} ${f1(cx + a1)} ${f1(rim)}Z" fill="${i % 2 ? c.accent : c.main}" stroke="${INK}" stroke-width="${f1(1.6 * s)}" stroke-linejoin="round"/>`;
+      }
+      return o + `<path d="M${f1(cx)} ${f1(top)}v${f1(-14 * s)}l${f1(12 * s)} ${f1(4 * s)}l${f1(-12 * s)} ${f1(4 * s)}" fill="#F2B632" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+    },
+  },
+  ayunan: {
+    label: 'Ayunan',
+    colors: { main: '#3F7FBF', accent: '#E0583F' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      const leg = C3(c.main);
+      let o = g.box(x + 0.05, y + d / 2 - 0.06, 0, 0.12, 0.12, 96, leg) + g.box(x + w - 0.17, y + d / 2 - 0.06, 0, 0.12, 0.12, 96, leg);
+      const a = g.iso(x + 0.1, y + d / 2), b = g.iso(x + w - 0.1, y + d / 2);
+      o += `<line x1="${f1(a[0])}" y1="${f1(a[1] - 96 * s)}" x2="${f1(b[0])}" y2="${f1(b[1] - 96 * s)}" stroke="${INK}" stroke-width="${f1(6 * s)}" stroke-linecap="round"/><line x1="${f1(a[0])}" y1="${f1(a[1] - 96 * s)}" x2="${f1(b[0])}" y2="${f1(b[1] - 96 * s)}" stroke="${shade(c.main, 0.2)}" stroke-width="${f1(3 * s)}" stroke-linecap="round"/>`;
+      // dua dudukan berayun (kelas .swing, berputar dari palang)
+      for (const u of [0.32, 0.68]) {
+        const p = g.iso(x + w * u, y + d / 2);
+        o += `<g class="swing" style="transform-origin:${f1(p[0])}px ${f1(p[1] - 96 * s)}px;animation-delay:${u}s"><path d="M${f1(p[0] - 9 * s)} ${f1(p[1] - 96 * s)}V${f1(p[1] - 30 * s)}M${f1(p[0] + 9 * s)} ${f1(p[1] - 96 * s)}V${f1(p[1] - 30 * s)}" stroke="#7A5232" stroke-width="${f1(1.6 * s)}"/><rect x="${f1(p[0] - 13 * s)}" y="${f1(p[1] - 32 * s)}" width="${f1(26 * s)}" height="${f1(7 * s)}" rx="${f1(2 * s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.6 * s)}"/></g>`;
+      }
+      return o;
+    },
+  },
+  gerobak: {
+    label: 'Gerobak jajanan',
+    colors: { main: '#3FA06A', accent: '#FFFDF7' },
+    draw(g, x, y, w, d, c, p) {
+      const s = g.s;
+      let o = g.box(x + 0.15, y + 0.15, 16, w - 0.3, d - 0.3, 34, C3(c.main));
+      for (const u of [0.35, w - 0.35]) { const q = g.iso(x + u, y + d - 0.12); o += `<circle cx="${f1(q[0])}" cy="${f1(q[1] - 10 * s)}" r="${f1(10 * s)}" fill="#3B3F55" stroke="${INK}" stroke-width="${f1(1.6 * s)}"/><circle cx="${f1(q[0])}" cy="${f1(q[1] - 10 * s)}" r="${f1(3 * s)}" fill="#C9A13B"/>`; }
+      // atap kain bergaris
+      o += g.box(x + 0.15, y + 0.2, 50, 0.07, 0.07, 54, C3('#8A5A36')) + g.box(x + w - 0.22, y + 0.2, 50, 0.07, 0.07, 54, C3('#8A5A36'));
+      const A = g.iso(x + 0.02, y + 0.05), B = g.iso(x + w - 0.02, y + 0.05), Cc = g.iso(x + w - 0.02, y + d - 0.02), D = g.iso(x + 0.02, y + d - 0.02);
+      const up = (q: number[], v: number) => [q[0], q[1] - v * s];
+      o += g.poly([up(A, 108), up(B, 108), up(Cc, 100), up(D, 100)], c.accent);
+      o += `<path d="M${f1(up(D, 100)[0])} ${f1(up(D, 100)[1])}L${f1(up(Cc, 100)[0])} ${f1(up(Cc, 100)[1])}" stroke="${c.main}" stroke-width="${f1(6 * s)}" stroke-dasharray="${f1(8 * s)} ${f1(8 * s)}"/>`;
+      // dagangan di etalase: 0 = es dawet, 1 = bakso, 2 = arum manis
+      const top = g.iso(x + w / 2, y + d / 2);
+      const k = p.kind | 0, ex = top[0], ey = top[1] - 54 * s;
+      if (k === 1) o += `<ellipse cx="${f1(ex)}" cy="${f1(ey)}" rx="${f1(13 * s)}" ry="${f1(5 * s)}" fill="#FFFFFF" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/><circle cx="${f1(ex - 4 * s)}" cy="${f1(ey - 3 * s)}" r="${f1(4 * s)}" fill="#A0704A" stroke="${INK}" stroke-width="${f1(s)}"/><circle cx="${f1(ex + 4 * s)}" cy="${f1(ey - 3 * s)}" r="${f1(4 * s)}" fill="#A0704A" stroke="${INK}" stroke-width="${f1(s)}"/>`;
+      else if (k === 2) o += `<line x1="${f1(ex)}" y1="${f1(ey + 4 * s)}" x2="${f1(ex)}" y2="${f1(ey - 8 * s)}" stroke="#B9804A" stroke-width="${f1(1.6 * s)}"/><circle cx="${f1(ex)}" cy="${f1(ey - 14 * s)}" r="${f1(9 * s)}" fill="#F7A8C4" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/><circle cx="${f1(ex - 3 * s)}" cy="${f1(ey - 17 * s)}" r="${f1(3 * s)}" fill="#FFD6E5"/>`;
+      else o += `<path d="M${f1(ex - 7 * s)} ${f1(ey - 16 * s)}h${f1(14 * s)}l${f1(-2 * s)} ${f1(18 * s)}h${f1(-10 * s)}Z" fill="#9CCB5A" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/><rect x="${f1(ex - 6 * s)}" y="${f1(ey - 6 * s)}" width="${f1(12 * s)}" height="${f1(5 * s)}" fill="#C8955A"/>`;
+      return o;
+    },
+  },
+  lampujalan: {
+    label: 'Lampu taman',
+    colors: { main: '#3B3F55', accent: '#FFE07A' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, ctr = g.iso(x + 0.5, y + 0.5), cx = ctr[0], cy = ctr[1];
+      let o = g.box(x + 0.36, y + 0.36, 0, 0.28, 0.28, 8, C3(c.main));
+      o += `<rect x="${f1(cx - 2.5 * s)}" y="${f1(cy - 92 * s)}" width="${f1(5 * s)}" height="${f1(86 * s)}" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+      o += `<circle cx="${f1(cx)}" cy="${f1(cy - 100 * s)}" r="${f1(16 * s)}" fill="${c.accent}" opacity=".35"/>`;
+      return o + `<path d="M${f1(cx - 9 * s)} ${f1(cy - 92 * s)}h${f1(18 * s)}l${f1(-3 * s)} ${f1(-16 * s)}h${f1(-12 * s)}Z" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.6 * s)}"/><path d="M${f1(cx - 11 * s)} ${f1(cy - 108 * s)}h${f1(22 * s)}l${f1(-11 * s)} ${f1(-8 * s)}Z" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+    },
+  },
+  paving: {
+    label: 'Jalan batu',
+    colors: { main: '#D8CFC0', accent: '#BDB2A0' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s;
+      let o = '';
+      for (let a = 0; a < w; a++)
+        for (let b = 0; b < d; b++) {
+          const q = (u: number, v: number) => g.iso(x + a + u, y + b + v);
+          o += `<polygon points="${P([q(0.04, 0.04), q(0.96, 0.04), q(0.96, 0.96), q(0.04, 0.96)])}" fill="${(a + b) % 2 ? c.main : c.accent}" stroke="${shade(c.main, -0.3)}" stroke-width="${f1(s)}"/>`;
+          o += `<path d="M${P([q(0.5, 0.04), q(0.5, 0.96)]).replace(' ', 'L')}M${P([q(0.04, 0.5), q(0.96, 0.5)]).replace(' ', 'L')}" stroke="${shade(c.main, -0.18)}" stroke-width="${f1(0.8 * s)}"/>`;
+        }
+      return o;
+    },
+  },
   kotak: {
     label: 'Kotak (umum)',
     colors: { main: '#E9B23A' },
@@ -809,6 +951,12 @@ const PROPS: Record<string, string> = {
   masak: `<g transform="translate(42 -36)"><ellipse rx="16" ry="6" fill="#3B3F55" stroke="${INK}" stroke-width="2.4"/><path d="M14 -2l18 -6" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><circle cx="-4" cy="-4" r="3" fill="#F2C94C"/><circle cx="5" cy="-3" r="2.6" fill="#E0583F"/></g>`,
   main: `<g transform="translate(-44 -12)"><circle r="12" fill="#E0583F" stroke="${INK}" stroke-width="2.6"/><path d="M-12 0h24M0 -12q-7 12 0 24" stroke="#FFFDF7" stroke-width="2.4" fill="none"/></g>`,
   tali: `<path d="M-42 -22Q-66 -136 0 -138Q66 -136 42 -22" fill="none" stroke="#E0583F" stroke-width="3.2" stroke-linecap="round"/><rect x="-48" y="-30" width="9" height="15" rx="3.5" fill="#F2B632" stroke="${INK}" stroke-width="2.2"/><rect x="39" y="-30" width="9" height="15" rx="3.5" fill="#F2B632" stroke="${INK}" stroke-width="2.2"/>`,
+  // pengisi acara panggung alun-alun
+  gitar: `<g transform="translate(18 -34) rotate(-28)"><ellipse cx="0" cy="8" rx="14" ry="12" fill="#C8955A" stroke="${INK}" stroke-width="3"/><circle cx="0" cy="6" r="4" fill="${INK}"/><rect x="-3" y="-40" width="6" height="40" fill="#8A5A36" stroke="${INK}" stroke-width="2.4"/><rect x="-5" y="-48" width="10" height="9" rx="2" fill="#5B3A22" stroke="${INK}" stroke-width="2"/></g>`,
+  kendang: `<g transform="translate(0 -22)"><path d="M-30 -10Q0 -18 30 -10L26 14Q0 20 -26 14Z" fill="#A0522D" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><ellipse cx="-29" cy="2" rx="5" ry="12" fill="#F3E3B5" stroke="${INK}" stroke-width="2.4"/><ellipse cx="29" cy="2" rx="5" ry="12" fill="#F3E3B5" stroke="${INK}" stroke-width="2.4"/><path d="M-22 -10L-14 14M-6 -12L2 16M10 -12L18 14" stroke="#F2B632" stroke-width="2"/></g>`,
+  payungtari: `<g transform="translate(30 -66) rotate(16)"><line x1="0" y1="0" x2="0" y2="34" stroke="${INK}" stroke-width="3"/><path d="M-30 0Q0 -30 30 0Q22 -4 15 0Q8 -4 0 0Q-8 -4 -15 0Q-22 -4 -30 0Z" fill="#E0583F" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M-15 0Q0 -26 15 0" fill="none" stroke="#F2B632" stroke-width="2"/></g>`,
+  topi: `<g transform="translate(0 -96)"><ellipse cx="0" cy="12" rx="30" ry="7" fill="#2B2F4A" stroke="${INK}" stroke-width="2"/><rect x="-18" y="-24" width="36" height="36" rx="3" fill="#2B2F4A" stroke="${INK}" stroke-width="2"/><rect x="-18" y="4" width="36" height="6" fill="#E0583F"/><g class="dove" transform="translate(30 -30)"><path d="M-10 0Q0 -12 12 -4Q4 0 12 6Q0 8 -10 0Z" fill="#FFFFFF" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g></g>`,
+  wayang: `<g transform="translate(36 -40)"><line x1="0" y1="40" x2="0" y2="-36" stroke="#8A5A36" stroke-width="2.4"/><path d="M0 -40q10 2 8 14q8 6 4 18l-4 22h-8l-4 -22q-4 -12 4 -18q-2 -12 0 -14Z" fill="#C0392B" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><circle cx="2" cy="-34" r="6" fill="#F2B632" stroke="${INK}" stroke-width="1.8"/><path d="M8 -12q16 -6 18 8" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/></g>`,
   // baskom mandi di depan kaki (mode mandi: gosok sabun lalu bilas)
   baskom: `<ellipse cx="0" cy="-10" rx="54" ry="13" fill="#9FD3EC" stroke="${INK}" stroke-width="3" opacity=".92"/><path d="M-54 -10Q-50 16 0 18Q50 16 54 -10Q48 4 0 6Q-48 4 -54 -10Z" fill="#9AA7B8" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-36 -6q8 4 16 0M12 -5q8 4 16 0" stroke="#FFFFFF" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
 };
@@ -1405,11 +1553,22 @@ function special(l: LocationLike) {
   if (l.kind === 'pond') {
     return `<g class="lift"><ellipse cx="${x}" cy="${y - 46}" rx="78" ry="40" fill="#6EB7D6" stroke="${INK}" stroke-width="2.5"/><path d="M${x - 35} ${y - 52}q8 -5 16 0M${x + 15} ${y - 36}q8 -5 16 0M${x - 5} ${y - 66}q6 -4 12 0" stroke="#FFFFFF" stroke-width="2" fill="none"/><rect x="${x - 65}" y="${y - 40}" width="40" height="10" fill="#B98B4E" stroke="${INK}" stroke-width="2"/></g>${pill(x, y, l.name)}`;
   }
+  if (l.kind === 'square') {
+    // alun-alun: lapangan rumput berpagar dengan jalan batu, beringin kembar, air mancur, panggung & komidi putar
+    let o = `<rect x="${x - 96}" y="${y - 128}" width="192" height="118" rx="14" fill="#8CC56E" stroke="${INK}" stroke-width="2.5"/>`;
+    o += `<path d="M${x - 96} ${y - 66}H${x + 96}M${x} ${y - 128}V${y - 10}" stroke="#D8CFC0" stroke-width="14"/><path d="M${x - 96} ${y - 66}H${x + 96}M${x} ${y - 128}V${y - 10}" stroke="#BDB2A0" stroke-width="1.5" stroke-dasharray="6 6"/>`;
+    o += `<rect x="${x + 30}" y="${y - 124}" width="56" height="22" rx="3" fill="#B9804A" stroke="${INK}" stroke-width="2"/><rect x="${x + 34}" y="${y - 140}" width="48" height="20" fill="#C0392B" stroke="${INK}" stroke-width="2"/><rect x="${x + 30}" y="${y - 146}" width="56" height="8" fill="#F2B632" stroke="${INK}" stroke-width="1.6"/>`;
+    o += `<circle cx="${x}" cy="${y - 66}" r="12" fill="#9FD3EC" stroke="${INK}" stroke-width="2"/><circle cx="${x}" cy="${y - 66}" r="4" fill="#FFFFFF"/>`;
+    for (const dx of [-34, 34]) o += `<circle cx="${x + dx}" cy="${y - 96}" r="17" fill="#3F8F4E" stroke="${INK}" stroke-width="2.2"/><circle cx="${x + dx - 6}" cy="${y - 102}" r="6" fill="#62B06A"/>`;
+    o += `<path d="M${x - 78} ${y - 40}l14 -14l14 14z" fill="#E0583F" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><ellipse cx="${x - 64}" cy="${y - 38}" rx="16" ry="6" fill="#FFF4D6" stroke="${INK}" stroke-width="1.8"/>`;
+    for (let i = 0; i < 7; i++) o += `<path d="M${x - 84 + i * 28} ${y - 128}q14 10 28 0" fill="none" stroke="${INK}" stroke-width="1.2"/><circle cx="${x - 70 + i * 28}" cy="${y - 123}" r="3" fill="${['#E0583F', '#F2B632', '#7FC4E8', '#F7A8C4'][i % 4]}"/>`;
+    return `<g class="lift">${o}</g>${pill(x, y, l.name)}`;
+  }
   return building(l);
 }
 
-/** Lebar peta 1080 (versi lama 960): sisi kanan untuk Warung Jamu dan tempat baru. */
-export const MAP_W = 1080;
+/** Lebar peta 1260 (versi lama 960 → 1080): sisi kanan untuk Warung Jamu dan Alun-alun. */
+export const MAP_W = 1260;
 export const MAP_VIEWBOX = `0 -40 ${MAP_W} 520`;
 
 function mapDecor(decor: string | undefined) {
@@ -1464,7 +1623,7 @@ function mapDecor(decor: string | undefined) {
 export function renderMap(locations: LocationLike[], decor?: string) {
   let o = `<rect x="-200" y="-200" width="1500" height="900" fill="#A9D18A"/>`;
   for (let i = 0; i < 96; i++) o += `<circle cx="${(i * 137) % MAP_W}" cy="${(i * 89) % 440}" r="3" fill="#97C478"/>`;
-  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [1062, 52], [1050, 330]].forEach(([x, y]) => {
+  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [1062, 52], [1000, 330], [1150, 70], [1230, 150], [1240, 330]].forEach(([x, y]) => {
     o += `<circle cx="${x}" cy="${y + 16}" r="5" fill="#7A5232"/><circle cx="${x}" cy="${y}" r="20" fill="#5DA05A" stroke="${INK}" stroke-width="2.5"/><circle cx="${x - 6}" cy="${y - 6}" r="7" fill="#7CC57D"/>`;
   });
   const road = `M-20 240H${MAP_W + 20}M420 240V470`;

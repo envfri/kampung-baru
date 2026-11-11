@@ -14,6 +14,7 @@ export function openLink(url: string) {
     case 'fishing': G.view = 'fishing'; break;
     case 'shop': goTo(G.shopId || 'pasar'); break;
     case 'bangunan': goTo('bangunan'); break;
+    case 'alun': goTo('alun'); break;
     case 'rooms': G.view = 'home'; G.sheet = 'rooms'; break;
     case 'friends': G.view = 'home'; G.sheet = 'friends'; break;
     case 'daily': G.view = 'home'; G.sheet = 'daily'; break;

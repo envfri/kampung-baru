@@ -4,7 +4,7 @@ import { decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planPr
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
-export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel';
+export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel' | 'alun';
 export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew' | 'save';
 
 export interface CatalogItem extends ItemLike {

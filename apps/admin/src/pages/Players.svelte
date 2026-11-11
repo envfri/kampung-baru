@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { petSVG } from '@kb/shared';
   import { api } from '../lib/api';
-  import { can, err, toast, num, dt, rp } from '../lib/store.svelte';
+  import { can, err, toast, num, dt, rp, A } from '../lib/store.svelte';
   import Drawer from '../components/Drawer.svelte';
   let q = $state(''), filter = $state(''), page = $state(0);
   let rows = $state<any[]>([]);
@@ -14,7 +14,7 @@
   let items = $state<any[]>([]);
 
   async function load() { try { rows = (await api.get(`/api/admin/players?q=${encodeURIComponent(q)}&filter=${filter}&page=${page}`)).players; } catch (e) { err(e); } }
-  onMount(async () => { load(); try { items = (await api.get('/api/admin/items')).items; } catch { /* moderator boleh tidak melihat */ } });
+  onMount(async () => { load(); if (/^[0-9a-f-]{36}$/i.test(A.arg)) open(A.arg); try { items = (await api.get('/api/admin/items')).items; } catch { /* moderator boleh tidak melihat */ } });
   let t: any;
   const search = () => { clearTimeout(t); t = setTimeout(() => { page = 0; load(); }, 300); };
   async function open(id: string) { try { d = await api.get(`/api/admin/players/${id}`); rename = { petName: d.pet?.name ?? '', displayName: d.user.display_name }; } catch (e) { err(e); } }

@@ -1,6 +1,6 @@
 // Rumah "live": siapa saja yang sedang ada di rumah yang sama (tuan rumah + tamu, di ruangan mana pun), obrolan, ekspresi,
 // main bareng, dan foto. Disinkronkan lewat polling (tamu ±0,9 detik; tuan rumah yang sendirian lebih jarang).
-import { G, toast, fail, refreshMe } from './game.svelte';
+import { G, toast, fail, refreshMe, merge } from './game.svelte';
 import { api, ApiError } from './api';
 import { sfx } from './sfx';
 
@@ -25,7 +25,16 @@ export const H = $state({
   photo: null as any,
   /** permintaan aksi ke pet teman dari bar kunjungan (dijalankan Room: pet berjalan, beraksi, kirim ke server) */
   actReq: null as null | { kind: string; itemId?: string },
+  /** alun-alun: nomor alun-alun, jumlah orang, alun-alun lain yang ramai, pemain yang disembunyikan (diblokir) */
+  inst: 0,
+  count: 0,
+  max: 20,
+  others: [] as { id: number; count: number }[],
+  hidden: [] as string[],
 });
+/** id tempat live untuk alun-alun (rumah memakai id tuan rumah) */
+export const SQUARE = 'alun';
+const base = () => (H.hostId === SQUARE ? '/api/square' : `/api/house/${H.hostId}`);
 
 let timer: any = null, seq = 0, boot = '', busy = false, pendingEmote: string | null = null, bubbleId = 0, gen = 0;
 const others = () => H.members.length + H.elsewhere.length;
@@ -44,16 +53,29 @@ async function tick(myGen: number) {
   try {
     // ekspresi yang ditekan selama permintaan berjalan tetap terkirim di sinkron berikutnya
     const sending = pendingEmote;
-    const r = await api.post(`/api/house/${H.hostId}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: sending ?? undefined, since: seq });
+    const r = await api.post(`${base()}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: sending ?? undefined, since: seq, inst: H.inst || undefined });
     if (pendingEmote === sending) pendingEmote = null;
     if (myGen !== gen) return;
     // server baru restart: nomor urut kejadian mulai lagi dari awal
     if (r.boot && r.boot !== boot) { if (boot) seq = 0; boot = r.boot; }
     H.live = !!r.live; H.full = !!r.full; H.reason = r.reason ?? '';
+    if (H.hostId === SQUARE && r.live) {
+      // pindah ke alun-alun lain (mis. penuh): nomor urut kejadian mulai lagi
+      if (H.inst && r.inst !== H.inst) seq = 0;
+      H.inst = r.inst; H.count = r.count; H.max = r.max; H.others = r.others ?? [];
+      if (r.welcome) { merge(r.welcome); toast(`Selamat datang di Alun-alun! +${r.welcome.coins} koin`, 'good'); }
+    }
+    if (H.hostId === SQUARE && !r.live && r.reason) {
+      // alun-alun ditutup admin / pet tertidur: kembali ke peta kampung
+      leaveHouse();
+      if (G.view === 'alun') { G.view = 'map'; G.mapAt = 'alun'; }
+      toast(r.reason === 'asleep' ? `${G.me?.pet?.name ?? 'Pet'} sedang tidur. Bangunkan dulu, ya.` : 'Alun-alun sedang ditutup.');
+      return;
+    }
     if (r.reason === 'kicked') { leaveHouse(); if (G.view === 'visit') { G.view = 'home'; G.visit = null; } toast('Tuan rumah mengantarmu pulang.'); return; }
     if (r.live) {
       H.me = r.me;
-      H.members = r.members ?? [];
+      H.members = (r.members ?? []).filter((m: LiveMember) => !H.hidden.includes(m.id));
       H.elsewhere = r.elsewhere ?? [];
       H.coop = r.coop;
       for (const e of r.events ?? []) handle(e);
@@ -85,9 +107,9 @@ function handle(e: any) {
   switch (e.kind) {
     case 'join': if (!mine && seq) { toast(e.host ? `${e.name} pulang ke rumah. Halo!` : `${e.name} datang main!`, 'good'); sfx.pop(); } break;
     case 'leave': if (!mine && seq) toast(`${e.name} pulang.`); break;
-    case 'say': if (!mine) { bubble(e.from, { text: e.text }); sfx.tap(); } break;
+    case 'say': if (!mine && !H.hidden.includes(e.from)) { bubble(e.from, { text: e.text }); sfx.tap(); } break;
     case 'emote': if (!mine) bubble(e.from, { emote: e.emote }, 2600); break;
-    case 'act': if (!mine) bubble(e.from, { text: ACT_SAY[e.act] ?? 'Main yuk!' }, 3000); break;
+    case 'act': if (!mine && !H.hidden.includes(e.from)) bubble(e.from, { text: ACT_SAY[e.act] ?? 'Main yuk!' }, 3000); break;
     case 'kick': if (e.target !== H.me && seq) toast(`${e.name} diantar pulang.`); break;
     case 'coop_start': if (!mine && seq) { sfx.pop(); H.coopSeen = ''; } break;
     case 'coop_join': if (!mine && seq && H.coop?.starter === H.me) sfx.pop(); break;
@@ -101,7 +123,7 @@ function handle(e: any) {
     case 'photo': if (!mine && seq) { sfx.coin(); toast(`${nameOf(e.from)} mengambil foto bareng! Lihat di album.`, 'good'); } break;
   }
 }
-export const ACT_SAY: Record<string, string> = { sapa: 'Halo!', peluk: 'Peluk!', camilan: 'Ini camilan!', kejar: 'Kejar aku!', duduk: 'Duduk bareng, yuk' };
+export const ACT_SAY: Record<string, string> = { sapa: 'Halo!', peluk: 'Peluk!', camilan: 'Ini camilan!', kejar: 'Kejar aku!', duduk: 'Duduk bareng, yuk', nonton: 'Seru!', naik: 'Wiii!', ayun: 'Hore!', joget: 'Joget!', teduh: 'Adem…' };
 
 /** Masuk ke rumah (tamu atau tuan rumah). Aman dipanggil berulang. */
 export function enterHouse(hostId: string, roomId: string) {
@@ -110,6 +132,7 @@ export function enterHouse(hostId: string, roomId: string) {
   gen++;
   H.hostId = hostId; H.roomId = roomId; seq = 0;
   H.members = []; H.elsewhere = []; H.coop = null; H.bubbles = []; H.live = false; H.full = false;
+  if (hostId !== SQUARE) H.inst = 0;
   tick(gen);
 }
 export function poke() { clearTimeout(timer); tick(gen); }
@@ -118,13 +141,13 @@ export function leaveHouse() {
   gen++;
   clearTimeout(timer);
   H.hostId = null; H.members = []; H.elsewhere = []; H.coop = null; H.live = false;
-  if (h) api.post(`/api/house/${h}/leave`).catch(() => {});
+  if (h) api.post(h === SQUARE ? '/api/square/leave' : `/api/house/${h}/leave`).catch(() => {});
 }
 
 export async function say(text: string) {
   if (!H.hostId) return false;
   try {
-    await api.post(`/api/house/${H.hostId}/say`, { text });
+    await api.post(`${base()}/say`, { text });
     bubble(H.me || 'me', { text });
     poke();
     return true;
@@ -148,7 +171,7 @@ export async function coop(body: Record<string, unknown>) {
 export async function takePhoto(pose: string) {
   if (!H.hostId) return null;
   try {
-    const r = await api.post(`/api/house/${H.hostId}/photo`, { roomId: H.roomId, pose });
+    const r = await api.post(`${base()}/photo`, { roomId: H.roomId, pose });
     sfx.coin();
     H.photo = r.photo;
     poke();
@@ -162,5 +185,16 @@ export async function kick(userId: string) {
 }
 /** Blokir: putus pertemanan & tidak bisa berkunjung lagi. */
 export async function block(userId: string, name: string) {
-  try { await api.post('/api/blocks', { userId }); toast(`${name} diblokir. Kalian tidak berteman lagi.`); poke(); } catch (e) { fail(e); }
+  try {
+    await api.post('/api/blocks', { userId });
+    // langsung hilang dari layar (tanpa menunggu sinkron berikutnya)
+    H.hidden = [...H.hidden, userId];
+    H.members = H.members.filter((m) => m.id !== userId);
+    toast(H.hostId === SQUARE ? `${name} diblokir. Kalian tidak akan saling melihat lagi.` : `${name} diblokir. Kalian tidak berteman lagi.`);
+    poke();
+  } catch (e) { fail(e); }
+}
+/** Laporkan pemain di alun-alun (obrolan / perilaku tidak sopan). */
+export async function report(userId: string, name: string, reason: string) {
+  try { await api.post('/api/square/report', { userId, reason }); toast(`Laporan tentang ${name} terkirim. Terima kasih!`, 'good'); return true; } catch (e) { fail(e); return false; }
 }

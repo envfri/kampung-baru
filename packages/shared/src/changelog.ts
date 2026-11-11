@@ -39,9 +39,27 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.21.0',
+    date: '2026-11-11',
+    title: 'Alun-alun kampung',
+    summary: 'Alun-alun sudah dibuka! Jalan-jalan ke sana dari peta kampung, ketemu pemain lain, nonton panggung, naik komidi putar, jajan, dan joget bareng.',
+    items: [
+      { kind: 'baru', text: 'Alun-alun di peta kampung: lapangan luas tempat semua pemain berkumpul, dengan beringin kembar, air mancur, jalan batu, bangku, lampu taman, komidi putar, ayunan, dan gerobak jajanan.', player: true },
+      { kind: 'baru', text: 'Panggung hiburan bergiliran: Orkes Kampung, Wayang Kardus, Tari Payung, dan Sulap Pak Badut. Semua orang menonton acara yang sama; saat musik main, tekan Joget untuk joget bareng (makin ramai makin ceria).', player: true },
+      { kind: 'baru', text: 'Main di alun-alun: ketuk benda untuk nonton, naik komidi putar, main ayunan, berteduh di bawah beringin, duduk santai, atau jajan Es Dawet, Bakso, dan Arum Manis. Ada hadiah kunjungan harian dan hadiah main (dibatasi per hari).', player: true },
+      { kind: 'baru', text: 'Ngobrol, ekspresi, dan foto bareng dengan pet di sekitarmu, seperti saat berkunjung ke rumah teman. Satu alun-alun maksimal 20 orang; kalau penuh otomatis dibuka Alun-alun 2. Teman yang sedang di alun-alun bisa disusul dari daftar Teman.', player: true },
+      { kind: 'keamanan', text: 'Karena di alun-alun bisa bertemu orang yang bukan teman: obrolan disaring (kata terlarang, tautan & nomor ditolak) dengan frasa siap pakai, pemain bisa Laporkan atau Blokir (yang diblokir tidak saling melihat & mendengar sama sekali), tiga laporan dari pemain berbeda dalam satu jam membisukan obrolan pemain itu 30 menit, dan semua obrolan tercatat untuk moderasi.', player: true },
+      { kind: 'baru', text: 'Tugas harian "Jalan-jalan ke Alun-alun" serta lencana Anak Alun-alun dan Raja Joget.', player: true },
+      { kind: 'baru', text: 'Admin: Moderasi menampilkan laporan pemain (dengan obrolan terakhirnya, tandai selesai) dan obrolan alun-alun; pengaturan Ekonomi & fitur › Alun-alun (buka/tutup, kapasitas, ketik bebas atau frasa saja, hadiah). Tautan langsung #/players/<id> membuka detail pemain.' },
+      { kind: 'perbaikan', text: 'Frasa siap pakai obrolan di rumah sendiri kini muncul (pengaturan kunjungan sebelumnya tidak terkirim ke game).', player: true },
+      { kind: 'baru', text: 'Migrasi 019 (square_chat, reports, jenis lokasi square), paket konten v8. API: /api/square (sync, leave, say, act, photo, report), /api/admin/square-chat, /api/admin/reports. Peta kampung diperlebar ke 1260. Tes: square.test.ts & npm run test:e2e:alun.' },
+    ],
+  },
+  {
     version: '0.20.1',
     date: '2026-11-11',
     title: 'Audit rumah tersambung & atur denah',
+    commits: ['d297ac2'],
     items: [
       { kind: 'ubah', text: 'Main bareng sekarang lewat ajakan: yang memulai mengajak, teman lain memilih sendiri "Ikut main" atau "Tidak" (15 detik). Jatah main bareng harian hanya terpakai kalau kamu ikut. Kalau tidak ada yang ikut, ajakan batal sendiri.', player: true },
       { kind: 'ubah', text: 'Foto bareng berisi pet tuan rumah, yang memotret, dan pet yang sedang satu ruangan dengannya.', player: true },
