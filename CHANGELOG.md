@@ -4,12 +4,30 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.23.0 · 2026-11-11 · Ajak berteman orang yang kamu temui
+
+### Baru
+
+- Ketemu orang baru di Alun-alun atau di rumah teman? Buka daftar Orang lalu ketuk "Ajak berteman". Yang diajak langsung melihat kartu ajakan (Terima / Tolak); setelah diterima kalian berteman dan bisa saling berkunjung. Kalau dua orang saling mengajak, langsung berteman. _(pemain)_
+- Ajakan yang belum dijawab tersimpan di menu Teman › Ajakan berteman (berlaku 14 hari), dengan tanda angka di tab Teman serta notifikasi. _(pemain)_
+- Saat berkunjung ke rumah teman ada tombol Orang untuk melihat siapa saja yang sedang di sana dan mengajak tamu lain berteman. _(pemain)_
+
+### Perubahan
+
+- Berteman lewat kode teman tetap langsung (kode = persetujuan). Migrasi 021 (friend_requests, users.friend_requests); jenis notifikasi baru di Pusat notifikasi: Ajakan berteman & Ajakan berteman diterima. Tes server & uji e2e alun-alun diperluas.
+
+### Keamanan
+
+- Ajakan hanya bisa dikirim ke orang yang benar-benar sedang/baru saja (10 menit) berada di alun-alun atau rumah yang sama, maksimal 30 ajakan per hari. Penolakan tidak diberitahukan, dan orang yang menolak tidak diganggu lagi selama 7 hari. Blokir membatalkan ajakan. Pengaturan › Privasi: bisa menolak semua ajakan dari orang yang ditemui. _(pemain)_
+
 ## 0.22.1 · 2026-11-11 · Akun Instagram yang benar: @playbupi
 
 ### Perbaikan
 
 - Akun Instagram BUPI yang benar adalah @playbupi (sebelumnya tertulis @playbudi) di halaman perawatan, layar depan, Pengaturan › Tentang, dan data untuk Google. _(pemain)_
 - Server yang sudah menyimpan Situs & SEO dengan akun lama otomatis diperbaiki saat versi ini berjalan; akun lain yang diisi admin tidak diubah. Halaman perawatan statis (Caddy) dan aset Instagram (marketing/instagram, npm run instagram) dibuat ulang.
+
+Commit: [`4221284`](https://github.com/envfri/kampung-baru/commit/4221284)
 
 ## 0.22.0 · 2026-11-11 · SEO, pratinjau tautan & mode perawatan
 

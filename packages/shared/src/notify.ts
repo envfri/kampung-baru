@@ -136,6 +136,18 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Teman baru', body: '{teman} menambahkanmu sebagai teman. Kunjungi rumahnya, yuk!', wa: '{teman} menambahkanmu sebagai teman di Kampung Bupi. Kunjungi rumahnya, yuk!\n{link}' },
   },
   {
+    key: 'friend_request', group: 'Teman', label: 'Ajakan berteman', kind: 'social', allowed: ALL, url: '/#friends',
+    desc: 'Pemain yang ditemui di alun-alun atau di rumah teman mengajak berteman (pemain menerima atau menolaknya di menu Teman).',
+    vars: { teman: 'Nama pemain yang mengajak', tempat: 'Tempat bertemu (alun-alun / rumah teman)' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Ajakan berteman', body: '{teman} yang kamu temui di {tempat} ingin berteman. Terima atau tolak di menu Teman.', wa: '{teman} yang kamu temui di {tempat} ingin berteman dengan {pet} 🤝\n{link}' },
+  },
+  {
+    key: 'friend_accepted', group: 'Teman', label: 'Ajakan berteman diterima', kind: 'social', allowed: ALL, url: '/#friends',
+    desc: 'Pemain menerima ajakan berteman dari pemain ini.',
+    vars: { teman: 'Nama teman baru' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Teman baru', body: '{teman} menerima ajakan berteman. Kunjungi rumahnya, yuk!', wa: '{teman} menerima ajakan berteman dari {pet} 🎉 Kunjungi rumahnya, yuk!\n{link}' },
+  },
+  {
     key: 'visit', group: 'Teman', label: 'Ada tamu', kind: 'social', allowed: ALL, url: '/#friends',
     desc: 'Teman mampir ke rumah (paling banyak sekali per jeda, atur jeda di Ekonomi & fitur › Waktu notifikasi otomatis).',
     vars: { teman: 'Nama teman yang mampir' },

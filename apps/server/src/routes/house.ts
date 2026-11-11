@@ -8,6 +8,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from '@kb/shared';
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
+import { takePings } from '../lib/pings';
 import { requireUser } from '../lib/auth';
 import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
@@ -48,6 +49,8 @@ const PRESENCE = new Map<string, { at: number; where: string; host?: string }>()
 const FRIENDS = new Map<string, number>();
 const HOSTPREF = new Map<string, { at: number; live: boolean }>();
 const SAID = new Map<string, number>();
+/** rumah tempat pemain terakhir live (dari sinkron, tidak bisa dipalsukan lewat /api/presence) untuk ajakan berteman */
+const HOUSE_SEEN = new Map<string, { host: string; at: number }>();
 
 const fresh = (m: Member, now = Date.now()) => now - m.seenAt < LIVE_MS;
 /** id proses: berubah setelah server restart supaya client mengulang nomor urut kejadian */
@@ -57,6 +60,11 @@ const LAST_ACT = new Map<string, number>();
 /** Ruangan tuan rumah berubah (dibeli / diperluas): muat ulang daftar ruangan untuk memeriksa posisi tamu. */
 export function forgetHouseRooms(hostId: string) { const h = HOUSES.get(hostId); if (h) h.rooms = undefined; }
 /** Lupakan cache pertemanan (dipanggil saat berhenti berteman / memblokir). */
+/** Dua pemain sedang/baru saja (10 menit) berada di rumah yang sama. */
+export function metInHouse(a: string, b: string, ms = 10 * 60_000) {
+  const x = HOUSE_SEEN.get(a), y = HOUSE_SEEN.get(b), now = Date.now();
+  return !!x && !!y && x.host === y.host && now - x.at < ms && now - y.at < ms;
+}
 export function forgetFriend(a: string, b: string) { FRIENDS.delete(`${a}:${b}`); FRIENDS.delete(`${b}:${a}`); }
 // sapu berkala: rumah kosong, status online lama, cache & catatan sementara
 setInterval(() => {
@@ -71,6 +79,7 @@ setInterval(() => {
   for (const [k, v] of HOSTPREF) if (now - v.at > 60_000) HOSTPREF.delete(k);
   for (const [k, v] of SAID) if (now - v > 60_000) SAID.delete(k);
   for (const [k, v] of LAST_ACT) if (now - v > 60_000) LAST_ACT.delete(k);
+  for (const [k, v] of HOUSE_SEEN) if (now - v.at > 15 * 60_000) HOUSE_SEEN.delete(k);
 }, 60_000).unref?.();
 function houseOf(hostId: string) {
   let h = HOUSES.get(hostId);
@@ -205,6 +214,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       }
       // segarkan data pet (pakaian, wajah) tiap ±1 menit
       if (Date.now() - m.petAt > 45_000) { m.petAt = Date.now(); const info = await memberInfo(uid); m.pet = info.pet; m.name = info.name; }
+      HOUSE_SEEN.set(uid, { host: hostId, at: Date.now() });
     }
     PRESENCE.set(uid, { at: Date.now(), where: uid === hostId ? 'home' : 'visit', host: hostId });
     const now = Date.now();
@@ -217,6 +227,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       events: h.events.filter((e) => e.seq > since),
       coop: coopView(h.coop),
       serverNow: now,
+      pings: takePings(uid),
     };
   });
 
@@ -622,6 +633,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     await db.tx(async (t) => {
       await t.query(`insert into blocks (user_id, blocked_id) values ($1,$2) on conflict do nothing`, [uid, other]);
       await t.query(`delete from friendships where (user_id = $1 and friend_id = $2) or (user_id = $2 and friend_id = $1)`, [uid, other]);
+      // ajakan berteman yang masih menunggu ikut dibatalkan
+      await t.query(`delete from friend_requests where status = 'pending' and ((from_id = $1 and to_id = $2) or (from_id = $2 and to_id = $1))`, [uid, other]);
     });
     forgetFriend(uid, other);
     forgetBlocks(uid, other);
@@ -666,13 +679,14 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const b = req.body ?? {};
     if (typeof b.showOnline === 'boolean') await db.query(`update users set show_online = $2 where id = $1`, [uid, b.showOnline]);
     if (typeof b.liveVisits === 'boolean') { await db.query(`update users set live_visits = $2 where id = $1`, [uid, b.liveVisits]); HOSTPREF.delete(uid); }
+    if (typeof b.friendRequests === 'boolean') await db.query(`update users set friend_requests = $2 where id = $1`, [uid, b.friendRequests]);
     if (b.showOnline === false) PRESENCE.delete(uid);
-    const r = await db.one<{ show_online: boolean; live_visits: boolean }>(`select show_online, live_visits from users where id = $1`, [uid]);
-    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true };
+    const r = await db.one<{ show_online: boolean; live_visits: boolean; friend_requests: boolean }>(`select show_online, live_visits, friend_requests from users where id = $1`, [uid]);
+    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true, friendRequests: r?.friend_requests ?? true };
   });
 }
 
 /** Untuk uji: kosongkan keadaan live. */
-export function resetHouses() { HOUSES.clear(); PRESENCE.clear(); FRIENDS.clear(); HOSTPREF.clear(); SAID.clear(); LAST_ACT.clear(); }
+export function resetHouses() { HOUSES.clear(); PRESENCE.clear(); FRIENDS.clear(); HOSTPREF.clear(); SAID.clear(); LAST_ACT.clear(); HOUSE_SEEN.clear(); }
 /** Untuk uji: lewati jeda antaraksi. */
 export function resetActGap() { LAST_ACT.clear(); }

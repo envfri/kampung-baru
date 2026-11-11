@@ -7,6 +7,8 @@
   import { EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { squareShow, PHOTO_POSES, ALUN_LAYOUT, SQUARE_SNACKS } from '@kb/shared';
   import { sfx } from '../lib/sfx';
+  import AddFriend from './AddFriend.svelte';
+  import { loadRelations } from '../lib/friends.svelte';
 
   let pop = $state<null | 'emote' | 'photo' | 'people' | 'play'>(null);
   let text = $state('');
@@ -21,6 +23,9 @@
   const show = $derived(squareShow(serverNow()));
   const secs = $derived(Math.max(1, Math.ceil((show.until - serverNow()) / 1000)));
   const people = $derived(H.members);
+  // status pertemanan dimuat saat daftar orang dibuka (dan saat ada yang datang)
+  const peopleKey = $derived(people.map((m) => m.id).sort().join(','));
+  $effect(() => { if (pop === 'people' && peopleKey) loadRelations(peopleKey.split(',')); });
 
   async function send(t?: string) {
     const msg = (t ?? text).trim();
@@ -114,11 +119,13 @@
         {#each people as m (m.id)}
           <div class="guest"><span>{m.name}{m.pet ? ` · ${m.pet.name}` : ''}</span>
             <span class="gb">
+              <AddFriend id={m.id} name={m.name} />
               <button class="btn sm" onclick={() => { reporting = { id: m.id, name: m.name }; reason = ''; }}>Laporkan</button>
               <button class="btn sm" onclick={async () => { pop = null; if (await ask({ title: `Blokir ${m.name}?`, text: `Kalian tidak akan saling melihat atau mendengar di alun-alun, dan tidak bisa berteman atau berkunjung. Bisa dibuka lagi di Pengaturan.`, yes: 'Blokir', danger: true })) block(m.id, m.name); }}>Blokir</button>
             </span>
           </div>
         {:else}<small>Belum ada orang lain. Ajak teman ke alun-alun, yuk!</small>{/each}
+        {#if people.length}<small>Ajak berteman orang yang kamu temui: setelah dia menerima, kalian bisa saling berkunjung.</small>{/if}
         {#if H.others.length}<small>Alun-alun lain yang ramai: {H.others.map((o) => `Alun-alun ${o.id} (${o.count})`).join(', ')}</small>{/if}
       {/if}
     </div>
@@ -145,7 +152,8 @@
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
   .em :global(svg) { width: 34px; height: 34px; }
   .gb { display: flex; gap: 4px; justify-content: flex-end; }
-  .guest { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .guest { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; font-weight: 700; font-size: 14px; padding: 4px 0; border-bottom: 1px dashed rgba(43, 47, 74, .15); }
+  .guest .gb { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
   .rep { margin: 0; font-size: 14px; font-weight: 600; }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     .sbar { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); width: 320px; }

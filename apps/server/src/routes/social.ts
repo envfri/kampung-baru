@@ -6,7 +6,9 @@ import { loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { eventOn, notifyEvent } from '../lib/notify';
-import { presenceOf, guestsAt, forgetFriend } from './house';
+import { presenceOf, guestsAt, forgetFriend, metInHouse } from './house';
+import { metInSquare } from './square';
+import { ping } from '../lib/pings';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -64,6 +66,134 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     await track(db, me.id, 'friend_added');
     void notifyEvent(db, other.id, 'friend_added', { teman: me.display_name }, { log: req.log });
     return { ok: true, friend: other };
+  });
+
+  /* ---------------- ajakan berteman (bertemu di alun-alun / rumah teman) ---------------- */
+  // Kode teman = persetujuan (langsung berteman). Orang yang hanya ditemui belum memberi kodenya, jadi
+  // ajakannya harus diterima dulu. Penolakan tidak diberitahukan ke pengajak.
+  const ASK_DAYS = 14, DECLINE_DAYS = 7, ASKS_PER_DAY = 30;
+  const PLACE: Record<string, string> = { alun: 'alun-alun', visit: 'rumah teman' };
+  const blockedEither = async (a: string, b: string) =>
+    !!(await db.one(`select 1 from blocks where (user_id = $1 and blocked_id = $2) or (user_id = $2 and blocked_id = $1)`, [a, b]));
+  const friendCount = async (q: Db, uid: string) => (await q.one<{ c: number }>(`select count(*)::int c from friendships where user_id = $1`, [uid]))!.c;
+  /** Nama untuk ajakan: nama pemain, atau "Pemilik <pet>" untuk akun tamu yang belum memberi nama. */
+  async function nameOf(uid: string) {
+    const r = await db.one<{ display_name: string; pet: string | null }>(`select u.display_name, p.name as pet from users u left join pets p on p.user_id = u.id where u.id = $1`, [uid]);
+    return r?.display_name && r.display_name !== 'Tamu' ? r.display_name : r?.pet ? `Pemilik ${r.pet}` : 'Pemain';
+  }
+  async function petLook(uid: string) {
+    return db.one<any>(`select name, color, ear, pattern, eyes, tail from pets where user_id = $1`, [uid]);
+  }
+  /** Jadikan berteman (dua arah) dari ajakan; dipakai saat diterima atau saat dua orang saling mengajak. */
+  async function befriend(reqId: string, fromId: string, toId: string, log: any) {
+    const s = await getSettings(db);
+    const [nf, nt] = await Promise.all([friendCount(db, fromId), friendCount(db, toId)]);
+    if (nt >= s.social.maxFriends) throw bad('max_friends', `Temanmu sudah ${s.social.maxFriends}, batas maksimal.`);
+    if (nf >= s.social.maxFriends) throw bad('max_friends', 'Teman pemain itu sudah penuh.');
+    await db.tx(async (t) => {
+      await t.query(`insert into friendships (user_id, friend_id) values ($1,$2),($2,$1) on conflict do nothing`, [fromId, toId]);
+      await t.query(`update friend_requests set status = 'accepted', answered_at = now() where status = 'pending' and ((from_id = $1 and to_id = $2) or (from_id = $2 and to_id = $1))`, [fromId, toId]);
+    });
+    forgetFriend(fromId, toId);
+    await track(db, fromId, 'friend_added');
+    await track(db, toId, 'friend_added');
+    const toName = await nameOf(toId);
+    ping(fromId, { kind: 'friend_ok', id: reqId, from: toId, name: toName });
+    void notifyEvent(db, fromId, 'friend_accepted', { teman: toName }, { log });
+  }
+
+  /** Ajak berteman pemain yang sedang (atau baru saja) ditemui di alun-alun / rumah yang sama. */
+  app.post('/api/friends/requests', { ...auth, config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req: any) => {
+    const me = req.user!;
+    const to = String(req.body?.userId ?? '').toLowerCase();
+    if (!UUID.test(to) || to === me.id) throw bad('invalid', 'Pemain tidak valid.');
+    const place = metInSquare(me.id, to) ? 'alun' : metInHouse(me.id, to) ? 'visit' : null;
+    if (!place) throw bad('not_met', 'Ajak berteman saat kalian sedang di tempat yang sama, ya.');
+    const other = await db.one<{ id: string; display_name: string; friend_requests: boolean }>(
+      `select id, display_name, friend_requests from users where id = $1 and banned_at is null`, [to]);
+    if (!other) throw notFound('Pemain tidak ditemukan.');
+    if (await isFriend(me.id, to)) return { ok: true, status: 'friends' };
+    if (await blockedEither(me.id, to)) throw forbidden('Tidak bisa berteman dengan pemain ini.');
+    // dia sudah lebih dulu mengajak: langsung berteman
+    const back = await db.one<{ id: string }>(
+      `select id from friend_requests where from_id = $1 and to_id = $2 and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [to, me.id]);
+    if (back) {
+      await befriend(back.id, to, me.id, req.log);
+      return { ok: true, status: 'friends', friend: { id: other.id, display_name: other.display_name } };
+    }
+    if (other.friend_requests === false) throw forbidden(`${other.display_name} sedang tidak menerima ajakan berteman.`);
+    const s = await getSettings(db);
+    if ((await friendCount(db, me.id)) >= s.social.maxFriends) throw bad('max_friends', `Maksimal ${s.social.maxFriends} teman.`);
+    const pending = await db.one(
+      `select 1 from friend_requests where from_id = $1 and to_id = $2 and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [me.id, to]);
+    if (pending) return { ok: true, status: 'sent' };
+    // baru ditolak: tetap terlihat "terkirim" bagi pengajak, tetapi tidak mengganggu yang menolak lagi
+    const declined = await db.one(
+      `select 1 from friend_requests where from_id = $1 and to_id = $2 and status = 'declined' and answered_at > now() - interval '${DECLINE_DAYS} days'`, [me.id, to]);
+    if (declined) return { ok: true, status: 'sent' };
+    const id = await db.tx(async (t) => {
+      await bumpCounter(t, me.id, 'friend_ask', ASKS_PER_DAY);
+      // ajakan lama yang kedaluwarsa tidak menghalangi ajakan baru
+      await t.query(`update friend_requests set status = 'expired', answered_at = now() where from_id = $1 and to_id = $2 and status = 'pending'`, [me.id, to]);
+      return (await t.one<{ id: string }>(`insert into friend_requests (from_id, to_id, place) values ($1,$2,$3) returning id`, [me.id, to, place]))!.id;
+    });
+    const myName = await nameOf(me.id);
+    ping(to, { kind: 'friend_ask', id, from: me.id, name: myName, pet: await petLook(me.id) });
+    void notifyEvent(db, to, 'friend_request', { teman: myName, tempat: PLACE[place] }, { log: req.log });
+    await track(db, me.id, 'friend_ask', { place });
+    return { ok: true, status: 'sent' };
+  });
+
+  /** Ajakan masuk yang menunggu jawaban & ajakan yang kukirim (masih menunggu). */
+  app.get('/api/friends/requests', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const [incoming, sent] = await Promise.all([
+      db.query<any>(
+        `select r.id, r.place, r.created_at, u.id as user_id, u.display_name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail
+           from friend_requests r join users u on u.id = r.from_id left join pets p on p.user_id = u.id
+          where r.to_id = $1 and r.status = 'pending' and r.created_at > now() - interval '${ASK_DAYS} days' and u.banned_at is null
+            and not exists (select 1 from blocks b where (b.user_id = r.to_id and b.blocked_id = r.from_id) or (b.user_id = r.from_id and b.blocked_id = r.to_id))
+          order by r.created_at desc limit 50`, [uid]),
+      db.query<{ to_id: string }>(`select to_id from friend_requests where from_id = $1 and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [uid]),
+    ]);
+    return {
+      incoming: incoming.map((r) => ({ id: r.id, place: r.place, created_at: r.created_at, from: { id: r.user_id, name: r.display_name && r.display_name !== 'Tamu' ? r.display_name : r.pet_name ? `Pemilik ${r.pet_name}` : 'Pemain', pet: r.pet_name ? { name: r.pet_name, color: r.color, ear: r.ear, pattern: r.pattern, eyes: r.eyes, tail: r.tail } : null } })),
+      sent: sent.map((r) => r.to_id),
+    };
+  });
+
+  /** Hubungan dengan pemain-pemain yang sedang terlihat (untuk tombol Ajak berteman / Teman / Menunggu). */
+  app.get('/api/friends/relations', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const ids = String(req.query?.ids ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => UUID.test(x)).slice(0, 40);
+    if (!ids.length) return { friends: [], sent: [], incoming: [] };
+    const [f, s2, inc] = await Promise.all([
+      db.query<{ friend_id: string }>(`select friend_id from friendships where user_id = $1 and friend_id = any($2::uuid[])`, [uid, ids]),
+      db.query<{ to_id: string }>(`select to_id from friend_requests where from_id = $1 and to_id = any($2::uuid[]) and status in ('pending','declined') and coalesce(answered_at, created_at) > now() - interval '${DECLINE_DAYS} days'`, [uid, ids]),
+      db.query<{ id: string; from_id: string }>(`select id, from_id from friend_requests where to_id = $1 and from_id = any($2::uuid[]) and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [uid, ids]),
+    ]);
+    return { friends: f.map((r) => r.friend_id), sent: s2.map((r) => r.to_id), incoming: inc.map((r) => ({ id: r.id, from: r.from_id })) };
+  });
+
+  async function myAsk(uid: string, id: string) {
+    if (!UUID.test(id)) throw bad('invalid', 'Ajakan tidak valid.');
+    const r = await db.one<{ id: string; from_id: string; to_id: string }>(
+      `select id, from_id, to_id from friend_requests where id = $1 and to_id = $2 and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [id, uid]);
+    if (!r) throw notFound('Ajakan sudah tidak berlaku.');
+    return r;
+  }
+  app.post('/api/friends/requests/:id/accept', auth, async (req: any) => {
+    const me = req.user!;
+    const r = await myAsk(me.id, String(req.params.id));
+    if (await blockedEither(r.from_id, me.id)) throw forbidden('Tidak bisa berteman dengan pemain ini.');
+    await befriend(r.id, r.from_id, me.id, req.log);
+    const friend = await db.one<{ id: string; display_name: string }>(`select id, display_name from users where id = $1`, [r.from_id]);
+    return { ok: true, friend };
+  });
+  app.post('/api/friends/requests/:id/decline', auth, async (req: any) => {
+    const r = await myAsk(req.user!.id, String(req.params.id));
+    await db.query(`update friend_requests set status = 'declined', answered_at = now() where id = $1`, [r.id]);
+    return { ok: true };
   });
 
   app.delete('/api/friends/:id', auth, async (req: any) => {

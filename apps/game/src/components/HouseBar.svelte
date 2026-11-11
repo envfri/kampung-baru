@@ -7,9 +7,11 @@
   import { ACT_ICON, EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { itemIcon, PHOTO_POSES } from '@kb/shared';
   import { sfx } from '../lib/sfx';
+  import AddFriend from './AddFriend.svelte';
+  import { loadRelations } from '../lib/friends.svelte';
 
   let { mode }: { mode: 'visit' | 'home' } = $props();
-  let pop = $state<null | 'emote' | 'photo' | 'play' | 'snack' | 'guests'>(null);
+  let pop = $state<null | 'emote' | 'photo' | 'play' | 'snack' | 'guests' | 'people'>(null);
   let text = $state('');
   let chatting = $state(false);
   let sending = $state(false);
@@ -19,6 +21,9 @@
   const freeChat = $derived(mode === 'visit' ? together.freeChat : G.catalog?.settings?.visit?.freeChat !== false);
   const here = $derived(H.members);
   const host = $derived(here.find((m) => m.host));
+  // berkunjung: tamu lain di rumah ini bisa diajak berteman
+  const peopleKey = $derived(here.filter((m) => !m.host).map((m) => m.id).sort().join(','));
+  $effect(() => { if (pop === 'people' && peopleKey) loadRelations(peopleKey.split(',')); });
   const liveOn = $derived(H.live && !H.full);
   const foods = $derived(items().filter(([, it]) => it.kind === 'food' && (G.me.inventory?.[it.id] ?? 0) > 0).map(([, it]) => it));
   const hostName = $derived(G.visit?.pet?.name ?? 'pet teman');
@@ -91,7 +96,8 @@
       <button class="btn sm" disabled={!liveOn && mode === 'visit'} onclick={() => toggle('emote')}>Ekspresi</button>
       <button class="btn sm" onclick={() => toggle('photo')}>Foto</button>
       <button class="btn sm" onclick={() => toggle('play')}>Main bareng</button>
-      {#if mode === 'home'}<button class="btn sm" onclick={() => toggle('guests')}>Tamu ({here.length + H.elsewhere.length})</button>{/if}
+      {#if mode === 'home'}<button class="btn sm" onclick={() => toggle('guests')}>Tamu ({here.length + H.elsewhere.length})</button>
+      {:else if here.length}<button class="btn sm" onclick={() => toggle('people')}>Orang ({here.length})</button>{/if}
     </div>
   {/if}
 
@@ -119,6 +125,16 @@
       {#each foods.slice(0, 8) as f (f.id)}
         <button class="em" role="menuitem" onclick={() => act('camilan', f.id)}>{@html itemIcon(f)}<span>{f.name} ×{G.me.inventory[f.id]}</span></button>
       {/each}
+    </div>
+  {:else if pop === 'people'}
+    <div class="pop col" role="dialog" aria-label="Orang di rumah ini">
+      <b>Di rumah ini</b>
+      {#each here as m (m.id)}
+        <div class="guest"><span>{m.name}{(m as any).pet ? ` · ${(m as any).pet.name}` : ''}</span>
+          <span class="gb">{#if m.host}<span class="tag">Tuan rumah</span>{:else}<AddFriend id={m.id} name={m.name} />{/if}</span>
+        </div>
+      {/each}
+      <small>Tamu lain yang belum jadi temanmu bisa diajak berteman. Setelah dia menerima, kalian bisa saling berkunjung.</small>
     </div>
   {:else if pop === 'guests'}
     <div class="pop col" role="menu">
@@ -156,7 +172,8 @@
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
   .em :global(svg) { width: 34px; height: 34px; }
   .gb { display: flex; gap: 4px; }
-  .guest { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .guest { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; font-weight: 700; font-size: 14px; }
+  .tag { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800; background: rgba(43, 47, 74, .08); color: var(--muted); }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     /* layar lebar: bar di sisi kanan supaya lantai ruangan tidak tertutup */
     .hbar { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); width: 300px; }

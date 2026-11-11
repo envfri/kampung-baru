@@ -9,6 +9,7 @@
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
   import { maybeNudge } from '../lib/account.svelte';
+  import { answerAsk } from '../lib/friends.svelte';
 
   let friends = $state<any[] | null>(null);
   let gifts = $state<any[]>([]);
@@ -31,12 +32,21 @@
   const myCode = $derived(G.me.user.friend_code);
   const link = $derived(`${location.origin}/?undang=${myCode}`);
 
+  // ajakan berteman dari orang yang ditemui di alun-alun / rumah teman
+  let asks = $state<any[]>([]);
+  const PLACE: Record<string, string> = { alun: 'alun-alun', visit: 'rumah teman' };
   async function load() {
     try {
-      const [f, g] = await Promise.all([api.get('/api/friends'), api.get('/api/gifts')]);
+      const [f, g, r] = await Promise.all([api.get('/api/friends'), api.get('/api/gifts'), api.get('/api/friends/requests')]);
       friends = f.friends;
       gifts = g.gifts;
-    } catch (e) { fail(e); friends = []; }
+      asks = r.incoming ?? [];
+      G.me.friendAsks = asks.length;
+    } catch (e) { fail(e); friends = friends ?? []; }
+  }
+  async function answer(a: any, ok: boolean) {
+    asks = asks.filter((x) => x.id !== a.id);
+    if (await answerAsk(a.id, a.from.id, a.from.name, ok) && ok) load();
   }
   onMount(load);
 
@@ -96,6 +106,26 @@
     <button class="btn hot" disabled={G.busy || code.trim().length < 6}>Tambah</button>
   </form>
 
+  {#if asks.length}
+    <section class="asks" aria-labelledby="asks-h">
+      <h3 id="asks-h">Ajakan berteman <i>{asks.length}</i></h3>
+      {#each asks as a (a.id)}
+        <div class="friend">
+          <span class="ava">{@html petSVG({ color: a.from.pet?.color ?? '#F2EEE3', ear: a.from.pet?.ear ?? 'tunas', pattern: a.from.pet?.pattern, eyes: a.from.pet?.eyes, tail: a.from.pet?.tail })}</span>
+          <div class="info">
+            <b>{a.from.name}</b>
+            <span>{a.from.pet?.name ?? 'Belum punya pet'}</span>
+            <em>Ditemui di {PLACE[a.place] ?? 'kampung'} · {ago(a.created_at)}</em>
+          </div>
+          <div class="btns">
+            <button class="btn sm" onclick={() => answer(a, false)}>Tolak</button>
+            <button class="btn sm hot" onclick={() => answer(a, true)}>Terima</button>
+          </div>
+        </div>
+      {/each}
+    </section>
+  {/if}
+
   <button class="duelbar" onclick={() => { sfx.tap(); G.sheetArg = null; G.sheet = 'duels'; }}>
     <span class="vs">VS</span>
     <span class="t"><b>Duel Teman</b><small>Main bareng atau kirim tantangan mini-game</small></span>
@@ -115,7 +145,7 @@
       <p class="visitors">Baru mampir: {G.me.visitors.map((v: any) => v.name).slice(0, 5).join(', ')}</p>
     {/if}
     {#if friends === null}<p class="muted">Memuat…</p>
-    {:else if friends.length === 0}<p class="muted">Belum ada teman. Bagikan kode temanmu lewat WhatsApp, atau masukkan kode teman di atas.</p>{/if}
+    {:else if friends.length === 0}<p class="muted">Belum ada teman. Bagikan kode temanmu lewat WhatsApp, masukkan kode teman di atas, atau ajak berteman orang yang kamu temui di Alun-alun.</p>{/if}
     <div class="list">
       {#each friends ?? [] as f (f.id)}
         <div class="friend">
@@ -213,6 +243,9 @@
   .add { display: flex; gap: 8px; }
   .add .input { flex: 1; min-width: 0; text-transform: uppercase; }
   .add .input::placeholder { text-transform: none; }
+  .asks { display: flex; flex-direction: column; gap: 8px; background: #FFF4D6; border: 2.5px solid var(--ink); border-radius: 16px; padding: 10px; }
+  .asks h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .asks h3 i { font-style: normal; background: var(--low); color: #fff; border-radius: 999px; font-size: 12px; padding: 0 7px; border: 2px solid var(--ink); }
   .duelbar { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 2.5px solid var(--ink); border-radius: 14px; background: #FFE8A3; box-shadow: 0 3px 0 var(--ink); padding: 8px 10px; cursor: pointer; font: inherit; color: var(--ink); }
   .duelbar .vs { flex: none; width: 42px; height: 42px; border-radius: 50%; background: #E0583F; color: #fff; border: 2.5px solid var(--ink); display: grid; place-items: center; font-weight: 800; font-size: 15px; }
   .duelbar .t { display: flex; flex-direction: column; flex: 1; min-width: 0; }

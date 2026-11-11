@@ -142,6 +142,7 @@ export async function runJobs(db: Db, log?: any) {
   if (new Date().getMinutes() === 7) {
     await db.query(`delete from house_chat where created_at < now() - interval '60 days'`).catch(() => {});
     await db.query(`delete from square_chat where created_at < now() - interval '60 days'`).catch(() => {});
+    await db.query(`delete from friend_requests where created_at < now() - interval '60 days'`).catch(() => {});
     await db.query(`delete from visit_acts where created_at < now() - interval '180 days'`).catch(() => {});
   }
 

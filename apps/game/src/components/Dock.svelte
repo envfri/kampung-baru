@@ -31,7 +31,7 @@
   {#each tabs as t}
     <button class:on={active(t.k)} aria-pressed={active(t.k)} onclick={() => go(t.k)}>
       {@html t.icon}<span>{t.label}</span>
-      {#if t.k === 'friends' && (G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0) + (G.me.guestbookUnread ?? 0) > 0}<i class="badge">{(G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0) + (G.me.guestbookUnread ?? 0)}</i>{/if}
+      {#if t.k === 'friends' && (G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0) + (G.me.guestbookUnread ?? 0) + (G.me.friendAsks ?? 0) > 0}<i class="badge">{(G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0) + (G.me.guestbookUnread ?? 0) + (G.me.friendAsks ?? 0)}</i>{/if}
       {#if t.k === 'quests' && G.me.quests?.ready > 0}<i class="badge">{G.me.quests.ready}</i>{/if}
     </button>
   {/each}

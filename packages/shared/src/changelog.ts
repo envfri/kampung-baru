@@ -39,9 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.23.0',
+    date: '2026-11-11',
+    title: 'Ajak berteman orang yang kamu temui',
+    items: [
+      { kind: 'baru', text: 'Ketemu orang baru di Alun-alun atau di rumah teman? Buka daftar Orang lalu ketuk "Ajak berteman". Yang diajak langsung melihat kartu ajakan (Terima / Tolak); setelah diterima kalian berteman dan bisa saling berkunjung. Kalau dua orang saling mengajak, langsung berteman.', player: true },
+      { kind: 'baru', text: 'Ajakan yang belum dijawab tersimpan di menu Teman › Ajakan berteman (berlaku 14 hari), dengan tanda angka di tab Teman serta notifikasi.', player: true },
+      { kind: 'baru', text: 'Saat berkunjung ke rumah teman ada tombol Orang untuk melihat siapa saja yang sedang di sana dan mengajak tamu lain berteman.', player: true },
+      { kind: 'keamanan', text: 'Ajakan hanya bisa dikirim ke orang yang benar-benar sedang/baru saja (10 menit) berada di alun-alun atau rumah yang sama, maksimal 30 ajakan per hari. Penolakan tidak diberitahukan, dan orang yang menolak tidak diganggu lagi selama 7 hari. Blokir membatalkan ajakan. Pengaturan › Privasi: bisa menolak semua ajakan dari orang yang ditemui.', player: true },
+      { kind: 'ubah', text: 'Berteman lewat kode teman tetap langsung (kode = persetujuan). Migrasi 021 (friend_requests, users.friend_requests); jenis notifikasi baru di Pusat notifikasi: Ajakan berteman & Ajakan berteman diterima. Tes server & uji e2e alun-alun diperluas.' },
+    ],
+  },
+  {
     version: '0.22.1',
     date: '2026-11-11',
     title: 'Akun Instagram yang benar: @playbupi',
+    commits: ['4221284'],
     items: [
       { kind: 'perbaikan', text: 'Akun Instagram BUPI yang benar adalah @playbupi (sebelumnya tertulis @playbudi) di halaman perawatan, layar depan, Pengaturan › Tentang, dan data untuk Google.', player: true },
       { kind: 'perbaikan', text: 'Server yang sudah menyimpan Situs & SEO dengan akun lama otomatis diperbaiki saat versi ini berjalan; akun lain yang diisi admin tidak diubah. Halaman perawatan statis (Caddy) dan aset Instagram (marketing/instagram, npm run instagram) dibuat ulang.' },

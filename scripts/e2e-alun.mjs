@@ -1,5 +1,5 @@
 // Uji Alun-alun dengan 3 pemain yang bukan teman (2 HP, 1 desktop): jalan dari peta, saling melihat, obrolan,
-// naik komidi putar, jajan, joget (bila musik sedang main), foto bareng, blokir & laporan.
+// ajak berteman, naik komidi putar, jajan, joget (bila musik sedang main), foto bareng, blokir & laporan.
 // Jalankan server dulu (npm run build && npm start), lalu: npm run test:e2e:alun
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -72,6 +72,26 @@ for (let i = 0; i < 10 && !heard; i++) { await W(400); heard = (await B.p.locato
 check(heard, 'obrolan sampai ke pemain lain');
 await A.p.click('.sbar .btn:has-text("Tutup")');
 await shot(B, '05-desktop-obrolan');
+
+// ajak berteman orang yang baru ditemui → kartu ajakan → Terima
+await A.p.click('.sbar .btn:has-text("Orang")'); await W(800);
+check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .btn:has-text("Ajak berteman")').count() === 1, 'daftar orang: tombol Ajak berteman');
+await A.p.click('.sbar .pop .guest:has-text("Klepon") .btn:has-text("Ajak berteman")'); await W(700);
+check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .tag:has-text("Menunggu")').count() === 1, 'ajakan terkirim: status Menunggu');
+await shot(A, '05a-hp-ajak-berteman');
+await A.p.click('.sbar .btn:has-text("Orang")');
+let card = false;
+for (let i = 0; i < 15 && !card; i++) { await W(400); card = (await B.p.locator('.ask:has-text("Gethuk ngajak kamu berteman")').count()) === 1; }
+check(card, 'yang diajak melihat kartu ajakan berteman');
+await shot(B, '05b-desktop-kartu-ajakan');
+await B.p.click('.ask .btn:has-text("Terima")');
+let okToast = false;
+for (let i = 0; i < 15 && !okToast; i++) { await W(400); okToast = (await A.p.locator('.toast:has-text("menerima ajakan berteman")').count()) > 0; }
+check(okToast, 'pengajak diberi tahu ajakan diterima');
+check((await (await A.ctx.request.get(BASE + '/api/friends')).json()).friends.some((f) => f.id === B.id), 'sekarang berteman');
+await A.p.click('.sbar .btn:has-text("Orang")'); await W(800);
+check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .tag:has-text("Teman")').count() === 1, 'daftar orang: status Teman');
+await A.p.click('.sbar .btn:has-text("Orang")');
 
 // jalan batu bagian dari lantai: mengetuknya membuat pet berjalan ke sana
 const before = await A.p.evaluate(() => document.querySelector('svg.room .pet')?.getAttribute('transform'));

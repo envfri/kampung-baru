@@ -2,6 +2,7 @@
 // main bareng, dan foto. Disinkronkan lewat polling (tamu ±0,9 detik; tuan rumah yang sendirian lebih jarang).
 import { G, toast, fail, refreshMe, merge } from './game.svelte';
 import { api, ApiError } from './api';
+import { onPings } from './friends.svelte';
 import { sfx } from './sfx';
 
 export type Bubble = { id: number; who: string; text?: string; emote?: string; until: number };
@@ -86,6 +87,7 @@ async function tick(myGen: number) {
       H.coop = r.coop;
       for (const e of r.events ?? []) handle(e);
       seq = Math.max(seq, r.seq ?? 0);
+      onPings(r.pings);
     } else { H.members = []; H.elsewhere = []; H.coop = null; }
   } catch (e) {
     // alun-alun menolak (mis. belum punya pet): jangan mencoba terus, kembali ke peta

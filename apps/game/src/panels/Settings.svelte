@@ -95,10 +95,10 @@
   let blocks = $state<any[] | null>(null);
   async function loadBlocks() { try { blocks = (await api.get('/api/blocks')).blocks; } catch (e) { fail(e); } }
   async function unblock(b: any) { try { await api.del(`/api/blocks/${b.id}`); unhide(b.id); toast(`Blokir ${b.name} dibuka.`); loadBlocks(); } catch (e) { fail(e); } }
-  async function privacy(k: 'showOnline' | 'liveVisits', v: boolean) {
+  async function privacy(k: 'showOnline' | 'liveVisits' | 'friendRequests', v: boolean) {
     try {
       const r = await api.post('/api/me/privacy', { [k]: v });
-      G.me.user.show_online = r.showOnline; G.me.user.live_visits = r.liveVisits;
+      G.me.user.show_online = r.showOnline; G.me.user.live_visits = r.liveVisits; G.me.user.friend_requests = r.friendRequests;
       toast('Disimpan', 'good');
     } catch (e) { fail(e); }
   }
@@ -149,6 +149,7 @@
     <h3>Teman & tamu</h3>
     <label class="tg"><input type="checkbox" checked={G.me.user.show_online !== false} onchange={(e) => privacy('showOnline', (e.target as HTMLInputElement).checked)} /> Tampilkan status online ke teman</label>
     <label class="tg"><input type="checkbox" checked={G.me.user.live_visits !== false} onchange={(e) => privacy('liveVisits', (e.target as HTMLInputElement).checked)} /> Teman bisa langsung main bareng di rumahku</label>
+    <label class="tg"><input type="checkbox" checked={G.me.user.friend_requests !== false} onchange={(e) => privacy('friendRequests', (e.target as HTMLInputElement).checked)} /> Terima ajakan berteman dari orang yang kutemui di alun-alun atau rumah teman</label>
     <p class="muted small">Bila dimatikan, teman tetap bisa berkunjung dan main dengan pet-mu, tapi tidak tampil bersamaan secara langsung.</p>
     {#if blocks === null}<button class="link" onclick={loadBlocks}>Pemain yang diblokir</button>
     {:else}

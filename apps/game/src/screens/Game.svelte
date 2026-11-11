@@ -41,6 +41,7 @@
   import SaveProgress from '../panels/SaveProgress.svelte';
   import HouseBar from '../components/HouseBar.svelte';
   import SquareBar from '../components/SquareBar.svelte';
+  import FriendAskCard from '../components/FriendAskCard.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
   import PhotoPreview from '../components/PhotoPreview.svelte';
   import { H } from '../lib/house.svelte';
@@ -316,6 +317,7 @@
     <div class="roombar">{@render camBtn()}</div>
     <SquareBar /><PhotoPreview />
   {/if}
+  <FriendAskCard />
 
   {#if G.view === 'visit' && G.visit}
     <div class="visit">

@@ -13,6 +13,7 @@ import { requireUser } from '../lib/auth';
 import { currentNeeds, isAsleep, lockPet, petView, savePet } from '../lib/state';
 import { grantXp, patch } from './game';
 import { EMOTES, markPresence } from './house';
+import { takePings } from '../lib/pings';
 
 const LIVE_MS = 10_000;
 /** jeda antaraksi di alun-alun per pemain */
@@ -85,6 +86,11 @@ export function forgetBlocks(a: string, b: string) { BLOCKS.delete(a); BLOCKS.de
 export function forgetMute(uid: string) { MUTE_CACHE.delete(uid); }
 /** uji: hapus jeda antaraksi */
 export function resetSquareActGap() { LAST_ACT.clear(); }
+/** Dua pemain sedang/baru saja (10 menit) berada di alun-alun yang sama (data dari sinkron, tidak bisa dipalsukan). */
+export function metInSquare(a: string, b: string, ms = 10 * 60_000) {
+  const x = SEEN.get(a), y = SEEN.get(b), now = Date.now();
+  return !!x && !!y && x.inst === y.inst && now - x.at < ms && now - y.at < ms;
+}
 export function resetSquares() { SQUARES.clear(); WHERE.clear(); SEEN.clear(); SAID.clear(); LAST_ACT.clear(); JOINED.clear(); MUTE_CACHE.clear(); BLOCKS.clear(); }
 
 export default async function squareRoutes(app: FastifyInstance, { db }: { db: Db }) {
@@ -208,6 +214,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
       show: squareShow(now0), coop: null, welcome, serverNow: now,
       others: squareCounts().filter((x) => x.id !== id),
       mutedUntil: (await mutedUntil(uid)) || null,
+      pings: takePings(uid),
     };
   });
 
