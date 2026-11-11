@@ -149,6 +149,9 @@
     <p class="intro">Mutiara dipakai untuk barang kosmetik di Toko Mutiara. Tidak ada barang yang membuat pemain lebih kuat.</p>
     {#if G.catalog?.settings?.features?.payments === false}
       <p class="muted">Pembelian Mutiara sedang ditutup.</p>
+    {:else if data?.closed || (G.config && !G.config.payments)}
+      <!-- server produksi masih mode simulasi: pembelian dibuka saat peluncuran resmi -->
+      <p class="soon">{data?.closed ?? 'Pembelian Mutiara belum dibuka. Tunggu peluncuran resminya, ya!'} Sementara itu, Mutiara bisa didapat dari hadiah harian, tugas, dan event.</p>
     {:else if G.me.user.is_guest && G.config?.payments !== 'mock'}
       <div class="guest">
         <b>Simpan progres dulu</b>
@@ -202,6 +205,7 @@
   .n em { font-style: normal; font-size: 15px; color: #1E7A4C; margin-left: 3px; }
   .nm { font-size: 13px; font-weight: 700; color: var(--muted); }
   .price { margin-top: 4px; background: var(--coin); border: 2px solid var(--ink); border-radius: 10px; padding: 2px 10px; font-weight: 800; }
+  .soon { margin: 0; font-weight: 700; background: #FFF4D6; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 12px; }
   .guest { display: flex; flex-direction: column; gap: 8px; border: 2px dashed var(--ink); border-radius: 14px; padding: 12px; }
   .guest p { margin: 0; font-weight: 600; }
   .muted { margin: 0; font-weight: 600; } .small { font-size: 13px; }

@@ -26,6 +26,7 @@
   import WhatsApp from './pages/WhatsApp.svelte';
   import Versions from './pages/Versions.svelte';
   import Integrations from './pages/Integrations.svelte';
+  import Launch from './pages/Launch.svelte';
   import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
@@ -51,6 +52,7 @@
       { k: 'moderation', label: 'Moderasi kata', min: 'moderator', C: Moderation },
       { k: 'payments', label: 'Pembayaran', min: 'admin', C: Payments },
       { k: 'packages', label: 'Paket Mutiara', min: 'moderator', C: Packages },
+      { k: 'launch', label: 'Peluncuran', min: 'admin', C: Launch },
     ] },
     { group: 'Sistem', items: [
       { k: 'audit', label: 'Log audit', min: 'admin', C: Audit },

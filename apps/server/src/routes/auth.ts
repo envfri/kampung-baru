@@ -4,7 +4,8 @@ import type { Db } from '../db/index';
 import { config } from '../config';
 import { zepayMode } from '../lib/zepay';
 import { bad, forbidden, getSettings, sha256, track, HttpError } from '../lib/core';
-import { createSession, createUser, destroySession, loadUser, requireUser } from '../lib/auth';
+import { createSession, createUser, destroySession, loadAdmin, loadUser, requireUser } from '../lib/auth';
+import { mockLocked } from './payments';
 import { playerState } from '../lib/state';
 import { email as vEmail, str } from '../lib/validate';
 import { mailEnabled, sendOtp } from '../lib/mail';
@@ -55,7 +56,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
     return { userId: id, created: true };
   }
 
-  app.get('/api/config', async () => {
+  app.get('/api/config', async (req) => {
     const s = await getSettings(db);
     const f = s.features;
     return {
@@ -66,7 +67,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
         facebook: f.facebookLogin && config.facebookAppId ? config.facebookAppId : null,
         transfer: (s as any).account?.transferCodes !== false,
       },
-      payments: f.payments ? config.paymentProvider : null,
+      payments: f.payments && (!mockLocked() || (await loadAdmin(db, req))) ? config.paymentProvider : null,
       paymentsTest: config.paymentProvider === 'zepay' && zepayMode() === 'test',
       email: mailEnabled(),
       whatsapp: waEnabled() && (await getChannels(db)).whatsapp.enabled,

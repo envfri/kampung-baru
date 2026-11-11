@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import type { Db } from '../db/index';
 import { config } from '../config';
 import { bad, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
-import { requireUser } from '../lib/auth';
+import { loadAdmin, requireUser } from '../lib/auth';
 import { esc } from '@kb/shared';
 import { str } from '../lib/validate';
 import { applyZepay, closePayment, markPaid, pick, syncZepay } from '../lib/payments';
@@ -44,8 +44,18 @@ function syncDue(id: string, everyMs = 8_000) {
   return true;
 }
 
+/**
+ * Server produksi yang masih memakai pembayaran simulasi (PAYMENT_PROVIDER=mock): pembelian dikunci untuk
+ * pemain supaya tidak ada Mutiara gratis. Admin yang login di browser yang sama tetap bisa mencoba alurnya.
+ */
+export const mockLocked = () => config.isProd && config.paymentProvider === 'mock';
+/** Pembayaran uji: simulasi atau kunci uji ZePay. Mutiara-nya bisa ditarik sebelum peluncuran. */
+export const isTestPayment = () => config.paymentProvider === 'mock' || (config.paymentProvider === 'zepay' && zepayMode() === 'test');
+
 export default async function paymentRoutes(app: FastifyInstance, { db }: { db: Db }) {
   const auth = { preHandler: requireUser(db) };
+  const mockAllowed = async (req: any) => !mockLocked() || !!(await loadAdmin(db, req));
+  const CLOSED = 'Pembelian Mutiara belum dibuka. Tunggu peluncuran resminya, ya!';
 
   app.get('/api/pearls', auth, async (req) => {
     const cat = await getCatalog(db);
@@ -55,13 +65,15 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
          from payments where user_id = $1 order by created_at desc limit 10`,
       [req.user!.id],
     );
-    return { packages: cat.packages.filter((p) => p.active), history, provider: config.paymentProvider, test: config.paymentProvider === 'zepay' && zepayMode() === 'test' };
+    const open = await mockAllowed(req);
+    return { packages: cat.packages.filter((p) => p.active), history, provider: open ? config.paymentProvider : null, closed: open ? null : CLOSED, test: config.paymentProvider === 'zepay' && zepayMode() === 'test' };
   });
 
   app.post('/api/pearls/checkout', { ...auth, config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req: any) => {
     const u = req.user!;
     const s = await getSettings(db);
     if (!s.features.payments) throw forbidden('Pembelian Mutiara sedang tidak tersedia.');
+    if (!(await mockAllowed(req))) throw forbidden(CLOSED);
     if (u.is_guest && config.paymentProvider !== 'mock') throw bad('guest', 'Simpan progres dulu (masuk dengan Google atau email) sebelum membeli Mutiara.');
     const pkgId = str(req.body?.packageId, 'Paket', { max: 64 })!;
     const cat = await getCatalog(db);
@@ -81,8 +93,8 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
     }
 
     const pay = (await db.one<{ id: string }>(
-      `insert into payments (user_id, package_id, pearls, amount_idr, provider) values ($1,$2,$3,$4,$5) returning id`,
-      [u.id, pkg.id, pkg.pearls + pkg.bonus, pkg.price_idr, config.paymentProvider],
+      `insert into payments (user_id, package_id, pearls, amount_idr, provider, test) values ($1,$2,$3,$4,$5,$6) returning id`,
+      [u.id, pkg.id, pkg.pearls + pkg.bonus, pkg.price_idr, config.paymentProvider, isTestPayment()],
     ))!;
     await track(db, u.id, 'checkout', { packageId: pkg.id, amount: pkg.price_idr });
 
@@ -261,6 +273,7 @@ export default async function paymentRoutes(app: FastifyInstance, { db }: { db: 
   /* Simulasi pembayaran untuk pengembangan (PAYMENT_PROVIDER=mock). */
   app.get('/pay/mock/:id', async (req: any, reply) => {
     if (config.paymentProvider !== 'mock') return reply.code(404).send('Not found');
+    if (!(await mockAllowed(req))) return reply.code(403).type('text/plain; charset=utf-8').send(CLOSED);
     const id = String(req.params.id);
     if (!UUID.test(id)) return reply.code(400).send('Bad request');
     const p = await db.one<{ status: string; pearls: number; amount_idr: number }>(`select status, pearls, amount_idr from payments where id = $1`, [id]);
@@ -279,6 +292,7 @@ ${p.status === 'pending' ? `<form method="post" class="row"><button class="pay" 
 
   app.post('/pay/mock/:id', async (req: any, reply) => {
     if (config.paymentProvider !== 'mock') return reply.code(404).send('Not found');
+    if (!(await mockAllowed(req))) return reply.code(403).type('text/plain; charset=utf-8').send(CLOSED);
     const id = String(req.params.id);
     if (!UUID.test(id)) return reply.code(400).send('Bad request');
     const action = (req.body as any)?.action;

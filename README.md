@@ -210,7 +210,7 @@ sudo bash deploy/install.sh amt.ai.id
 
 - Lihat log: `docker compose logs -f app`
 - Ubah konfigurasi (Google, Mailketing, Klik Flow, ZePay): edit `.env`, lalu `docker compose up -d`
-- Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
+- Pembelian Mutiara masih **simulasi** (`PAYMENT_PROVIDER=mock`) sampai kunci ZePay diisi. Dengan `NODE_ENV=production`, simulasi **terkunci untuk pemain** (mereka melihat "Pembelian Mutiara belum dibuka"); hanya admin yang login di browser yang sama bisa mencoba alur beli, dan Mutiara-nya ditandai uji. Ganti ke `zepay` sebelum dibuka untuk umum (lihat bagian Pembayaran QRIS).
 
 ## Versi & changelog
 
@@ -251,6 +251,25 @@ npm run test:e2e
 - Waktu gigitan kolam ditentukan dan dicek di server.
 - Rate limit per sesi (atau per IP untuk yang belum login), dengan Redis bila tersedia.
 - Cookie sesi `httpOnly`, CSP ketat untuk game, header keamanan, SVG upload diperiksa dan disajikan dengan sandbox.
+
+## Peluncuran: cut-off supaya semua mulai dari 0
+
+Selama masa uji, pemain (dan kamu) mengumpulkan koin, Mutiara, barang, dan level. Supaya adil saat game dibuka untuk umum, admin › **Peluncuran** (hanya owner):
+
+- **Tarik Mutiara uji**: menarik Mutiara dari pembayaran uji (simulasi mock / kunci uji ZePay `zpk_test_…`). Pembayaran uji ditandai "uji" di admin › Pembayaran. Mutiara yang terlanjur dibelanjakan tidak bisa ditarik (saldo tidak dibuat minus) dan dilaporkan.
+- **Cut-off peluncuran**: semua pemain mulai dari nol. Pilihan *Reset progres, akun tetap* (disarankan: pemain uji tetap bisa masuk, lalu membuat pet baru dengan koin/Mutiara/barang modal awal; daftar teman bisa dipertahankan) atau *Hapus semua pemain*. Item, harga, event, tugas, peta, pengaturan, paket, pengumuman, media, admin, log audit, dan riwayat email/WA tidak tersentuh. Wajib ketik `RESET BUPI`. Bila sudah ada pembayaran sungguhan, catatannya tetap disimpan dan cut-off perlu konfirmasi tambahan ("Hapus semua pemain" diblokir).
+
+Urutan hari peluncuran:
+
+```bash
+./deploy/backup.sh
+```
+
+1. Cadangkan database (perintah di atas, di folder aplikasi).
+2. Admin › Peluncuran › **Jalankan cut-off**.
+3. Isi kunci live ZePay di `.env` (`PAYMENT_PROVIDER=zepay`, `ZEPAY_KEY_ID=zpk_live_…`, `ZEPAY_SECRET=zsk_live_…`), lalu restart.
+4. Admin › Pembayaran › **Daftarkan webhook**, lalu beli satu paket kecil sungguhan untuk memastikan.
+5. Umumkan peluncuran lewat Pengumuman / Broadcast.
 
 ## Yang perlu dilakukan sebelum peluncuran
 

@@ -22,6 +22,7 @@ import waRoutes from './routes/wa';
 import notifyCenterRoutes from './routes/notify-center';
 import systemRoutes from './routes/system';
 import duelRoutes from './routes/duels';
+import launchRoutes from './routes/launch';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -117,6 +118,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(notifyCenterRoutes, { db });
   await app.register(systemRoutes, { db });
   await app.register(duelRoutes, { db });
+  await app.register(launchRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

@@ -105,6 +105,31 @@ export function requireUser(db: Db) {
   };
 }
 
+/** Dompet, ruangan, dan barang awal pemain baru (juga dipakai saat cut-off peluncuran). */
+export async function grantStarter(t: Db, userId: string, s: any, known?: Set<string>) {
+  known ??= new Set((await t.query<{ id: string }>('select id from items')).map((r) => r.id));
+  const start = s.economy;
+  await t.query(`insert into wallets (user_id, coin, pearl) values ($1, 0, 0)`, [userId]);
+  if (start.startCoins > 0) {
+    await t.query(`update wallets set coin = $2 where user_id = $1`, [userId, start.startCoins]);
+    await t.query(`insert into wallet_ledger (user_id, currency, delta, balance_after, reason) values ($1,'coin',$2,$2,'starter')`, [userId, start.startCoins]);
+  }
+  if (start.startPearls > 0) {
+    await t.query(`update wallets set pearl = $2 where user_id = $1`, [userId, start.startPearls]);
+    await t.query(`insert into wallet_ledger (user_id, currency, delta, balance_after, reason) values ($1,'pearl',$2,$2,'starter')`, [userId, start.startPearls]);
+  }
+  for (const [id, qty] of Object.entries(s.starter.inventory ?? {})) {
+    if (known.has(id) && (qty as number) > 0) await t.query(`insert into inventory (user_id, item_id, qty) values ($1,$2,$3)`, [userId, id, qty]);
+  }
+  const layout = (s.starter.layout ?? []).filter((p: any) => known!.has(p.i));
+  await t.query(`insert into rooms (user_id, layout, wall, floor) values ($1,$2,$3,$4)`, [
+    userId,
+    JSON.stringify(layout),
+    known.has(s.starter.wall) ? s.starter.wall : null,
+    known.has(s.starter.floor) ? s.starter.floor : null,
+  ]);
+}
+
 /** Buat pemain baru beserta dompet, ruangan, dan barang awal. Pet dibuat saat setup. */
 export async function createUser(db: Db, displayName: string, isGuest: boolean) {
   const s = await getSettings(db);
@@ -114,27 +139,7 @@ export async function createUser(db: Db, displayName: string, isGuest: boolean) 
     if (exists) continue;
     return db.tx(async (t) => {
       const u = (await t.one<{ id: string }>(`insert into users (display_name, friend_code, is_guest) values ($1,$2,$3) returning id`, [displayName, code, isGuest]))!;
-      await t.query(`insert into wallets (user_id, coin, pearl) values ($1, 0, 0)`, [u.id]);
-      const start = s.economy;
-      if (start.startCoins > 0) {
-        await t.query(`update wallets set coin = $2 where user_id = $1`, [u.id, start.startCoins]);
-        await t.query(`insert into wallet_ledger (user_id, currency, delta, balance_after, reason) values ($1,'coin',$2,$2,'starter')`, [u.id, start.startCoins]);
-      }
-      if (start.startPearls > 0) {
-        await t.query(`update wallets set pearl = $2 where user_id = $1`, [u.id, start.startPearls]);
-        await t.query(`insert into wallet_ledger (user_id, currency, delta, balance_after, reason) values ($1,'pearl',$2,$2,'starter')`, [u.id, start.startPearls]);
-      }
-      const known = new Set((await t.query<{ id: string }>('select id from items')).map((r) => r.id));
-      for (const [id, qty] of Object.entries(s.starter.inventory ?? {})) {
-        if (known.has(id) && qty > 0) await t.query(`insert into inventory (user_id, item_id, qty) values ($1,$2,$3)`, [u.id, id, qty]);
-      }
-      const layout = (s.starter.layout ?? []).filter((p: any) => known.has(p.i));
-      await t.query(`insert into rooms (user_id, layout, wall, floor) values ($1,$2,$3,$4)`, [
-        u.id,
-        JSON.stringify(layout),
-        known.has(s.starter.wall) ? s.starter.wall : null,
-        known.has(s.starter.floor) ? s.starter.floor : null,
-      ]);
+      await grantStarter(t, u.id, s);
       await t.query(`insert into analytics_events (user_id, name, props) values ($1, 'signup', $2)`, [u.id, { guest: isGuest }]);
       return u.id;
     });
@@ -157,6 +162,16 @@ export async function destroyAdminSession(db: Db, req: FastifyRequest, reply: Fa
 }
 
 export const ROLE_RANK = { moderator: 1, admin: 2, owner: 3 } as const;
+
+/** Admin yang sedang login di browser yang sama (atau undefined). Tidak melempar error. */
+export async function loadAdmin(db: Db, req: FastifyRequest) {
+  const t = (req.cookies as Record<string, string | undefined>)[ADMIN_COOKIE];
+  if (!t) return undefined;
+  return (await db.one<SessionAdmin>(
+    `select a.id, a.email, a.name, a.role from admin_sessions s join admins a on a.id = s.admin_id where s.token_hash = $1 and s.expires_at > now()`,
+    [sha256(t)],
+  )) ?? undefined;
+}
 
 export function requireAdmin(db: Db, min: keyof typeof ROLE_RANK = 'moderator') {
   return async (req: FastifyRequest) => {

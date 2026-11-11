@@ -115,7 +115,7 @@ ZEPAY_SECRET=zsk_live_…</pre>
     {#each rows as p (p.id)}
       <tr>
         <td>{dt(p.created_at)}</td><td>{p.display_name}</td><td>{p.package_id}</td><td class="num">{p.pearls}</td><td class="num">{rp(p.amount_idr)}</td>
-        <td class="mono">{p.invoice ?? '—'}</td><td>{@html ST[p.status] ?? p.status}</td>
+        <td class="mono">{p.invoice ?? '—'}</td><td>{@html ST[p.status] ?? p.status}{#if p.test} <span class="chip warn" title="Pembayaran uji: simulasi atau kunci uji ZePay">uji</span>{/if}{#if p.revoked_at} <span class="chip mute" title="Mutiara-nya sudah ditarik / direset">ditarik</span>{/if}</td>
         <td><span class="row acts">
           {#if p.provider === 'zepay' && p.provider_ref && p.status !== 'paid'}
             <button class="btn sm" disabled={rowBusy === p.id} onclick={() => sync(p.id)}>Cek status</button>
