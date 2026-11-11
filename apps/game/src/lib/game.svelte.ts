@@ -4,8 +4,8 @@ import { decayNeeds, needsWithSleep, petLookState, type ItemLike, type Needs } f
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
-export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang';
-export type Sheet = null | 'rooms' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
+export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel';
+export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -59,6 +59,8 @@ export const G = $state({
   bath: null as null | { scrub: number; tool: 'sabun' | 'gayung'; rinsing: boolean },
   /** celetukan pet yang sedang tampil */
   speech: null as null | { text: string; n: number },
+  /** duel yang sedang dibuka (ruang tunggu / sedang dimainkan) */
+  duel: null as null | { id: string; game: string; them: any; autostart?: boolean; live?: boolean },
 });
 
 let itemsCache: { v: string; map: Map<string, CatalogItem> } | null = null;

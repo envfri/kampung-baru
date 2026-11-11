@@ -156,12 +156,16 @@ export async function playerState(db: Db, userId: string) {
   const announcements = await db.query(
     `select id, title, body, starts_at from announcements where active and starts_at <= now() and (ends_at is null or ends_at > now()) order by starts_at desc limit 5`,
   );
-  const [plays, casts, unread, prefs, likes] = await Promise.all([
+  const [plays, casts, unread, prefs, likes, duels] = await Promise.all([
     counter(db, userId, 'karung'),
     counter(db, userId, 'fishing'),
     db.one<{ c: number }>(`select count(*)::int c from notifications where user_id = $1 and read_at is null`, [userId]),
     db.one<{ notify_prefs: any }>(`select notify_prefs from users where id = $1`, [userId]),
     db.one<{ c: number }>(`select count(*)::int c from house_likes where host_id = $1 and week = $2`, [userId, weekKey()]),
+    // duel yang menunggu giliranku (ditantang, atau tantanganku yang belum kumainkan)
+    db.one<{ c: number }>(
+      `select count(*)::int c from duels where status in ('open','live') and expires_at > now()
+         and ((opponent_id = $1 and o_score is null) or (challenger_id = $1 and c_score is null))`, [userId]),
   ]);
   return {
     serverNow: Date.now(),
@@ -193,6 +197,7 @@ export async function playerState(db: Db, userId: string) {
     quests: await questSummary(db, userId),
     notifyPrefs: prefs?.notify_prefs ?? {},
     likesWeek: likes?.c ?? 0,
+    duelsPending: duels?.c ?? 0,
   };
 }
 

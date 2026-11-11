@@ -359,3 +359,19 @@ export async function seedPackV5(db: Db) {
   await db.query(`insert into settings (key, value) values ('content_pack', '5'::jsonb) on conflict (key) do update set value = excluded.value`);
   return true;
 }
+
+// Paket konten v6: duel dengan teman (lencana & tugas harian).
+export async function seedPackV6(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 6) return false;
+  await db.query(
+    `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_pearl, reward_xp, url, sort)
+     values ('b-duel', 'badge', 'Jagoan Duel', 'Menang duel melawan teman 10 kali.', 'duel_win', '{}'::jsonb, 10, 0, 2, 20, '/#duels', 660) on conflict (id) do nothing`,
+  );
+  await db.query(
+    `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_xp, url, sort)
+     values ('h-duel', 'daily', 'Adu seru', 'Selesaikan 1 duel dengan teman (main bareng atau balas tantangan).', 'duel', '{}'::jsonb, 1, 20, 4, '/#duels', 150) on conflict (id) do nothing`,
+  ).catch(() => {});
+  await db.query(`insert into settings (key, value) values ('content_pack', '6'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}

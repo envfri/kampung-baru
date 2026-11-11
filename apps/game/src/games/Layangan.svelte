@@ -6,6 +6,7 @@
   import { createRun } from '../lib/minigame.svelte';
   import { sfx, buzz } from '../lib/sfx';
   import GameCard from './GameCard.svelte';
+  import VsBar from './VsBar.svelte';
 
   const cfg = $derived(settings().games?.layangan ?? {});
   const left = $derived(G.me.limits?.games?.layangan ?? cfg.playsPerDay ?? 0);
@@ -73,6 +74,7 @@
   {#if run.st.phase === 'play' || run.st.phase === 'count'}
     <div class="top"><span>{score} poin</span><span>{timeLeft} d</span></div>
   {/if}
+  <VsBar {run} mine={score} fmt={(v) => `${v} poin`} />
   <GameCard {run} title="Tangkap Layangan" {left} info="{cfg.energiCost} energi · {cfg.coinPerPoint} koin per poin (maks {cfg.maxCoins})">
     {#snippet intro()}<p>Ketuk layangan putus sebelum jatuh ke tanah. Layangan emas +3, layangan biasa +1. Layangan <b>sobek</b> (abu-abu) jangan diambil: −1!</p>{/snippet}
   </GameCard>

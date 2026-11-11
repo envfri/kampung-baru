@@ -13,6 +13,7 @@
     sfx.tap();
     if (k === 'home' || k === 'map') {
       if (G.edit) return;
+      G.duel = null;
       G.sheet = null;
       if (k === 'map' && (G.view === 'home' || G.view === 'visit')) G.mapAt = 'rumah';
       G.view = k;
@@ -23,14 +24,14 @@
     }
   }
   // toko kini didatangi lewat peta: berada di dalam toko = tab Kampung aktif
-  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop', 'bakiak', 'gasing', 'layangan', 'pinang'].includes(G.view)) || (k === 'friends' && G.view === 'visit'));
+  const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop', 'bakiak', 'gasing', 'layangan', 'pinang'].includes(G.view)) || (k === 'friends' && (G.view === 'visit' || G.view === 'duel')));
 </script>
 
 <nav class="dock" aria-label="Navigasi">
   {#each tabs as t}
     <button class:on={active(t.k)} aria-pressed={active(t.k)} onclick={() => go(t.k)}>
       {@html t.icon}<span>{t.label}</span>
-      {#if t.k === 'friends' && G.me.giftsUnread > 0}<i class="badge">{G.me.giftsUnread}</i>{/if}
+      {#if t.k === 'friends' && (G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0) > 0}<i class="badge">{(G.me.giftsUnread ?? 0) + (G.me.duelsPending ?? 0)}</i>{/if}
       {#if t.k === 'quests' && G.me.quests?.ready > 0}<i class="badge">{G.me.quests.ready}</i>{/if}
     </button>
   {/each}

@@ -81,6 +81,12 @@
     <button class="btn hot" disabled={G.busy || code.trim().length < 6}>Tambah</button>
   </form>
 
+  <button class="duelbar" onclick={() => { sfx.tap(); G.sheetArg = null; G.sheet = 'duels'; }}>
+    <span class="vs">VS</span>
+    <span class="t"><b>Duel Teman</b><small>Main bareng atau kirim tantangan mini-game</small></span>
+    {#if G.me.duelsPending}<i>{G.me.duelsPending}</i>{/if}
+  </button>
+
   <div class="seg">
     <button class:on={tab === 'list'} onclick={() => (tab = 'list')}>Daftar teman</button>
     <button class:on={tab === 'gifts'} onclick={() => (tab = 'gifts')}>Kotak hadiah {#if G.me.giftsUnread}<i>{G.me.giftsUnread}</i>{/if}</button>
@@ -104,6 +110,7 @@
           </div>
           <div class="btns">
             <button class="btn sm" onclick={() => visit(f)}>Kunjungi</button>
+            <button class="btn sm" aria-label="Tantang {f.display_name} duel" onclick={() => { sfx.tap(); G.sheetArg = { friendId: f.id }; G.sheet = 'duels'; }}>Duel</button>
             <button class="btn sm" aria-label="Kirim hadiah ke {f.display_name}" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: f.id, name: f.display_name }; }}>{@html I.gift}</button>
           </div>
         </div>
@@ -158,6 +165,11 @@
   .add { display: flex; gap: 8px; }
   .add .input { flex: 1; min-width: 0; text-transform: uppercase; }
   .add .input::placeholder { text-transform: none; }
+  .duelbar { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 2.5px solid var(--ink); border-radius: 14px; background: #FFE8A3; box-shadow: 0 3px 0 var(--ink); padding: 8px 10px; cursor: pointer; font: inherit; color: var(--ink); }
+  .duelbar .vs { flex: none; width: 42px; height: 42px; border-radius: 50%; background: #E0583F; color: #fff; border: 2.5px solid var(--ink); display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+  .duelbar .t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .duelbar b { font-size: 16px; } .duelbar small { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .duelbar i { font-style: normal; background: var(--low); color: #fff; border-radius: 10px; padding: 0 7px; font-weight: 800; font-size: 13px; border: 2px solid var(--ink); }
   .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
   .seg button { flex: 1; border: 0; background: var(--paper); font-weight: 800; font-size: 14.5px; min-height: 40px; cursor: pointer; }
   .seg button.on { background: var(--coin); }

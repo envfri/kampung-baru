@@ -215,3 +215,60 @@ export function pinangReplay(seed: number, taps: number[], durationMs: number) {
   const height = Math.round(maxH);
   return { height, tiers: PINANG.prizes.filter((p) => height >= p).length };
 }
+
+/* ---------------- Duel dengan teman ---------------- */
+
+/** Mini-game yang bisa dipakai duel (seed sama untuk kedua pemain). */
+export const DUEL_GAMES = ['bakiak', 'gasing', 'layangan'] as const;
+export type DuelGame = (typeof DUEL_GAMES)[number];
+export const GASING_SPIN_MS = 1700; // jeda animasi putaran antar ronde Gasing
+
+/** Skor duel (bilangan bulat, makin besar makin baik) dari langkah pemain. null = tidak sah. */
+export function duelScore(game: string, seed: number, meta: any, inputs: any): number | null {
+  if (game === 'bakiak') {
+    const r = bakiakReplay(seed, Array.isArray(inputs?.taps) ? inputs.taps.slice(0, 600) : [], Number(meta?.durationMs) || 20_000);
+    // langkah lebih banyak menang; bila sama, yang lebih jarang tersandung
+    return r ? Math.min(BAKIAK.finish, r.steps) * 100 + (99 - Math.min(99, r.stumbles)) : null;
+  }
+  if (game === 'gasing') {
+    const r = gasingScore(seed, Array.isArray(inputs?.releases) ? inputs.releases.map(Number) : [], Number(meta?.rounds) || 5);
+    return r ? Math.round(r.total * 10) : null;
+  }
+  if (game === 'layangan') {
+    const d = Number(meta?.durationMs) || 25_000;
+    const r = layanganScore(layanganSchedule(seed, d), Array.isArray(inputs?.caught) ? inputs.caught.slice(0, 300) : [], d);
+    return r ? r.score : null;
+  }
+  return null;
+}
+
+/** Skor duel untuk dibaca pemain. */
+export function duelLabel(game: string, score: number | null | undefined) {
+  if (score === null || score === undefined) return '—';
+  if (game === 'bakiak') return `${Math.floor(score / 100)} langkah`;
+  if (game === 'gasing') return `${(score / 10).toFixed(1)} detik`;
+  return `${score} poin`;
+}
+
+/**
+ * Progres lawan "bayangan" pada waktu t (ms sejak mulai), dari langkah yang tersimpan:
+ * Bakiak = langkah, Gasing = total detik ×10 sejauh ini, Layangan = poin.
+ */
+export function ghostAt(game: string, seed: number, meta: any, inputs: any, t: number): number {
+  if (!inputs) return 0;
+  if (game === 'bakiak') {
+    const taps = (inputs.taps ?? []).filter((x: any) => Array.isArray(x) && x[0] <= t);
+    return Math.min(BAKIAK.finish, bakiakReplay(seed, taps, Number(meta?.durationMs) || 20_000)?.steps ?? 0);
+  }
+  if (game === 'gasing') {
+    const rs = gasingRounds(seed, Number(meta?.rounds) || 5);
+    let at = 0, total = 0;
+    (inputs.releases ?? []).forEach((r: number, i: number) => { at += Number(r); if (at <= t && rs[i]) total += gasingSpin(rs[i], Number(r)); at += GASING_SPIN_MS; });
+    return Math.round(total * 10);
+  }
+  if (game === 'layangan') {
+    const sched = layanganSchedule(seed, Number(meta?.durationMs) || 25_000);
+    return Math.max(0, (inputs.caught ?? []).filter((c: any) => Array.isArray(c) && c[1] <= t && sched[c[0]]).reduce((a: number, c: any) => a + sched[c[0]].value, 0));
+  }
+  return 0;
+}

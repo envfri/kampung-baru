@@ -1,11 +1,12 @@
 <script lang="ts">
   // Gasing: tenaga naik-turun; lepas saat penunjuk di zona hijau supaya gasing berputar lama. 5 ronde.
   import { onDestroy } from 'svelte';
-  import { gasingRounds, gasingMeter, gasingSpin, type GasingRound } from '@kb/shared';
+  import { gasingRounds, gasingMeter, gasingSpin, GASING_SPIN_MS, type GasingRound } from '@kb/shared';
   import { G, settings } from '../lib/game.svelte';
   import { createRun } from '../lib/minigame.svelte';
   import { sfx, buzz } from '../lib/sfx';
   import GameCard from './GameCard.svelte';
+  import VsBar from './VsBar.svelte';
 
   const cfg = $derived(settings().games?.gasing ?? {});
   const left = $derived(G.me.limits?.games?.gasing ?? cfg.playsPerDay ?? 0);
@@ -41,7 +42,7 @@
     timer = setTimeout(() => {
       if (idx + 1 >= rounds.length) run.finish({ releases });
       else { idx++; startRound(); }
-    }, 1700);
+    }, GASING_SPIN_MS);
   }
   function key(e: KeyboardEvent) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); release(); } }
   onDestroy(() => { cancelAnimationFrame(raf); clearTimeout(timer); run.stop(); });
@@ -87,6 +88,7 @@
       <div class="pads"><button class="btn hot pad" disabled={mode !== 'aim'} onpointerdown={(e) => { e.preventDefault(); release(); }}>Lepas gasing!</button></div>
     {/if}
   {/if}
+  <VsBar {run} mine={Math.round(total * 10)} fmt={(v) => `${(v / 10).toFixed(1)} d`} />
   <GameCard {run} title="Gasing" {left} info="{cfg.energiCost} energi · {cfg.coinPerSec} koin per detik berputar (maks {cfg.maxCoins})">
     {#snippet intro()}<p>Penunjuk tenaga naik-turun. Tekan <b>Lepas gasing!</b> saat penunjuk ada di zona hijau (paling tengah = paling lama). {cfg.rounds} ronde, makin lama makin cepat.</p>{/snippet}
     {#snippet result()}<p>Total berputar {run.st.result.total?.toFixed?.(1) ?? run.st.result.score} detik ({(run.st.result.spins ?? []).map((x: number) => x.toFixed(1)).join(' · ')})</p>{/snippet}

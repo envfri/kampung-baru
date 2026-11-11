@@ -20,6 +20,7 @@ Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar
 | Pet hidup | Wajah ikut perasaan (senang, lapar, capek, kotor, sakit, tidur), mata mengikuti jari, celetukan (diatur admin). Rawat dengan sentuhan: seret makanan ke mulut, gosok sabun lalu bilas, matikan lampu untuk tidur bertahap (bangun sendiri + notifikasi). Sakit ringan & jamu dari Warung Jamu, gembul & olahraga, remah/bulu rontok disapu untuk koin | Selesai |
 | Lencana & sosial | 15 lencana (jenis Tugas "badge", diatur admin), suka rumah teman sekali seminggu, Rumah terfavorit minggu ini | Selesai |
 | Mini-game Nusantara | Balap Bakiak, Gasing, Tangkap Layangan, Panjat Pinang (hanya saat event berdekorasi bendera); skor diputar ulang di server dari seed | Selesai |
+| Duel teman | Tantang teman di Balap Bakiak, Gasing, Tangkap Layangan: main bareng (ruang duel, mulai bersamaan, skor lawan langsung) atau tantangan melawan bayangan. Seed sama, skor diputar ulang di server, hadiah koin sistem tanpa taruhan, batas per hari | Selesai |
 | Peta & toko | Belanja dengan mendatangi toko di Peta Kampung: pet berjalan menyusuri jalan, lalu masuk ke dalam toko (penjaga, etalase, barang khusus toko itu) | Selesai |
 | Notifikasi | Web Push (muncul walau PWA ditutup) + kotak notifikasi di game: kebun siap panen, pet butuh perhatian, pengingat hadiah harian, teman/kunjungan/hadiah, pembayaran, broadcast & jadwal dari admin | Selesai, perlu uji di HP sungguhan |
 

@@ -56,6 +56,15 @@ export const DEFAULT_SETTINGS = {
   house: {
     maxRooms: 6,
   },
+  duel: {
+    enabled: true,
+    perDay: 10,
+    winCoins: 30,
+    loseCoins: 10,
+    drawCoins: 20,
+    xp: 6,
+    expireHours: 48,
+  },
   sleep: {
     energiPerHour: 40,
     otherDecayMult: 0.5,
@@ -147,6 +156,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   fishing: 'Kolam Pancing: jatah lempar per hari, jeda gigitan, dan lama jendela tarik (ms).',
   garden: 'Jumlah petak kebun dan XP panen.',
   room: 'Ukuran kamar awal (petak) dan batas jumlah barang terpasang per ruangan.',
+  duel: 'Duel dengan teman (Balap Bakiak, Gasing, Tangkap Layangan): main bareng langsung bila keduanya online, atau tantangan melawan bayangan. Hadiah koin dari sistem (tanpa taruhan) dibayar setelah kedua pemain main; perDay = batas duel per pemain per hari; tantangan kedaluwarsa setelah expireHours jam.',
   sleep: 'Tidur dengan lampu mati: energi naik per jam, kebutuhan lain turun lebih lambat (pengali), batas energi untuk bisa tidur, dan lama tidur minimal untuk dihitung lencana (menit).',
   health: 'Sakit ringan: pet sakit bila sejumlah kebutuhan (lowCount) di bawah ambang selama beberapa jam. Disembuhkan dengan makanan bertanda "menyembuhkan" (jamu). Pet tidak pernah mati.',
   weight: 'Berat badan: kelebihan kenyang × pengali menambah berat, turun sendiri per hari dan lewat olahraga (efek "berat" di Aktivitas). Mulai tampak gembul di angka chubbyAt.',

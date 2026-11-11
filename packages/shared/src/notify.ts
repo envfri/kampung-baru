@@ -148,6 +148,18 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Rumahmu disukai!', body: '{teman} menyukai rumahmu. Sudah {jumlah} suka minggu ini.', wa: '{teman} menyukai rumah {pet} 💛 Sudah {jumlah} suka minggu ini.\n{link}' },
   },
   {
+    key: 'duel_invite', group: 'Teman', label: 'Ditantang duel', kind: 'social', allowed: ALL, url: '/#duels',
+    desc: 'Teman menantang pemain duel mini-game (bisa main bareng langsung bila sama-sama online).',
+    vars: { teman: 'Nama penantang', permainan: 'Nama mini-game' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{teman} menantangmu!', body: 'Duel {permainan}. Main bareng sekarang atau balas tantangannya nanti.', wa: '{teman} menantang {pet} duel {permainan} ⚔️\n{link}' },
+  },
+  {
+    key: 'duel_result', group: 'Teman', label: 'Hasil duel', kind: 'social', allowed: ALL, url: '/#duels',
+    desc: 'Duel selesai (lawan sudah main): menang, kalah, atau seri.',
+    vars: { teman: 'Nama lawan', permainan: 'Nama mini-game', hasil: 'Menang / Kalah / Seri', skor: 'Skor kamu vs skor lawan' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Duel {permainan}: {hasil}', body: 'Melawan {teman}: {skor}.', wa: 'Duel {permainan} melawan {teman}: {hasil} ({skor})\n{link}' },
+  },
+  {
     key: 'gift', group: 'Teman', label: 'Dapat hadiah', kind: 'social', allowed: ALL, url: '/#friends',
     desc: 'Teman mengirim hadiah.',
     vars: { teman: 'Nama pengirim', pesan: 'Pesan pengirim diawali ": " (kosong bila tidak ada)' },

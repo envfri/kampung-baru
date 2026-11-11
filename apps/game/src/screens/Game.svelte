@@ -36,6 +36,8 @@
   import Gasing from '../games/Gasing.svelte';
   import Layangan from '../games/Layangan.svelte';
   import Pinang from '../games/Pinang.svelte';
+  import DuelLobby from '../scenes/DuelLobby.svelte';
+  import Duels from '../panels/Duels.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
@@ -160,6 +162,7 @@
     {:else if G.view === 'gasing'}<Gasing />
     {:else if G.view === 'layangan'}<Layangan />
     {:else if G.view === 'pinang'}<Pinang />
+    {:else if G.view === 'duel' && G.duel}<DuelLobby />
     {/if}
   </div>
   <!-- lampu mati saat pet tidur -->
@@ -254,6 +257,7 @@
   {:else if G.sheet === 'quests'}<Quests />
   {:else if G.sheet === 'wardrobe'}<Wardrobe />
   {:else if G.sheet === 'games'}<Games />
+  {:else if G.sheet === 'duels'}<Duels />
   {:else if G.sheet === 'event'}<EventPanel />
   {:else if G.sheet === 'whatsnew'}<WhatsNew />
   {/if}
