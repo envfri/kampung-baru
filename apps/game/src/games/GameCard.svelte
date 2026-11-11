@@ -4,9 +4,14 @@
   import { petSVG } from '@kb/shared';
   import { G, wearItems } from '../lib/game.svelte';
   import { leaveDuel } from '../lib/minigame.svelte';
+  import { maybeNudge } from '../lib/account.svelte';
   import { I, COIN } from '../lib/icons';
   let { run, title, left, info, intro, result }: { run: any; title: string; left: number; info: string; intro: Snippet; result?: Snippet } = $props();
-  const back = () => { run.stop(); if (run.st.duel || G.duel) return leaveDuel(); G.view = 'map'; G.sheet = 'games'; };
+  const back = () => {
+    run.stop();
+    if (run.st.duel || G.duel) { const won = run.st.result?.duel?.result === 'menang'; leaveDuel(); if (won) maybeNudge('duel', 'duels'); return; }
+    G.view = 'map'; G.sheet = 'games';
+  };
   const inDuel = $derived(!!G.duel || !!run.st.duel);
   const dv = $derived(run.st.result?.duel);
   onMount(() => {

@@ -3,6 +3,7 @@
   import { G, loadCatalog, refreshMe } from './lib/game.svelte';
   import { api, ApiError } from './lib/api';
   import { petSVG } from '@kb/shared';
+  import ConfirmDialog from './components/ConfirmDialog.svelte';
   import Login from './screens/Login.svelte';
   import Setup from './screens/Setup.svelte';
   import Game from './screens/Game.svelte';
@@ -58,6 +59,7 @@
   <Game />
 {/if}
 <Toast />
+<ConfirmDialog />
 
 <div class="rotate" aria-hidden="true">
   <div class="pet">{@html petSVG({ color: '#F6B7A8', ear: 'tunas' })}</div>

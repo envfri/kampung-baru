@@ -12,13 +12,29 @@ import { waEnabled } from '../lib/klikflow';
 import { getChannels } from '../lib/notify-config';
 
 let googleJwks: any = null;
+const PROVIDER_NAME: Record<string, string> = { google: 'Google', email: 'Email', facebook: 'Facebook' };
+/** Huruf kode pindah: tanpa I, O, 0, 1 supaya tidak tertukar saat diketik. */
+const TRANSFER_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const normCode = (s: unknown) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/I/g, '1');
 
 export default async function authRoutes(app: FastifyInstance, { db }: { db: Db }) {
   /** Login dengan identitas pihak ketiga. Jika sedang login sebagai tamu, identitas ditautkan ke akun tamu itu. */
+  /** Ringkasan akun untuk dialog konfirmasi pindah akun. */
+  async function summary(userId: string) {
+    const r = await db.one<any>(`select u.display_name, p.name as pet, p.level from users u left join pets p on p.user_id = u.id where u.id = $1`, [userId]);
+    return { name: r?.display_name ?? 'Pemain', pet: r?.pet ?? null, level: r?.level ?? 1 };
+  }
+  /** Sedang login & mau pindah ke akun lain: minta konfirmasi dulu (akun tamu yang ditinggal tidak bisa dibuka lagi). */
+  async function confirmSwitch(req: any, current: any, targetId: string, code: string, msg: string) {
+    if (!current || current.id === targetId || req.body?.switch === true) return;
+    throw bad(code, msg, { guest: !!current.is_guest, current: await summary(current.id), other: await summary(targetId) });
+  }
+
   async function loginWithIdentity(req: FastifyRequest, reply: FastifyReply, provider: string, uid: string, mail: string | null, name: string) {
     const existing = await db.one<{ user_id: string }>(`select user_id from auth_identities where provider = $1 and provider_uid = $2`, [provider, uid]);
     const current = await loadUser(db, req);
     if (existing) {
+      await confirmSwitch(req, current, existing.user_id, 'identity_in_use', `Akun ${PROVIDER_NAME[provider] ?? provider} ini sudah dipakai akun BUPI lain.`);
       const banned = await db.one<{ banned_at: Date | null; ban_reason: string | null }>('select banned_at, ban_reason from users where id = $1', [existing.user_id]);
       if (banned?.banned_at) throw forbidden(`Akun ini diblokir${banned.ban_reason ? ': ' + banned.ban_reason : '.'}`);
       if (!current || current.id !== existing.user_id) await createSession(db, reply, existing.user_id);
@@ -48,6 +64,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
         email: f.emailLogin && (mailEnabled() || !config.isProd),
         google: f.googleLogin && config.googleClientId ? config.googleClientId : null,
         facebook: f.facebookLogin && config.facebookAppId ? config.facebookAppId : null,
+        transfer: (s as any).account?.transferCodes !== false,
       },
       payments: f.payments ? config.paymentProvider : null,
       paymentsTest: config.paymentProvider === 'zepay' && zepayMode() === 'test',
@@ -98,8 +115,8 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
       await db.query(`update email_otps set attempts = attempts + 1 where email = $1`, [mail]);
       throw bad('otp_wrong', 'Kode salah. Periksa lagi email kamu.');
     }
-    await db.query(`delete from email_otps where email = $1`, [mail]);
     const r = await loginWithIdentity(req, reply, 'email', mail, mail, mail.split('@')[0]);
+    await db.query(`delete from email_otps where email = $1`, [mail]);
     return { ok: true, ...r, state: await playerState(db, r.userId) };
   });
 
@@ -128,6 +145,45 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
     if (!me?.id) throw bad('facebook_invalid', 'Login Facebook gagal diverifikasi.');
     const r = await loginWithIdentity(req, reply, 'facebook', String(me.id), me.email ?? null, String(me.name ?? 'Pemain').split(' ')[0]);
     return { ok: true, ...r, state: await playerState(db, r.userId) };
+  });
+
+  /* ---------- kode pindah perangkat ---------- */
+
+  app.post('/api/auth/transfer', { preHandler: requireUser(db), config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req: any) => {
+    const s: any = await getSettings(db);
+    if (!s.account.transferCodes) throw forbidden('Kode pindah perangkat sedang tidak tersedia.');
+    const uid = req.user!.id;
+    let code = '';
+    for (let i = 0; i < 8; i++) code += TRANSFER_ABC[randomInt(0, TRANSFER_ABC.length)];
+    const minutes = Math.max(1, Math.min(60, Number(s.account.transferMinutes) || 15));
+    // satu kode aktif per akun: kode lama yang belum dipakai dibatalkan
+    await db.query(`delete from transfer_codes where user_id = $1 and used_at is null`, [uid]);
+    const row = await db.one<{ expires_at: Date }>(
+      `insert into transfer_codes (code_hash, user_id, expires_at) values ($1,$2, now() + ($3::int * interval '1 minute')) returning expires_at`,
+      [sha256('transfer:' + code), uid, minutes],
+    );
+    await track(db, uid, 'transfer_code', {});
+    return { code: `${code.slice(0, 4)}-${code.slice(4)}`, expiresAt: new Date(row!.expires_at).getTime(), minutes };
+  });
+
+  app.post('/api/auth/transfer/redeem', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req: any, reply) => {
+    const s: any = await getSettings(db);
+    if (!s.account.transferCodes) throw forbidden('Kode pindah perangkat sedang tidak tersedia.');
+    const code = normCode(req.body?.code);
+    if (code.length !== 8) throw bad('transfer_invalid', 'Kode pindah terdiri dari 8 huruf/angka, mis. K7QM-2XPA.');
+    const row = await db.one<{ user_id: string }>(
+      `select user_id from transfer_codes where code_hash = $1 and used_at is null and expires_at > now()`, [sha256('transfer:' + code)]);
+    if (!row) throw bad('transfer_invalid', 'Kode tidak cocok atau sudah kedaluwarsa. Buat kode baru di perangkat lama.');
+    const target = await db.one<{ banned_at: Date | null; ban_reason: string | null }>('select banned_at, ban_reason from users where id = $1', [row.user_id]);
+    if (target?.banned_at) throw forbidden(`Akun ini diblokir${target.ban_reason ? ': ' + target.ban_reason : '.'}`);
+    const current = await loadUser(db, req);
+    if (current?.id === row.user_id) throw bad('transfer_same', 'Kode ini untuk akun yang sedang kamu pakai di perangkat ini.');
+    await confirmSwitch(req, current, row.user_id, 'transfer_confirm', 'Perangkat ini sedang memakai akun lain.');
+    const used = await db.one(`update transfer_codes set used_at = now(), used_ip = $2 where code_hash = $1 and used_at is null returning 1`, [sha256('transfer:' + code), req.ip]);
+    if (!used) throw bad('transfer_invalid', 'Kode ini baru saja dipakai. Buat kode baru di perangkat lama.');
+    await createSession(db, reply, row.user_id);
+    await track(db, row.user_id, 'transfer_used', { switched: !!current });
+    return { ok: true, switched: !!current, transferred: true, state: await playerState(db, row.user_id) };
   });
 
   app.post('/api/auth/logout', async (req, reply) => {

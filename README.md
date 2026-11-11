@@ -21,6 +21,7 @@ Isinya: game PWA, server API, panel admin, dan basis data. Semua gambar digambar
 | Lencana & sosial | 15 lencana (jenis Tugas "badge", diatur admin), suka rumah teman sekali seminggu, Rumah terfavorit minggu ini | Selesai |
 | Mini-game Nusantara | Balap Bakiak, Gasing, Tangkap Layangan, Panjat Pinang (hanya saat event berdekorasi bendera); skor diputar ulang di server dari seed | Selesai |
 | Duel teman | Tantang teman di Balap Bakiak, Gasing, Tangkap Layangan: main bareng (ruang duel, mulai bersamaan, skor lawan langsung) atau tantangan melawan bayangan. Seed sama, skor diputar ulang di server, hadiah koin sistem tanpa taruhan, batas per hari | Selesai |
+| Akun & pindah perangkat | Main langsung sebagai tamu, sesi diperpanjang otomatis, ajakan Simpan progres (Google/email), kode pindah perangkat sekali pakai, konfirmasi sebelum pindah akun | Selesai |
 | Peta & toko | Belanja dengan mendatangi toko di Peta Kampung: pet berjalan menyusuri jalan, lalu masuk ke dalam toko (penjaga, etalase, barang khusus toko itu) | Selesai |
 | Notifikasi | Web Push (muncul walau PWA ditutup) + kotak notifikasi di game: kebun siap panen, pet butuh perhatian, pengingat hadiah harian, teman/kunjungan/hadiah, pembayaran, broadcast & jadwal dari admin | Selesai, perlu uji di HP sungguhan |
 
@@ -103,8 +104,10 @@ Perubahan katalog dan pengaturan sampai ke pemain dalam ±15 detik (cache server
 
 ## Login
 
-- **Tamu**: langsung main. Progres tersimpan di server dan bisa ditautkan ke Google/email kapan saja tanpa hilang.
-- **Google**: buat OAuth Client ID tipe Web di Google Cloud Console. Isi Authorized JavaScript origins dengan domain game, lalu isi `GOOGLE_CLIENT_ID`.
+- **Tamu**: langsung main. Progres tersimpan di server dan bisa ditautkan ke Google/email kapan saja tanpa hilang (Pengaturan › Akun, atau lembar **Simpan progres** yang muncul sendiri setelah beberapa hari / Lv 3 / teman pertama / menang duel; diatur di admin, bagian `account`).
+- **Sesi bergulir**: sesi berlaku `SESSION_DAYS` hari (bawaan 180) dan diperpanjang otomatis selama dipakai, jadi pemain aktif tidak pernah terlempar keluar.
+- **Pindah perangkat**: lewat Google/email yang sama, atau **kode pindah perangkat** sekali pakai (Pengaturan › Akun › Buat kode pindah; berlaku 15 menit, bisa dimatikan di admin). Di perangkat baru: layar masuk › *Punya kode pindah perangkat?*. Bila perangkat itu sedang memakai akun lain, pemain diminta konfirmasi dulu sebelum pindah.
+- **Google**: buat OAuth Client ID tipe Web di Google Cloud Console. Isi Authorized JavaScript origins dengan domain game (harus **https**, Google tidak menerima `http://IP:port`), lalu isi `GOOGLE_CLIENT_ID` dan restart. Tombol Google otomatis muncul di layar masuk, Pengaturan › Akun, dan lembar Simpan progres.
 - **Email OTP**: dikirim lewat Mailketing, lihat bagian Email di bawah.
 - **Facebook** (opsional): isi `FACEBOOK_APP_ID` dan `FACEBOOK_APP_SECRET`. Sistem teman tetap memakai kode/link, karena Facebook hanya memberi daftar teman yang juga memakai aplikasi.
 

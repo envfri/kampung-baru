@@ -6,6 +6,7 @@
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
+  import { maybeNudge } from '../lib/account.svelte';
 
   let friends = $state<any[] | null>(null);
   let gifts = $state<any[]>([]);
@@ -28,7 +29,7 @@
   async function add(e: Event) {
     e.preventDefault();
     const r: any = await run(() => api.post('/api/friends', { code }));
-    if (r) { code = ''; sfx.pop(); toast(`Sekarang berteman dengan ${r.friend.display_name}`, 'good'); G.me.friendsCount++; load(); }
+    if (r) { code = ''; sfx.pop(); toast(`Sekarang berteman dengan ${r.friend.display_name}`, 'good'); G.me.friendsCount++; load(); if (G.me.friendsCount === 1) setTimeout(() => maybeNudge('friend'), 1200); }
   }
   async function visit(f: any) {
     try {

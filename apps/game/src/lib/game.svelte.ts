@@ -5,7 +5,7 @@ import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
 export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel';
-export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew';
+export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew' | 'save';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -52,6 +52,8 @@ export const G = $state({
   fxKind: 'hearts' as 'hearts' | 'bubbles' | 'coins' | 'zz' | 'food' | 'sparkle' | 'drops' | 'notes' | 'steam',
   /** versi terakhir yang dilihat pemain bila ada pembaruan yang belum dibuka */
   whatsNew: null as string | null,
+  /** dialog konfirmasi di dalam game (ya/tidak) */
+  confirm: null as null | { title: string; text: string; yes: string; no: string; danger?: boolean; resolve: (ok: boolean) => void },
   /** rawat dengan sentuhan: nampan makanan, mode mandi (gosok sabun → bilas) */
   feeding: false,
   feedDrag: null as null | { x: number; y: number; id: string },

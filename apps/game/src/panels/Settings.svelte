@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
   import AuthOptions from '../components/AuthOptions.svelte';
+  import TransferCode from '../components/TransferCode.svelte';
+  import RedeemCode from '../components/RedeemCode.svelte';
+  import { ask } from '../lib/account.svelte';
   import { G, run, toast, fail, track } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { getPrefs, setPref } from '../lib/sfx';
@@ -18,6 +21,11 @@
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const ids = $derived((G.me.user.identities ?? []).filter((i: any) => i.provider !== 'guest'));
   const P: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook' };
+  const linked = $derived(ids.map((i: any) => i.provider));
+  const login = $derived(G.config?.login ?? {});
+  // cara masuk yang masih bisa ditambahkan (mis. sudah email, belum Google)
+  const canAdd = $derived((login.google && !linked.includes('google')) || (login.facebook && !linked.includes('facebook')) || (login.email !== false && !linked.includes('email')));
+  let acc = $state<null | 'transfer' | 'redeem'>(null);
 
   let push = $state<PushStatus>('off');
   let nprefs = $state<Record<string, boolean>>({ garden: true, needs: true, daily: true, social: true, events: true, email: true, whatsapp: true, ...(G.me.notifyPrefs ?? {}) });
@@ -72,6 +80,7 @@
     try { const r = await api.post('/api/me/name', { name: myName }); G.me.user.display_name = r.displayName; toast('Namamu diganti', 'good'); } catch (e) { fail(e); }
   }
   async function logout() {
+    if (G.me.user.is_guest && !(await ask({ title: 'Keluar dari akun tamu?', text: `${G.me.pet.name} belum disimpan ke Google/email. Setelah keluar, akun tamu ini tidak bisa dibuka lagi.`, yes: 'Tetap keluar', danger: true }))) return;
     await api.post('/api/auth/logout').catch(() => {});
     G.me = null;
     G.sheet = null;
@@ -87,10 +96,33 @@
   <section>
     <h3>Akun</h3>
     {#if G.me.user.is_guest}
-      <p class="warn">Kamu main sebagai <b>tamu</b>. Progres hanya tersimpan di perangkat ini sampai kamu menyambungkan akun.</p>
+      <p class="warn">Kamu main sebagai <b>tamu</b>. Progresmu aman di server, tapi hanya bisa dibuka dari browser ini. Simpan ke akun supaya bisa main di HP atau browser lain dan tidak hilang saat data browser terhapus.</p>
+      <b class="sub">Simpan progres & tautkan akun</b>
+      {#if login.google}<p class="muted small">Ketuk tombol Google: akun tamu ini langsung tersambung. Di HP lain, cukup masuk dengan Google yang sama.</p>{/if}
       <AuthOptions guest={false} />
+      {#if !login.google}<p class="muted small">Masuk dengan Google akan muncul di sini setelah pengelola game mengaktifkannya.</p>{/if}
     {:else}
-      <p>Tersambung: {ids.map((i: any) => `${P[i.provider] ?? i.provider}${i.email ? ' (' + i.email + ')' : ''}`).join(', ')}</p>
+      <p class="ok">Tersimpan ke {ids.map((i: any) => `${P[i.provider] ?? i.provider}${i.email ? ' (' + i.email + ')' : ''}`).join(', ')}. Di HP atau browser lain, masuk dengan cara yang sama.</p>
+      {#if canAdd}
+        <b class="sub">Tambah cara masuk</b>
+        <AuthOptions guest={false} exclude={linked} />
+      {/if}
+    {/if}
+    {#if login.transfer !== false}
+      <b class="sub">Pindah perangkat</b>
+      {#if acc === 'transfer'}
+        <TransferCode />
+        <button class="link" onclick={() => (acc = null)}>Tutup</button>
+      {:else if acc === 'redeem'}
+        <RedeemCode ondone={() => (acc = null)} />
+        <button class="link" onclick={() => (acc = null)}>Batal</button>
+      {:else}
+        <p class="muted small">Buka akun ini di HP/browser lain dengan kode sekali pakai, tanpa Google atau email.</p>
+        <div class="row">
+          <button class="btn sm" onclick={() => (acc = 'transfer')}>Buat kode pindah</button>
+          <button class="btn sm" onclick={() => (acc = 'redeem')}>Punya kode dari perangkat lain?</button>
+        </div>
+      {/if}
     {/if}
     <p class="muted">Kode teman: <b>{G.me.user.friend_code}</b></p>
   </section>
@@ -188,7 +220,10 @@
   section:last-child { border: 0; }
   h3 { margin: 0; font-size: 18px; font-weight: 800; }
   p { margin: 0; font-weight: 600; }
-  .warn { background: #FBEFD2; border-radius: 10px; padding: 8px 10px; }
+  .warn { background: #FBEFD2; border-radius: 10px; padding: 8px 10px; font-size: 14.5px; }
+  .ok { background: #E6F3EC; border-radius: 10px; padding: 8px 10px; font-size: 14.5px; }
+  .sub { font-size: 15px; margin-top: 4px; }
+  .row { flex-wrap: wrap; }
   .muted { color: var(--muted); } .small { font-size: 13px; }
   .newdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #E0583F; margin-left: 4px; }
   .wa { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }

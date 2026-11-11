@@ -55,6 +55,8 @@ export async function destroySession(db: Db, req: FastifyRequest, reply: Fastify
   reply.clearCookie(USER_COOKIE, { path: '/' });
 }
 
+const readCookieToken = (req: FastifyRequest) => (req.cookies as Record<string, string | undefined>)[USER_COOKIE];
+
 function readToken(req: FastifyRequest, cookie: string) {
   const c = (req.cookies as Record<string, string | undefined>)[cookie];
   if (c) return c;
@@ -63,15 +65,24 @@ function readToken(req: FastifyRequest, cookie: string) {
   return undefined;
 }
 
-export async function loadUser(db: Db, req: FastifyRequest) {
+export async function loadUser(db: Db, req: FastifyRequest, reply?: FastifyReply) {
   const t = readToken(req, USER_COOKIE);
   if (!t) return undefined;
-  const u = await db.one<SessionUser & { last_seen_at: Date }>(
-    `select u.id, u.display_name, u.friend_code, u.is_guest, u.banned_at, u.ban_reason, u.last_seen_at
+  const u = await db.one<SessionUser & { last_seen_at: Date; session_expires: Date }>(
+    `select u.id, u.display_name, u.friend_code, u.is_guest, u.banned_at, u.ban_reason, u.last_seen_at, s.expires_at as session_expires
        from sessions s join users u on u.id = s.user_id
       where s.token_hash = $1 and s.expires_at > now()`,
     [sha256(t)],
   );
+  // Sesi bergulir: selama dipakai, masa berlaku sesi & cookie diperpanjang (paling sering sehari sekali),
+  // jadi pemain aktif (terutama akun tamu yang tidak punya cara masuk lain) tidak pernah terlempar keluar.
+  if (u && reply && !u.banned_at) {
+    const days = config.sessionDays;
+    if (new Date(u.session_expires).getTime() < Date.now() + (days - 1) * 86_400_000) {
+      await db.query(`update sessions set expires_at = now() + ($2::int * interval '1 day') where token_hash = $1`, [sha256(t), days]);
+      if (readCookieToken(req) === t) reply.setCookie(USER_COOKIE, t, cookieOpts(days * 86400));
+    }
+  }
   if (u && Date.now() - new Date(u.last_seen_at).getTime() > 60_000) {
     await db.query('update users set last_seen_at = now() where id = $1', [u.id]);
     // satu baris "active" per hari untuk metrik DAU/retensi
@@ -86,8 +97,8 @@ export async function loadUser(db: Db, req: FastifyRequest) {
 }
 
 export function requireUser(db: Db) {
-  return async (req: FastifyRequest) => {
-    const u = await loadUser(db, req);
+  return async (req: FastifyRequest, reply: FastifyReply) => {
+    const u = await loadUser(db, req, reply);
     if (!u) throw new HttpError(401, 'unauthorized', 'Silakan masuk dulu.');
     if (u.banned_at) throw new HttpError(403, 'banned', `Akun ini diblokir${u.ban_reason ? ': ' + u.ban_reason : '.'}`);
     req.user = u;

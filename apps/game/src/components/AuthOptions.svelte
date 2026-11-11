@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { G, setState, toast, fail } from '../lib/game.svelte';
+  import { G, toast, fail } from '../lib/game.svelte';
   import { api } from '../lib/api';
-  import { sfx } from '../lib/sfx';
+  import { withSwitch, afterAuth } from '../lib/account.svelte';
+  import RedeemCode from './RedeemCode.svelte';
 
-  let { guest = true, ondone }: { guest?: boolean; ondone?: (r: any) => void } = $props();
-  let mode = $state<'pick' | 'email' | 'code'>('pick');
+  // guest = layar masuk (ada "Main sekarang" & kode pindah); di dalam game dipakai untuk menautkan akun.
+  // exclude = cara masuk yang sudah tersambung (tidak ditampilkan lagi).
+  let { guest = true, exclude = [], ondone }: { guest?: boolean; exclude?: string[]; ondone?: (r: any) => void } = $props();
+  let mode = $state<'pick' | 'email' | 'code' | 'transfer'>('pick');
   let email = $state('');
   let code = $state('');
   let busy = $state(false);
@@ -21,17 +24,20 @@
     });
   }
 
-  async function finish(r: any) {
-    if (r?.state) setState(r.state);
-    if (r?.switched) toast('Masuk ke akun yang sudah ada.', 'good');
-    else if (r?.linked) toast('Progres tersimpan ke akunmu.', 'good');
-    sfx.pop();
+  function finish(r: any) {
+    if (!r) return;
+    afterAuth(r);
     ondone?.(r);
+  }
+  /** login/tautkan dengan konfirmasi bila identitas itu milik akun BUPI lain */
+  async function auth(url: string, body: Record<string, unknown>, via: string) {
+    busy = true;
+    try { finish(await withSwitch((x) => api.post(url, { ...body, ...x }), via)); } catch (e) { fail(e); } finally { busy = false; }
   }
 
   async function doGuest() {
     busy = true;
-    try { await finish(await api.post('/api/auth/guest')); } catch (e) { fail(e); } finally { busy = false; }
+    try { finish(await api.post('/api/auth/guest')); } catch (e) { fail(e); } finally { busy = false; }
   }
   async function sendCode(e: Event) {
     e.preventDefault();
@@ -45,8 +51,7 @@
   }
   async function verify(e: Event) {
     e.preventDefault();
-    busy = true;
-    try { await finish(await api.post('/api/auth/email/verify', { email, code })); } catch (e) { fail(e); } finally { busy = false; }
+    await auth('/api/auth/email/verify', { email, code }, 'email');
   }
   async function facebook() {
     try {
@@ -55,8 +60,7 @@
       FB.init({ appId: login.facebook, version: 'v19.0', cookie: false, xfbml: false });
       FB.login(async (resp: any) => {
         if (!resp?.authResponse?.accessToken) return;
-        busy = true;
-        try { await finish(await api.post('/api/auth/facebook', { accessToken: resp.authResponse.accessToken })); } catch (e) { fail(e); } finally { busy = false; }
+        await auth('/api/auth/facebook', { accessToken: resp.authResponse.accessToken }, 'facebook');
       }, { scope: 'public_profile,email' });
     } catch { toast('Login Facebook tidak bisa dimuat.', 'error'); }
   }
@@ -64,14 +68,11 @@
   onMount(async () => {
     if (!login.google || !googleEl) return;
     try {
-      await loadScript('https://accounts.google.com/gsi/client');
+      await loadScript('https://accounts.google.com/gsi/client?hl=id');
       const g = (window as any).google;
       g.accounts.id.initialize({
         client_id: login.google,
-        callback: async (resp: any) => {
-          busy = true;
-          try { await finish(await api.post('/api/auth/google', { credential: resp.credential })); } catch (e) { fail(e); } finally { busy = false; }
-        },
+        callback: (resp: any) => auth('/api/auth/google', { credential: resp.credential }, 'google'),
       });
       g.accounts.id.renderButton(googleEl, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: 'id', width: Math.min(320, googleEl.clientWidth || 300) });
     } catch { /* tombol google tidak tampil */ }
@@ -84,9 +85,13 @@
       <button class="btn hot block big" disabled={busy} onclick={doGuest}>Main sekarang</button>
       <p class="hint">Tanpa daftar. Progres bisa disimpan ke akun kapan saja.</p>
     {/if}
-    {#if login.google}<div class="google" bind:this={googleEl}></div>{/if}
-    {#if login.facebook}<button class="btn block fb" disabled={busy} onclick={facebook}>Lanjut dengan Facebook</button>{/if}
-    {#if login.email !== false}<button class="btn block" disabled={busy} onclick={() => (mode = 'email')}>Masuk dengan email</button>{/if}
+    {#if login.google && !exclude.includes('google')}<div class="google" bind:this={googleEl}></div>{/if}
+    {#if login.facebook && !exclude.includes('facebook')}<button class="btn block fb" disabled={busy} onclick={facebook}>Lanjut dengan Facebook</button>{/if}
+    {#if login.email !== false && !exclude.includes('email')}<button class="btn block" disabled={busy} onclick={() => (mode = 'email')}>{guest ? 'Masuk dengan email' : 'Simpan dengan email'}</button>{/if}
+    {#if guest && login.transfer !== false}<button type="button" class="link" onclick={() => (mode = 'transfer')}>Punya kode pindah perangkat?</button>{/if}
+  {:else if mode === 'transfer'}
+    <RedeemCode ondone={() => ondone?.(null)} />
+    <button type="button" class="link" onclick={() => (mode = 'pick')}>Kembali</button>
   {:else if mode === 'email'}
     <form onsubmit={sendCode}>
       <label for="kb-email">Email</label>

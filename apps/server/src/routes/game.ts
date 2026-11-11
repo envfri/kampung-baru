@@ -499,7 +499,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
 
   /* ---------------- analitik dari client ---------------- */
 
-  const CLIENT_EVENTS = new Set(['session_start', 'tutorial_done', 'open_shop', 'open_map', 'install_prompt', 'installed', 'share_invite', 'open_pearls']);
+  const CLIENT_EVENTS = new Set(['session_start', 'tutorial_done', 'open_shop', 'open_map', 'install_prompt', 'installed', 'share_invite', 'open_pearls', 'save_nudge', 'save_nudge_later']);
   app.post('/api/track', { ...auth, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req: any) => {
     const list = Array.isArray(req.body?.events) ? req.body.events.slice(0, 20) : [];
     for (const e of list) {

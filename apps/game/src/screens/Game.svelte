@@ -38,6 +38,8 @@
   import Pinang from '../games/Pinang.svelte';
   import DuelLobby from '../scenes/DuelLobby.svelte';
   import Duels from '../panels/Duels.svelte';
+  import SaveProgress from '../panels/SaveProgress.svelte';
+  import { maybeNudge } from '../lib/account.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
@@ -122,6 +124,8 @@
     if (initialHash.length > 1) { /* sudah diarahkan */ }
     else if (!G.me.daily.claimedToday) G.sheet = 'daily';
     else if ((G.me.announcements ?? []).some((a: any) => !seen.includes(a.id))) G.sheet = 'news';
+    // tamu yang sudah beberapa hari main: ajak simpan progres (setelah hadiah harian/kabar ditutup)
+    if (!initialHash || initialHash.length <= 1) nudgeAfterSheet = true;
     // kembali dari halaman pembayaran
     const qs = new URLSearchParams(location.search);
     const pay = qs.get('payment');
@@ -145,6 +149,17 @@
     return () => { window.removeEventListener('resize', orient); clearInterval(refresh); navigator.serviceWorker?.removeEventListener('message', onSw); };
   });
   void serverNow;
+  let nudgeAfterSheet = false;
+  $effect(() => {
+    if (G.sheet === null && nudgeAfterSheet) { nudgeAfterSheet = false; setTimeout(() => { if (!G.sheet && G.view === 'home') maybeNudge('open'); }, 700); }
+  });
+  // naik ke level ajakan simpan progres (mis. Lv 3) saat main sebagai tamu
+  let lastLevel = G.me.pet.level;
+  $effect(() => {
+    const lv = G.me?.pet?.level ?? 1, at = settings().account?.nudgeLevel ?? 3;
+    if (lv > lastLevel && lv >= at && lastLevel < at) setTimeout(() => maybeNudge('level'), 1500);
+    lastLevel = lv;
+  });
 </script>
 
 <div class="game" data-view={G.view}>
@@ -258,6 +273,7 @@
   {:else if G.sheet === 'wardrobe'}<Wardrobe />
   {:else if G.sheet === 'games'}<Games />
   {:else if G.sheet === 'duels'}<Duels />
+  {:else if G.sheet === 'save'}<SaveProgress />
   {:else if G.sheet === 'event'}<EventPanel />
   {:else if G.sheet === 'whatsnew'}<WhatsNew />
   {/if}

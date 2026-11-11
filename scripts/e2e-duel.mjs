@@ -100,6 +100,10 @@ await settle(B, 500); await shot(B, '09-desktop-skor-tersimpan');
 
 // 5. A membalas melawan bayangan B
 await A.p.click('.card .btn:has-text("Kembali ke Duel")');
+// A (tamu) baru menang duel: muncul ajakan Simpan progres; "Nanti saja" kembali ke daftar duel
+await A.p.waitForSelector('.sheet[aria-label="Simpan progres"]', { timeout: 5000 });
+await settle(A, 600); await shot(A, '09b-ajakan-simpan-setelah-menang');
+await A.p.click('.sheet .link:has-text("Nanti saja")');
 await A.p.waitForSelector('.sheet .duel.hot');
 await settle(A, 500); await shot(A, '10-giliranmu');
 await A.p.click('.duel.hot .btn:has-text("Main")');
