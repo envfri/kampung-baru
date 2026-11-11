@@ -294,18 +294,34 @@
   }
   const freeTiles = () => { const out: [number, number][] = []; for (let x = 0; x < size; x++) for (let y = 0; y < size; y++) if (!blocked.has(`${x},${y}`)) out.push([x, y]); return out; };
   /** petak yang sedang ditempati pet lain (supaya tidak bertumpuk) */
-  const takenTiles = (except: string) => { const t = new Set<string>(); for (const c of comps.values()) if (c.id !== except) { t.add(tileOf(c.live)); if (c.path.length) t.add(tileOf(c.path[c.path.length - 1])); } if (live && !hideMain) t.add(tileOf(live)); return t; };
-  /** petak kosong di sekitar pet tuan rumah (jarak 1–3), acak */
-  function spotNearHost(except: string, min = 1, max = 3) {
+  const takenTiles = (except: string, gap = false) => {
+    const t = new Set<string>();
+    const mark = (p: [number, number]) => {
+      const x = Math.floor(p[0]), y = Math.floor(p[1]);
+      t.add(`${x},${y}`);
+      // jarak antarpet: petak di sekelilingnya juga dihindari (pet lebih lebar dari satu petak)
+      if (gap) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1]]) t.add(`${x + dx},${y + dy}`);
+    };
+    for (const c of comps.values()) if (c.id !== except) { mark(c.live); if (c.path.length) mark(c.path[c.path.length - 1]); }
+    if (live && !hideMain) mark(live);
+    return t;
+  };
+  /** angka acak tetap per pemain (supaya tiap tamu memilih petak berbeda walau belum saling melihat) */
+  const hashOf = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  /** petak kosong di sekitar pet tuan rumah (jarak 1–3, lebih jauh di ruangan besar), acak */
+  function spotNearHost(except: string, min = 1, max = Math.max(3, Math.round(size / 3)), seed?: string) {
     const h = hostAt();
-    const taken = takenTiles(except);
-    const near = freeTiles().filter(([x, y]) => {
+    const pick = (taken: Set<string>) => freeTiles().filter(([x, y]) => {
       if (taken.has(`${x},${y}`)) return false;
       if (!h) return true;
       const d = Math.abs(x + 0.5 - h[0]) + Math.abs(y + 0.5 - h[1]);
       return d >= min && d <= max;
     });
-    const pool = near.length ? near : freeTiles().filter(([x, y]) => !taken.has(`${x},${y}`));
+    const loose = takenTiles(except);
+    let near = pick(takenTiles(except, true));
+    if (!near.length) near = pick(loose);
+    const pool = near.length ? near : freeTiles().filter(([x, y]) => !loose.has(`${x},${y}`));
+    if (seed && pool.length) return [...pool].sort((a, b) => hashOf(seed + a.join(',')) - hashOf(seed + b.join(',')))[0];
     return pool[Math.floor(Math.random() * pool.length)] ?? null;
   }
   /** posisi pet tuan rumah (dari sinkron bila ia sedang di rumah, selain itu pet utama) */
@@ -314,7 +330,7 @@
   // pet sendiri ikut berkunjung
   function ensureSelf() {
     if (mode !== 'visit' || !G.me?.pet || comps.has(SELF)) return;
-    const t = spotNearHost(SELF, 1, 3) ?? [size - 1, size - 1];
+    const t = spotNearHost(SELF, 1, undefined, G.me.user.id) ?? [size - 1, size - 1];
     const at: [number, number] = [t[0] + 0.5, t[1] + 0.5];
     comps.set(SELF, { id: SELF, name: G.me.pet.name, look: G.me.pet, wear: wearItems(G.me.pet.wear), state: petLook(G.me.pet), live: at, tile: tileOf(at), path: [], speed: 1.6, flip: true, target: '', self: true });
     compVer++;
@@ -363,7 +379,7 @@
     selfWander = setInterval(() => {
       const me = comps.get(SELF);
       if (!me || selfBusy || me.path.length || document.hidden || Math.random() < 0.4) return;
-      const pick = spotNearHost(SELF, 1, 3);
+      const pick = spotNearHost(SELF, 1);
       if (pick) compWalk(me, [pick]);
     }, 4500);
     // laporkan posisi pet ke rumah live

@@ -121,16 +121,29 @@ export function petView(p: PetRow, s: Settings) {
 }
 
 /** Ukuran & tema ruangan ditentukan item jenis 'room'-nya (kamar awal: ukuran dari pengaturan). */
-export function roomMeta(roomItem: string | null | undefined, cat: Catalog, s: Settings) {
+export function roomMeta(roomItem: string | null | undefined, cat: Catalog, s: Settings, sizeOverride?: number | null) {
   const it = roomItem ? cat.byId.get(roomItem) : undefined;
-  const size = Math.max(4, Math.min(10, Math.round(Number(it?.data?.size ?? s.room.size)) || s.room.size));
-  return { size, theme: it?.data?.theme === 'luar' ? 'luar' : 'dalam' };
+  const h: any = (s as any).house ?? {};
+  const maxSize = Math.max(6, Math.min(14, Number(h.maxSize) || 12));
+  const base = Math.max(4, Math.min(10, Math.round(Number(it?.data?.size ?? s.room.size)) || s.room.size));
+  const size = sizeOverride ? Math.max(base, Math.min(maxSize, Math.round(sizeOverride))) : base;
+  // perluasan berikutnya (null bila sudah maksimal)
+  const step = Math.max(1, Math.min(4, Number(h.expandStep) || 2));
+  const prices: number[] = Array.isArray(h.expandCoins) && h.expandCoins.length ? h.expandCoins.map((n: any) => Math.max(0, Math.round(Number(n) || 0))) : [1500];
+  const done = Math.ceil((size - base) / step);
+  const next = size < maxSize ? { size: Math.min(maxSize, size + step), coins: prices[Math.min(done, prices.length - 1)] } : null;
+  return { size, base, theme: it?.data?.theme === 'luar' ? 'luar' : 'dalam', expand: next };
 }
+/** Batas barang di satu ruangan: ikut membesar sebanding luas lantai. */
+export const maxItemsFor = (s: Settings, size: number) => Math.max(s.room.maxItems, Math.round((s.room.maxItems * size * size) / 36));
 
 /** Semua ruangan rumah pemain, urut (kamar awal dulu). */
 export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Settings, withVersion = true) {
-  const rows = await db.query<any>(`select id, room_item, name, layout, wall, floor, version from rooms where user_id = $1 order by sort, id`, [userId]);
-  return rows.map((r) => ({ id: r.id, item: r.room_item, name: r.name, layout: r.layout ?? [], wall: r.wall, floor: r.floor, ...(withVersion ? { version: r.version } : {}), ...roomMeta(r.room_item, cat, s) }));
+  const rows = await db.query<any>(`select id, room_item, name, layout, wall, floor, version, size from rooms where user_id = $1 order by sort, id`, [userId]);
+  return rows.map((r) => {
+    const meta = roomMeta(r.room_item, cat, s, r.size);
+    return { id: r.id, item: r.room_item, name: r.name, layout: r.layout ?? [], wall: r.wall, floor: r.floor, ...(withVersion ? { version: r.version, expand: meta.expand } : {}), size: meta.size, theme: meta.theme, maxItems: maxItemsFor(s, meta.size) };
+  });
 }
 
 /** Semua yang dibutuhkan client setelah masuk. */

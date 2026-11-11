@@ -138,6 +138,11 @@ export async function runJobs(db: Db, log?: any) {
     log?.info?.({ id: b.id, ...r }, 'broadcast terkirim');
   }
   await db.query(`delete from webhook_events where created_at < now() - interval '30 days'`).catch(() => {});
+  // sekali sejam: obrolan rumah disimpan 60 hari (untuk moderasi), buku tamu 180 hari
+  if (new Date().getMinutes() === 7) {
+    await db.query(`delete from house_chat where created_at < now() - interval '60 days'`).catch(() => {});
+    await db.query(`delete from visit_acts where created_at < now() - interval '180 days'`).catch(() => {});
+  }
 
   // antrean email & WhatsApp (broadcast, event, jam tenang, percobaan ulang)
   if (mailEnabled() || waEnabled()) {

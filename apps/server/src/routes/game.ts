@@ -15,7 +15,7 @@ import {
   HttpError, notFound, purchasable, today, track, yesterday, bumpCounter,
 } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { J, loadRooms, lockPet, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds, currentWeight, assertAwake, assertHealthy, isAsleep, isSick, wakePet, crumbsNow } from '../lib/state';
+import { J, loadRooms, lockPet, maxItemsFor, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds, currentWeight, assertAwake, assertHealthy, isAsleep, isSick, wakePet, crumbsNow } from '../lib/state';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const roomIdOf = (v: unknown) => {
   if (v === undefined || v === null || v === '') return null;
@@ -368,11 +368,12 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const roomId = roomIdOf(body.roomId);
     if (!Array.isArray(body.layout)) throw bad('invalid', 'Susunan ruangan tidak valid.');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-    const target = await db.one<{ id: string; room_item: string | null }>(
-      `select id, room_item from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [u.id, roomId]);
+    const target = await db.one<{ id: string; room_item: string | null; size: number | null }>(
+      `select id, room_item, size from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [u.id, roomId]);
     if (!target) throw notFound('Ruangan tidak ditemukan.');
-    const size = roomMeta(target.room_item, cat, s).size;
-    if (body.layout.length > s.room.maxItems) throw bad('too_many', `Maksimal ${s.room.maxItems} barang di ruangan.`);
+    const size = roomMeta(target.room_item, cat, s, target.size).size;
+    const maxItems = maxItemsFor(s, size);
+    if (body.layout.length > maxItems) throw bad('too_many', `Maksimal ${maxItems} barang di ruangan ini.`);
     const layout = body.layout.map((p: any) => ({ i: String(p?.i ?? ''), x: int(p?.x, 'x', { min: 0, max: size - 1 }), y: int(p?.y, 'y', { min: 0, max: size - 1 }) }));
     const items: Record<string, any> = {};
     for (const p of layout) {
@@ -413,6 +414,24 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       await t.query(`update rooms set layout = $2::text::jsonb, wall = $3, floor = $4, version = version + 1, updated_at = now() where id = $1`, [target.id, J(layout), wall, floor]);
       await track(t, u.id, 'room_save', { items: layout.length });
       return { ok: true, ...(await patch(t, u.id, ['room', 'inventory'])) };
+    });
+  });
+
+  /** Perluas ruangan: lantai bertambah di sisi depan, mebel yang sudah ada tetap di tempatnya. */
+  app.post('/api/room/expand', auth, async (req: any) => {
+    const u = req.user!;
+    const roomId = roomIdOf(req.body?.roomId);
+    const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
+    return db.tx(async (t) => {
+      const room = await t.one<{ id: string; room_item: string | null; size: number | null; name: string }>(
+        `select id, room_item, size, name from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1 for update`, [u.id, roomId]);
+      if (!room) throw notFound('Ruangan tidak ditemukan.');
+      const meta = roomMeta(room.room_item, cat, s, room.size);
+      if (!meta.expand) throw bad('max_size', `${room.name} sudah seluas mungkin (${meta.size}×${meta.size}).`);
+      if (meta.expand.coins) await credit(t, u.id, 'coin', -meta.expand.coins, 'room_expand', `${room.id}:${meta.expand.size}`);
+      await t.query(`update rooms set size = $2, version = version + 1, updated_at = now() where id = $1`, [room.id, meta.expand.size]);
+      await track(t, u.id, 'room_expand', { size: meta.expand.size, coins: meta.expand.coins });
+      return { ok: true, roomId: room.id, size: meta.expand.size, coins: meta.expand.coins, ...(await patch(t, u.id, ['wallet', 'room'])) };
     });
   });
 

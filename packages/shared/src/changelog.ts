@@ -39,9 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.18.0',
+    date: '2026-11-11',
+    title: 'Perluas ruangan',
+    summary: 'Ruanganmu kini bisa diperluas sampai 12×12. Mebel tetap di tempatnya, dan main bareng teman jadi lega.',
+    items: [
+      { kind: 'baru', text: 'Perluas ruangan: tiap ruangan bisa diperbesar bertahap (mis. 6×6 → 8×8 → 10×10 → 12×12) di Rumahku atau di Toko Bangunan. Lantai baru bertambah di sisi depan, mebel yang sudah ada tidak bergeser, dan batas jumlah barang ikut bertambah.', player: true },
+      { kind: 'perbaikan', text: 'Saat banyak teman berkunjung, pet tidak lagi bertumpuk di satu tempat: tiap pet mencari tempat sendiri dengan jarak dari pet lain.', player: true },
+      { kind: 'baru', text: 'Admin → Ekonomi & fitur → Rumah: maxSize (ukuran maksimal, sampai 14), expandStep (tambahan petak per perluasan), expandCoins (harga perluasan ke-1, ke-2, dst.). Migrasi 016 (rooms.size). API: POST /api/room/expand.' },
+      { kind: 'keamanan', text: 'Obrolan di rumah disimpan 60 hari dan buku tamu 180 hari, lalu dihapus otomatis.' },
+    ],
+  },
+  {
     version: '0.17.0',
     date: '2026-11-11',
     title: 'Kunjungan bareng: pet ikut main ke rumah teman',
+    commits: ['d2371b4'],
     summary: 'Pet-mu kini ikut berkunjung. Main dengan pet teman, ngobrol, masak bareng, lempar bola, dan foto bareng. Kalau teman sedang online, kalian tampil bersama di rumah yang sama.',
     items: [
       { kind: 'baru', text: 'Pet-mu ikut berkunjung ke rumah teman dan berjalan-jalan di sana. Ketuk lantai untuk memindahkannya.', player: true },

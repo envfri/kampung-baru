@@ -67,7 +67,7 @@
     if (it.kind === 'floor') return renderRoom({ layout: [], items: {}, floor: it, size: 6 });
     if (it.kind === 'room') {
       const byId = (id: string) => items.find((i) => i.id === id);
-      return renderRoom({ layout: [], items: {}, size: Math.max(4, Math.min(10, Number(it.data?.size) || 6)), theme: it.data?.theme, wall: byId(it.data?.wall), floor: byId(it.data?.floor) });
+      return renderRoom({ layout: [], items: {}, size: Math.max(4, Math.min(14, Number(it.data?.size) || 6)), theme: it.data?.theme, wall: byId(it.data?.wall), floor: byId(it.data?.floor) });
     }
     return '';
   });

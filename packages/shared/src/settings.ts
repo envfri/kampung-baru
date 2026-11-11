@@ -55,6 +55,9 @@ export const DEFAULT_SETTINGS = {
   },
   house: {
     maxRooms: 6,
+    maxSize: 12,
+    expandStep: 2,
+    expandCoins: [1500, 3500, 7000, 12000],
   },
   visit: {
     together: true,
@@ -187,7 +190,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   weight: 'Berat badan: kelebihan kenyang × pengali menambah berat, turun sendiri per hari dan lewat olahraga (efek "berat" di Aktivitas). Mulai tampak gembul di angka chubbyAt.',
   crumbs: 'Remah & bulu rontok di lantai: muncul tiap beberapa menit sampai batas, disapu untuk koin (batas harian = jumlah remah berhadiah).',
   speech: 'Celetukan pet per suasana hati (satu baris satu kalimat). {pet} = nama pet, {nama} = nama pemain. everySec = jeda rata-rata antar celetukan (detik).',
-  house: 'Rumah: jumlah maksimal ruangan per pemain (kamar awal + ruangan yang dibeli di Toko Bangunan). Jenis ruangan, harga, dan ukurannya diatur sebagai item jenis Ruangan.',
+  house: 'Rumah: jumlah maksimal ruangan per pemain (kamar awal + ruangan yang dibeli di Toko Bangunan). Jenis ruangan, harga, dan ukurannya diatur sebagai item jenis Ruangan. Perluas ruangan: tiap pembelian menambah expandStep petak per sisi sampai maxSize (maks 14); harga koin per perluasan ke-1, ke-2, dst. di expandCoins (yang terakhir dipakai untuk seterusnya). Batas barang per ruangan ikut membesar sebanding luasnya.',
   notify: 'Waktu notifikasi otomatis: ambang kebutuhan pet & jeda jam, jam pengingat hadiah harian (WIB), jeda notifikasi kunjungan (menit). Nyala/mati dan teks tiap notifikasi diatur di Pusat notifikasi.',
   games: 'Mini-game Balai Main. Panen Buah & Tangkap Layangan: hadiah = skor × koin per poin (maks maxCoins). Ingat Jajanan: koin untuk 1–3 bintang. Balap Bakiak: koin per langkah. Gasing: koin per detik berputar. Panjat Pinang (hanya saat event berdekorasi bendera): koin untuk tiap seperempat tiang.',
   quests: 'Jumlah tugas harian yang diberikan ke tiap pemain per hari (dipilih acak dari tugas harian yang aktif).',

@@ -183,3 +183,34 @@ test('admin bisa menambah aktivitas baru dan langsung dipakai pemain', async () 
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.result.message, 'Gembul menyalakan Lampu Anyaman.');
 });
+
+test('perluas ruangan: lantai bertambah bertahap, mebel tetap, harga bertingkat, batas barang ikut membesar', async () => {
+  const { c } = await rich(0);
+  let me = (await c.get('/api/me')).body;
+  const room = me.rooms[0];
+  assert.equal(room.size, 6);
+  assert.deepEqual(room.expand, { size: 8, coins: 1500 });
+  assert.equal((await c.post('/api/room/expand', { roomId: room.id })).body.error?.code, 'insufficient_funds', 'koin belum cukup');
+  await db.query(`update wallets set coin = 30000 where user_id = (select user_id from rooms where id = $1)`, [room.id]);
+  const before = room.layout;
+  const r1 = await c.post('/api/room/expand', { roomId: room.id });
+  assert.equal(r1.status, 200, JSON.stringify(r1.body));
+  assert.equal(r1.body.size, 8);
+  assert.equal(r1.body.wallet.coin, 30000 - 1500);
+  const after = r1.body.rooms.find((x: any) => x.id === room.id);
+  assert.equal(after.size, 8);
+  assert.deepEqual(after.layout, before, 'mebel yang ada tidak bergeser');
+  assert.deepEqual(after.expand, { size: 10, coins: 3500 }, 'perluasan berikutnya lebih mahal');
+  assert.ok(after.maxItems > room.maxItems, 'batas barang ikut membesar');
+  // petak baru di sisi depan bisa dipakai
+  await db.query(`insert into inventory (user_id, item_id, qty) values ((select user_id from rooms where id = $1), 'meja-bambu', 1) on conflict (user_id, item_id) do update set qty = inventory.qty + 1`, [room.id]);
+  const save = await c.post('/api/room', { roomId: room.id, version: after.version, layout: [...after.layout, { i: 'meja-bambu', x: 7, y: 7 }] });
+  assert.equal(save.status, 200, JSON.stringify(save.body));
+  await c.post('/api/room/expand', { roomId: room.id });
+  const r3 = await c.post('/api/room/expand', { roomId: room.id });
+  assert.equal(r3.body.size, 12);
+  assert.equal(r3.body.rooms.find((x: any) => x.id === room.id).expand, null, 'sudah paling luas');
+  assert.equal((await c.post('/api/room/expand', { roomId: room.id })).body.error?.code, 'max_size');
+  me = (await c.get('/api/me')).body;
+  assert.equal(me.wallet.coin, 30000 - 1500 - 3500 - 7000);
+});

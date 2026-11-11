@@ -6,6 +6,7 @@
   import { footprint, itemIcon, renderPet, shade } from '@kb/shared';
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
+  import ExpandRooms from '../components/ExpandRooms.svelte';
 
   const KEEPERS: Record<string, { name: string; look: any; greet: string }> = {
     pasar: { name: 'Bu Serabi', look: { color: '#F2EEE3', ear: 'kelinci', pattern: 'ujung', eyes: 'senyum' }, greet: 'Jajanan hangat, bibit segar! Mau beli apa hari ini?' },
@@ -13,7 +14,7 @@
     butik: { name: 'Mbak Benang', look: { color: '#C9B6E8', ear: 'kucing', pattern: 'bintang', eyes: 'berbinar' }, greet: 'Ada model baru, lho. Coba yang mana?' },
     mutiara: { name: 'Nyai Mutiara', look: { color: '#9FD0E8', ear: 'antena', pattern: 'polos', eyes: 'bintang' }, greet: 'Barang istimewa, khusus dibeli dengan Mutiara.' },
     jamu: { name: 'Mbok Jamu', look: { color: '#F4D58D', ear: 'kelinci', pattern: 'ujung', eyes: 'senyum' }, greet: 'Kurang enak badan? Minum jamu, besok segar lagi!' },
-    bangunan: { name: 'Pak Tukang', look: { color: '#F4D58D', ear: 'tunas', pattern: 'belang', eyes: 'bulat' }, greet: 'Mau tambah ruangan atau halaman? Pak Tukang siap bangun!' },
+    bangunan: { name: 'Pak Tukang', look: { color: '#F4D58D', ear: 'tunas', pattern: 'belang', eyes: 'bulat' }, greet: 'Mau tambah ruangan, atau perluas ruangan yang ada? Pak Tukang siap!' },
   };
   const KIND_LABEL: Record<string, string> = { food: 'Makanan', seed: 'Bibit', furniture: 'Mebel', wallpaper: 'Dinding', floor: 'Lantai', wear: 'Pakaian', room: 'Ruangan', material: 'Lainnya', fish: 'Ikan' };
 
@@ -116,6 +117,9 @@
         </div>
       {/if}
       {#if list.length === 0}<p class="muted">Belum ada barang di toko ini.</p>{/if}
+      {#if loc?.id === 'bangunan' && !cat}
+        <div class="expand"><b>Perluas ruangan</b><ExpandRooms /></div>
+      {/if}
       {#if list.some((i) => i.kind === 'room')}<p class="hint">Ruangan baru langsung jadi bagian rumahmu ({rooms.length}/{maxRooms} ruangan). Pindah ruangan lewat tombol nama ruangan di Rumah.</p>{/if}
       <div class="grid">
         {#each list as it (it.id)}
@@ -181,4 +185,6 @@
     .back { bottom: 110px; left: 20px; }
     .panel { flex: 0 0 460px; margin: calc(var(--safe-t) + 108px) 14px 96px 0; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); padding-bottom: 16px; }
   }
+  .expand { display: flex; flex-direction: column; gap: 6px; background: #FFF4D6; border: 2px solid var(--ink); border-radius: 14px; padding: 8px 10px; margin-bottom: 8px; }
+  .expand b { font-size: 15px; }
 </style>

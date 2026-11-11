@@ -1,6 +1,7 @@
 <script lang="ts">
   // Daftar ruangan rumah: pindah ruangan, dan jalan ke Toko Bangunan untuk menambah ruangan.
   import Sheet from '../components/Sheet.svelte';
+  import ExpandRooms from '../components/ExpandRooms.svelte';
   import { itemIcon } from '@kb/shared';
   import { G, item, curRoom, switchRoom, goTo, settings } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
@@ -32,6 +33,10 @@
       </button>
     {/each}
   </div>
+  <div class="grow">
+    <p><b>Perluas ruangan</b> Lantai bertambah di sisi depan, mebel tetap di tempatnya. Rumah lega, tamu tidak sumpek.</p>
+    <ExpandRooms />
+  </div>
   {#if builder}
     <div class="add">
       <p><b>{rooms.length}/{max} ruangan.</b> {rooms.length >= max ? 'Rumahmu sudah penuh.' : forSale.length ? `Masih bisa dibangun: ${forSale.map((i) => i.name).join(', ')}.` : 'Semua jenis ruangan sudah kamu punya.'}</p>
@@ -52,6 +57,9 @@
   .txt b { font-size: 16px; }
   .txt small { font-size: 13px; font-weight: 600; color: var(--muted); }
   .room i { font-style: normal; font-size: 12px; font-weight: 800; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 1px 7px; }
+  .grow { display: flex; flex-direction: column; gap: 8px; background: #FFF4D6; border-radius: 14px; padding: 10px 12px; }
+  .grow p { margin: 0; font-size: 14px; font-weight: 600; }
+  .grow p b { display: block; font-size: 15.5px; }
   .add { display: flex; flex-direction: column; gap: 8px; background: #E6F3EC; border-radius: 14px; padding: 10px 12px; }
   .add p { margin: 0; font-size: 14px; font-weight: 600; }
 </style>
