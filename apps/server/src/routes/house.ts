@@ -1,6 +1,6 @@
 // Kunjungan bareng: pet tamu ikut ke rumah teman.
 //  - interaksi dengan pet tuan rumah (sapa, peluk, kasih camilan, kejar-kejaran, duduk bareng) + buku tamu;
-//  - rumah "live": semua yang sedang di ruangan yang sama (tuan rumah + beberapa tamu) saling melihat pet,
+//  - rumah "live": semua yang sedang di rumah itu, di ruangan mana pun (tuan rumah + beberapa tamu), saling melihat pet,
 //    ekspresi, dan obrolan (polling ±1 detik, keadaan di memori server seperti main bareng Duel);
 //  - main bareng di rumah: Masak bareng & Lempar bola; foto bareng masuk album semua yang ada di foto.
 import type { FastifyInstance } from 'fastify';
@@ -137,7 +137,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const v = petView({ ...r, user_id: uid }, s);
     return { name: r.display_name, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
   }
-  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host });
+  // posisi dikirim per ruangan (roomId + x, y di dalamnya); layar rumah memetakannya ke denah rumah tersambung
+  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: m.roomId, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host });
 
   /* ---------------- rumah live ---------------- */
 
@@ -155,7 +156,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     prune(h);
     await settleCoop(hostId, h, s);
     const roomId = String(b.roomId ?? '').slice(0, 64);
-    const num = (v: unknown) => Math.max(0, Math.min(12, Number(v) || 0));
+    const num = (v: unknown) => Math.max(0, Math.min(16, Number(v) || 0));
     let m = h.members.get(uid);
     let full = false;
     if (!m) {
@@ -190,8 +191,9 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const all = [...h.members.values()].filter((x) => fresh(x, now));
     return {
       live: true, full, me: uid, seq: h.seq, boot: BOOT,
-      members: all.filter((x) => x.id !== uid && x.roomId === roomId).map(view),
-      elsewhere: all.filter((x) => x.id !== uid && x.roomId !== roomId).map((x) => ({ id: x.id, name: x.name, host: x.host })),
+      // semua ruangan tampil sekaligus: semua yang ada di rumah saling terlihat
+      members: all.filter((x) => x.id !== uid).map(view),
+      elsewhere: [],
       events: h.events.filter((e) => e.seq > since),
       coop: coopView(h.coop),
       serverNow: now,
@@ -395,8 +397,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     if (b.action === 'start') {
       if (h.coop && !h.coop.done) throw bad('coop_busy', 'Masih ada permainan yang berjalan di rumah ini.');
       const game = b.game === 'bola' ? 'bola' : 'masak';
-      const here = [me, ...[...h.members.values()].filter((m) => m.id !== uid && fresh(m) && m.roomId === me.roomId)].slice(0, 5);
-      if (here.length < 2) throw bad('coop_alone', 'Butuh minimal 2 pet di ruangan ini. Ajak teman main ke sini dulu!');
+      const here = [me, ...[...h.members.values()].filter((m) => m.id !== uid && fresh(m))].slice(0, 5);
+      if (here.length < 2) throw bad('coop_alone', 'Butuh minimal 2 pet di rumah ini. Ajak teman main ke sini dulu!');
       const seed = randomInt(1, 2_000_000_000);
       const r = mulberry32(seed);
       const recipe: string[] = [], options: string[][] = [];
@@ -463,12 +465,12 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     assertNotKicked(hostId, u.id);
     const h = HOUSES.get(hostId);
     const me = h?.members.get(u.id);
-    const inRoom = !!me && fresh(me) && me.roomId === roomId;
-    // yang memotret harus sedang ada di ruangan itu (supaya tidak bisa memotret tamu lain dari jauh);
+    const inHouse = !!me && fresh(me);
+    // yang memotret harus sedang ada di rumah itu (supaya tidak bisa memotret tamu lain dari jauh);
     // bila tuan rumah mematikan main bareng langsung, foto hanya berisi tuan rumah & yang memotret
-    if (!inRoom && u.id !== hostId && (await hostLive(hostId))) throw bad('not_here', 'Masuk ke ruangan temanmu dulu untuk berfoto.');
-    const here = h && inRoom ? [...h.members.values()].filter((m) => fresh(m) && m.roomId === roomId).map((m) => m.id) : [];
-    // tuan rumah selalu ikut (pet-nya ada di rumahnya sendiri), lalu yang memotret, lalu yang sedang di ruangan
+    if (!inHouse && u.id !== hostId && (await hostLive(hostId))) throw bad('not_here', 'Masuk ke rumah temanmu dulu untuk berfoto.');
+    const here = h && inHouse ? [...h.members.values()].filter((m) => fresh(m)).map((m) => m.id) : [];
+    // tuan rumah selalu ikut (pet-nya ada di rumahnya sendiri), lalu yang memotret, lalu yang sedang di rumah
     const ids = [...new Set([hostId, u.id, ...here])].slice(0, 6);
     if (ids.length < 2) throw bad('photo_alone', 'Foto bareng butuh minimal 2 pet. Berkunjunglah ke rumah teman!');
     const cat = await getCatalog(db);

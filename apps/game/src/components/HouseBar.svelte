@@ -24,7 +24,7 @@
   const hostName = $derived(G.visit?.pet?.name ?? 'pet teman');
 
   const status = $derived.by(() => {
-    if (mode === 'home') return here.length ? `Tamu di sini: ${here.map((m) => m.name).join(', ')}${H.elsewhere.length ? ` · di ruangan lain: ${H.elsewhere.length}` : ''}` : `Tamu di ruangan lain: ${H.elsewhere.map((m) => m.name).join(', ')}`;
+    if (mode === 'home') return `Tamu di rumahmu: ${[...here, ...H.elsewhere.filter((e) => !e.host)].map((m) => m.name).join(', ')}`;
     if (H.full) return 'Rumah sedang ramai (penuh). Kamu tetap bisa main dengan pet teman.';
     if (H.reason === 'host_off') return `${G.visit?.owner?.display_name} sedang tidak menerima tamu live. Kamu tetap bisa main dengan ${hostName}.`;
     const others = here.filter((m) => !m.host).map((m) => m.name);
@@ -48,7 +48,7 @@
   function onKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); send(); } if (e.key === 'Escape') chatting = false; }
   async function play(game: 'masak' | 'bola') {
     pop = null;
-    if (here.length < 1) { toast('Butuh minimal 2 pet di ruangan ini. Ajak teman main ke sini!'); return; }
+    if (here.length < 1) { toast('Butuh minimal 2 pet di rumah ini. Ajak teman main ke sini!'); return; }
     await coop({ action: 'start', game });
   }
   async function photo(pose: string) { pop = null; await takePhoto(pose); }
@@ -103,7 +103,7 @@
     <div class="pop col" role="menu">
       <b>Foto bareng: pilih gaya</b>
       {#each Object.entries(PHOTO_POSES) as [k, l]}<button class="btn sm" role="menuitem" onclick={() => photo(k)}>{l}</button>{/each}
-      <small>Semua pet di ruangan ikut berfoto. Fotonya masuk album semua yang ada di foto.</small>
+      <small>Semua pet yang ada di rumah ikut berfoto. Fotonya masuk album semua yang ada di foto.</small>
     </div>
   {:else if pop === 'play'}
     <div class="pop col" role="menu">
@@ -111,7 +111,7 @@
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('bola')}>Lempar bola</button>
       <button class="btn sm" role="menuitem" onclick={duel}>Tantang duel</button>
-      {#if here.length < 1}<small>Masak bareng & Lempar bola butuh minimal 2 pemain yang sedang di ruangan ini.</small>{/if}
+      {#if here.length < 1}<small>Masak bareng & Lempar bola butuh minimal 2 pemain yang sedang di rumah ini.</small>{/if}
     </div>
   {:else if pop === 'snack'}
     <div class="pop" role="menu" aria-label="Pilih camilan">
@@ -124,7 +124,7 @@
     <div class="pop col" role="menu">
       <b>Tamu di rumahmu</b>
       {#each [...here, ...H.elsewhere.filter((e) => !e.host)] as m (m.id)}
-        <div class="guest"><span>{m.name}{(m as any).pet ? ` · ${(m as any).pet.name}` : ' · ruangan lain'}</span>
+        <div class="guest"><span>{m.name}{(m as any).pet ? ` · ${(m as any).pet.name}` : ''}</span>
           <span class="gb"><button class="btn sm" onclick={() => { kick(m.id); pop = null; }}>Antar pulang</button>
           <button class="btn sm" onclick={async () => { pop = null; if (await ask({ title: `Blokir ${m.name}?`, text: `${m.name} akan diantar pulang, berhenti berteman denganmu, dan tidak bisa menambahkanmu atau berkunjung lagi. Bisa dibuka lagi di Pengaturan.`, yes: 'Blokir', danger: true })) block(m.id, m.name); }}>Blokir</button></span>
         </div>

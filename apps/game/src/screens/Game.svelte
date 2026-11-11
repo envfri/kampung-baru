@@ -170,6 +170,14 @@
   });
 </script>
 
+{#snippet camBtn()}
+  <button class="cambtn" onclick={() => { sfx.tap(); G.cam = G.cam === 'room' ? 'house' : 'room'; }} aria-label={G.cam === 'room' ? 'Lihat seluruh rumah' : 'Kembali ke ruangan pet'}>
+    {#if G.cam === 'room'}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12.5 12 9l4 3.5V16H8Z" fill="currentColor"/></svg><span>Seluruh rumah</span>
+    {:else}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span>Ikuti pet</span>{/if}
+  </button>
+{/snippet}
+
+
 <div class="game" data-view={G.view}>
   <div class="scene">
     {#if G.view === 'home'}<Room mode="home" />
@@ -194,9 +202,12 @@
   {#if !G.immersive}<Hud />{/if}
 
   {#if G.view === 'home' && !G.edit}
-    <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk pindah ruangan">
-      {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
+    <div class="roombar">
+      <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk melihat semua ruangan">
+        {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      {#if (G.me.rooms?.length ?? 1) > 1 || G.cam !== 'room'}{@render camBtn()}{/if}
+    </div>
     <Needs />
     {#if event}
       <button class="event" style="--ev:{event.theme?.color ?? '#E0583F'}" onclick={() => (G.sheet = 'event')}>
@@ -235,7 +246,7 @@
 
   {#if G.edit}
     <div class="editbar">
-      <p>{selItem ? `${selItem.name} dipilih. Ketuk lantai untuk memindah.` : 'Ketuk barang, lalu ketuk lantai untuk memindah. Tambah barang dari Tas.'}</p>
+      <p><b class="ename">Atur {room?.name ?? 'ruangan'}</b>{selItem ? `${selItem.name} dipilih. Ketuk lantai untuk memindah.` : `Ketuk barang, lalu ketuk lantai untuk memindah. Tambah barang dari Tas.${(G.me.rooms?.length ?? 1) > 1 ? ' Ketuk ruangan lain untuk mengatur ruangan itu.' : ''}`}</p>
       <div class="row">
         {#if selItem}<button class="btn sm" onclick={storeSel}>Simpan ke Tas</button>{/if}
         <button class="btn sm" onclick={() => { G.sheet = 'bag'; G.bagTab = 'furniture'; }}>{@html I.bag} Tas</button>
@@ -251,12 +262,10 @@
 
   {#if G.view === 'visit' && G.visit}
     <div class="visit">
-      <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
-      {#if visitRooms.length > 1}
-        <div class="tabbar" role="tablist" aria-label="Ruangan di rumah teman">
-          {#each visitRooms as r, i (r.id)}<button role="tab" aria-selected={G.visitRoom === i} class:on={G.visitRoom === i} onclick={() => { G.visitRoom = i; sfx.tap(); }}>{r.name}</button>{/each}
-        </div>
-      {/if}
+      <div class="whorow">
+        <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
+        {#if visitRooms.length > 1 || G.cam !== 'room'}{@render camBtn()}{/if}
+      </div>
       <div class="row">
         <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
         <button class="btn sm" class:on={G.visit.likes?.liked} disabled={G.busy} onclick={likeHouse} aria-label="Suka rumah ini">♥ {G.visit.likes?.liked ? 'Disukai' : 'Suka'}{G.visit.likes?.count ? ` · ${G.visit.likes.count}` : ''}</button>
@@ -300,7 +309,12 @@
   .acts { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); display: flex; gap: 6px; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
-  .roompill { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); left: max(10px, var(--safe-l)); display: inline-flex; align-items: center; gap: 5px; max-width: 46vw; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink); padding: 3px 8px 3px 6px; font-weight: 800; font-size: 14px; cursor: pointer; }
+  .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }
+  .cambtn { flex: none; display: inline-flex; align-items: center; gap: 4px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink); padding: 3px 9px 3px 6px; font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .cambtn :global(svg) { width: 18px; height: 18px; flex: none; }
+  .whorow { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ename { display: block; font-size: 15.5px; }
+  .roompill { display: inline-flex; align-items: center; gap: 5px; max-width: 46vw; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink); padding: 3px 8px 3px 6px; font-weight: 800; font-size: 14px; cursor: pointer; }
   .roompill b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .roompill :global(svg) { width: 18px; height: 18px; flex: none; }
   .roompill .n { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--ok); color: #fff; font-size: 11.5px; display: grid; place-items: center; padding: 0 4px; }
@@ -317,6 +331,12 @@
   .who { display: flex; flex-direction: column; }
   .who b { font-size: 18px; } .who span { font-size: 13.5px; color: var(--muted); font-weight: 600; }
   .offline { position: absolute; z-index: 30; top: calc(var(--safe-t) + 4px); left: 50%; transform: translateX(-50%); background: #A93A27; color: #fff; font-weight: 700; font-size: 13px; border-radius: 10px; padding: 3px 10px; white-space: nowrap; }
+  /* layar sempit: tombol kamera cukup ikon supaya tidak menabrak label event */
+  @media (max-width: 480px) {
+    .roombar .cambtn span { display: none; }
+    .roombar .cambtn { padding: 4px 6px; }
+    .roompill { max-width: 38vw; }
+  }
   /* HP kecil (lebar 320–360 px): lima tombol aksi tetap muat dalam layar */
   @media (max-width: 359px) {
     .acts { gap: 4px; }
@@ -326,7 +346,8 @@
     .acts { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); flex-direction: column; }
     .act { flex-direction: row; width: auto; min-width: 116px; justify-content: flex-start; gap: 8px; padding: 6px 12px; font-size: 15px; min-height: 46px; }
     .event { top: calc(var(--safe-t) + 14px); right: auto; left: 50%; transform: translateX(-50%); max-width: 46vw; }
-    .roompill { top: calc(var(--safe-t) + 52px); left: 50%; transform: translateX(-50%); max-width: 30vw; }
+    .roombar { top: calc(var(--safe-t) + 52px); left: 50%; transform: translateX(-50%); max-width: 46vw; }
+    .roompill { max-width: 30vw; }
     .visit { top: calc(var(--safe-t) + 84px); }
   }
 </style>

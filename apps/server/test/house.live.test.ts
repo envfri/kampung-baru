@@ -228,3 +228,37 @@ test('blokir & antar pulang: berlaku untuk semua aksi, tidak bisa berteman lagi;
   assert.equal((await c.c.get('/api/me')).body.wallet.coin, coinsBefore);
   assert.equal((await db.one(`select count(*)::int c from daily_counters where key = 'coop' and user_id = $1`, [c.id])).c, 0, 'jatah harian tidak terpakai');
 });
+
+test('rumah tersambung: tamu di ruangan berbeda saling terlihat, main bareng & foto bareng satu rumah', async () => {
+  resetHouses();
+  const a = await player('Rumah2'), b = await player('Tamu2'), c = await player('Tamu3');
+  await friends(a, b, c);
+  // tuan rumah punya ruangan kedua (dapur)
+  const room2 = (await db.one(
+    `insert into rooms (user_id, room_item, name, layout, sort) values ($1, 'dapur', 'Dapur', '[]'::jsonb, 1) returning id`, [a.id])).id;
+  const sync = (p: any, roomId: string, x = 2, y = 2) => p.c.post(`/api/house/${a.id}/sync`, { roomId, x, y });
+  await sync(a, a.room);
+  await sync(b, room2, 1.5, 3.5);
+  const rc = await sync(c, a.room, 4, 1);
+  assert.equal(rc.status, 200);
+  const names = rc.body.members.map((m: any) => m.name).sort();
+  assert.deepEqual(names, ['Rumah2', 'Tamu2'], 'tamu di dapur tetap terlihat dari kamar');
+  const inKitchen = rc.body.members.find((m: any) => m.name === 'Tamu2');
+  assert.equal(inKitchen.roomId, room2, 'posisi dikirim bersama ruangannya');
+  assert.equal(inKitchen.x, 1.5);
+  assert.deepEqual(rc.body.elsewhere, []);
+  // posisi lebih besar dari ruangan 12×12 (ruangan diperluas) tetap diterima
+  const big = await sync(b, room2, 13.5, 14.5);
+  assert.equal(big.body.live, true);
+  assert.equal((await sync(c, a.room)).body.members.find((m: any) => m.name === 'Tamu2').y, 14.5);
+  // main bareng mengajak semua yang ada di rumah (ruangan mana pun)
+  const st = await b.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'bola' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.equal(st.body.coop.players.length, 3);
+  await b.c.post(`/api/house/${a.id}/coop`, { action: 'quit', coopId: st.body.coop.id });
+  await c.c.post(`/api/house/${a.id}/coop`, { action: 'quit', coopId: st.body.coop.id });
+  // foto bareng: semua pet di rumah ikut, latar dari ruangan yang memotret
+  const ph = await b.c.post(`/api/house/${a.id}/photo`, { roomId: room2, pose: 'senyum' });
+  assert.equal(ph.status, 200, JSON.stringify(ph.body));
+  assert.equal(ph.body.photo.members.length, 3);
+});

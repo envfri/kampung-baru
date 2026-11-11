@@ -1,11 +1,12 @@
-// Rumah "live": siapa saja yang sedang ada di ruangan yang sama (tuan rumah + tamu), obrolan, ekspresi,
+// Rumah "live": siapa saja yang sedang ada di rumah yang sama (tuan rumah + tamu, di ruangan mana pun), obrolan, ekspresi,
 // main bareng, dan foto. Disinkronkan lewat polling (tamu ±0,9 detik; tuan rumah yang sendirian lebih jarang).
 import { G, toast, fail, refreshMe } from './game.svelte';
 import { api, ApiError } from './api';
 import { sfx } from './sfx';
 
 export type Bubble = { id: number; who: string; text?: string; emote?: string; until: number };
-export type LiveMember = { id: string; name: string; pet: any; x: number; y: number; flip: boolean; act: string | null; host: boolean };
+/** posisi (x, y) di dalam ruangan `roomId`; layar rumah memetakannya ke denah */
+export type LiveMember = { id: string; name: string; pet: any; roomId?: string; x: number; y: number; flip: boolean; act: string | null; host: boolean };
 
 export const H = $state({
   hostId: null as string | null,
@@ -19,7 +20,7 @@ export const H = $state({
   coop: null as any,
   coopSeen: '' as string,
   bubbles: [] as Bubble[],
-  /** posisi pet yang dilaporkan (diisi Room setiap frame) */
+  /** ruangan & posisi pet di dalamnya yang dilaporkan (diisi Room 5× per detik) */
   pos: { x: 0, y: 0, flip: false, act: null as string | null },
   photo: null as any,
   /** permintaan aksi ke pet teman dari bar kunjungan (dijalankan Room: pet berjalan, beraksi, kirim ke server) */

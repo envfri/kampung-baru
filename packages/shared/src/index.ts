@@ -1,6 +1,7 @@
 export * from './economy';
 export * from './settings';
 export * from './art';
+export * from './house';
 export * from './quests';
 export * from './activities';
 export * from './events';

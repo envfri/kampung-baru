@@ -29,9 +29,10 @@ export const G = $state({
   shopId: 'pasar',
   shopTab: 'buy' as 'buy' | 'sell',
   bagTab: 'food',
-  /** ruangan rumah yang sedang dilihat (id) & ruangan teman saat berkunjung (indeks) */
+  /** ruangan aktif di rumah (id): mengikuti ruangan tempat pet berada; dipakai tombol Atur, wallpaper & lantai */
   roomId: '' as string,
-  visitRoom: 0,
+  /** kamera rumah: fokus ke ruangan, seluruh rumah, atau bebas (digeser/dicubit pemain) */
+  cam: 'room' as 'room' | 'house' | 'free',
   /** posisi pet di peta kampung (id lokasi) dan tujuan jalan berikutnya */
   mapAt: 'rumah',
   mapGoal: null as null | string,
@@ -232,9 +233,11 @@ export function curRoom(): RoomState {
   return list.find((r) => r.id === G.roomId) ?? list[0];
 }
 
+/** Pindah ke ruangan lain: kamera ke ruangan itu dan pet berjalan ke sana (lewat pintu). */
 export function switchRoom(id: string) {
-  if (G.edit || id === curRoom()?.id) return;
+  if (G.edit) return;
   G.roomId = id;
+  G.cam = 'room';
   G.view = 'home';
 }
 

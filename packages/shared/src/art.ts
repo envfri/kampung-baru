@@ -4,6 +4,8 @@
 //
 // Fungsi di sini mengembalikan string SVG. Dipakai oleh game dan pratinjau di admin.
 
+import type { HousePlan, HouseDoor, WallSeg } from './house';
+
 export const INK = '#2B2F4A';
 
 export type ArtSpec =
@@ -739,24 +741,27 @@ export function eventDropSVG(decor: string | undefined) {
   }
 }
 
-function roomDecor(g: Ctx, W: number, decor: string | undefined) {
+function roomDecor(g: Ctx, W: number, decor: string | undefined, runsL: [number, number][] = [[0, W]], runsR: [number, number][] = [[0, W]], rain = true) {
   if (!decor) return '';
   const WH = 150, s = g.s;
   const along = (wall: 'L' | 'R', u: number, sag: number) => { const p = wall === 'L' ? g.iso(0, u) : g.iso(u, 0); return [p[0], p[1] - WH + 14 + sag]; };
   let o = '';
   for (const wall of ['L', 'R'] as const) {
-    const pts: number[][] = [];
-    for (let u = 0.15; u <= W - 0.1; u += 0.35) pts.push(along(wall, u, Math.sin((u / W) * Math.PI * 3) * -6 + 10));
     if (decor === 'hujan') continue;
-    o += `<polyline points="${P(pts)}" fill="none" stroke="${INK}" stroke-width="1.6" opacity=".7"/>`;
-    pts.forEach((p, i) => {
-      if (decor === 'bendera') o += `<path d="M${f1(p[0] - 5)} ${f1(p[1])}L${f1(p[0] + 5)} ${f1(p[1])}L${f1(p[0])} ${f1(p[1] + 11)}Z" fill="${i % 2 ? '#FFFFFF' : '#E0583F'}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>`;
-      else if (decor === 'kembangapi') o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] + 4)}" r="3.6" fill="${['#F2B632', '#E0583F', '#7FC4E8', '#8FD3A7'][i % 4]}" stroke="${INK}" stroke-width="1"/>`;
-      else if (decor === 'bunga' && i % 2 === 0) o += `<g transform="translate(${f1(p[0])} ${f1(p[1] + 3)}) scale(.55)">${eventDropSVG('bunga')}</g>`;
-      else if ((decor === 'lampion' || decor === 'ketupat') && i % 3 === 1) o += `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(p[0])}" y2="${f1(p[1] + 10)}" stroke="${INK}" stroke-width="1.2"/><g transform="translate(${f1(p[0])} ${f1(p[1] + 22)}) scale(.75)">${eventDropSVG(decor)}</g>`;
-    });
+    for (const [a, b] of wall === 'L' ? runsL : runsR) {
+      const pts: number[][] = [];
+      for (let u = a + 0.15; u <= b - 0.1; u += 0.35) pts.push(along(wall, u, Math.sin((u / W) * Math.PI * 3) * -6 + 10));
+      if (pts.length < 2) continue;
+      o += `<polyline points="${P(pts)}" fill="none" stroke="${INK}" stroke-width="1.6" opacity=".7"/>`;
+      pts.forEach((p, i) => {
+        if (decor === 'bendera') o += `<path d="M${f1(p[0] - 5)} ${f1(p[1])}L${f1(p[0] + 5)} ${f1(p[1])}L${f1(p[0])} ${f1(p[1] + 11)}Z" fill="${i % 2 ? '#FFFFFF' : '#E0583F'}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>`;
+        else if (decor === 'kembangapi') o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] + 4)}" r="3.6" fill="${['#F2B632', '#E0583F', '#7FC4E8', '#8FD3A7'][i % 4]}" stroke="${INK}" stroke-width="1"/>`;
+        else if (decor === 'bunga' && i % 2 === 0) o += `<g transform="translate(${f1(p[0])} ${f1(p[1] + 3)}) scale(.55)">${eventDropSVG('bunga')}</g>`;
+        else if ((decor === 'lampion' || decor === 'ketupat') && i % 3 === 1) o += `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(p[0])}" y2="${f1(p[1] + 10)}" stroke="${INK}" stroke-width="1.2"/><g transform="translate(${f1(p[0])} ${f1(p[1] + 22)}) scale(.75)">${eventDropSVG(decor)}</g>`;
+      });
+    }
   }
-  if (decor === 'hujan') {
+  if (decor === 'hujan' && rain) {
     // hujan di balik jendela (tidak menghalangi ketukan ke jendela)
     for (let k = 0; k < 9; k++) {
       const xx = W / 2 - 1.0 + (k * 0.23) % 2.1, v = 64 + ((k * 23) % 50);
@@ -764,7 +769,7 @@ function roomDecor(g: Ctx, W: number, decor: string | undefined) {
       o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - v * s)}" x2="${f1(p[0] - 4)}" y2="${f1(p[1] - v * s + 10)}" stroke="#3F7FBF" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>`;
     }
   }
-  return `<g pointer-events="none">${o}</g>`;
+  return o ? `<g pointer-events="none">${o}</g>` : '';
 }
 
 export interface RoomOpts {
@@ -886,21 +891,40 @@ function floorColors(item?: ItemLike | null, fallback: ArtSpec = DEFAULT_FLOOR) 
   return { key: a.key in FLOORS ? a.key : 'papan', main: col(a.colors?.main, def.colors.main), accent: col(a.colors?.accent, def.colors.accent) };
 }
 
-/** Halaman terbuka: semak & pagar bambu rendah menggantikan dinding. */
-function fenceSVG(g: Ctx, W: number) {
-  const s = g.s, col = '#D9B26A', FH = 40;
+type WallC = ReturnType<typeof wallColors>;
+type FloorC = ReturnType<typeof floorColors>;
+const WALL_H = 150;
+/** titik pada dinding belakang: L = bidang x = 0 (sepanjang y), R = bidang y = 0 (sepanjang x) */
+const onWall = (g: Ctx, side: 'L' | 'R', u: number) => (side === 'L' ? g.iso(0, u) : g.iso(u, 0));
+
+/** Halaman terbuka: semak di balik pagar (satu sisi, petak a..b). */
+function bushRun(g: Ctx, side: 'L' | 'R', a: number, b: number) {
+  const s = g.s;
   let o = '';
-  for (let k = 0; k < W; k++) {
-    for (const p of [g.iso(-0.2, k + 0.5), g.iso(k + 0.5, -0.2)])
-      o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] - 20 * s)}" rx="${f1(24 * s)}" ry="${f1(17 * s)}" fill="${k % 2 ? '#5DA05A' : '#6DB068'}" stroke="${INK}" stroke-width="${f1(1.5 * s)}"/>`;
-  }
-  o += g.quadX(0, 0, W, 13, 19, shade(col, -0.2)) + g.quadX(0, 0, W, 28, 34, shade(col, -0.2));
-  o += g.quadY(0, 0, W, 13, 19, col) + g.quadY(0, 0, W, 28, 34, col);
-  for (let u = 0; u <= W + 0.001; u += 0.5) {
-    const a = Math.max(0, u - 0.06), b = Math.min(W, u + 0.06);
-    o += g.quadX(0, a, b, 0, FH, shade(col, -0.1), 1.2) + g.quadY(0, a, b, 0, FH, shade(col, 0.15), 1.2);
+  for (let k = Math.floor(a); k < b; k++) {
+    const p = side === 'L' ? g.iso(-0.2, k + 0.5) : g.iso(k + 0.5, -0.2);
+    o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] - 20 * s)}" rx="${f1(24 * s)}" ry="${f1(17 * s)}" fill="${k % 2 ? '#5DA05A' : '#6DB068'}" stroke="${INK}" stroke-width="${f1(1.5 * s)}"/>`;
   }
   return o;
+}
+const FENCE = '#D9B26A';
+/** pagar bambu rendah (palang + tiang) di satu sisi, u = a..b */
+function fenceRails(g: Ctx, side: 'L' | 'R', a: number, b: number) {
+  return side === 'L'
+    ? g.quadX(0, a, b, 13, 19, shade(FENCE, -0.2)) + g.quadX(0, a, b, 28, 34, shade(FENCE, -0.2))
+    : g.quadY(0, a, b, 13, 19, FENCE) + g.quadY(0, a, b, 28, 34, FENCE);
+}
+function fencePosts(g: Ctx, side: 'L' | 'R', a: number, b: number) {
+  let o = '';
+  for (let u = a; u <= b + 0.001; u += 0.5) {
+    const p = Math.max(a, u - 0.06), q = Math.min(b, u + 0.06);
+    o += side === 'L' ? g.quadX(0, p, q, 0, 40, shade(FENCE, -0.1), 1.2) : g.quadY(0, p, q, 0, 40, shade(FENCE, 0.15), 1.2);
+  }
+  return o;
+}
+/** Halaman terbuka: semak & pagar bambu rendah menggantikan dinding. */
+function fenceSVG(g: Ctx, W: number) {
+  return bushRun(g, 'L', 0, W) + bushRun(g, 'R', 0, W) + fenceRails(g, 'L', 0, W) + fenceRails(g, 'R', 0, W) + fencePosts(g, 'L', 0, W) + fencePosts(g, 'R', 0, W);
 }
 
 /** Petak lantai di depan jendela / lukisan (tempat pet berdiri saat melihatnya) dan arah hadapnya. */
@@ -910,61 +934,60 @@ export const ROOM_SPOTS = {
 } as const;
 export type RoomSpot = keyof typeof ROOM_SPOTS;
 
-function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor: ReturnType<typeof floorColors>, edit: boolean, outdoor = false, photo = '') {
-  const WH = 150, s = g.s;
-  const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, W), D = g.iso(0, W);
+/** Satu bentang dinding tinggi berwallpaper (u = a..b) beserta motif & plint bawahnya. */
+function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
+  const WH = WALL_H;
+  const L = side === 'L';
+  const at = (u: number) => onWall(g, side, u);
   const up = (p: number[], v: number) => [p[0], p[1] - v];
-  const wallR = shade(wall.main, 0.35);
-  let o = `<polygon points="${P([[A[0], A[1] + 10], [B[0] + 12, B[1] + 8], [Cc[0], Cc[1] + 16], [D[0] - 12, D[1] + 8]])}" fill="${INK}" opacity=".12"/>`;
-  if (outdoor) o += fenceSVG(g, W);
-  else {
-  o += g.poly([A, D, up(D, WH), up(A, WH)], wall.main);
-  o += g.poly([A, B, up(B, WH), up(A, WH)], wallR);
+  const main = L ? wall.main : shade(wall.main, 0.35);
+  const P0 = at(a), P1 = at(b);
+  let o = g.poly([P0, P1, up(P1, WH), up(P0, WH)], main);
   if (wall.key === 'garis') {
-    for (let yy = 0.5; yy < W; yy += 0.5) {
-      const p = g.iso(0, yy);
-      o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - 30)}" x2="${f1(p[0])}" y2="${f1(p[1] - WH + 6)}" stroke="${wall.accent}" stroke-width="2.5"/>`;
-    }
-    for (let xx = 0.5; xx < W; xx += 0.5) {
-      const p = g.iso(xx, 0);
-      o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - 30)}" x2="${f1(p[0])}" y2="${f1(p[1] - WH + 6)}" stroke="${shade(wall.accent, 0.35)}" stroke-width="2.5"/>`;
+    const c = L ? wall.accent : shade(wall.accent, 0.35);
+    for (let u = Math.ceil(a * 2 + 0.001) / 2; u < b - 0.001; u += 0.5) {
+      const p = at(u);
+      o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - 30)}" x2="${f1(p[0])}" y2="${f1(p[1] - WH + 6)}" stroke="${c}" stroke-width="2.5"/>`;
     }
   } else if (wall.key === 'titik') {
-    for (let yy = 0.35; yy < W; yy += 0.55)
+    const c = L ? wall.accent : shade(wall.accent, 0.3);
+    for (let yy = a + 0.35; yy < b; yy += 0.55)
       for (let v = 40; v < WH - 8; v += 22) {
-        const p = g.iso(0, yy + ((v / 22) % 2) * 0.27);
-        if (yy + ((v / 22) % 2) * 0.27 < W - 0.1) o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] - v)}" r="3" fill="${wall.accent}"/>`;
-        const q = g.iso(yy + ((v / 22) % 2) * 0.27, 0);
-        if (yy + ((v / 22) % 2) * 0.27 < W - 0.1) o += `<circle cx="${f1(q[0])}" cy="${f1(q[1] - v)}" r="3" fill="${shade(wall.accent, 0.3)}"/>`;
+        const u = yy + ((v / 22) % 2) * 0.27;
+        if (u >= b - 0.1) continue;
+        const p = at(u);
+        o += `<circle cx="${f1(p[0])}" cy="${f1(p[1] - v)}" r="3" fill="${c}"/>`;
       }
   } else if (wall.key === 'kotak' || wall.key === 'bata') {
     const brick = wall.key === 'bata';
     const step = brick ? 18 : 30;
-    const lineL = (v: number, a: number, b: number) => { const p = g.iso(0, a), q = g.iso(0, b); return `<line x1="${f1(p[0])}" y1="${f1(p[1] - v)}" x2="${f1(q[0])}" y2="${f1(q[1] - v)}" stroke="${wall.accent}" stroke-width="2"/>`; };
-    const lineR = (v: number, a: number, b: number) => { const p = g.iso(a, 0), q = g.iso(b, 0); return `<line x1="${f1(p[0])}" y1="${f1(p[1] - v)}" x2="${f1(q[0])}" y2="${f1(q[1] - v)}" stroke="${shade(wall.accent, 0.25)}" stroke-width="2"/>`; };
+    const c = L ? wall.accent : shade(wall.accent, 0.25);
     let row = 0;
     for (let v = 30 + step; v < WH - 4; v += step, row++) {
-      o += lineL(v, 0, W) + lineR(v, 0, W);
+      const p = at(a), q = at(b);
+      o += `<line x1="${f1(p[0])}" y1="${f1(p[1] - v)}" x2="${f1(q[0])}" y2="${f1(q[1] - v)}" stroke="${c}" stroke-width="2"/>`;
       const off = brick ? (row % 2) * 0.35 : 0;
       const gap = brick ? 0.7 : 1;
-      for (let u = off + gap / 2; u < W; u += gap) {
+      for (let u = a + off + gap / 2; u < b; u += gap) {
         const top = Math.min(v + step, WH - 4);
-        const pl = g.iso(0, u), pr = g.iso(u, 0);
-        o += `<line x1="${f1(pl[0])}" y1="${f1(pl[1] - v)}" x2="${f1(pl[0])}" y2="${f1(pl[1] - top)}" stroke="${wall.accent}" stroke-width="2"/>`;
-        o += `<line x1="${f1(pr[0])}" y1="${f1(pr[1] - v)}" x2="${f1(pr[0])}" y2="${f1(pr[1] - top)}" stroke="${shade(wall.accent, 0.25)}" stroke-width="2"/>`;
+        const pu = at(u);
+        o += `<line x1="${f1(pu[0])}" y1="${f1(pu[1] - v)}" x2="${f1(pu[0])}" y2="${f1(pu[1] - top)}" stroke="${c}" stroke-width="2"/>`;
       }
     }
   } else if (wall.key === 'image' && wall.url) {
-    // pola gambar upload diterapkan sebagai tekstur di dua dinding
+    // pola gambar upload diterapkan sebagai tekstur dinding
     const pid = 'wp' + Math.abs(hash(wall.url));
     o += `<defs><pattern id="${pid}" width="48" height="48" patternUnits="userSpaceOnUse"><image href="${esc(wall.url)}" width="48" height="48"/></pattern></defs>`;
-    o += `<polygon points="${P([A, D, up(D, WH), up(A, WH)])}" fill="url(#${pid})" opacity=".9"/>`;
-    o += `<polygon points="${P([A, B, up(B, WH), up(A, WH)])}" fill="url(#${pid})" opacity=".75"/>`;
+    o += `<polygon points="${P([P0, P1, up(P1, WH), up(P0, WH)])}" fill="url(#${pid})" opacity="${L ? '.9' : '.75'}"/>`;
   }
-  o += g.quadX(0, 0, W, 0, 26, shade(wall.main, -0.14));
-  o += g.quadY(0, 0, W, 0, 26, shade(wallR, -0.14));
-  // jendela di dinding kanan (bisa diketuk: pet melihat ke luar)
-  o += `<g class="spot" data-spot="jendela">`;
+  o += L ? g.quadX(0, a, b, 0, 26, shade(wall.main, -0.14)) : g.quadY(0, a, b, 0, 26, shade(main, -0.14));
+  return o;
+}
+
+/** Jendela di dinding kanan (bisa diketuk: pet melihat ke luar). */
+function windowSVG(g: Ctx, W: number, wall: WallC, rid?: string) {
+  const s = g.s;
+  let o = `<g class="spot" data-spot="jendela"${rid !== undefined ? ` data-r="${esc(rid)}"` : ''}>`;
   const trim = shade(wall.main, -0.45);
   const wx0 = W / 2 - 1.1, wx1 = W / 2 + 1.1;
   o += g.quadY(0, wx0 - 0.1, wx1 + 0.1, 50, 56, trim);
@@ -972,9 +995,13 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   const wm = g.iso(W / 2, 0), wl = g.iso(wx0, 0), wr = g.iso(wx1, 0);
   o += `<ellipse cx="${f1(wm[0] + 14)}" cy="${f1(wm[1] - 104 * s)}" rx="15" ry="5.5" fill="#FFFFFF"/><ellipse cx="${f1(wl[0] + 30)}" cy="${f1(wl[1] - 84 * s)}" rx="11" ry="4" fill="#FFFFFF"/>`;
   o += `<path d="M${f1(wm[0])} ${f1(wm[1] - 56 * s)}V${f1(wm[1] - 122 * s)}M${f1(wl[0])} ${f1(wl[1] - 89 * s)}L${f1(wr[0])} ${f1(wr[1] - 89 * s)}" stroke="${trim}" stroke-width="4"/>`;
-  o += `</g>`;
-  // lukisan di dinding kiri (bisa diketuk)
-  o += `<g class="spot" data-spot="lukisan">`;
+  return o + `</g>`;
+}
+
+/** Lukisan di dinding kiri (bisa diketuk); isinya foto bareng bila ada. */
+function paintingSVG(g: Ctx, W: number, photo = '', rid?: string) {
+  const s = g.s;
+  let o = `<g class="spot" data-spot="lukisan"${rid !== undefined ? ` data-r="${esc(rid)}"` : ''}>`;
   const py0 = W / 2 + 0.35, py1 = W / 2 + 1.65;
   o += g.quadX(0, py0, py1, 62, 110, '#FFFDF7');
   if (photo) {
@@ -983,21 +1010,25 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
     o += g.quadX(0, y0, y1, 68, 104, '#DDEFF5');
     const a0 = g.iso(0, y0), a1 = g.iso(0, y1);
     const m = [(a0[0] - a1[0]) / 136, (a0[1] - a1[1]) / 136, 0, (36 * s) / 100, a1[0], a1[1] - 104 * s].map((v) => Math.round(v * 1000) / 1000);
-    o += `<g class="photo" transform="matrix(${m.join(' ')})">${photo}</g></g>`;
-  } else {
+    return o + `<g class="photo" transform="matrix(${m.join(' ')})">${photo}</g></g>`;
+  }
   o += g.quadX(0, py0 + 0.13, py1 - 0.13, 68, 104, '#9FD3C2');
   const Q = (yy: number, v: number) => { const p = g.iso(0, yy); return [p[0], p[1] - v * s]; };
   o += `<polygon points="${P([Q(py0 + 0.2, 70), Q(py0 + 0.6, 94), Q(py0 + 1.0, 70)])}" fill="#3FA06A"/><polygon points="${P([Q(py0 + 0.5, 70), Q(py0 + 0.85, 86), Q(py0 + 1.13, 70)])}" fill="#2F7F55"/>`;
   const sun = Q(py0 + 0.35, 97);
-  o += `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/></g>`;
-  }
-  }
-  // lantai
+  return o + `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/></g>`;
+}
+
+/** Petak-petak lantai (bisa diketuk) + garis tepi ruangan. */
+function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string) {
+  const s = g.s;
+  const rattr = rid !== undefined ? ` data-r="${esc(rid)}"` : '';
+  let o = '';
   for (let i = 0; i < W; i++)
     for (let j = 0; j < W; j++) {
       const solid = floor.key === 'teraso' || floor.key === 'karpet';
       const fill = solid ? floor.main : (i + j) % 2 ? floor.main : floor.accent;
-      const attrs = `class="${edit ? 'tile' : 'fl'}" data-x="${i}" data-y="${j}"`;
+      const attrs = `class="${edit ? 'tile' : 'fl'}"${rattr} data-x="${i}" data-y="${j}"`;
       o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, floor.key === 'karpet' ? -0.06 : -0.22)}" stroke-width="1"/>`;
       if (floor.key === 'teraso')
         for (const [fx, fy, k] of [[0.25, 0.3, 0], [0.7, 0.2, 1], [0.5, 0.65, 0], [0.2, 0.8, 1], [0.8, 0.75, 0]]) {
@@ -1013,8 +1044,20 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
       }
     }
-  o += `<polygon points="${P([A, B, Cc, D])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
+  o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, W), g.iso(0, W)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
   return o;
+}
+
+function roomShadow(g: Ctx, W: number) {
+  const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, W), D = g.iso(0, W);
+  return `<polygon points="${P([[A[0], A[1] + 10], [B[0] + 12, B[1] + 8], [Cc[0], Cc[1] + 16], [D[0] - 12, D[1] + 8]])}" fill="${INK}" opacity=".12"/>`;
+}
+
+function roomShell(g: Ctx, W: number, wall: WallC, floor: FloorC, edit: boolean, outdoor = false, photo = '') {
+  let o = roomShadow(g, W);
+  if (outdoor) o += fenceSVG(g, W);
+  else o += wallRun(g, 'L', 0, W, wall) + wallRun(g, 'R', 0, W, wall) + windowSVG(g, W, wall) + paintingSVG(g, W, photo);
+  return o + floorSVG(g, W, floor, edit);
 }
 
 function hash(s: string) {
@@ -1057,6 +1100,187 @@ export function renderRoom(o: RoomOpts) {
   }
   draws.sort((a, b) => a.d - b.d).forEach((d) => (out += d.h));
   return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Rumah tersambung (semua ruangan tampil sekaligus)                    */
+/* ------------------------------------------------------------------ */
+
+/** ukuran petak rumah (px SVG) & skala pet di dalamnya */
+export const HOUSE_T = 34;
+const HOUSE_HT = HOUSE_T / 2;
+export const HOUSE_PET_SCALE = 0.82;
+export const HOUSE_WALL_H = WALL_H;
+/** tinggi dinding pemisah antarruangan (rendah supaya isi ruangan di belakangnya tetap terlihat) */
+const LOW_H = 34;
+const HG = G({ ox: 0, oy: 0, t: HOUSE_T, h: HOUSE_HT });
+/** titik layar (SVG) untuk koordinat petak rumah */
+export const houseIso = (x: number, y: number) => HG.iso(x, y) as [number, number];
+const roomG = (r: { gx: number; gy: number }) => G({ ox: (r.gx - r.gy) * HOUSE_T, oy: (r.gx + r.gy) * HOUSE_HT, t: HOUSE_T, h: HOUSE_HT });
+
+export interface HouseRoomArt {
+  layout: Placed[];
+  wall?: ItemLike | null;
+  floor?: ItemLike | null;
+  /** ruangan yang sedang diatur: mebel bisa dipilih, lantai jadi petak tujuan */
+  edit?: boolean;
+  /** ruangan lain selama mode atur (diredupkan) */
+  dim?: boolean;
+  sel?: number;
+  crumbs?: { x: number; y: number; k: string; c?: string }[];
+  /** isi lukisan (foto bareng) */
+  photo?: string;
+}
+/** satu benda yang diurutkan menurut kedalaman (dinding rendah, mebel, pet) */
+export interface HouseDraw { key: string; d: number; h: string }
+
+const runsOf = (segs: WallSeg[], ok: (s: WallSeg) => boolean) => {
+  const out: [number, number][] = [];
+  segs.forEach((s, k) => {
+    if (!ok(s)) return;
+    const last = out[out.length - 1];
+    if (last && last[1] === k) last[1] = k + 1;
+    else out.push([k, k + 1]);
+  });
+  return out;
+};
+
+/** Kotak pembatas (koordinat SVG) seluruh rumah atau satu ruangan, termasuk tinggi dinding. */
+export function houseBounds(plan: HousePlan, roomId?: string) {
+  const list = roomId ? plan.rooms.filter((r) => r.id === roomId) : plan.rooms;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const r of list) {
+    const tall = !r.outdoor && [...r.L, ...r.R].some((s) => s.k === 'tall');
+    const top = houseIso(r.gx, r.gy)[1] - (tall ? WALL_H : r.outdoor ? 60 : 90);
+    x0 = Math.min(x0, houseIso(r.gx, r.gy + r.size)[0]);
+    x1 = Math.max(x1, houseIso(r.gx + r.size, r.gy)[0]);
+    y0 = Math.min(y0, top);
+    y1 = Math.max(y1, houseIso(r.gx + r.size, r.gy + r.size)[1]);
+  }
+  if (!isFinite(x0)) return { x: -200, y: -150, w: 400, h: 300 };
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/** Lapisan bawah rumah: dinding belakang tinggi & pagar luar, lantai, keset pintu, karpet, remah. */
+export function houseBase(plan: HousePlan, art: Record<string, HouseRoomArt>, decor?: string) {
+  let shadow = '', back = '', floors = '';
+  const dimWrap = (a: HouseRoomArt, s: string) => (a.dim && s ? `<g class="dim">${s}</g>` : s);
+  for (const r of plan.rooms) {
+    const a = art[r.id] ?? { layout: [] };
+    const g = roomG(r), W = r.size;
+    shadow += roomShadow(g, W);
+    const wall = wallColors(a.wall);
+    let b = '';
+    if (r.outdoor) {
+      for (const side of ['L', 'R'] as const) for (const [p, q] of runsOf(side === 'L' ? r.L : r.R, (s) => s.k === 'tall')) b += bushRun(g, side, p, q) + fenceRails(g, side, p, q) + fencePosts(g, side, p, q);
+    } else {
+      const tl = runsOf(r.L, (s) => s.k === 'tall'), tr = runsOf(r.R, (s) => s.k === 'tall');
+      for (const [p, q] of tl) b += wallRun(g, 'L', p, q, wall);
+      for (const [p, q] of tr) b += wallRun(g, 'R', p, q, wall);
+      if (r.window) b += windowSVG(g, W, wall, r.id);
+      if (r.painting) b += paintingSVG(g, W, a.photo ?? '', r.id);
+      b += roomDecor(g, W, decor, tl, tr, r.window);
+    }
+    back += dimWrap(a, b);
+    floors += dimWrap(a, floorSVG(g, W, floorColors(a.floor, r.outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!a.edit, r.id));
+  }
+  return shadow + back + floors;
+}
+
+/** keset di ambang pintu */
+function doorMat(d: HouseDoor) {
+  const [p0, p1] = d.axis === 'x' ? [[d.line - 0.32, d.at + 0.18], [d.line + 0.32, d.at + 0.82]] : [[d.at + 0.18, d.line - 0.32], [d.at + 0.82, d.line + 0.32]];
+  const pts = [HG.iso(p0[0], p0[1]), HG.iso(p1[0], p0[1]), HG.iso(p1[0], p1[1]), HG.iso(p0[0], p1[1])];
+  const mid = d.axis === 'x' ? [HG.iso(d.line, d.at + 0.18), HG.iso(d.line, d.at + 0.82)] : [HG.iso(d.at + 0.18, d.line), HG.iso(d.at + 0.82, d.line)];
+  return `<polygon points="${P(pts)}" fill="#C98A52" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round" pointer-events="none"/><line x1="${f1(mid[0][0])}" y1="${f1(mid[0][1])}" x2="${f1(mid[1][0])}" y2="${f1(mid[1][1])}" stroke="#A86E3C" stroke-width="2" pointer-events="none"/>`;
+}
+
+/** Lapisan atas yang tidak bergerak: keset pintu, karpet (mebel datar), remah. Digambar di atas lantai, di bawah mebel & pet. */
+export function houseFlats(plan: HousePlan, art: Record<string, HouseRoomArt>, items: Record<string, ItemLike>) {
+  let o = plan.doors.map(doorMat).join('');
+  for (const r of plan.rooms) {
+    const a = art[r.id] ?? { layout: [] };
+    const g = roomG(r);
+    let f = '';
+    a.layout.forEach((p, idx) => {
+      const it = items[p.i];
+      if (!it || !footprint(it).flat) return;
+      f += `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
+    });
+    if (!a.edit) (a.crumbs ?? []).forEach((c, i) => (f += crumbSVG(g, c, i)));
+    o += a.dim && f ? `<g class="dim">${f}</g>` : f;
+  }
+  return o;
+}
+const furnCls = (a: HouseRoomArt, idx: number) => (a.dim ? 'furn-x' : `furn${a.edit ? ' editable' : ''}${a.edit && a.sel === idx ? ' sel' : ''}`);
+
+/** dinding rendah satu petak (pemisah ruangan / dinding luar di sisi depan rumah) */
+function lowWall(g: Ctx, side: 'L' | 'R', k: number, main: string, capStart: boolean, capEnd: boolean, post0: boolean, post1: boolean) {
+  const T = 0.13, s = g.s, H = LOW_H * s;
+  const at = (u: number, off = 0) => (side === 'L' ? g.iso(-off, u) : g.iso(u, -off));
+  const up = (p: number[], v: number) => [p[0], p[1] - v];
+  const a = at(k), b = at(k + 1), a2 = at(k, T), b2 = at(k + 1, T);
+  const face = side === 'L' ? main : shade(main, 0.3);
+  const sw = f1(1.6 * s);
+  let o = `<polygon points="${P([a, b, up(b, H), up(a, H)])}" fill="${face}"/>`;
+  o += `<polygon points="${P([a, b, up(b, 8 * s), up(a, 8 * s)])}" fill="${shade(face, -0.16)}"/>`;
+  o += `<polygon points="${P([up(a, H), up(b, H), up(b2, H), up(a2, H)])}" fill="${shade(main, 0.45)}"/>`;
+  let d = `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}M${f1(a[0])} ${f1(a[1] - H)}L${f1(b[0])} ${f1(b[1] - H)}M${f1(a2[0])} ${f1(a2[1] - H)}L${f1(b2[0])} ${f1(b2[1] - H)}`;
+  if (capStart) d += `M${f1(a[0])} ${f1(a[1])}V${f1(a[1] - H)}L${f1(a2[0])} ${f1(a2[1] - H)}`;
+  if (capEnd) d += `M${f1(b[0])} ${f1(b[1])}V${f1(b[1] - H)}L${f1(b2[0])} ${f1(b2[1] - H)}`;
+  o += `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  // kusen pintu: tiang lebih tinggi di sisi yang berbatasan dengan pintu
+  const trim = shade(main, -0.42);
+  if (post0) o += g.box(side === 'L' ? -0.16 : k, side === 'L' ? k : -0.16, 0, side === 'L' ? 0.16 : 0.14, side === 'L' ? 0.14 : 0.16, 54, C3(trim));
+  if (post1) o += g.box(side === 'L' ? -0.16 : k + 0.86, side === 'L' ? k + 0.86 : -0.16, 0, side === 'L' ? 0.16 : 0.14, side === 'L' ? 0.14 : 0.16, 54, C3(trim));
+  return o;
+}
+/** pagar bambu satu petak (halaman) */
+function lowFence(g: Ctx, side: 'L' | 'R', k: number) {
+  return fenceRails(g, side, k, k + 1) + fencePosts(g, side, k, k + 1);
+}
+const OUTSIDE_WALL = '#E8D2A6';
+
+/** Dinding rendah & mebel, untuk digabung dengan pet lalu diurutkan menurut kedalaman (d kecil digambar dulu). */
+export function houseDraws(plan: HousePlan, art: Record<string, HouseRoomArt>, items: Record<string, ItemLike>): HouseDraw[] {
+  const out: HouseDraw[] = [];
+  for (const r of plan.rooms) {
+    const a = art[r.id] ?? { layout: [] };
+    const g = roomG(r);
+    const wall = wallColors(a.wall);
+    const dim = (h: string) => (a.dim ? `<g class="dim">${h}</g>` : h);
+    for (const side of ['L', 'R'] as const) {
+      const segs = side === 'L' ? r.L : r.R;
+      segs.forEach((sg, k) => {
+        if (sg.k === 'tall' || sg.k === 'door') return;
+        const [gx, gy] = side === 'L' ? [r.gx, r.gy + k] : [r.gx + k, r.gy];
+        const d = gx + gy + 0.5;
+        const behindOut = sg.by ? plan.byId.get(sg.by)?.outdoor : false;
+        let h: string;
+        if (r.outdoor && (sg.k === 'low' || behindOut)) h = lowFence(g, side, k);
+        else {
+          const prev = segs[k - 1], next = segs[k + 1];
+          const isWall = (x?: WallSeg) => !!x && (x.k === 'low' || x.k === 'part');
+          h = lowWall(g, side, k, r.outdoor ? OUTSIDE_WALL : wall.main, !isWall(prev), !isWall(next), prev?.k === 'door', next?.k === 'door');
+        }
+        out.push({ key: `w:${r.id}:${side}${k}`, d, h: dim(h) });
+      });
+    }
+    a.layout.forEach((p, idx) => {
+      const it = items[p.i];
+      if (!it) return;
+      const f = footprint(it);
+      if (f.flat) return;
+      out.push({ key: `f:${r.id}:${idx}`, d: r.gx + p.x + r.gy + p.y + (f.w + f.d) / 2, h: dim(`<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`) });
+    });
+  }
+  return out;
+}
+
+/** Isi elemen pet (posisi diatur lewat transform pembungkusnya). */
+export function petMarkup(p: { look: PetLook; wear: ItemLike[]; state?: PetStateLook; flip?: boolean; prop?: string }) {
+  const prop = p.prop ? PROPS[p.prop] ?? '' : '';
+  return `<g class="pet-hop"><g class="pet-face"${p.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(p.look, p.wear, p.state)}</g>${prop}</g></g>`;
 }
 
 /* ------------------------------------------------------------------ */

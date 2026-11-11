@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Daftar ruangan rumah: pindah ruangan, dan jalan ke Toko Bangunan untuk menambah ruangan.
+  // Daftar ruangan rumah (semua tampil menyambung jadi satu rumah): pergi ke ruangan, lihat seluruh rumah, perluas, dan tambah ruangan.
   import Sheet from '../components/Sheet.svelte';
   import ExpandRooms from '../components/ExpandRooms.svelte';
   import { itemIcon } from '@kb/shared';
@@ -23,7 +23,8 @@
 </script>
 
 <Sheet title="Rumahku">
-  <p class="muted">Ketuk ruangan untuk pindah. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
+  <p class="muted">Semua ruangan menyambung jadi satu rumah. Ketuk ruangan: {G.me.pet.name} berjalan ke sana lewat pintu. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
+  {#if rooms.length > 1}<button class="btn block" onclick={() => { sfx.tap(); G.cam = 'house'; G.sheet = null; G.view = 'home'; }}>Lihat seluruh rumah</button>{/if}
   <div class="list">
     {#each rooms as r (r.id)}
       <button class="room" class:on={r.id === cur?.id} onclick={() => pick(r)} aria-current={r.id === cur?.id}>
@@ -34,7 +35,7 @@
     {/each}
   </div>
   <div class="grow">
-    <p><b>Perluas ruangan</b> Lantai bertambah di sisi depan, mebel tetap di tempatnya. Rumah lega, tamu tidak sumpek.</p>
+    <p><b>Perluas ruangan</b> Lantai bertambah di sisi depan, mebel tetap di tempatnya; denah rumah menyesuaikan sendiri. Rumah lega, tamu tidak sumpek.</p>
     <ExpandRooms />
   </div>
   {#if builder}
