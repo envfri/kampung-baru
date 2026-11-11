@@ -100,7 +100,7 @@ export default async function siteRoutes(app: FastifyInstance, { db }: { db: Db 
     const social = {} as Record<SocialKey, string>;
     for (const s of SOCIALS) {
       const raw = String(soc[s.key] ?? '').trim();
-      if (raw && !socialLink(s.key, raw)) throw bad('invalid', `Akun ${s.label} tidak valid. Isi nama akun (mis. @playbudi) atau URL profil ${s.hosts[0]}.`);
+      if (raw && !socialLink(s.key, raw)) throw bad('invalid', `Akun ${s.label} tidak valid. Isi nama akun (mis. @playbupi) atau URL profil ${s.hosts[0]}.`);
       social[s.key] = raw;
     }
     let until = '';

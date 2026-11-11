@@ -219,7 +219,7 @@ sudo bash deploy/install.sh amt.ai.id
 Admin → **Situs & SEO** (tanpa deploy ulang):
 
 - **SEO & pratinjau tautan**: judul, deskripsi, kata kunci, gambar pratinjau (bawaan `apps/game/public/og/bupi.jpg` 1200×630, atau dari menu Media), verifikasi Google Search Console/Bing. Server menyisipkan tag ke `index.html`: `title`, `description`, `canonical`, `robots`, Open Graph, kartu X/Twitter, dan data terstruktur JSON-LD (WebSite, Organization dengan akun sosial, VideoGame gratis). Ada `robots.txt`, `sitemap.xml`, dan `X-Robots-Tag: noindex` untuk API/admin. Tautan undangan `/?undang=KODE` tampil sebagai "Nama ngajak kamu main BUPI!". Mesin pencari hanya diizinkan di server produksi ber-HTTPS.
-- **Media sosial**: Instagram (bawaan @playbudi), TikTok, YouTube, Facebook, X. Tampil di halaman perawatan, layar depan game, Pengaturan, dan JSON-LD.
+- **Media sosial**: Instagram (bawaan @playbupi), TikTok, YouTube, Facebook, X. Tampil di halaman perawatan, layar depan game, Pengaturan, dan JSON-LD.
 - **Mode perawatan**: halaman beranimasi (pet berhelm memalu papan "DIRAPIKAN", temannya menyunggi batu bata) dengan perkiraan selesai & hitung mundur, tautan Instagram, cek otomatis tiap 20 detik. HTTP 503 + Retry-After; admin, webhook, file statis, dan `/healthz` tetap jalan; admin yang sedang masuk boleh main.
 
 Gambar pratinjau & halaman perawatan statis dibuat ulang dengan `npm run site-assets` (butuh Playwright).

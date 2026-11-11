@@ -32,7 +32,7 @@ for (const t of ['name="description"', 'rel="canonical"', 'property="og:title"',
   check(html.includes(t), `tag ada: ${t}`);
 const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
 check(ld['@graph'].some((n) => [].concat(n['@type']).includes('VideoGame') && n.offers?.price === '0'), 'JSON-LD: VideoGame gratis');
-check(ld['@graph'].find((n) => n['@type'] === 'Organization')?.sameAs?.some((u) => u.includes('instagram.com/playbudi')), 'JSON-LD: Instagram @playbudi');
+check(ld['@graph'].find((n) => n['@type'] === 'Organization')?.sameAs?.some((u) => u.includes('instagram.com/playbupi')), 'JSON-LD: Instagram @playbupi');
 const og = await adm.request.get(BASE + '/og/bupi.jpg');
 check(og.ok() && og.headers()['content-type']?.includes('image/jpeg') && (await og.body()).length < 300_000, 'gambar pratinjau 1200×630 tersedia (< 300 KB)');
 check((await (await adm.request.get(BASE + '/robots.txt')).text()).includes('User-agent'), 'robots.txt');
@@ -46,7 +46,7 @@ const p = await P.newPage();
 p.on('pageerror', (e) => errors.push('pemain: ' + e.message));
 await p.goto(BASE + '/'); await W(1500);
 check(await p.locator('.login .about li').count() === 4, 'layar depan: 4 hal yang bisa dilakukan di BUPI');
-check(await p.locator('.login .follow a[href*="instagram.com/playbudi"]').count() === 1, 'layar depan: tautan Instagram @playbudi');
+check(await p.locator('.login .follow a[href*="instagram.com/playbupi"]').count() === 1, 'layar depan: tautan Instagram @playbupi');
 await p.screenshot({ path: `${OUT}/01-hp-layar-depan.png`, fullPage: true });
 // undangan: pratinjau tautan memakai nama pengundang
 await P.request.post(BASE + '/api/auth/guest', { data: {} });
@@ -78,7 +78,7 @@ let shown = false;
 for (let i = 0; i < 20 && !shown; i++) { await W(300); shown = (await p.locator('.maint .mt-scene').count()) === 1; }
 check(shown, 'pemain yang sedang main melihat layar perawatan');
 check(await p.locator('.maint [data-mt-left]').count() === 1, 'hitung mundur perkiraan selesai');
-check(await p.locator('.maint a.mt-ig[href*="instagram.com/playbudi"]').count() === 1, 'tombol Instagram @playbudi');
+check(await p.locator('.maint a.mt-ig[href*="instagram.com/playbupi"]').count() === 1, 'tombol Instagram @playbupi');
 await W(1200);
 await p.screenshot({ path: `${OUT}/03-hp-perawatan-dalam-game.png` });
 

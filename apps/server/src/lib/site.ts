@@ -23,6 +23,19 @@ export async function saveSite(db: Db, value: SiteSettings) {
 }
 export const invalidateSite = () => { cache = null; };
 
+/**
+ * Perbaikan sekali jalan: akun Instagram bawaan v0.22.0 salah ketik (playbudi). Bila admin sudah menyimpan
+ * Situs & SEO dengan nilai itu, ganti ke akun yang benar (@playbupi). Akun lain tidak disentuh.
+ */
+export async function migrateSite(db: Db) {
+  const rows = await db.query(
+    `update settings set value = jsonb_set(value, '{social,instagram}', '"playbupi"'), updated_at = now()
+      where key = 'site' and lower(coalesce(value #>> '{social,instagram}', '')) in ('playbudi', '@playbudi', 'https://www.instagram.com/playbudi', 'https://instagram.com/playbudi')
+      returning key`);
+  cache = null;
+  return rows.length > 0;
+}
+
 /** Boleh diindeks mesin pencari: hanya server produksi ber-HTTPS, dan admin tidak mematikannya. */
 export function indexStatus(s: SiteSettings) {
   const why: string[] = [];

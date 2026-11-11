@@ -188,12 +188,12 @@
   <!-- ---------------- media sosial ---------------- -->
   <section class="card" aria-labelledby="soc-h">
     <div class="head"><h2 id="soc-h">Media sosial</h2></div>
-    <p class="muted">Tampil di halaman perawatan, layar masuk game, Pengaturan game, dan data terstruktur Google (sameAs). Isi nama akun (mis. <b>@playbudi</b>) atau URL profil; kosongkan bila tidak dipakai.</p>
+    <p class="muted">Tampil di halaman perawatan, layar masuk game, Pengaturan game, dan data terstruktur Google (sameAs). Isi nama akun (mis. <b>@playbupi</b>) atau URL profil; kosongkan bila tidak dipakai.</p>
     <div class="grid2">
       {#each SOCIALS as s (s.key)}
         {@const l = socialLink(s.key, f.social[s.key])}
         <label>{s.label}
-          <input bind:value={f.social[s.key]} placeholder={s.key === 'instagram' ? '@playbudi' : '@akun'} disabled={!edit} />
+          <input bind:value={f.social[s.key]} placeholder={s.key === 'instagram' ? '@playbupi' : '@akun'} disabled={!edit} />
           {#if f.social[s.key] && !l}<span class="help over">Tidak valid: isi nama akun atau URL {s.hosts[0]}</span>
           {:else if l}<a class="help" href={l.url} target="_blank" rel="noopener">{l.url}</a>{/if}
         </label>

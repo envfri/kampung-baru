@@ -132,7 +132,7 @@ curl -s https://amt.ai.id/healthz && echo && curl -s https://amt.ai.id/api/versi
 6. Siap dibuka: ganti ke kunci **live** (`zpk_live_…`, `kf_live_…`), `docker compose up -d`, lalu **daftarkan ulang webhook** (webhook uji dan live terpisah). Beli satu paket kecil sungguhan.
 7. Pasang pemantau uptime (mis. UptimeRobot) ke `https://amt.ai.id/healthz`.
 8. **Google & pratinjau tautan** (admin → **Situs & SEO**):
-   - Periksa judul, deskripsi, gambar pratinjau, dan akun media sosial (Instagram bawaan: @playbudi).
+   - Periksa judul, deskripsi, gambar pratinjau, dan akun media sosial (Instagram bawaan: @playbupi).
    - Buka [Google Search Console](https://search.google.com/search-console), tambahkan properti `https://amt.ai.id/`, pilih verifikasi **Tag HTML**, lalu tempel tag meta-nya di kolom "Verifikasi Google Search Console" dan simpan. Setelah terverifikasi, kirim sitemap `https://amt.ai.id/sitemap.xml`.
    - Indeks hanya aktif di server produksi (`NODE_ENV=production`) dengan `PUBLIC_URL` ber-`https://`; server uji otomatis `noindex`.
 

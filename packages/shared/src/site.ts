@@ -19,7 +19,7 @@ export const DEFAULT_SITE = {
     googleVerify: '',
     bingVerify: '',
   },
-  social: { instagram: 'playbudi', tiktok: '', youtube: '', facebook: '', x: '' },
+  social: { instagram: 'playbupi', tiktok: '', youtube: '', facebook: '', x: '' },
   maintenance: {
     on: false,
     title: 'Kampung BUPI lagi dirapikan',
@@ -46,7 +46,7 @@ export type SocialKey = (typeof SOCIALS)[number]['key'];
 export interface SocialLink { key: SocialKey; label: string; handle: string; url: string }
 
 /**
- * Akun media sosial dari isian admin: "@playbudi", "playbudi", atau URL profil lengkap.
+ * Akun media sosial dari isian admin: "@playbupi", "playbupi", atau URL profil lengkap.
  * null bila kosong atau tidak valid (bukan domain platformnya, karakter aneh).
  */
 export function socialLink(key: SocialKey, raw: unknown): SocialLink | null {

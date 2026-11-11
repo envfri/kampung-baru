@@ -138,7 +138,7 @@ ${scene}
   <div class="big">Main<br><b>GRATIS!</b></div>
   <div class="lead">langsung di HP, tanpa unduh</div>
   <div class="phone"><img src="${img(shot)}" alt=""></div>
-  <div class="cta"><span class="chip">Link di bio</span><span class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>@playbudi</span></div>
+  <div class="cta"><span class="chip">Link di bio</span><span class="ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg>@playbupi</span></div>
 </section>
 </body></html>`;
 

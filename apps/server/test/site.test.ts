@@ -10,9 +10,10 @@ config.paymentProvider = 'mock';
 config.adminEmail = 'owner@test.local';
 config.adminPassword = 'rahasia-sekali-123';
 const { buildApp } = await import('../src/app');
-const { imageSize, invalidateSite, retryAfter } = await import('../src/lib/site');
+const { imageSize, invalidateSite, retryAfter, migrateSite, getSite } = await import('../src/lib/site');
 let app: any;
-before(async () => { ({ app } = await buildApp({ memoryDb: true, logger: false, rateLimit: false, worker: false })); });
+let db: any;
+before(async () => { ({ app, db } = await buildApp({ memoryDb: true, logger: false, rateLimit: false, worker: false })); });
 after(async () => app?.close());
 const hasGame = existsSync(join(config.gameDist, 'index.html'));
 
@@ -46,17 +47,17 @@ async function setSite(o: ReturnType<typeof client>, patch: (s: any) => void) {
 }
 
 test('akun media sosial: nama akun, @akun, atau URL profil; domain lain ditolak', () => {
-  assert.equal(socialLink('instagram', '@playbudi')?.url, 'https://www.instagram.com/playbudi');
-  assert.equal(socialLink('instagram', 'playbudi')?.handle, 'playbudi');
-  assert.equal(socialLink('instagram', 'https://instagram.com/playbudi/?hl=id')?.handle, 'playbudi');
-  assert.equal(socialLink('tiktok', '@playbudi')?.url, 'https://www.tiktok.com/@playbudi');
-  assert.equal(socialLink('youtube', 'https://www.youtube.com/@playbudi')?.handle, 'playbudi');
-  assert.equal(socialLink('x', 'https://twitter.com/playbudi')?.handle, 'playbudi');
-  assert.equal(socialLink('instagram', 'https://evil.example/playbudi'), null);
-  assert.equal(socialLink('instagram', 'http://instagram.com/playbudi'), null, 'harus https');
+  assert.equal(socialLink('instagram', '@playbupi')?.url, 'https://www.instagram.com/playbupi');
+  assert.equal(socialLink('instagram', 'playbupi')?.handle, 'playbupi');
+  assert.equal(socialLink('instagram', 'https://instagram.com/playbupi/?hl=id')?.handle, 'playbupi');
+  assert.equal(socialLink('tiktok', '@playbupi')?.url, 'https://www.tiktok.com/@playbupi');
+  assert.equal(socialLink('youtube', 'https://www.youtube.com/@playbupi')?.handle, 'playbupi');
+  assert.equal(socialLink('x', 'https://twitter.com/playbupi')?.handle, 'playbupi');
+  assert.equal(socialLink('instagram', 'https://evil.example/playbupi'), null);
+  assert.equal(socialLink('instagram', 'http://instagram.com/playbupi'), null, 'harus https');
   assert.equal(socialLink('instagram', 'play budi'), null);
   assert.equal(socialLink('instagram', ''), null);
-  assert.deepEqual(socialLinks(DEFAULT_SITE.social).map((l) => l.handle), ['playbudi']);
+  assert.deepEqual(socialLinks(DEFAULT_SITE.social).map((l) => l.handle), ['playbupi']);
 });
 
 test('perkiraan selesai, ukuran gambar, dan halaman perawatan aman dari HTML admin', () => {
@@ -93,7 +94,7 @@ test('index.html: judul, deskripsi, canonical, Open Graph, kartu X, JSON-LD; rob
   const ld = JSON.parse(h.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]);
   const game = ld['@graph'].find((n: any) => [].concat(n['@type']).includes('VideoGame'));
   assert.equal(game.offers.price, '0');
-  assert.deepEqual(ld['@graph'].find((n: any) => n['@type'] === 'Organization').sameAs, ['https://www.instagram.com/playbudi']);
+  assert.deepEqual(ld['@graph'].find((n: any) => n['@type'] === 'Organization').sameAs, ['https://www.instagram.com/playbupi']);
   // rute SPA lain: noindex
   assert.match((await c.get('/apa-saja')).text, /content="noindex, follow"/);
   // robots: server non-produksi ditutup; sitemap tetap ada
@@ -123,7 +124,7 @@ test('tautan undangan: pratinjau memakai nama pengundang; admin mengubah SEO & s
   assert.equal((await setSite(o, (s) => { s.seo.image = '/media/tidak-ada'; })).status, 400);
   const ok = await setSite(o, (s) => {
     s.seo.title = 'BUPI Uji'; s.seo.googleVerify = '<meta name="google-site-verification" content="abc_DEF-123456" />';
-    s.social.instagram = '@playbudi'; s.social.tiktok = 'https://www.tiktok.com/@playbudi';
+    s.social.instagram = '@playbupi'; s.social.tiktok = 'https://www.tiktok.com/@playbupi';
   });
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
   assert.equal(ok.body.site.seo.googleVerify, 'abc_DEF-123456', 'kode diambil dari tag meta yang ditempel');
@@ -132,7 +133,7 @@ test('tautan undangan: pratinjau memakai nama pengundang; admin mengubah SEO & s
   assert.ok(h2.includes('name="google-site-verification" content="abc_DEF-123456"'));
   const pub = (await client().get('/api/site')).body;
   assert.deepEqual(pub.social.map((l: any) => l.key), ['instagram', 'tiktok']);
-  assert.deepEqual((await client().get('/api/config')).body.social.map((l: any) => l.handle), ['playbudi', 'playbudi']);
+  assert.deepEqual((await client().get('/api/config')).body.social.map((l: any) => l.handle), ['playbupi', 'playbupi']);
   // moderator boleh melihat, tidak boleh mengubah: cukup cek tanpa login ditolak
   assert.equal((await client().put('/api/admin/site', {})).status, 401);
   await setSite(o, (s) => { s.seo = { ...DEFAULT_SITE.seo }; s.social = { ...DEFAULT_SITE.social }; });
@@ -158,7 +159,7 @@ test('mode perawatan: pemain 503 (+Retry-After), admin & webhook tetap jalan, ad
     const page = await client().get('/');
     assert.equal(page.status, 503);
     assert.match(page.headers['content-type'], /text\/html/);
-    assert.ok(page.text.includes('Lagi dirapikan') && page.text.includes('instagram.com/playbudi'));
+    assert.ok(page.text.includes('Lagi dirapikan') && page.text.includes('instagram.com/playbupi'));
     assert.match(String(page.headers['content-security-policy']), /script-src 'nonce-/);
     assert.equal((await client().get('/og/bupi.jpg')).status, 200, 'file statis tetap disajikan');
   }
@@ -201,4 +202,20 @@ test('Retry-After: sampai perkiraan selesai (2 menit – 1 hari), bawaan 30 meni
   assert.equal(retryAfter(s('2026-11-11T11:00:00Z'), now), 3600);
   assert.equal(retryAfter(s('2026-11-20T10:00:00Z'), now), 86400);
   assert.equal(retryAfter(s('2026-11-10T10:00:00Z'), now), 1800);
+});
+
+test('akun Instagram salah ketik dari v0.22.0 (playbudi) diperbaiki ke playbupi; akun lain tidak disentuh', async () => {
+  const save = (ig: string) => db.query(`insert into settings (key, value) values ('site', $1::text::jsonb) on conflict (key) do update set value = excluded.value`, [JSON.stringify({ social: { instagram: ig, tiktok: '@lain' } })]);
+  await save('playbudi');
+  assert.equal(await migrateSite(db), true);
+  const s = await getSite(db);
+  assert.equal(s.social.instagram, 'playbupi');
+  assert.equal(s.social.tiktok, '@lain');
+  assert.equal(await migrateSite(db), false, 'sekali saja');
+  await save('@akunlain');
+  assert.equal(await migrateSite(db), false);
+  assert.equal((await getSite(db)).social.instagram, '@akunlain');
+  await db.query(`delete from settings where key = 'site'`);
+  invalidateSite();
+  assert.equal((await getSite(db)).social.instagram, 'playbupi', 'bawaan');
 });

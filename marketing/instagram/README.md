@@ -1,4 +1,4 @@
-# Instagram BUPI (@playbudi)
+# Instagram BUPI (@playbupi)
 
 Dibuat dari art orisinal BUPI dengan `npm run instagram` (butuh Playwright).
 

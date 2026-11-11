@@ -84,12 +84,12 @@
 <p class="mt-msg">Versi baru sedang dipasang. Biasanya cuma sebentar, halaman ini akan terbuka sendiri begitu BUPI siap.</p>
 <div class="mt-tape" aria-hidden="true"></div>
 
-<div class="mt-soc"><span>Kabar terbaru ada di</span><a class="mt-ig" href="https://www.instagram.com/playbudi" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg><span>@playbudi</span></a></div>
+<div class="mt-soc"><span>Kabar terbaru ada di</span><a class="mt-ig" href="https://www.instagram.com/playbupi" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg><span>@playbupi</span></a></div>
 <button type="button" class="mt-btn" data-mt-check>Cek lagi</button>
 <small class="mt-note">Progres dan barang kamu aman. Halaman ini terbuka sendiri begitu BUPI siap.</small>
 </main>
 <script>(function(){var root=document.querySelector('.mt');if(!root)return;var until=Date.parse(root.getAttribute('data-until')||'');
-var dur=function durText(ms){const m=Math.round(ms/6e4);if(m<1)return"kurang dari 1 menit";if(m<60)return`${m} menit`;const h=Math.floor(m/60),r=m%60;if(h<48)return`${h} jam${r?` ${r} menit`:""}`;const d=Math.floor(h/24),hh=h%24;return`${d} hari${hh?` ${hh} jam`:""}`};
+var dur=function durText(ms){if(ms<6e4)return"kurang dari 1 menit";const m=Math.round(ms/6e4);if(m<60)return`${m} menit`;const h=Math.floor(m/60),r=m%60;if(h<48)return`${h} jam${r?` ${r} menit`:""}`;const d=Math.floor(h/24),hh=h%24;return`${d} hari${hh?` ${hh} jam`:""}`};
 function tick(){var el=root.querySelector('[data-mt-left]');if(!el||!isFinite(until))return;var ms=until-Date.now();el.textContent=ms>0?'sekitar '+dur(ms)+' lagi':'sebentar lagi, ya!'}
 function check(){fetch('/healthz',{cache:'no-store'}).then(function(r){if(r.ok)location.reload()}).catch(function(){})}
 setInterval(tick,30000);setInterval(check,5000);
