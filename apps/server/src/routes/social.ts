@@ -6,6 +6,7 @@ import { loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { eventOn, notifyEvent } from '../lib/notify';
+import { presenceOf, guestsAt } from './house';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -26,14 +27,23 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
   app.get('/api/friends', auth, async (req) => {
     const s = await getSettings(db);
     const rows = await db.query(
-      `select u.id, u.display_name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear, p.level, u.last_seen_at,
+      `select u.id, u.display_name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear, p.level, u.last_seen_at, u.show_online, u.live_visits,
               exists(select 1 from visits v where v.visitor_id = $1 and v.host_id = u.id and v.day = $2) as visited_today
          from friendships f join users u on u.id = f.friend_id left join pets p on p.user_id = u.id
         where f.user_id = $1 and u.banned_at is null
         order by u.last_seen_at desc limit $3`,
       [req.user!.id, today(), s.social.maxFriends],
     );
-    return { friends: rows };
+    // status online (bila tidak disembunyikan) & tamu yang sedang main di rumahnya
+    const names = new Map(rows.map((r: any) => [r.id, r.display_name]));
+    names.set(req.user!.id, 'kamu');
+    const friends = rows.map((r: any) => {
+      const p = r.show_online ? presenceOf(r.id, r.last_seen_at) : null;
+      const { show_online, live_visits, ...rest } = r;
+      return { ...rest, online: !!p, where: p?.where ?? null, at: p?.where === 'visit' && p.host ? names.get(p.host) ?? 'teman' : null, guests: live_visits ? guestsAt(r.id) : 0 };
+    });
+    friends.sort((a: any, b: any) => Number(b.online) - Number(a.online) || b.guests - a.guests);
+    return { friends };
   });
 
   app.post('/api/friends', { ...auth, config: { rateLimit: { max: 30, timeWindow: '10 minutes' } } }, async (req: any) => {
@@ -68,15 +78,28 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
     if (id !== req.user!.id && !(await isFriend(req.user!.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-    const [owner, pet, rooms, visited, likes] = await Promise.all([
-      db.one(`select id, display_name from users where id = $1 and banned_at is null`, [id]),
+    const [owner, pet, rooms, visited, likes, photo, book, used] = await Promise.all([
+      db.one<any>(`select id, display_name, live_visits, show_online, last_seen_at from users where id = $1 and banned_at is null`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
       loadRooms(db, id, cat, s, false),
       db.one(`select 1 from visits where visitor_id = $1 and host_id = $2 and day = $3`, [req.user!.id, id, today()]),
       db.one<{ c: number; mine: boolean }>(`select count(*)::int c, bool_or(liker_id = $2) mine from house_likes where host_id = $1 and week = $3`, [id, req.user!.id, weekKey()]),
+      db.one<any>(`select p.id, p.pose, p.members, p.scene from users u join photos p on p.id = u.featured_photo where u.id = $1`, [id]),
+      db.query<any>(
+        `select a.kind, a.item_id, a.created_at, u.display_name as name from visit_acts a join users u on u.id = a.visitor_id
+          where a.host_id = $1 order by a.created_at desc limit 6`, [id]),
+      db.one<{ count: number }>(`select count from daily_counters where user_id = $1 and key = $2 and day = $3`, [req.user!.id, `vact:${id}`, today()]),
     ]);
     if (!owner) throw notFound('Rumah tidak ditemukan.');
-    return { owner, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited, likes: { count: likes?.c ?? 0, liked: !!likes?.mine } };
+    const sv: any = s;
+    const online = owner.show_online ? presenceOf(id, owner.last_seen_at) : null;
+    return {
+      owner: { id: owner.id, display_name: owner.display_name }, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited,
+      likes: { count: likes?.c ?? 0, liked: !!likes?.mine },
+      photo: photo ? { id: photo.id, pose: photo.pose, members: photo.members, scene: photo.scene } : null,
+      guestbook: book.map((b: any) => ({ ...b, created_at: new Date(b.created_at).getTime() })),
+      together: { on: !!sv.visit?.together, live: owner.live_visits !== false, online: !!online, left: Math.max(0, (sv.visit?.actsPerFriend ?? 0) - (used?.count ?? 0)), phrases: sv.visit?.phrases ?? [], freeChat: !!sv.visit?.freeChat },
+    };
   });
 
   /* ---------------- suka rumah teman & rumah terfavorit ---------------- */

@@ -375,3 +375,21 @@ export async function seedPackV6(db: Db) {
   await db.query(`insert into settings (key, value) values ('content_pack', '6'::jsonb) on conflict (key) do update set value = excluded.value`);
   return true;
 }
+
+/** Paket konten v7: kunjungan bareng (tugas harian & lencana main di rumah teman, masak bareng, foto bareng). */
+export async function seedPackV7(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 7) return false;
+  const q = (id: string, kind: string, title: string, desc: string, event: string, filter: object, target: number, coin: number, pearl: number, xp: number, url: string, sort: number) =>
+    db.query(
+      `insert into quests (id, kind, title, description, event, filter, target, reward_coin, reward_pearl, reward_xp, url, sort)
+       values ($1,$2,$3,$4,$5,$6::text::jsonb,$7,$8,$9,$10,$11,$12) on conflict (id) do nothing`,
+      [id, kind, title, desc, event, JSON.stringify(filter), target, coin, pearl, xp, url, sort],
+    ).catch(() => {});
+  await q('h-tamu', 'daily', 'Main ke rumah teman', 'Berkunjung dan main 2 kali dengan pet teman (sapa, peluk, kasih camilan, ...).', 'visit_play', {}, 2, 20, 0, 4, '/#friends', 155);
+  await q('b-tetangga', 'badge', 'Tetangga Akrab', 'Main dengan pet teman saat berkunjung 20 kali.', 'visit_play', {}, 20, 0, 2, 20, '/#friends', 670);
+  await q('b-koki', 'badge', 'Koki Kampung', 'Berhasil Masak bareng 5 kali.', 'coop', { game: 'masak' }, 5, 0, 2, 20, '/#friends', 680);
+  await q('b-foto', 'badge', 'Kenangan Bareng', 'Ambil 10 foto bareng di rumah teman.', 'photo', {}, 10, 0, 2, 20, '/#album', 690);
+  await db.query(`insert into settings (key, value) values ('content_pack', '7'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}

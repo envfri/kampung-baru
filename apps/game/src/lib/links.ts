@@ -27,6 +27,8 @@ export function openLink(url: string) {
     case 'whatsnew': G.view = 'home'; G.sheet = 'whatsnew'; break;
     case 'games': G.view = 'map'; G.sheet = 'games'; break;
     case 'duels': G.duel = null; G.view = 'map'; G.sheet = 'duels'; break;
+    case 'bukutamu': G.view = 'home'; G.sheet = 'friends'; G.sheetArg = { tab: 'book' }; break;
+    case 'album': G.view = 'home'; G.sheet = 'friends'; G.sheetArg = { tab: 'album' }; break;
     case 'simpan': case 'akun': G.view = 'home'; G.sheet = 'settings'; break;
     case 'panen': G.view = 'panen'; break;
     case 'memori': G.view = 'memori'; break;

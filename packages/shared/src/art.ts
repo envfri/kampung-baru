@@ -782,6 +782,10 @@ export interface RoomOpts {
   theme?: string;
   /** remah & bulu rontok di lantai (diketuk untuk disapu) */
   crumbs?: { x: number; y: number; k: string; c?: string }[];
+  /** pet lain di ruangan (tamu / pet sendiri saat berkunjung); digeser per frame lewat [data-o] */
+  others?: { id: string; look: PetLook; wear: ItemLike[]; pos: [number, number]; flip?: boolean; pose?: string; state?: PetStateLook }[];
+  /** isi lukisan dinding: foto bareng (lihat photoScene) */
+  photo?: string;
 }
 
 function crumbSVG(g: Ctx, cr: { x: number; y: number; k: string; c?: string }, i: number) {
@@ -906,7 +910,7 @@ export const ROOM_SPOTS = {
 } as const;
 export type RoomSpot = keyof typeof ROOM_SPOTS;
 
-function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor: ReturnType<typeof floorColors>, edit: boolean, outdoor = false) {
+function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor: ReturnType<typeof floorColors>, edit: boolean, outdoor = false, photo = '') {
   const WH = 150, s = g.s;
   const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, W), D = g.iso(0, W);
   const up = (p: number[], v: number) => [p[0], p[1] - v];
@@ -973,11 +977,20 @@ function roomShell(g: Ctx, W: number, wall: ReturnType<typeof wallColors>, floor
   o += `<g class="spot" data-spot="lukisan">`;
   const py0 = W / 2 + 0.35, py1 = W / 2 + 1.65;
   o += g.quadX(0, py0, py1, 62, 110, '#FFFDF7');
+  if (photo) {
+    // foto bareng yang dipajang: isi kotak 136×100 dipetakan ke bidang dinding kiri
+    const y0 = py0 + 0.13, y1 = py1 - 0.13;
+    o += g.quadX(0, y0, y1, 68, 104, '#DDEFF5');
+    const a0 = g.iso(0, y0), a1 = g.iso(0, y1);
+    const m = [(a0[0] - a1[0]) / 136, (a0[1] - a1[1]) / 136, 0, (36 * s) / 100, a1[0], a1[1] - 104 * s].map((v) => Math.round(v * 1000) / 1000);
+    o += `<g class="photo" transform="matrix(${m.join(' ')})">${photo}</g></g>`;
+  } else {
   o += g.quadX(0, py0 + 0.13, py1 - 0.13, 68, 104, '#9FD3C2');
   const Q = (yy: number, v: number) => { const p = g.iso(0, yy); return [p[0], p[1] - v * s]; };
   o += `<polygon points="${P([Q(py0 + 0.2, 70), Q(py0 + 0.6, 94), Q(py0 + 1.0, 70)])}" fill="#3FA06A"/><polygon points="${P([Q(py0 + 0.5, 70), Q(py0 + 0.85, 86), Q(py0 + 1.13, 70)])}" fill="#2F7F55"/>`;
   const sun = Q(py0 + 0.35, 97);
   o += `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/></g>`;
+  }
   }
   // lantai
   for (let i = 0; i < W; i++)
@@ -1022,7 +1035,7 @@ export function renderRoom(o: RoomOpts) {
   const t = Math.round((34 * 6) / W);
   const g = G({ ox: 400, oy: 150, t, h: t / 2 });
   const outdoor = o.theme === 'luar';
-  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!o.edit, outdoor) + (outdoor ? '' : roomDecor(g, W, o.decor));
+  let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!o.edit, outdoor, o.photo ?? '') + (outdoor ? '' : roomDecor(g, W, o.decor));
   const list = o.layout.map((p, idx) => ({ p, idx, it: o.items[p.i] })).filter((e) => e.it);
   const grp = (e: (typeof list)[number]) =>
     `<g class="furn${o.edit ? ' editable' : ''}${o.edit && o.sel === e.idx ? ' sel' : ''}" data-i="${e.idx}">${furnDraw(g, e.it, e.p.x, e.p.y)}</g>`;
@@ -1037,6 +1050,10 @@ export function renderRoom(o: RoomOpts) {
     const lift = (o.pet.lift ?? 0) * g.s;
     const prop = o.pet.prop ? PROPS[o.pet.prop] ?? '' : '';
     draws.push({ d: pos[0] + pos[1] + 0.01, h: `<g class="pet${o.pet.pose ? ' pose-' + esc(o.pet.pose) : ''}" transform="translate(${f1(c[0])} ${f1(c[1] - lift)}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-face"${o.pet.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(o.pet.look, o.pet.wear, o.pet.state)}</g>${prop}</g></g></g>` });
+  }
+  for (const p of o.edit ? [] : o.others ?? []) {
+    const c = g.iso(p.pos[0], p.pos[1]);
+    draws.push({ d: p.pos[0] + p.pos[1] + 0.005, h: `<g class="opet${p.pose ? ' pose-' + esc(p.pose) : ''}" data-o="${esc(p.id)}" transform="translate(${f1(c[0])} ${f1(c[1])}) scale(${f1((0.82 * t) / 34 * 100) / 100})"><g class="pet-hop"><g class="pet-face"${p.flip ? ' transform="scale(-1 1)"' : ''}><g class="pet-bob">${renderPet(p.look, p.wear, p.state)}</g></g></g></g>` });
   }
   draws.sort((a, b) => a.d - b.d).forEach((d) => (out += d.h));
   return out;
@@ -1210,4 +1227,38 @@ export function renderMap(locations: LocationLike[], decor?: string) {
     o += `<g class="loc" data-loc="${esc(l.id)}" tabindex="0" role="button" aria-label="${esc(l.name)}">${special(l)}</g>`;
   }
   return o + mapDecor(decor);
+}
+
+/* ------------------------------------------------------------------ */
+/* Foto bareng                                                          */
+/* ------------------------------------------------------------------ */
+
+export const PHOTO_POSES = { senyum: 'Senyum', lompat: 'Lompat', peluk: 'Peluk' } as const;
+
+/** Pet-pet dalam foto, digambar di kotak 136×100 (dipakai di album & lukisan dinding). */
+export function photoScene(members: { look: PetLook; wear: ItemLike[]; state?: PetStateLook }[], pose = 'senyum') {
+  const n = Math.max(1, Math.min(6, members.length));
+  const hug = pose === 'peluk';
+  const gap = Math.min(hug ? 40 : 52, 128 / n);
+  const sc = Math.min(0.5, (gap * (hug ? 1.45 : 1.12)) / 132);
+  const x0 = 68 - (gap * (n - 1)) / 2;
+  let out = '';
+  members.slice(0, 6).forEach((m, i) => {
+    const up = pose === 'lompat' ? (i % 2 ? 6 : 16) : 0;
+    const tilt = hug ? (i < (n - 1) / 2 ? 6 : i > (n - 1) / 2 ? -6 : 0) : 0;
+    out += `<g transform="translate(${f1(x0 + i * gap)} ${f1(96 - up)}) rotate(${tilt}) scale(${f1(sc * 100) / 100})">${renderPet(m.look, m.wear, { ...(m.state ?? {}), mood: 'senang', dirt: 0 })}</g>`;
+  });
+  if (hug) out += `<path d="M68 ${f1(Math.max(14, 96 - 132 * sc - 14))}c-4-6-12-2-8 4l8 7 8-7c4-6-4-10-8-4z" fill="#E0583F" stroke="${INK}" stroke-width="1.5"/>`;
+  return out;
+}
+
+/** Foto polaroid untuk album: latar dari dinding & lantai ruangan tempat foto diambil. */
+export function renderPhoto(members: { look: PetLook; wear: ItemLike[]; state?: PetStateLook }[], pose: string, wall?: ItemLike | null, floor?: ItemLike | null, theme = 'dalam') {
+  const outdoor = theme === 'luar';
+  const w = outdoor ? { main: '#BFE3F5', accent: '#A9D6EE' } : wallColors(wall);
+  const f = floorColors(floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR);
+  return `<svg viewBox="0 0 160 140" aria-hidden="true"><rect x="1" y="1" width="158" height="138" rx="6" fill="#FFFDF7" stroke="${INK}" stroke-width="2"/>`
+    + `<svg x="12" y="10" width="136" height="100" viewBox="0 0 136 100"><rect width="136" height="100" fill="${w.main}"/><rect y="70" width="136" height="30" fill="${f.main}"/><path d="M0 70H136" stroke="${shade(f.main, -0.25)}" stroke-width="1.5"/>`
+    + (outdoor ? '' : `<path d="M0 ${'25'}H136" stroke="${shade(w.main, -0.08)}" stroke-width="3" opacity=".6"/>`)
+    + photoScene(members, pose) + `</svg><rect x="12" y="10" width="136" height="100" fill="none" stroke="${INK}" stroke-width="1.5"/></svg>`;
 }

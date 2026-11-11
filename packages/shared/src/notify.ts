@@ -154,6 +154,18 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{teman} menantangmu!', body: 'Duel {permainan}. Main bareng sekarang atau balas tantangannya nanti.', wa: '{teman} menantang {pet} duel {permainan} ⚔️\n{link}' },
   },
   {
+    key: 'visit_play', group: 'Teman', label: 'Tamu main dengan pet-mu', kind: 'social', allowed: ALL, url: '/#bukutamu',
+    desc: 'Teman berkunjung dan bermain dengan pet-mu (sapa, peluk, kasih camilan, ...). Maksimal sekali per teman per jam.',
+    vars: { teman: 'Nama tamu', pet: 'Nama pet-mu', aksi: 'Yang dilakukan, mis. "memberi Klepon"' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{teman} main ke rumahmu', body: '{teman} {aksi} {pet}. Lihat di buku tamu.', wa: '{teman} main ke rumahmu dan {aksi} {pet}.\n{link}' },
+  },
+  {
+    key: 'house_photo', group: 'Teman', label: 'Foto bareng', kind: 'social', allowed: ALL, url: '/#album',
+    desc: 'Teman mengambil foto bareng di rumahmu atau bersamamu. Fotonya masuk album.',
+    vars: { teman: 'Nama yang memotret', jumlah: 'Jumlah pet di foto' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: 'Foto bareng baru!', body: '{teman} mengambil foto bareng ({jumlah} pet). Lihat di album.', wa: '{teman} mengambil foto bareng ({jumlah} pet). Lihat di album BUPI.\n{link}' },
+  },
+  {
     key: 'duel_result', group: 'Teman', label: 'Hasil duel', kind: 'social', allowed: ALL, url: '/#duels',
     desc: 'Duel selesai (lawan sudah main): menang, kalah, atau seri.',
     vars: { teman: 'Nama lawan', permainan: 'Nama mini-game', hasil: 'Menang / Kalah / Seri', skor: 'Skor kamu vs skor lawan' },

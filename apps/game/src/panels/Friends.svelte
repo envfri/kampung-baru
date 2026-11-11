@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
-  import { petSVG } from '@kb/shared';
+  import { petSVG, renderPhoto } from '@kb/shared';
+  import PhotoPreview from '../components/PhotoPreview.svelte';
   import { G, item, wearItems, run, toast, fail, track } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
@@ -11,7 +12,17 @@
   let friends = $state<any[] | null>(null);
   let gifts = $state<any[]>([]);
   let code = $state('');
-  let tab = $state<'list' | 'gifts' | 'top'>(G.me.giftsUnread > 0 ? 'gifts' : 'list');
+  let tab = $state<'list' | 'gifts' | 'top' | 'book' | 'album'>(G.sheetArg?.tab ?? (G.me.giftsUnread > 0 ? 'gifts' : (G.me.guestbookUnread ?? 0) > 0 ? 'book' : 'list'));
+  // buku tamu (siapa yang main ke rumahmu) & album foto bareng
+  let book = $state<any[] | null>(null);
+  let album = $state<{ photos: any[]; featured: string | null } | null>(null);
+  let viewing = $state<any>(null);
+  async function loadBook() { tab = 'book'; try { book = (await api.get('/api/guestbook')).entries; G.me.guestbookUnread = 0; } catch (e) { fail(e); book = []; } }
+  async function loadAlbum() { tab = 'album'; try { album = await api.get('/api/photos'); } catch (e) { fail(e); album = { photos: [], featured: null }; } }
+  $effect(() => { if (tab === 'book' && book === null) loadBook(); if (tab === 'album' && album === null) loadAlbum(); });
+  const BOOK: Record<string, string> = { sapa: 'menyapa', peluk: 'memeluk', camilan: 'memberi camilan untuk', kejar: 'main kejar-kejaran dengan', duduk: 'duduk santai bareng' };
+  const photoSvg = (p: any) => renderPhoto(p.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), p.pose, item(p.scene?.wall), item(p.scene?.floor), p.scene?.theme);
+  const whereText = (f: any) => (f.where === 'home' ? 'di rumah' : f.where === 'visit' ? (f.at ? `main ke rumah ${f.at}` : 'sedang berkunjung') : 'di kampung');
   let top = $state<any>(null);
   async function loadTop() { tab = 'top'; try { top = await api.get('/api/houses/top'); } catch (e) { fail(e); top = { top: [], mine: 0 }; } }
   const myCode = $derived(G.me.user.friend_code);
@@ -88,10 +99,12 @@
     {#if G.me.duelsPending}<i>{G.me.duelsPending}</i>{/if}
   </button>
 
-  <div class="seg">
-    <button class:on={tab === 'list'} onclick={() => (tab = 'list')}>Daftar teman</button>
-    <button class:on={tab === 'gifts'} onclick={() => (tab = 'gifts')}>Kotak hadiah {#if G.me.giftsUnread}<i>{G.me.giftsUnread}</i>{/if}</button>
-    <button class:on={tab === 'top'} onclick={loadTop}>Terfavorit</button>
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected={tab === 'list'} class:on={tab === 'list'} onclick={() => (tab = 'list')}>Teman</button>
+    <button role="tab" aria-selected={tab === 'gifts'} class:on={tab === 'gifts'} onclick={() => (tab = 'gifts')}>Hadiah {#if G.me.giftsUnread}<i>{G.me.giftsUnread}</i>{/if}</button>
+    <button role="tab" aria-selected={tab === 'book'} class:on={tab === 'book'} onclick={loadBook}>Buku tamu {#if G.me.guestbookUnread}<i>{G.me.guestbookUnread}</i>{/if}</button>
+    <button role="tab" aria-selected={tab === 'album'} class:on={tab === 'album'} onclick={loadAlbum}>Album</button>
+    <button role="tab" aria-selected={tab === 'top'} class:on={tab === 'top'} onclick={loadTop}>Favorit</button>
   </div>
 
   {#if tab === 'list'}
@@ -105,18 +118,48 @@
         <div class="friend">
           <span class="ava">{@html petSVG({ color: f.color ?? '#F2EEE3', ear: f.ear ?? 'tunas', pattern: f.pattern, eyes: f.eyes, tail: f.tail }, wearItems(f.wear))}</span>
           <div class="info">
-            <b>{f.display_name}</b>
+            <b>{#if f.online}<i class="on" aria-label="online"></i>{/if}{f.display_name}</b>
             <span>{f.pet_name ?? 'Belum punya pet'}{f.level ? ` · Lv ${f.level}` : ''}</span>
-            <em class:hot={!f.visited_today}>{f.visited_today ? 'Sudah dikunjungi hari ini' : 'Hadiah kunjungan tersedia'}</em>
+            {#if f.online}<em class="hot">Online · {whereText(f)}{f.guests ? ` · ramai ${f.guests} tamu` : ''}</em>
+            {:else}<em class:hot={!f.visited_today}>{f.visited_today ? 'Sudah dikunjungi hari ini' : 'Hadiah kunjungan tersedia'}</em>{/if}
           </div>
           <div class="btns">
-            <button class="btn sm" onclick={() => visit(f)}>Kunjungi</button>
+            <button class="btn sm" class:hot={f.online && f.where === 'home'} onclick={() => visit(f)}>{f.online && (f.where === 'home' || f.guests) ? 'Main bareng' : 'Kunjungi'}</button>
             <button class="btn sm" aria-label="Tantang {f.display_name} duel" onclick={() => { sfx.tap(); G.sheetArg = { friendId: f.id }; G.sheet = 'duels'; }}>Duel</button>
             <button class="btn sm" aria-label="Kirim hadiah ke {f.display_name}" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: f.id, name: f.display_name }; }}>{@html I.gift}</button>
           </div>
         </div>
       {/each}
     </div>
+  {:else if tab === 'book'}
+    <p class="visitors">Teman yang main ke rumahmu dan apa yang mereka lakukan dengan {G.me.pet.name}.</p>
+    {#if book === null}<p class="muted">Memuat…</p>
+    {:else if !book.length}<p class="muted">Belum ada tamu. Bagikan kode temanmu supaya teman bisa main ke rumahmu!</p>{/if}
+    <div class="list">
+      {#each book ?? [] as e, i (i)}
+        <div class="friend" class:me={e.unread}>
+          <span class="ava">{@html petSVG({ color: e.color ?? '#F2EEE3', ear: e.ear ?? 'tunas', pattern: e.pattern, eyes: e.eyes, tail: e.tail }, wearItems(e.wear))}</span>
+          <div class="info">
+            <b>{e.name}</b>
+            <span>{e.pet_name ?? 'Pet-nya'} {BOOK[e.kind] ?? 'main dengan'} {G.me.pet.name}{e.item_id ? ` (${item(e.item_id)?.name ?? 'camilan'})` : ''}</span>
+            <em>{ago(new Date(e.created_at).toISOString())}</em>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {:else if tab === 'album'}
+    <p class="visitors">Foto bareng dari kunjungan. Pilih satu untuk dipajang di lukisan rumahmu.</p>
+    {#if album === null}<p class="muted">Memuat…</p>
+    {:else if !album.photos.length}<p class="muted">Belum ada foto. Berkunjunglah ke rumah teman lalu ketuk Foto!</p>{/if}
+    <div class="album">
+      {#each album?.photos ?? [] as p (p.id)}
+        <button class="pol" class:feat={album?.featured === p.id} onclick={() => (viewing = p)} aria-label="Foto bareng {p.members.map((m: any) => m.pet?.name).join(', ')}">
+          {@html photoSvg(p)}
+          {#if album?.featured === p.id}<i>Dipajang</i>{/if}
+        </button>
+      {/each}
+    </div>
+    {#if viewing}<PhotoPreview photo={viewing} onclose={() => { viewing = null; loadAlbum(); }} />{/if}
   {:else if tab === 'top'}
     <p class="visitors">Rumah yang paling banyak disukai minggu ini. Sukai rumah teman saat berkunjung (sekali seminggu per teman).{#if top}{' '}Rumahmu: <b>{top.mine}</b> suka.{/if}</p>
     {#if top === null}<p class="muted">Memuat…</p>
@@ -171,8 +214,15 @@
   .duelbar .t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .duelbar b { font-size: 16px; } .duelbar small { font-size: 13px; font-weight: 600; color: var(--muted); }
   .duelbar i { font-style: normal; background: var(--low); color: #fff; border-radius: 10px; padding: 0 7px; font-weight: 800; font-size: 13px; border: 2px solid var(--ink); }
-  .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
-  .seg button { flex: 1; border: 0; background: var(--paper); font-weight: 800; font-size: 14.5px; min-height: 40px; cursor: pointer; }
+  .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 12px; overflow-x: auto; scrollbar-width: none; }
+  .seg button { flex: 1 1 auto; min-width: max-content; border: 0; background: var(--paper); font-weight: 800; font-size: 13.5px; min-height: 40px; cursor: pointer; padding: 0 9px; white-space: nowrap; }
+  .on { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #3FA06A; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 2px #CDEBD8; }
+  .album { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .pol { position: relative; border: 0; background: none; padding: 0; cursor: pointer; transform: rotate(-1.5deg); }
+  .pol:nth-child(even) { transform: rotate(1.5deg); }
+  .pol :global(svg) { width: 100%; height: auto; display: block; filter: drop-shadow(0 3px 0 rgba(43,47,74,.25)); }
+  .pol i { position: absolute; top: 6px; right: 6px; font-style: normal; font-size: 11px; font-weight: 800; background: var(--coin); border: 2px solid var(--ink); border-radius: 999px; padding: 0 6px; }
+  .pol.feat :global(svg) { filter: drop-shadow(0 0 0 #F2B632) drop-shadow(0 3px 0 rgba(43,47,74,.25)); }
   .seg button.on { background: var(--coin); }
   .seg i { font-style: normal; background: var(--low); color: #fff; border-radius: 9px; padding: 0 6px; font-size: 12px; }
   .list { display: flex; flex-direction: column; gap: 8px; }

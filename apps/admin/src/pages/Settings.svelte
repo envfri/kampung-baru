@@ -6,7 +6,7 @@
   let busy = $state(false);
   let jsonErr = $state<Record<string, string>>({});
   const editable = $derived(can('admin'));
-  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Waktu notifikasi otomatis', quests: 'Tugas', games: 'Mini-game Balai Main', house: 'Rumah', sleep: 'Tidur', health: 'Kesehatan (sakit ringan)', weight: 'Berat badan', crumbs: 'Remah & bulu rontok', speech: 'Celetukan pet' };
+  const TITLE: Record<string, string> = { economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing', garden: 'Kebun', room: 'Ruangan', starter: 'Barang awal pemain baru', features: 'Fitur & login', notify: 'Waktu notifikasi otomatis', quests: 'Tugas', games: 'Mini-game Balai Main', house: 'Rumah', sleep: 'Tidur', health: 'Kesehatan (sakit ringan)', weight: 'Berat badan', crumbs: 'Remah & bulu rontok', speech: 'Celetukan pet', duel: 'Duel teman', account: 'Akun & pindah perangkat', visit: 'Kunjungan bareng' };
   const isTextList = (v: any) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
   onMount(async () => { try { const r = await api.get('/api/admin/settings'); value = r.value; help = r.help; defaults = r.defaults; } catch (e) { err(e); } });
 

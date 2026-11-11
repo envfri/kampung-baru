@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { fits, renderRoom, ROOM_VIEWBOX, occupied, petSpot, roomGeom, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, type RoomSpot } from '@kb/shared';
+  import { fits, renderRoom, ROOM_VIEWBOX, occupied, petSpot, roomGeom, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, type RoomSpot } from '@kb/shared';
+  import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY } from '../lib/house.svelte';
+  import { EMOTE_ICON } from '../lib/houseArt';
+  import { api } from '../lib/api';
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
@@ -21,6 +24,9 @@
   const petData = $derived<any>(mode === 'visit' ? G.visit?.pet : G.me.pet);
   const asleep = $derived(!!petData && G.now > 0 && isSleeping(petData));
   const homeLive = $derived(mode === 'home' && !G.edit);
+  // berkunjung saat tuan rumah juga ada di rumahnya: pet tuan rumah digerakkan pemiliknya (dari sinkron)
+  const hostMember = $derived(mode === 'visit' ? H.members.find((m) => m.host) ?? null : null);
+  const hideMain = $derived(!!hostMember);
 
   /* ---------------- pet berjalan ---------------- */
   // `pos` dipakai saat menggambar ulang ruangan (hanya saat pet pindah petak, untuk urutan kedalaman);
@@ -101,12 +107,20 @@
     if (r?.coins) sfx.coin();
   }
 
+  // foto bareng yang dipajang di lukisan dinding
+  const photoSvg = $derived.by(() => {
+    const ph = mode === 'visit' ? G.visit?.photo : G.me?.photo;
+    if (!ph?.members?.length || theme === 'luar') return '';
+    return photoScene(ph.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), ph.pose);
+  });
   const html = $derived.by(() => {
     const p = pos ?? undefined;
+    void compVer;
     return renderRoom({
       layout, items: itemMap, wall: item(room?.wall), floor: item(room?.floor), size, theme,
-      pet: petData ? { look: petData, wear: wearItems(petData.wear), pos: p, flip, lift: pose?.lift, pose: pose?.pose, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop, state: look } : null,
-      edit: mode === 'home' && G.edit, sel: G.sel, decor: activeDecor(), crumbs,
+      pet: petData && !hideMain ? { look: petData, wear: wearItems(petData.wear), pos: p, flip, lift: pose?.lift, pose: pose?.pose, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop, state: look } : null,
+      edit: mode === 'home' && G.edit, sel: G.sel, decor: activeDecor(), crumbs, photo: photoSvg,
+      others: [...comps.values()].map((c) => ({ id: c.id, look: c.look, wear: c.wear, pos: c.live, flip: c.flip, pose: c.pose, state: c.state })),
     });
   });
 
@@ -120,11 +134,13 @@
 
   /** Jalur terpendek (BFS) dari petak pet ke salah satu petak tujuan, menghindari mebel. */
   function routeToAny(goals: [number, number][]) {
-    if (!live) return null;
+    return live ? routeFrom(live, goals) : null;
+  }
+  function routeFrom(at: [number, number], goals: [number, number][]) {
     const key = (x: number, y: number) => `${x},${y}`;
     const want = new Set(goals.filter(([x, y]) => x >= 0 && y >= 0 && x < size && y < size && !blocked.has(key(x, y))).map(([x, y]) => key(x, y)));
     if (!want.size) return null;
-    const from: [number, number] = [Math.floor(live[0]), Math.floor(live[1])];
+    const from: [number, number] = [Math.floor(at[0]), Math.floor(at[1])];
     const prev = new Map<string, [number, number] | null>([[key(...from), null]]);
     const queue: [number, number][] = [from];
     let end: [number, number] | null = null;
@@ -209,7 +225,7 @@
     idleTimer = setTimeout(wander, 2500 + Math.random() * 5000);
   }
   function wander() {
-    if (!live || G.edit || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
+    if (!live || hideMain || G.edit || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     const options: [number, number][] = [];
     for (let x = 0; x < size; x++)
@@ -229,6 +245,235 @@
 
   onMount(() => scheduleIdle());
   onDestroy(() => { halt(); clearInterval(talkTimer); cancelAnimationFrame(bubbleRaf); });
+
+  /* ---------------- pet lain di ruangan: tamu yang sedang live & pet sendiri saat berkunjung ---------------- */
+  type Comp = { id: string; name: string; look: any; wear: any[]; state?: any; live: [number, number]; tile: string; path: [number, number][]; speed: number; flip: boolean; pose?: string; target: string; self?: boolean };
+  const SELF = '__me';
+  const comps = new Map<string, Comp>();
+  const missing = new Map<string, number>();
+  let compVer = $state(0);
+  let compRaf = 0, compLast = 0;
+  let selfBusy = false;
+  const clampT = (v: number) => Math.max(0.5, Math.min(size - 0.5, v));
+
+  function placeComp(c: Comp) {
+    const el = svgEl?.querySelector(`[data-o="${c.id}"]`) as SVGGElement | null;
+    if (!el) return;
+    const [x, y] = geom.point(c.live[0], c.live[1]);
+    el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${geom.petScale})`);
+    el.querySelector('.pet-face')?.setAttribute('transform', c.flip ? 'scale(-1 1)' : '');
+    el.classList.toggle('moving', c.path.length > 0);
+  }
+  function compTick(now: number) {
+    const dt = Math.min(0.05, (now - compLast) / 1000);
+    compLast = now;
+    let moving = false, retile = false;
+    for (const c of comps.values()) {
+      if (!c.path.length) continue;
+      moving = true;
+      const [tx, ty] = c.path[0];
+      const dx = tx - c.live[0], dy = ty - c.live[1], d = Math.hypot(dx, dy), step = c.speed * dt;
+      const sx = dx - dy;
+      if (Math.abs(sx) > 0.01) c.flip = sx < 0;
+      if (d <= step) { c.live = [tx, ty]; c.path.shift(); } else c.live = [c.live[0] + (dx / d) * step, c.live[1] + (dy / d) * step];
+      const tk = tileOf(c.live);
+      if (tk !== c.tile) { c.tile = tk; retile = true; }
+      placeComp(c);
+    }
+    if (retile) compVer++;
+    compRaf = moving ? requestAnimationFrame(compTick) : 0;
+    if (!moving) for (const c of comps.values()) placeComp(c);
+  }
+  function compGo() { if (!compRaf) { compLast = performance.now(); compRaf = requestAnimationFrame(compTick); } }
+  function compWalk(c: Comp, goals: [number, number][], speed = 1.6) {
+    const p = routeFrom(c.live, goals);
+    if (!p || !p.length) return Promise.resolve(false);
+    c.path = p; c.speed = speed;
+    compGo();
+    return new Promise<boolean>((res) => { const t0 = Date.now(); const chk = () => (c.path.length && Date.now() - t0 < 8000 ? setTimeout(chk, 90) : res(true)); chk(); });
+  }
+  const freeTiles = () => { const out: [number, number][] = []; for (let x = 0; x < size; x++) for (let y = 0; y < size; y++) if (!blocked.has(`${x},${y}`)) out.push([x, y]); return out; };
+  /** petak yang sedang ditempati pet lain (supaya tidak bertumpuk) */
+  const takenTiles = (except: string) => { const t = new Set<string>(); for (const c of comps.values()) if (c.id !== except) { t.add(tileOf(c.live)); if (c.path.length) t.add(tileOf(c.path[c.path.length - 1])); } if (live && !hideMain) t.add(tileOf(live)); return t; };
+  /** petak kosong di sekitar pet tuan rumah (jarak 1–3), acak */
+  function spotNearHost(except: string, min = 1, max = 3) {
+    const h = hostAt();
+    const taken = takenTiles(except);
+    const near = freeTiles().filter(([x, y]) => {
+      if (taken.has(`${x},${y}`)) return false;
+      if (!h) return true;
+      const d = Math.abs(x + 0.5 - h[0]) + Math.abs(y + 0.5 - h[1]);
+      return d >= min && d <= max;
+    });
+    const pool = near.length ? near : freeTiles().filter(([x, y]) => !taken.has(`${x},${y}`));
+    return pool[Math.floor(Math.random() * pool.length)] ?? null;
+  }
+  /** posisi pet tuan rumah (dari sinkron bila ia sedang di rumah, selain itu pet utama) */
+  const hostAt = (): [number, number] | null => (hostMember ? comps.get(hostMember.id)?.live ?? null : live);
+
+  // pet sendiri ikut berkunjung
+  function ensureSelf() {
+    if (mode !== 'visit' || !G.me?.pet || comps.has(SELF)) return;
+    const t = spotNearHost(SELF, 1, 3) ?? [size - 1, size - 1];
+    const at: [number, number] = [t[0] + 0.5, t[1] + 0.5];
+    comps.set(SELF, { id: SELF, name: G.me.pet.name, look: G.me.pet, wear: wearItems(G.me.pet.wear), state: petLook(G.me.pet), live: at, tile: tileOf(at), path: [], speed: 1.6, flip: true, target: '', self: true });
+    compVer++;
+  }
+  $effect(() => { void G.visit?.owner?.id; void size; untrack(() => { if (mode === 'visit') { comps.delete(SELF); ensureSelf(); } }); });
+  // tamu (atau tuan rumah) yang sedang live
+  $effect(() => {
+    const ms = H.members;
+    void size;
+    untrack(() => {
+      let changed = false;
+      const keep = new Set([SELF]);
+      for (const m of ms) {
+        if (!m.pet) continue;
+        keep.add(m.id);
+        const tgt: [number, number] = [clampT(m.x), clampT(m.y)];
+        let c = comps.get(m.id);
+        if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
+        else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
+        const pz = m.act === 'duduk' ? 'duduk' : undefined;
+        if (pz !== c.pose) { c.pose = pz; changed = true; }
+        const tk = `${tgt[0].toFixed(2)},${tgt[1].toFixed(2)}`;
+        if (tk !== c.target) {
+          c.target = tk;
+          const d = Math.hypot(tgt[0] - c.live[0], tgt[1] - c.live[1]);
+          if (d > 5) { c.live = [...tgt]; c.path = []; c.tile = tileOf(tgt); changed = true; }
+          else if (d > 0.05) { c.path = [tgt]; c.speed = Math.max(1.7, d / 0.9); compGo(); }
+          else if (!c.path.length) c.flip = m.flip;
+        }
+      }
+      // yang tidak muncul di satu-dua sinkron jangan langsung dihapus (sinyal lemah); baru setelah ±2,5 detik
+      const now = Date.now();
+      for (const id of keep) missing.delete(id);
+      for (const id of [...comps.keys()]) {
+        if (keep.has(id)) continue;
+        const since = missing.get(id) ?? now;
+        missing.set(id, since);
+        if (now - since > 2500) { comps.delete(id); missing.delete(id); changed = true; }
+      }
+      if (changed) compVer++;
+    });
+  });
+  // pet sendiri jalan-jalan di dekat pet teman saat diam
+  let selfWander: any;
+  onMount(() => {
+    selfWander = setInterval(() => {
+      const me = comps.get(SELF);
+      if (!me || selfBusy || me.path.length || document.hidden || Math.random() < 0.4) return;
+      const pick = spotNearHost(SELF, 1, 3);
+      if (pick) compWalk(me, [pick]);
+    }, 4500);
+    // laporkan posisi pet ke rumah live
+    const rep = setInterval(() => {
+      const me = comps.get(SELF);
+      if (mode === 'visit' && me) { H.pos.x = +me.live[0].toFixed(2); H.pos.y = +me.live[1].toFixed(2); H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
+      else if (mode === 'home' && live) { H.pos.x = +live[0].toFixed(2); H.pos.y = +live[1].toFixed(2); H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' ? 'duduk' : walking ? 'jalan' : null; }
+    }, 200);
+    return () => { clearInterval(selfWander); clearInterval(rep); cancelAnimationFrame(compRaf); };
+  });
+  // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
+  let entered = '';
+  $effect(() => {
+    const hid = mode === 'visit' ? G.visit?.owner?.id : G.me?.user?.id;
+    const rid = room?.id ?? '';
+    if (!hid || (mode === 'visit' && G.visit?.together && !G.visit.together.on)) return;
+    untrack(() => { enterHouse(hid, rid); entered = hid; });
+  });
+  onDestroy(() => { if (entered && H.hostId === entered) leaveHouse(); });
+
+  function fxAtComp(id: string, kind: string, hop = true) {
+    const el = svgEl?.querySelector(`[data-o="${id}"]`);
+    const m = el && /translate\(([-\d.]+) ([-\d.]+)\)/.exec(el.getAttribute('transform') ?? '');
+    if (m) spawn(+m[1], +m[2] - 74, kind);
+    if (hop) { const h = el?.querySelector('.pet-hop'); h?.classList.remove('go'); void (h as any)?.getBBox?.(); h?.classList.add('go'); }
+  }
+  const hostFx = (kind: string) => (hostMember ? fxAtComp(hostMember.id, kind) : fx(kind as any));
+  const hostWho = () => (G.visit?.owner?.id ?? 'host');
+
+  /** Main dengan pet teman: pet sendiri menghampiri, beraksi, lalu hasilnya dari server. */
+  async function doVisitAct(kind: string, itemId?: string) {
+    const me = comps.get(SELF);
+    if (mode !== 'visit' || !me || selfBusy || !G.visit) return;
+    selfBusy = true;
+    const req = run(() => api.post(`/api/visit/${G.visit.owner.id}/act`, { kind, itemId }));
+    const h = hostAt();
+    if (h) {
+      const hx = Math.floor(h[0]), hy = Math.floor(h[1]);
+      const taken = takenTiles(SELF);
+      const side = ([[hx + 1, hy], [hx, hy + 1], [hx - 1, hy], [hx, hy - 1]] as [number, number][]).filter(([x, y]) => !taken.has(`${x},${y}`));
+      await compWalk(me, side.length ? side : [[hx + 1, hy], [hx, hy + 1], [hx - 1, hy], [hx, hy - 1]]);
+      const sx = (h[0] - me.live[0]) - (h[1] - me.live[1]);
+      if (Math.abs(sx) > 0.01) { me.flip = sx < 0; placeComp(me); }
+    }
+    H.pos.act = kind;
+    hbubble(H.me || 'me', { text: ACT_SAY[kind] ?? 'Halo!' }, 2600);
+    if (kind === 'kejar') {
+      for (let i = 0; i < 3; i++) {
+        const far = freeTiles().filter(([x, y]) => Math.abs(x + 0.5 - me.live[0]) + Math.abs(y + 0.5 - me.live[1]) >= 2);
+        const pick = far[Math.floor(Math.random() * far.length)];
+        if (!hideMain && pick) { const t2 = freeTiles()[Math.floor(Math.random() * freeTiles().length)]; if (t2) walkTo(t2[0], t2[1]); }
+        if (pick) await compWalk(me, [pick], 2.8);
+      }
+    } else if (kind === 'duduk') {
+      me.pose = 'duduk'; compVer++;
+      await sleep(2400);
+      me.pose = undefined; compVer++;
+    } else await sleep(500);
+    fxAtComp(SELF, kind === 'camilan' ? 'food' : 'hearts');
+    const r: any = await req;
+    if (r) {
+      if (r.hostPet && G.visit) G.visit.pet = r.hostPet;
+      if (G.visit?.together) G.visit.together.left = r.left;
+      hostFx(kind === 'camilan' ? 'food' : 'hearts');
+      const say: Record<string, string> = { sapa: `Halo, ${G.me.pet.name}!`, peluk: 'Hehe, hangat!', camilan: 'Nyam! Makasih!', kejar: 'Hahaha, capek!', duduk: 'Enak ya, santai.' };
+      setTimeout(() => hbubble(hostWho(), { text: say[kind] ?? 'Hehe!' }, 2800), 300);
+      sfx.pop();
+      toast(r.rewarded ? `+${r.coins} koin${r.xp ? `, +${r.xp} XP` : ''} · sisa main berhadiah ${r.left}` : 'Seru! Hadiah main dengan teman ini sudah habis hari ini.', 'good');
+      if (r.coins) sfx.coin();
+      if (r.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.levelUp}!`, 'good'); }
+    }
+    H.pos.act = null;
+    selfBusy = false;
+  }
+  $effect(() => { const q = H.actReq; if (q) untrack(() => { H.actReq = null; doVisitAct(q.kind, q.itemId); }); });
+
+  /* ---------------- gelembung obrolan & label nama di atas pet ---------------- */
+  let tags = $state<{ id: string; x: number; y: number; name: string; self: boolean }[]>([]);
+  let bpos = $state<Record<string, { x: number; y: number }>>({});
+  function rectOf(who: string) {
+    const meId = H.me || 'me';
+    let el: Element | null | undefined = null;
+    if (who === meId || who === 'me') el = mode === 'visit' ? svgEl?.querySelector(`[data-o="${SELF}"]`) : petEl();
+    else if (mode === 'visit' && (who === G.visit?.owner?.id || who === 'host')) el = hostMember ? svgEl?.querySelector(`[data-o="${hostMember.id}"]`) : petEl();
+    else el = svgEl?.querySelector(`[data-o="${who}"]`);
+    return el?.getBoundingClientRect() ?? null;
+  }
+  $effect(() => {
+    const t = setInterval(() => {
+      const w = wrapEl?.getBoundingClientRect();
+      if (!w) return;
+      const bp: Record<string, { x: number; y: number }> = {};
+      for (const b of H.bubbles) {
+        const r = rectOf(b.who);
+        if (r) bp[b.who] = { x: Math.max(70, Math.min(w.width - 70, r.left + r.width / 2 - w.left)), y: Math.max(48, r.top - w.top + 6) };
+      }
+      bpos = bp;
+      const tg: typeof tags = [];
+      for (const c of comps.values()) {
+        const el = svgEl?.querySelector(`[data-o="${c.id}"]`);
+        const r = el?.getBoundingClientRect();
+        if (r) tg.push({ id: c.id, x: r.left + r.width / 2 - w.left, y: r.bottom - w.top + 2, name: c.self ? `${c.name} (kamu)` : c.name, self: !!c.self });
+      }
+      // label nama yang bertumpuk digeser ke bawah supaya tetap terbaca
+      tg.sort((a, b) => a.y - b.y);
+      for (let i = 1; i < tg.length; i++) for (let j = 0; j < i; j++) if (Math.abs(tg[i].x - tg[j].x) < 76 && Math.abs(tg[i].y - tg[j].y) < 19) tg[i].y = tg[j].y + 19;
+      tags = tg;
+    }, 80);
+    return () => clearInterval(t);
+  });
 
   /* ---------------- tidur dengan lampu mati ---------------- */
 
@@ -425,6 +670,8 @@
     const cr = t.closest('.crumb') as SVGElement | null;
     if (cr && homeLive) return sweepCrumb(Number(cr.dataset.c), e);
     if (t.closest('.pet')) return tapPet();
+    const op = t.closest('.opet') as SVGElement | null;
+    if (op) { const id = op.dataset.o!; fxAtComp(id, 'hearts'); sfx.pop(); if (id !== SELF) hemote('hati'); return; }
     if (mode === 'home' && G.edit) {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) { G.sel = Number(f.dataset.i); sfx.tap(); return; }
@@ -448,8 +695,9 @@
       const sp = t.closest('.spot') as SVGElement | null;
       if (sp && sp.dataset.spot && sp.dataset.spot in ROOM_SPOTS) return openMenu(e, { spot: sp.dataset.spot as RoomSpot });
     }
-    // ketuk lantai: pet berjalan ke sana
+    // ketuk lantai: pet berjalan ke sana (saat berkunjung: pet sendiri)
     const fl = t.closest('.fl') as SVGElement | null;
+    if (fl && mode === 'visit') { const me = comps.get(SELF); if (me && !selfBusy) { compWalk(me, [[Number(fl.dataset.x), Number(fl.dataset.y)]]); sfx.tap(); } return; }
     if (fl && walkTo(Number(fl.dataset.x), Number(fl.dataset.y))) sfx.tap();
   }
 
@@ -592,6 +840,11 @@
     <g bind:this={foamLayer} pointer-events="none"></g>
     <g bind:this={fxLayer} pointer-events="none"></g>
   </svg>
+  {#each tags as t (t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>{/each}
+  {#each H.bubbles as b (b.id)}
+    {@const at = bpos[b.who]}
+    {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
+  {/each}
   {#if bubble && G.speech && mode === 'home'}
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
@@ -620,7 +873,13 @@
   .room.home :global(.furn), .room.home :global(.spot), .room.home :global(.crumb) { cursor: pointer; }
   .room.home :global(.furn:hover), .room.home :global(.spot:hover) { filter: brightness(1.06); }
   .room :global(.crumb) { animation: crumbIn .4s ease-out; }
-  .room.walking :global(.pet-bob) { animation: waddle 0.3s ease-in-out infinite alternate; }
+  .room.walking :global(.pet-bob), .room :global(.opet.moving .pet-bob) { animation: waddle 0.3s ease-in-out infinite alternate; }
+  .room :global(.opet) { cursor: pointer; }
+  .tag { position: absolute; z-index: 10; transform: translateX(-50%); background: rgba(255, 253, 247, .92); border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
+  .tag.self { background: #FFE8A3; z-index: 11; }
+  .bubble.hb { z-index: 12; }
+  .bubble.hb.emo { padding: 3px 6px; z-index: 10; }
+  .bubble.hb.emo :global(svg) { width: 30px; height: 30px; display: block; }
   .room :global(.foam) { fill: #FFFFFF; stroke: #9FD0E8; stroke-width: 1.4; opacity: .95; animation: pop .25s ease-out; }
   @keyframes waddle {
     from { transform: rotate(-6deg) translateY(0); }

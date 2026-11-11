@@ -1,0 +1,491 @@
+// Kunjungan bareng: pet tamu ikut ke rumah teman.
+//  - interaksi dengan pet tuan rumah (sapa, peluk, kasih camilan, kejar-kejaran, duduk bareng) + buku tamu;
+//  - rumah "live": semua yang sedang di ruangan yang sama (tuan rumah + beberapa tamu) saling melihat pet,
+//    ekspresi, dan obrolan (polling ±1 detik, keadaan di memori server seperti main bareng Duel);
+//  - main bareng di rumah: Masak bareng & Lempar bola; foto bareng masuk album semua yang ada di foto.
+import type { FastifyInstance } from 'fastify';
+import { randomInt, randomUUID } from 'node:crypto';
+import { applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from '@kb/shared';
+import type { Db } from '../db/index';
+import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
+import { requireUser } from '../lib/auth';
+import { currentNeeds, isAsleep, loadRooms, lockPet, petView, savePet } from '../lib/state';
+import { notifyEvent } from '../lib/notify';
+import { grantXp, patch } from './game';
+
+const UUID = /^[0-9a-f-]{36}$/i;
+// HP yang sedang sibuk / sinyal lemah bisa telat beberapa kali sinkron: jangan langsung dianggap pulang
+const LIVE_MS = 10_000;
+const PRESENCE_MS = 90_000;
+export const VISIT_ACTS = ['sapa', 'peluk', 'camilan', 'kejar', 'duduk'] as const;
+export const EMOTES = ['lambai', 'tawa', 'hati', 'kaget'] as const;
+const ACTS_LIVE = new Set(['jalan', 'duduk', 'sapa', 'peluk', 'kejar', 'makan', 'lompat']);
+/** bahan Masak bareng & hidangannya (hidangan = item makanan yang dibagikan bila berhasil) */
+export const COOK_INGREDIENTS = ['bawang', 'cabai', 'telur', 'tomat', 'kecap', 'garam', 'nasi', 'daun'] as const;
+const DISHES = ['pisang-goreng', 'bakso', 'sate', 'martabak', 'klepon'];
+const COOK_STEPS = 6, BALL_GOAL = 15, BALL_OK = 5, COOP_MS = 60_000;
+
+type Member = { id: string; name: string; pet: any; roomId: string; x: number; y: number; flip: boolean; act: string | null; seenAt: number; joinedAt: number; petAt: number; host: boolean; emoteAt: number };
+type Ev = { seq: number; at: number; kind: string; from?: string; [k: string]: unknown };
+type Coop = {
+  id: string; game: 'masak' | 'bola'; roomId: string; players: string[]; names: Record<string, string>;
+  seed: number; startedAt: number; endsAt: number; endedAt: number; done: boolean; ok: boolean | null; results: any[] | null;
+  // masak
+  dish: string; recipe: string[]; options: string[][]; step: number; mistakes: number;
+  // bola
+  passes: number; lives: number; holder: string; lastPassAt: number;
+};
+type House = { members: Map<string, Member>; events: Ev[]; seq: number; coop: Coop | null; kicked: Map<string, number>; settled: Set<string> };
+
+const HOUSES = new Map<string, House>();
+const PRESENCE = new Map<string, { at: number; where: string; host?: string }>();
+const FRIENDS = new Map<string, number>();
+const HOSTPREF = new Map<string, { at: number; live: boolean }>();
+const SAID = new Map<string, number>();
+
+const fresh = (m: Member, now = Date.now()) => now - m.seenAt < LIVE_MS;
+function houseOf(hostId: string) {
+  let h = HOUSES.get(hostId);
+  if (!h) { h = { members: new Map(), events: [], seq: 0, coop: null, kicked: new Map(), settled: new Set() }; HOUSES.set(hostId, h); }
+  return h;
+}
+function push(h: House, ev: Omit<Ev, 'seq' | 'at'>) {
+  h.seq++;
+  h.events.push({ ...ev, seq: h.seq, at: Date.now() } as Ev);
+  const cut = Date.now() - 60_000;
+  while (h.events.length > 120 || (h.events.length && h.events[0].at < cut)) h.events.shift();
+}
+function prune(h: House) {
+  const now = Date.now();
+  for (const m of h.members.values()) if (!fresh(m, now)) { h.members.delete(m.id); push(h, { kind: 'leave', from: m.id, name: m.name }); }
+}
+
+/** Status online untuk daftar teman (null = disembunyikan / offline). */
+export function presenceOf(userId: string, lastSeen?: Date | string | null) {
+  const p = PRESENCE.get(userId);
+  if (p && Date.now() - p.at < PRESENCE_MS) return { where: p.where, host: p.host ?? null };
+  if (lastSeen && Date.now() - new Date(lastSeen).getTime() < 150_000) return { where: 'game', host: null };
+  return null;
+}
+/** Tamu yang sedang live di rumah seseorang (tanpa tuan rumah). */
+export function guestsAt(hostId: string) {
+  const h = HOUSES.get(hostId);
+  if (!h) return 0;
+  const now = Date.now();
+  let n = 0;
+  for (const m of h.members.values()) if (!m.host && fresh(m, now)) n++;
+  return n;
+}
+
+export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db }) {
+  const auth = { preHandler: requireUser(db) };
+  const fast = { ...auth, config: { rateLimit: { max: 400, timeWindow: '1 minute' } } };
+
+  async function isFriend(a: string, b: string) {
+    if (a === b) return true;
+    const k = `${a}:${b}`, c = FRIENDS.get(k);
+    if (c && c > Date.now()) return true;
+    const ok = !!(await db.one(`select 1 from friendships where user_id = $1 and friend_id = $2`, [a, b]));
+    if (ok) FRIENDS.set(k, Date.now() + 60_000);
+    return ok;
+  }
+  async function hostLive(hostId: string) {
+    const c = HOSTPREF.get(hostId);
+    if (c && Date.now() - c.at < 30_000) return c.live;
+    const r = await db.one<{ live_visits: boolean }>(`select live_visits from users where id = $1`, [hostId]);
+    const live = r?.live_visits !== false;
+    HOSTPREF.set(hostId, { at: Date.now(), live });
+    return live;
+  }
+  async function enter(req: any) {
+    const hostId = String(req.params.hostId ?? req.params.id);
+    if (!UUID.test(hostId)) throw bad('invalid', 'Rumah tidak valid.');
+    if (!(await isFriend(req.user!.id, hostId))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
+    return hostId;
+  }
+  async function memberInfo(uid: string) {
+    const s = await getSettings(db);
+    const r = await db.one<any>(`select u.display_name, p.* from users u left join pets p on p.user_id = u.id where u.id = $1`, [uid]);
+    if (!r?.name) return { name: r?.display_name ?? 'Teman', pet: null };
+    const v = petView({ ...r, user_id: uid }, s);
+    return { name: r.display_name, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
+  }
+  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host });
+
+  /* ---------------- rumah live ---------------- */
+
+  app.post('/api/house/:hostId/sync', fast, async (req: any) => {
+    const s: any = await getSettings(db);
+    const uid = req.user!.id;
+    const hostId = await enter(req);
+    if (!s.visit.together) return { live: false, reason: 'off' };
+    if (uid !== hostId && !(await hostLive(hostId))) return { live: false, reason: 'host_off' };
+    const h = houseOf(hostId);
+    const b = req.body ?? {};
+    const since = Math.max(0, Number(b.since) || 0);
+    const kickedUntil = h.kicked.get(uid);
+    if (kickedUntil && kickedUntil > Date.now()) return { live: false, reason: 'kicked' };
+    prune(h);
+    await settleCoop(hostId, h, s);
+    const roomId = String(b.roomId ?? '').slice(0, 64);
+    const num = (v: unknown) => Math.max(0, Math.min(12, Number(v) || 0));
+    let m = h.members.get(uid);
+    let full = false;
+    if (!m) {
+      const guests = [...h.members.values()].filter((x) => !x.host && fresh(x)).length;
+      if (uid !== hostId && guests >= s.visit.maxLive) full = true;
+      else {
+        const info = await memberInfo(uid);
+        m = { id: uid, name: info.name, pet: info.pet, roomId, x: num(b.x), y: num(b.y), flip: !!b.flip, act: null, seenAt: Date.now(), joinedAt: Date.now(), petAt: Date.now(), host: uid === hostId, emoteAt: 0 };
+        h.members.set(uid, m);
+        push(h, { kind: 'join', from: uid, name: m.name, host: m.host });
+      }
+    }
+    if (m) {
+      m.roomId = roomId; m.x = num(b.x); m.y = num(b.y); m.flip = !!b.flip; m.seenAt = Date.now();
+      m.act = typeof b.act === 'string' && ACTS_LIVE.has(b.act) ? b.act : null;
+      if (typeof b.emote === 'string' && (EMOTES as readonly string[]).includes(b.emote) && Date.now() - m.emoteAt > 600) {
+        m.emoteAt = Date.now();
+        push(h, { kind: 'emote', from: uid, emote: b.emote });
+      }
+      // segarkan data pet (pakaian, wajah) tiap ±1 menit
+      if (Date.now() - m.petAt > 45_000) { m.petAt = Date.now(); const info = await memberInfo(uid); m.pet = info.pet; m.name = info.name; }
+    }
+    PRESENCE.set(uid, { at: Date.now(), where: uid === hostId ? 'home' : 'visit', host: hostId });
+    const now = Date.now();
+    const all = [...h.members.values()].filter((x) => fresh(x, now));
+    return {
+      live: true, full, me: uid, seq: h.seq,
+      members: all.filter((x) => x.id !== uid && x.roomId === roomId).map(view),
+      elsewhere: all.filter((x) => x.id !== uid && x.roomId !== roomId).map((x) => ({ id: x.id, name: x.name, host: x.host })),
+      events: h.events.filter((e) => e.seq > since),
+      coop: coopView(h.coop),
+      serverNow: now,
+    };
+  });
+
+  app.post('/api/house/:hostId/leave', auth, async (req: any) => {
+    const hostId = String(req.params.hostId);
+    const h = HOUSES.get(hostId);
+    const m = h?.members.get(req.user!.id);
+    if (h && m) { h.members.delete(m.id); push(h, { kind: 'leave', from: m.id, name: m.name }); }
+    return { ok: true };
+  });
+
+  app.post('/api/house/:hostId/say', { ...auth, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req: any) => {
+    const s: any = await getSettings(db);
+    const uid = req.user!.id;
+    const hostId = await enter(req);
+    const h = HOUSES.get(hostId);
+    const m = h?.members.get(uid);
+    if (!h || !m || !fresh(m)) throw bad('not_here', 'Kamu belum ada di rumah ini.');
+    if (Date.now() - (SAID.get(uid) ?? 0) < 1200) throw bad('too_fast', 'Pelan-pelan, ya.');
+    const text = String(req.body?.text ?? '').replace(/\s+/g, ' ').trim();
+    const max = Math.max(10, Math.min(200, Number(s.visit.chatMax) || 80));
+    if (!text) throw bad('empty', 'Tulis pesan dulu.');
+    if (text.length > max) throw bad('too_long', `Pesan maksimal ${max} huruf.`);
+    const preset = (s.visit.phrases ?? []).includes(text);
+    if (!preset) {
+      if (!s.visit.freeChat) throw bad('preset_only', 'Pilih salah satu frasa yang tersedia.');
+      await checkChat(db, text);
+    }
+    SAID.set(uid, Date.now());
+    await db.query(`insert into house_chat (host_id, user_id, text) values ($1,$2,$3)`, [hostId, uid, text]);
+    push(h, { kind: 'say', from: uid, text });
+    return { ok: true, seq: h.seq };
+  });
+
+  app.post('/api/house/:hostId/kick', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const hostId = String(req.params.hostId);
+    if (uid !== hostId) throw forbidden('Hanya tuan rumah yang bisa mengantar tamu pulang.');
+    const target = String(req.body?.userId ?? '');
+    const h = HOUSES.get(hostId);
+    if (!h || !UUID.test(target) || target === uid) throw bad('invalid', 'Tamu tidak ditemukan.');
+    h.kicked.set(target, Date.now() + 10 * 60_000);
+    const m = h.members.get(target);
+    h.members.delete(target);
+    push(h, { kind: 'kick', target, name: m?.name ?? 'Tamu' });
+    return { ok: true };
+  });
+
+  /* ---------------- interaksi dengan pet tuan rumah ---------------- */
+
+  app.post('/api/visit/:id/act', auth, async (req: any) => {
+    const u = req.user!;
+    const hostId = await enter(req);
+    if (hostId === u.id) throw bad('own_house', 'Ini rumahmu sendiri.');
+    const kind = String(req.body?.kind ?? '');
+    if (!(VISIT_ACTS as readonly string[]).includes(kind)) throw bad('invalid', 'Aksi tidak dikenal.');
+    const [s, cat]: [any, any] = await Promise.all([getSettings(db), getCatalog(db)]);
+    if (!s.visit.together) throw forbidden('Main bareng saat berkunjung sedang ditutup.');
+    const res = await db.tx(async (t) => {
+      const mine = await lockPet(t, u.id);
+      if (!mine) throw bad('no_pet', 'Buat pet dulu.');
+      const host = await lockPet(t, hostId);
+      if (!host) throw notFound(`Teman ini belum punya pet.`);
+      const key = `vact:${hostId}`;
+      const used = await counter(t, u.id, key);
+      const rewarded = used < s.visit.actsPerFriend;
+      let itemId: string | null = null;
+      let hostDelta: Partial<Needs> = {};
+      if (kind === 'camilan') {
+        const it = cat.byId.get(String(req.body?.itemId ?? ''));
+        if (!it || it.kind !== 'food') throw bad('invalid_item', 'Pilih makanan dari tasmu.');
+        if (isAsleep(host, s)) throw bad('asleep', `${host.name} sedang tidur. Camilannya nanti saja, ya.`);
+        const hn = currentNeeds(host, s);
+        if (hn.kenyang >= 99) throw bad('full', `${host.name} masih kenyang.`);
+        await addItem(t, u.id, it.id, -1);
+        itemId = it.id;
+        hostDelta = { ...(it.data?.effects ?? {}) };
+        hostDelta.ceria = Number(hostDelta.ceria ?? 0) + s.visit.hostCeria;
+      } else if (rewarded) hostDelta = { ceria: s.visit.hostCeria };
+      for (const k of Object.keys(hostDelta)) if (!(NEED_KEYS as readonly string[]).includes(k)) delete (hostDelta as any)[k];
+      // pet yang tidur tetap dielus/disapa, tapi kebutuhannya tidak berubah
+      if (Object.keys(hostDelta).length && !isAsleep(host, s)) await savePet(t, hostId, { needs: applyNeedDelta(currentNeeds(host, s), hostDelta) });
+      let coins = 0, xp = 0, levelUp: number | null = null;
+      if (rewarded) {
+        await bumpCounter(t, u.id, key, Number.MAX_SAFE_INTEGER);
+        const lv = s.visit.xp ? await grantXp(t, u.id, mine, s.visit.xp) : null;
+        await savePet(t, u.id, { needs: applyNeedDelta(currentNeeds(mine, s), { ceria: s.visit.ceria }), ...(lv ? { level: lv.level, xp: lv.xp } : {}) });
+        if (lv?.levelsGained) levelUp = lv.level;
+        xp = s.visit.xp;
+        coins = Math.round(s.visit.coins * coinMultiplier(cat));
+        if (coins) await credit(t, u.id, 'coin', coins, 'visit_play', hostId);
+        await track(t, u.id, 'visit_play', { kind });
+      }
+      await t.query(`insert into visit_acts (host_id, visitor_id, kind, item_id, rewarded) values ($1,$2,$3,$4,$5)`, [hostId, u.id, kind, itemId, rewarded]);
+      const hostAfter = await t.one<any>(`select * from pets where user_id = $1`, [hostId]);
+      return { rewarded, coins, xp, levelUp, left: Math.max(0, s.visit.actsPerFriend - used - (rewarded ? 1 : 0)), hostName: host.name, itemName: itemId ? cat.byId.get(itemId)?.name : null, hostPet: petView(hostAfter, s), out: await patch(t, u.id, ['pet', 'wallet', 'inventory']) };
+    });
+    // tamu lain yang sedang live melihat animasinya
+    const h = HOUSES.get(hostId);
+    if (h) push(h, { kind: 'act', from: u.id, act: kind, item: res.itemName });
+    // tuan rumah: notifikasi maksimal sekali per tamu per jam
+    const ok = await db.one(
+      `insert into cooldowns (user_id, key, until) values ($1, $2, now() + interval '1 hour')
+       on conflict (user_id, key) do update set until = excluded.until where cooldowns.until < now() returning 1 as ok`,
+      [hostId, `notif_vplay:${u.id}`],
+    );
+    const aksi: Record<string, string> = { sapa: 'menyapa', peluk: 'memeluk', camilan: `memberi ${res.itemName ?? 'camilan'} untuk`, kejar: 'main kejar-kejaran dengan', duduk: 'duduk santai bareng' };
+    if (ok) void notifyEvent(db, hostId, 'visit_play', { teman: u.display_name, pet: res.hostName, aksi: aksi[kind] }, { log: req.log, url: '/#bukutamu' });
+    return { ok: true, kind, rewarded: res.rewarded, coins: res.coins, xp: res.xp, levelUp: res.levelUp, left: res.left, hostPet: res.hostPet, ...res.out };
+  });
+
+  /* ---------------- main bareng di rumah ---------------- */
+
+  function coopView(c: Coop | null) {
+    if (!c) return null;
+    const base = { id: c.id, game: c.game, roomId: c.roomId, players: c.players.map((id) => ({ id, name: c.names[id] })), endsAt: c.endsAt, done: c.done, ok: c.ok, results: c.results };
+    if (c.game === 'masak') return { ...base, dish: c.dish, steps: c.recipe.length, step: c.step, recipe: c.recipe, done_steps: c.recipe.slice(0, c.step), options: c.options[c.step] ?? [], active: c.done ? null : activeCook(c), mistakes: c.mistakes };
+    return { ...base, passes: c.passes, goal: BALL_GOAL, lives: c.lives, holder: c.done ? null : c.holder };
+  }
+  /** pemain yang masih ada (yang keluar dilewati gilirannya) */
+  function alive(c: Coop) {
+    const h = [...HOUSES.values()].find((x) => x.coop === c);
+    const now = Date.now();
+    return c.players.filter((id) => { const m = h?.members.get(id); return m && fresh(m, now); });
+  }
+  function activeCook(c: Coop) {
+    const a = alive(c);
+    return a.length ? a[c.step % a.length] : null;
+  }
+
+  async function settleCoop(hostId: string, h: House, s: any) {
+    const c = h.coop;
+    // hasil permainan yang sudah selesai cukup tampil sebentar
+    if (c?.done && Date.now() - c.endedAt > 20_000) { h.coop = null; return; }
+    if (!c || c.done) return;
+    const left = alive(c).length;
+    if (Date.now() > c.endsAt) return endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'waktu');
+    if (left < 2) return endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'bubar');
+  }
+
+  async function endCoop(hostId: string, h: House, s: any, ok: boolean, why: string) {
+    const c = h.coop!;
+    if (c.done || h.settled.has(c.id)) return;
+    h.settled.add(c.id);
+    c.done = true; c.ok = ok; c.endedAt = Date.now();
+    const cat = await getCatalog(db);
+    const dish = c.game === 'masak' && ok && cat.byId.get(c.dish) ? c.dish : null;
+    const results: any[] = [];
+    for (const uid of c.players) {
+      const r = await db.tx(async (t) => {
+        const used = await counter(t, uid, 'coop');
+        if (used >= s.visit.coopPerDay) return { id: uid, coins: 0, item: null, capped: true };
+        await bumpCounter(t, uid, 'coop', Number.MAX_SAFE_INTEGER);
+        const base = c.game === 'bola' ? Math.min(1, c.passes / BALL_GOAL) : ok ? 1 : 0.3;
+        const coins = Math.round(s.visit.coopCoins * Math.max(0.3, base) * coinMultiplier(cat));
+        if (coins) await credit(t, uid, 'coin', coins, `coop:${c.game}`, c.id);
+        if (dish) await addItem(t, uid, dish, 1);
+        const pet = await lockPet(t, uid);
+        if (pet) {
+          const lv = s.visit.coopXp ? await grantXp(t, uid, pet, s.visit.coopXp) : null;
+          await savePet(t, uid, { needs: isAsleep(pet, s) ? undefined : applyNeedDelta(currentNeeds(pet, s), { ceria: 10 }), ...(lv ? { level: lv.level, xp: lv.xp } : {}) });
+        }
+        if (ok) await track(t, uid, 'coop', { game: c.game });
+        return { id: uid, coins, item: dish, capped: false };
+      }).catch(() => ({ id: uid, coins: 0, item: null, capped: false }));
+      results.push({ ...r, name: c.names[uid] });
+    }
+    c.results = results;
+    push(h, { kind: 'coop_end', game: c.game, ok, why, results, coopId: c.id });
+    void hostId;
+  }
+
+  app.post('/api/house/:hostId/coop', fast, async (req: any) => {
+    const s: any = await getSettings(db);
+    const uid = req.user!.id;
+    const hostId = await enter(req);
+    const h = HOUSES.get(hostId);
+    const me = h?.members.get(uid);
+    if (!h || !me || !fresh(me)) throw bad('not_here', 'Masuk ke rumah dulu.');
+    const b = req.body ?? {};
+    await settleCoop(hostId, h, s);
+    if (b.action === 'start') {
+      if (h.coop && !h.coop.done) throw bad('coop_busy', 'Masih ada permainan yang berjalan di rumah ini.');
+      const game = b.game === 'bola' ? 'bola' : 'masak';
+      const here = [me, ...[...h.members.values()].filter((m) => m.id !== uid && fresh(m) && m.roomId === me.roomId)].slice(0, 5);
+      if (here.length < 2) throw bad('coop_alone', 'Butuh minimal 2 pet di ruangan ini. Ajak teman main ke sini dulu!');
+      const seed = randomInt(1, 2_000_000_000);
+      const r = mulberry32(seed);
+      const recipe: string[] = [], options: string[][] = [];
+      for (let i = 0; i < COOK_STEPS; i++) {
+        const want = COOK_INGREDIENTS[Math.floor(r() * COOK_INGREDIENTS.length)];
+        recipe.push(want);
+        const opts = new Set<string>([want]);
+        while (opts.size < 4) opts.add(COOK_INGREDIENTS[Math.floor(r() * COOK_INGREDIENTS.length)]);
+        options.push([...opts].sort(() => r() - 0.5));
+      }
+      h.coop = {
+        id: randomUUID(), game, roomId: me.roomId, players: here.map((m) => m.id), names: Object.fromEntries(here.map((m) => [m.id, m.name])),
+        seed, startedAt: Date.now(), endsAt: Date.now() + COOP_MS, endedAt: 0, done: false, ok: null, results: null,
+        dish: DISHES[Math.floor(r() * DISHES.length)], recipe, options, step: 0, mistakes: 0,
+        passes: 0, lives: 3, holder: uid, lastPassAt: Date.now(),
+      };
+      push(h, { kind: 'coop_start', game, from: uid, coopId: h.coop.id });
+      return { ok: true, coop: coopView(h.coop) };
+    }
+    const c = h.coop;
+    if (!c || c.done || c.id !== b.coopId) throw bad('coop_over', 'Permainan ini sudah selesai.');
+    if (!c.players.includes(uid)) throw bad('coop_not_player', 'Kamu tidak ikut permainan ini.');
+    if (b.action === 'pick' && c.game === 'masak') {
+      if (activeCook(c) !== uid) throw bad('not_turn', 'Belum giliranmu.');
+      const good = String(b.pick) === c.recipe[c.step];
+      if (good) c.step++; else c.mistakes++;
+      push(h, { kind: 'coop_move', from: uid, good, pick: String(b.pick).slice(0, 12) });
+      if (c.step >= c.recipe.length) await endCoop(hostId, h, s, true, 'selesai');
+      else if (c.mistakes >= 3) await endCoop(hostId, h, s, false, 'salah');
+    } else if (b.action === 'pass' && c.game === 'bola') {
+      if (c.holder !== uid) throw bad('not_turn', 'Bola sedang dipegang pemain lain.');
+      if (Date.now() - c.lastPassAt < 500) throw bad('too_fast', 'Tunggu bolanya sampai dulu.');
+      const hit = b.hit === true;
+      c.lastPassAt = Date.now();
+      if (hit) {
+        c.passes++;
+        const others = alive(c).filter((id) => id !== uid);
+        c.holder = others.length ? others[randomInt(0, others.length)] : uid;
+      } else c.lives--;
+      push(h, { kind: 'coop_move', from: uid, good: hit, to: c.holder });
+      if (c.passes >= BALL_GOAL) await endCoop(hostId, h, s, true, 'selesai');
+      else if (c.lives <= 0) await endCoop(hostId, h, s, c.passes >= BALL_OK, 'jatuh');
+    } else if (b.action === 'quit') {
+      await endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'berhenti');
+    } else throw bad('invalid', 'Aksi tidak dikenal.');
+    return { ok: true, coop: coopView(h.coop) };
+  });
+
+  /* ---------------- foto bareng & album ---------------- */
+
+  app.post('/api/house/:hostId/photo', auth, async (req: any) => {
+    const s: any = await getSettings(db);
+    const u = req.user!;
+    const hostId = await enter(req);
+    const roomId = String(req.body?.roomId ?? '');
+    const pose = ['senyum', 'lompat', 'peluk'].includes(req.body?.pose) ? req.body.pose : 'senyum';
+    const h = HOUSES.get(hostId);
+    const here = h ? [...h.members.values()].filter((m) => fresh(m) && m.roomId === roomId).map((m) => m.id) : [];
+    // tuan rumah selalu ikut (pet-nya ada di rumahnya sendiri), lalu yang memotret, lalu yang sedang di ruangan
+    const ids = [...new Set([hostId, u.id, ...here])].slice(0, 6);
+    if (ids.length < 2) throw bad('photo_alone', 'Foto bareng butuh minimal 2 pet. Berkunjunglah ke rumah teman!');
+    const cat = await getCatalog(db);
+    const rooms = await loadRooms(db, hostId, cat, s, false);
+    const room = rooms.find((r: any) => r.id === roomId) ?? rooms[0];
+    const members: any[] = [];
+    for (const id of ids) { const info = await memberInfo(id); if (info.pet) members.push({ id, name: info.name, pet: info.pet }); }
+    if (members.length < 2) throw bad('photo_alone', 'Foto bareng butuh minimal 2 pet.');
+    const photo = await db.tx(async (t) => {
+      await bumpCounter(t, u.id, 'photo', s.visit.photoPerDay);
+      const p = (await t.one<any>(
+        `insert into photos (host_id, taken_by, pose, members, scene) values ($1,$2,$3,$4::text::jsonb,$5::text::jsonb) returning id, host_id, pose, members, scene, created_at`,
+        [hostId, u.id, pose, JSON.stringify(members), JSON.stringify({ wall: room?.wall ?? null, floor: room?.floor ?? null, theme: room?.theme ?? 'dalam' })],
+      ))!;
+      for (const m of members) {
+        await t.query(`insert into photo_members (photo_id, user_id) values ($1,$2) on conflict do nothing`, [p.id, m.id]);
+        // foto pertama langsung dipajang di lukisan rumah
+        await t.query(`update users set featured_photo = $2 where id = $1 and featured_photo is null`, [m.id, p.id]);
+      }
+      await track(t, u.id, 'photo', {});
+      return p;
+    });
+    if (h) push(h, { kind: 'photo', from: u.id, photoId: photo.id });
+    for (const m of members) if (m.id !== u.id) void notifyEvent(db, m.id, 'house_photo', { teman: u.display_name, jumlah: members.length }, { log: req.log, url: '/#album' });
+    return { ok: true, photo: photoView(photo) };
+  });
+
+  const photoView = (p: any) => ({ id: p.id, hostId: p.host_id, pose: p.pose, members: p.members, scene: p.scene, createdAt: new Date(p.created_at).getTime() });
+
+  app.get('/api/photos', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const [rows, me] = await Promise.all([
+      db.query<any>(`select p.* from photos p join photo_members m on m.photo_id = p.id where m.user_id = $1 order by p.created_at desc limit 60`, [uid]),
+      db.one<{ featured_photo: string | null }>(`select featured_photo from users where id = $1`, [uid]),
+    ]);
+    return { photos: rows.map(photoView), featured: me?.featured_photo ?? null };
+  });
+
+  app.post('/api/photos/:id/feature', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const id = String(req.params.id);
+    if (req.body?.off === true) { await db.query(`update users set featured_photo = null where id = $1`, [uid]); return { ok: true, featured: null }; }
+    if (!UUID.test(id) || !(await db.one(`select 1 from photo_members where photo_id = $1 and user_id = $2`, [id, uid]))) throw notFound('Foto tidak ditemukan.');
+    await db.query(`update users set featured_photo = $2 where id = $1`, [uid, id]);
+    return { ok: true, featured: id };
+  });
+
+  /* ---------------- buku tamu, status online & privasi ---------------- */
+
+  app.get('/api/guestbook', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const [rows, me] = await Promise.all([
+      db.query<any>(
+        `select a.kind, a.item_id, a.created_at, u.id as visitor_id, u.display_name as name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear
+           from visit_acts a join users u on u.id = a.visitor_id left join pets p on p.user_id = a.visitor_id
+          where a.host_id = $1 order by a.created_at desc limit 50`, [uid]),
+      db.one<{ guestbook_seen_at: Date }>(`select guestbook_seen_at from users where id = $1`, [uid]),
+    ]);
+    await db.query(`update users set guestbook_seen_at = now() where id = $1`, [uid]);
+    const seen = me ? new Date(me.guestbook_seen_at).getTime() : 0;
+    return { entries: rows.map((r) => ({ ...r, created_at: new Date(r.created_at).getTime(), unread: new Date(r.created_at).getTime() > seen })) };
+  });
+
+  app.post('/api/presence', { ...auth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req: any) => {
+    const where = ['home', 'map', 'game', 'visit'].includes(req.body?.where) ? req.body.where : 'game';
+    const host = UUID.test(String(req.body?.host ?? '')) ? String(req.body.host) : undefined;
+    PRESENCE.set(req.user!.id, { at: Date.now(), where, host });
+    return { ok: true };
+  });
+
+  app.post('/api/me/privacy', auth, async (req: any) => {
+    const uid = req.user!.id;
+    const b = req.body ?? {};
+    if (typeof b.showOnline === 'boolean') await db.query(`update users set show_online = $2 where id = $1`, [uid, b.showOnline]);
+    if (typeof b.liveVisits === 'boolean') { await db.query(`update users set live_visits = $2 where id = $1`, [uid, b.liveVisits]); HOSTPREF.delete(uid); }
+    if (b.showOnline === false) PRESENCE.delete(uid);
+    const r = await db.one<{ show_online: boolean; live_visits: boolean }>(`select show_online, live_visits from users where id = $1`, [uid]);
+    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true };
+  });
+}
+
+/** Untuk uji: kosongkan keadaan live. */
+export function resetHouses() { HOUSES.clear(); PRESENCE.clear(); FRIENDS.clear(); HOSTPREF.clear(); SAID.clear(); }

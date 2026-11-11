@@ -142,6 +142,21 @@ export async function checkName(db: Db, name: string) {
   }
   return n;
 }
+/** Obrolan bebas: tolak tautan/akun/nomor dan kata terlarang (sama seperti nama). */
+export async function checkChat(db: Db, text: string) {
+  if (/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|id|net|org|io|co|me|xyz|link|ly)\b|@[a-z0-9_.]{3,}|\d[\d\s.-]{6,}\d)/i.test(text)) {
+    throw bad('chat_link', 'Jangan bagikan tautan, akun, atau nomor, ya.');
+  }
+  if (!bannedCache || Date.now() - bannedCache.at > TTL) {
+    bannedCache = { at: Date.now(), words: (await db.query<{ word: string }>('select word from banned_words')).map((r) => r.word.toLowerCase()) };
+  }
+  const norm = text.toLowerCase().replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't').replace(/@/g, 'a');
+  const squashed = norm.replace(/[^a-z]/g, '');
+  for (const w of bannedCache.words) {
+    if (norm.split(/[^a-z]+/).includes(w) || (w.length >= 5 && squashed.includes(w))) throw bad('chat_banned', 'Pesan itu memakai kata yang tidak boleh. Coba kata lain, ya.');
+  }
+  return text;
+}
 export function invalidateBanned() {
   bannedCache = null;
 }

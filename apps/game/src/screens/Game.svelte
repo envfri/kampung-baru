@@ -39,6 +39,10 @@
   import DuelLobby from '../scenes/DuelLobby.svelte';
   import Duels from '../panels/Duels.svelte';
   import SaveProgress from '../panels/SaveProgress.svelte';
+  import HouseBar from '../components/HouseBar.svelte';
+  import CoopPanel from '../components/CoopPanel.svelte';
+  import PhotoPreview from '../components/PhotoPreview.svelte';
+  import { H } from '../lib/house.svelte';
   import { maybeNudge } from '../lib/account.svelte';
   import QuestChip from '../components/QuestChip.svelte';
   import PushPrompt from '../components/PushPrompt.svelte';
@@ -146,7 +150,11 @@
     const orient = () => (G.portrait = window.innerHeight >= window.innerWidth);
     window.addEventListener('resize', orient);
     const refresh = setInterval(() => { if (document.visibilityState === 'visible') refreshMe().catch(() => {}); }, 120_000);
-    return () => { window.removeEventListener('resize', orient); clearInterval(refresh); navigator.serviceWorker?.removeEventListener('message', onSw); };
+    // status online untuk teman (di rumah / berkunjung / di kampung)
+    const beat = () => { if (document.visibilityState === 'visible') api.post('/api/presence', { where: G.view === 'home' ? 'home' : G.view === 'visit' ? 'visit' : 'map', host: G.view === 'visit' ? G.visit?.owner?.id : undefined }).catch(() => {}); };
+    beat();
+    const presence = setInterval(beat, 45_000);
+    return () => { window.removeEventListener('resize', orient); clearInterval(refresh); clearInterval(presence); navigator.serviceWorker?.removeEventListener('message', onSw); };
   });
   void serverNow;
   let nudgeAfterSheet = false;
@@ -237,9 +245,13 @@
     </div>
   {/if}
 
+  {#if G.view === 'home' && !G.edit && !G.bath && H.members.length > 0}<HouseBar mode="home" />{/if}
+  {#if G.view === 'visit' && G.visit}<HouseBar mode="visit" />{/if}
+  {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
+
   {#if G.view === 'visit' && G.visit}
     <div class="visit">
-      <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}</span>{/if}</div>
+      <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
       {#if visitRooms.length > 1}
         <div class="tabbar" role="tablist" aria-label="Ruangan di rumah teman">
           {#each visitRooms as r, i (r.id)}<button role="tab" aria-selected={G.visitRoom === i} class:on={G.visitRoom === i} onclick={() => { G.visitRoom = i; sfx.tap(); }}>{r.name}</button>{/each}

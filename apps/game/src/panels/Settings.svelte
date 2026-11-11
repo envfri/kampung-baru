@@ -90,6 +90,13 @@
     try { await api.del('/api/me', { confirm: del }); G.me = null; G.sheet = null; toast('Akun dihapus.'); } catch (e) { fail(e); }
   }
   const toggle = (k: 'sound' | 'haptics') => { prefs[k] = !prefs[k]; setPref(k, prefs[k]); };
+  async function privacy(k: 'showOnline' | 'liveVisits', v: boolean) {
+    try {
+      const r = await api.post('/api/me/privacy', { [k]: v });
+      G.me.user.show_online = r.showOnline; G.me.user.live_visits = r.liveVisits;
+      toast('Disimpan', 'good');
+    } catch (e) { fail(e); }
+  }
 </script>
 
 <Sheet title="Pengaturan">
@@ -131,6 +138,13 @@
     <h3>Nama</h3>
     <form onsubmit={savePet}><label for="s-pet">Nama pet</label><div class="row"><input id="s-pet" class="input" maxlength="16" bind:value={petName} /><button class="btn" disabled={G.busy}>Simpan</button></div></form>
     <form onsubmit={saveMe}><label for="s-me">Nama kamu</label><div class="row"><input id="s-me" class="input" maxlength="16" bind:value={myName} /><button class="btn">Simpan</button></div></form>
+  </section>
+
+  <section>
+    <h3>Teman & tamu</h3>
+    <label class="tg"><input type="checkbox" checked={G.me.user.show_online !== false} onchange={(e) => privacy('showOnline', (e.target as HTMLInputElement).checked)} /> Tampilkan status online ke teman</label>
+    <label class="tg"><input type="checkbox" checked={G.me.user.live_visits !== false} onchange={(e) => privacy('liveVisits', (e.target as HTMLInputElement).checked)} /> Teman bisa langsung main bareng di rumahku</label>
+    <p class="muted small">Bila dimatikan, teman tetap bisa berkunjung dan main dengan pet-mu, tapi tidak tampil bersamaan secara langsung.</p>
   </section>
 
   <section>

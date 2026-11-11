@@ -137,7 +137,7 @@ export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Setting
 export async function playerState(db: Db, userId: string) {
   const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
   const [user, pet, wallet, inv, rooms, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
-    db.one(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at from users where id = $1`, [userId]),
+    db.one<any>(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at, show_online, live_visits, featured_photo, guestbook_seen_at from users where id = $1`, [userId]),
     db.one<PetRow>(`select * from pets where user_id = $1`, [userId]),
     db.one<{ coin: number; pearl: number }>(`select coin, pearl from wallets where user_id = $1`, [userId]),
     db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]),
@@ -156,7 +156,7 @@ export async function playerState(db: Db, userId: string) {
   const announcements = await db.query(
     `select id, title, body, starts_at from announcements where active and starts_at <= now() and (ends_at is null or ends_at > now()) order by starts_at desc limit 5`,
   );
-  const [plays, casts, unread, prefs, likes, duels] = await Promise.all([
+  const [plays, casts, unread, prefs, likes, duels, book, photo] = await Promise.all([
     counter(db, userId, 'karung'),
     counter(db, userId, 'fishing'),
     db.one<{ c: number }>(`select count(*)::int c from notifications where user_id = $1 and read_at is null`, [userId]),
@@ -166,12 +166,14 @@ export async function playerState(db: Db, userId: string) {
     db.one<{ c: number }>(
       `select count(*)::int c from duels where status in ('open','live') and expires_at > now()
          and ((opponent_id = $1 and o_score is null) or (challenger_id = $1 and c_score is null))`, [userId]),
+    db.one<{ c: number }>(`select count(*)::int c from visit_acts where host_id = $1 and created_at > $2`, [userId, user?.guestbook_seen_at ?? new Date()]),
+    user?.featured_photo ? db.one<any>(`select id, pose, members, scene from photos where id = $1`, [user.featured_photo]) : null,
   ]);
   return {
     serverNow: Date.now(),
     catalogVersion: cat.version,
     user: {
-      ...user, wa_phone: undefined, wa_verified_at: undefined,
+      ...user, wa_phone: undefined, wa_verified_at: undefined, guestbook_seen_at: undefined, featured_photo: undefined,
       wa: user?.wa_verified_at ? { phone: maskPhone(user.wa_phone), verified: true } : null,
       identities: identities.map((i) => ({ provider: i.provider, email: i.email })),
     },
@@ -198,6 +200,9 @@ export async function playerState(db: Db, userId: string) {
     notifyPrefs: prefs?.notify_prefs ?? {},
     likesWeek: likes?.c ?? 0,
     duelsPending: duels?.c ?? 0,
+    guestbookUnread: book?.c ?? 0,
+    /** foto bareng yang dipajang di lukisan rumah */
+    photo: photo ?? null,
   };
 }
 

@@ -693,6 +693,12 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   /* ---------------- moderasi kata ---------------- */
 
+  // obrolan di rumah (kunjungan bareng) untuk dipantau moderator
+  app.get('/api/admin/house-chat', mod, async () => ({
+    chats: await db.query(
+      `select c.id, c.text, c.created_at, u.id as user_id, u.display_name as user_name, h.display_name as host_name
+         from house_chat c join users u on u.id = c.user_id join users h on h.id = c.host_id order by c.created_at desc limit 150`),
+  }));
   app.get('/api/admin/banned-words', mod, async () => ({ words: (await db.query<{ word: string }>(`select word from banned_words order by word`)).map((r) => r.word) }));
   app.post('/api/admin/banned-words', mod, async (req: any) => {
     const w = str(req.body?.word, 'Kata', { min: 2, max: 40 })!.toLowerCase();
