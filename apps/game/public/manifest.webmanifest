@@ -1,7 +1,8 @@
 {
   "name": "BUPI",
   "short_name": "BUPI",
-  "description": "BUPI: rawat bupi-mu, hias rumah, dan kunjungi teman di Kampung Bupi.",
+  "id": "/",
+  "description": "Rawat pet lucu, hias rumah, dan main bareng teman di Kampung Bupi. Gratis, langsung di browser HP.",
   "lang": "id",
   "start_url": "/?source=pwa",
   "scope": "/",

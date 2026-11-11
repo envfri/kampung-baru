@@ -1,6 +1,6 @@
 {
   "name": "bupi",
-  "version": "0.21.1",
+  "version": "0.22.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -24,7 +24,9 @@
     "test:e2e:kunjungan": "node scripts/e2e-kunjungan.mjs",
     "test:e2e:rumah": "node scripts/e2e-rumah.mjs",
     "test:e2e:alun": "node scripts/e2e-alun.mjs",
+    "test:e2e:situs": "node scripts/e2e-situs.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
+    "site-assets": "node --import tsx scripts/site-assets.mjs",
     "changelog": "node --import tsx scripts/changelog.mjs"
   },
   "repository": {

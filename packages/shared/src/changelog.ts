@@ -39,9 +39,23 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.22.0',
+    date: '2026-11-11',
+    title: 'SEO, pratinjau tautan & mode perawatan',
+    items: [
+      { kind: 'baru', text: 'Mode perawatan: halaman beranimasi (pet berhelm proyek memalu papan "DIRAPIKAN", temannya menyunggi batu bata) dengan perkiraan selesai & hitung mundur, tautan Instagram @playbudi, dan cek otomatis. Pemain yang sedang main langsung dialihkan lalu kembali ke game sendiri begitu perawatan selesai. Progres tetap aman.', player: true },
+      { kind: 'baru', text: 'Tautan BUPI yang dibagikan ke WhatsApp, Facebook, X, atau Telegram kini tampil dengan gambar & judul. Tautan undangan teman tampil sebagai "Nama ngajak kamu main BUPI!".', player: true },
+      { kind: 'baru', text: 'Layar depan berisi hal-hal yang bisa dilakukan di BUPI dan tautan media sosial. Ikuti kabar terbaru di Instagram @playbudi (juga di Pengaturan › Tentang).', player: true },
+      { kind: 'baru', text: 'Admin › Situs & SEO: judul, deskripsi, kata kunci, gambar pratinjau (bawaan atau dari Media), izin mesin pencari, verifikasi Google Search Console/Bing, akun media sosial (Instagram, TikTok, YouTube, Facebook, X), dengan pratinjau hasil Google & kartu tautan. Mode perawatan dinyalakan/dimatikan dari sini (dengan perkiraan selesai, teks, dan izin admin tetap main), tercatat di Log audit, dan ditandai merah di semua halaman admin.' },
+      { kind: 'baru', text: 'SEO: tag title/description/canonical/robots, Open Graph & kartu X lengkap (gambar 1200×630), data terstruktur JSON-LD (WebSite, Organization + akun sosial, VideoGame gratis), robots.txt, sitemap.xml, favicon.ico, konten noscript, dan X-Robots-Tag noindex untuk API/admin/bayar. Server uji otomatis tidak diindeks; indeks hanya di produksi ber-HTTPS.' },
+      { kind: 'ubah', text: 'Mode perawatan membalas HTTP 503 + Retry-After (aman untuk peringkat Google). Panel admin, webhook ZePay/Mailketing/Klik Flow, file statis, dan /healthz tetap jalan. Halaman perawatan statis opsional untuk Caddy saat server dimulai ulang (lihat DEPLOY.md). Aset dibuat dengan npm run site-assets; uji baru: tes server Situs & SEO dan npm run test:e2e:situs.' },
+    ],
+  },
+  {
     version: '0.21.1',
     date: '2026-11-11',
     title: 'Audit alun-alun',
+    commits: ['2738769'],
     items: [
       { kind: 'keamanan', text: 'Laporan hanya sah dari pemain yang sedang bertemu dengan yang dilaporkan di alun-alun yang sama (dan sudah 1 menit di sana). Akun sekali pakai tidak bisa lagi membisukan orang lain. Bisu 30 menit hanya sekali per gelombang laporan (tidak diperpanjang terus), tersimpan di server, berlaku di alun-alun & rumah, dan bisa dibuka moderator.' },
       { kind: 'keamanan', text: 'Filter obrolan diperketat: yang disimpan & disiarkan adalah teks yang sudah dibersihkan; karakter pembalik arah, huruf mirip dari aksara lain, tanda gabung & angka aksara lain ditolak; kode akun / kode pindah perangkat dan nomor yang dicicil beberapa pesan ditolak; kata terlarang yang dieja per huruf tertangkap. Nama yang menyamar jadi tim BUPI (Admin, Moderator, Tim BUPI, ...) tidak bisa dipakai.', player: true },

@@ -4,6 +4,20 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.22.0 · 2026-11-11 · SEO, pratinjau tautan & mode perawatan
+
+### Baru
+
+- Mode perawatan: halaman beranimasi (pet berhelm proyek memalu papan "DIRAPIKAN", temannya menyunggi batu bata) dengan perkiraan selesai & hitung mundur, tautan Instagram @playbudi, dan cek otomatis. Pemain yang sedang main langsung dialihkan lalu kembali ke game sendiri begitu perawatan selesai. Progres tetap aman. _(pemain)_
+- Tautan BUPI yang dibagikan ke WhatsApp, Facebook, X, atau Telegram kini tampil dengan gambar & judul. Tautan undangan teman tampil sebagai "Nama ngajak kamu main BUPI!". _(pemain)_
+- Layar depan berisi hal-hal yang bisa dilakukan di BUPI dan tautan media sosial. Ikuti kabar terbaru di Instagram @playbudi (juga di Pengaturan › Tentang). _(pemain)_
+- Admin › Situs & SEO: judul, deskripsi, kata kunci, gambar pratinjau (bawaan atau dari Media), izin mesin pencari, verifikasi Google Search Console/Bing, akun media sosial (Instagram, TikTok, YouTube, Facebook, X), dengan pratinjau hasil Google & kartu tautan. Mode perawatan dinyalakan/dimatikan dari sini (dengan perkiraan selesai, teks, dan izin admin tetap main), tercatat di Log audit, dan ditandai merah di semua halaman admin.
+- SEO: tag title/description/canonical/robots, Open Graph & kartu X lengkap (gambar 1200×630), data terstruktur JSON-LD (WebSite, Organization + akun sosial, VideoGame gratis), robots.txt, sitemap.xml, favicon.ico, konten noscript, dan X-Robots-Tag noindex untuk API/admin/bayar. Server uji otomatis tidak diindeks; indeks hanya di produksi ber-HTTPS.
+
+### Perubahan
+
+- Mode perawatan membalas HTTP 503 + Retry-After (aman untuk peringkat Google). Panel admin, webhook ZePay/Mailketing/Klik Flow, file statis, dan /healthz tetap jalan. Halaman perawatan statis opsional untuk Caddy saat server dimulai ulang (lihat DEPLOY.md). Aset dibuat dengan npm run site-assets; uji baru: tes server Situs & SEO dan npm run test:e2e:situs.
+
 ## 0.21.1 · 2026-11-11 · Audit alun-alun
 
 ### Baru
@@ -26,6 +40,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 - Laporan hanya sah dari pemain yang sedang bertemu dengan yang dilaporkan di alun-alun yang sama (dan sudah 1 menit di sana). Akun sekali pakai tidak bisa lagi membisukan orang lain. Bisu 30 menit hanya sekali per gelombang laporan (tidak diperpanjang terus), tersimpan di server, berlaku di alun-alun & rumah, dan bisa dibuka moderator.
 - Filter obrolan diperketat: yang disimpan & disiarkan adalah teks yang sudah dibersihkan; karakter pembalik arah, huruf mirip dari aksara lain, tanda gabung & angka aksara lain ditolak; kode akun / kode pindah perangkat dan nomor yang dicicil beberapa pesan ditolak; kata terlarang yang dieja per huruf tertangkap. Nama yang menyamar jadi tim BUPI (Admin, Moderator, Tim BUPI, ...) tidak bisa dipakai. _(pemain)_
+
+Commit: [`2738769`](https://github.com/envfri/kampung-baru/commit/2738769)
 
 ## 0.21.0 · 2026-11-11 · Alun-alun kampung
 

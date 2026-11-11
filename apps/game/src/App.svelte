@@ -8,6 +8,8 @@
   import Setup from './screens/Setup.svelte';
   import Game from './screens/Game.svelte';
   import Toast from './components/Toast.svelte';
+  import Maintenance from './components/Maintenance.svelte';
+  import { MAINT } from './lib/maint.svelte';
 
   let error = $state('');
 
@@ -40,7 +42,9 @@
   });
 </script>
 
-{#if !G.booted}
+{#if MAINT.info}
+  <Maintenance />
+{:else if !G.booted}
   <div class="splash">
     <div class="pet">{@html petSVG({ color: '#F6B7A8', ear: 'tunas' })}</div>
     <p>Memuat BUPI…</p>
@@ -66,6 +70,10 @@
   <p>Putar HP ke posisi tegak untuk bermain</p>
 </div>
 
+{#if G.config?.maintenance?.bypass && !MAINT.info}
+  <div class="mbar" role="status">Mode perawatan aktif · kamu bisa main karena masuk sebagai admin</div>
+{/if}
+
 {#if G.update}
   <div class="update">
     <span>Versi baru tersedia</span>
@@ -78,6 +86,7 @@
   .pet { width: 120px; height: 126px; animation: pop .5s ease-out; }
   .pet :global(svg) { width: 100%; height: 100%; }
   .rotate { display: none; }
+  .mbar { position: fixed; z-index: 950; top: calc(var(--safe-t, 0px) + 4px); left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); background: var(--ink); color: #F7C548; font-weight: 800; font-size: 12.5px; padding: 3px 12px; border-radius: 999px; text-align: center; pointer-events: none; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
     .rotate { display: flex; position: fixed; inset: 0; z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(180deg, var(--bg1), var(--bg2)); text-align: center; padding: 20px; }
     .rotate .pet { width: 90px; height: 95px; transform: rotate(-90deg); animation: none; }

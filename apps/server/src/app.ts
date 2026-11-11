@@ -8,6 +8,8 @@ import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
 import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7, seedPackV8 } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
+import { loadAdmin } from './lib/auth';
+import { getSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
 import { questEvent, seedQuests } from './lib/quests';
 import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
@@ -25,6 +27,7 @@ import duelRoutes from './routes/duels';
 import launchRoutes from './routes/launch';
 import houseRoutes from './routes/house';
 import squareRoutes from './routes/square';
+import siteRoutes from './routes/site';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -101,7 +104,27 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     if (req.url.startsWith('/api/')) reply.header('Cache-Control', reply.getHeader('Cache-Control') ?? 'no-store');
+    // API, panel admin, dan halaman bayar tidak untuk mesin pencari
+    if (/^\/(api\/|admin|pay\/)/.test(req.url)) reply.header('X-Robots-Tag', 'noindex, nofollow');
     return payload;
+  });
+
+  // Mode perawatan (admin › Situs & SEO): pemain melihat halaman perawatan (HTTP 503 + Retry-After supaya
+  // Google tidak menghapus halaman dari indeks). Panel admin, webhook, file statis, dan cek kesehatan tetap jalan;
+  // admin yang sedang masuk di browser yang sama tetap bisa main (bila adminBypass).
+  app.addHook('onRequest', async (req, reply) => {
+    const s = await getSite(db);
+    if (!s.maintenance.on) return;
+    const path = req.url.split('?')[0];
+    if (maintenanceOpen(path)) return;
+    if (s.maintenance.adminBypass !== false && (await loadAdmin(db, req))) return;
+    reply.header('Retry-After', String(retryAfter(s))).header('Cache-Control', 'no-store');
+    const info = maintenanceInfo(s);
+    if (!path.startsWith('/api/') && (req.method === 'GET' || req.method === 'HEAD')) {
+      const { html, csp } = maintenanceResponse(s);
+      return reply.code(503).header('Content-Security-Policy', csp).type('text/html; charset=utf-8').send(html);
+    }
+    return reply.code(503).send({ error: { code: 'maintenance', message: info.title, maintenance: info } });
   });
 
   app.get('/healthz', async () => {
@@ -125,6 +148,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(launchRoutes, { db });
   await app.register(houseRoutes, { db });
   await app.register(squareRoutes, { db });
+  await app.register(siteRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {
@@ -154,6 +178,32 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
     reply.header('Cache-Control', 'no-cache').header('Content-Security-Policy', csp).type('text/html; charset=utf-8');
     return reply.send(readFileSync(file));
   };
+  // Pengundang dari tautan ?undang=KODE untuk pratinjau tautan ("Mochi ngajak kamu main BUPI!"), disimpan sebentar
+  const invites = new Map<string, { at: number; v: Invite | null }>();
+  async function inviteOf(raw: unknown): Promise<Invite | null> {
+    const code = String(raw ?? '').trim().toUpperCase();
+    if (!/^[A-Z0-9-]{4,16}$/.test(code)) return null;
+    const hit = invites.get(code);
+    if (hit && Date.now() - hit.at < 10 * 60_000) return hit.v;
+    const u = await db.one<{ display_name: string; pet: string | null }>(
+      `select u.display_name, (select p.name from pets p where p.user_id = u.id limit 1) pet from users u where u.friend_code = $1 and u.banned_at is null`, [code]);
+    const name = u ? (u.display_name && u.display_name !== 'Tamu' ? u.display_name : u.pet) : null;
+    const v = name ? { name, code } : null;
+    if (invites.size > 5000) invites.clear();
+    invites.set(code, { at: Date.now(), v });
+    return v;
+  }
+  /** index.html game + tag SEO/pratinjau tautan dari pengaturan Situs & SEO. */
+  const sendGame = async (req: any, reply: any) => {
+    const s = await getSite(db);
+    const ix = indexStatus(s);
+    const path = req.url.split('?')[0];
+    const invite = req.query?.undang ? await inviteOf(req.query.undang).catch(() => null) : null;
+    const head = seoHead(s, await ogImage(db, s), { path, invite, indexable: ix.indexable });
+    reply.header('Cache-Control', 'no-cache').header('Content-Security-Policy', csp).type('text/html; charset=utf-8');
+    if (!ix.indexable || path !== '/') reply.header('X-Robots-Tag', 'noindex');
+    return reply.send(renderIndex(gameIndex, head));
+  };
   if (existsSync(config.adminDist)) {
     await app.register(fastifyStatic, {
       root: config.adminDist, prefix: '/admin/', decorateReply: false, index: false, wildcard: false,
@@ -171,11 +221,11 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
         if (path.endsWith('sw.js')) (res as any).header('Service-Worker-Allowed', '/');
       },
     });
-    app.get('/', (_req, reply) => sendIndex(gameIndex, reply));
+    app.get('/', sendGame);
   }
   app.setNotFoundHandler((req, reply) => {
     if (req.method === 'GET' && !req.url.startsWith('/api/') && !req.url.startsWith('/media/') && existsSync(gameIndex) && !/\.\w{2,5}(\?|$)/.test(req.url)) {
-      return sendIndex(gameIndex, reply);
+      return sendGame(req, reply);
     }
     reply.code(404).send({ error: { code: 'not_found', message: 'Tidak ditemukan' } });
   });

@@ -16,7 +16,8 @@ function serviceWorker(): Plugin {
         for (const n of readdirSync(dir)) {
           const p = join(dir, n);
           if (statSync(p).isDirectory()) walk(p, base + n + '/');
-          else if (n !== 'sw.js') files.add('/' + base + n);
+          // gambar pratinjau tautan (og/) hanya untuk bot media sosial, tidak perlu disimpan di HP pemain
+          else if (n !== 'sw.js' && !base.startsWith('og/')) files.add('/' + base + n);
         }
       };
       walk(pub);

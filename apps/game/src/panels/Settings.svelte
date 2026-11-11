@@ -2,6 +2,7 @@
   import { unhide } from '../lib/house.svelte';
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
+  import SocialLinks from '../components/SocialLinks.svelte';
   import AuthOptions from '../components/AuthOptions.svelte';
   import TransferCode from '../components/TransferCode.svelte';
   import RedeemCode from '../components/RedeemCode.svelte';
@@ -222,6 +223,7 @@
   <section>
     <h3>Tentang</h3>
     <p class="muted">BUPI versi {APP_VERSION}</p>
+    {#if G.config?.social?.length}<p class="muted small">Ikuti kabar terbaru BUPI:</p><SocialLinks links={G.config.social} />{/if}
     <button class="btn" class:hot={!!G.whatsNew} onclick={() => (G.sheet = 'whatsnew')}>Apa yang baru{#if G.whatsNew} <span class="newdot" aria-label="ada pembaruan"></span>{/if}</button>
   </section>
 

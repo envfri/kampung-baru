@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
+import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
@@ -293,6 +294,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
   });
   app.delete('/api/admin/media/:id', adm, async (req: any) => {
     await db.query(`delete from media where id = $1`, [String(req.params.id)]);
+    forgetMediaInfo(String(req.params.id));
     await audit(db, req, 'media_delete', String(req.params.id));
     return { ok: true };
   });

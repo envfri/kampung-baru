@@ -27,6 +27,7 @@
   import Versions from './pages/Versions.svelte';
   import Integrations from './pages/Integrations.svelte';
   import Launch from './pages/Launch.svelte';
+  import Site from './pages/Site.svelte';
   import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
@@ -56,6 +57,7 @@
     ] },
     { group: 'Sistem', items: [
       { k: 'audit', label: 'Log audit', min: 'admin', C: Audit },
+      { k: 'site', label: 'Situs & SEO', min: 'moderator', C: Site },
       { k: 'integrations', label: 'Integrasi & URL', min: 'admin', C: Integrations },
       { k: 'versions', label: 'Versi & changelog', min: 'moderator', C: Versions },
       { k: 'admins', label: 'Admin', min: 'owner', C: Admins },
@@ -69,12 +71,20 @@
 
   // tautan langsung: #/players/<id> membuka detail pemain
   function route() { const [r, ...rest] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('/'); A.route = r; A.arg = rest.join('/'); menu = false; }
+  // penanda merah di semua halaman admin selama mode perawatan aktif (supaya tidak lupa dimatikan)
+  async function checkMaint() { try { A.maint = !!(await api.get('/api/site')).maintenance?.on; } catch { /* abaikan */ } }
   async function load() {
     try { A.me = await api.get('/api/admin/me'); } catch { A.me = null; }
     loading = false;
+    checkMaint();
   }
   async function logout() { await api.post('/api/admin/logout').catch(err); A.me = null; }
-  onMount(() => { route(); load(); addEventListener('hashchange', route); return () => removeEventListener('hashchange', route); });
+  onMount(() => {
+    route(); load(); addEventListener('hashchange', route);
+    const t = setInterval(checkMaint, 30_000);
+    return () => { removeEventListener('hashchange', route); clearInterval(t); };
+  });
+  $effect(() => { void A.route; checkMaint(); });
 </script>
 
 {#if loading}
@@ -103,6 +113,7 @@
     </aside>
     <main>
       <header class="mobile"><button class="btn sm" onclick={() => (menu = !menu)} aria-expanded={menu}>Menu</button><b>{page.label}</b><a class="btn sm" href="/" target="_blank" rel="noopener">Buka game</a></header>
+      {#if A.maint}<a class="maintbar" href="#/site">Mode perawatan AKTIF: pemain sedang tidak bisa main. Buka Situs &amp; SEO untuk mematikan.</a>{/if}
       {#key page.k}<page.C />{/key}
     </main>
   </div>
@@ -111,6 +122,7 @@
 
 <style>
   .loading { padding: 40px; text-align: center; }
+  .maintbar { display: block; margin: 0 0 14px; background: var(--danger); color: #fff; font-weight: 700; text-decoration: none; padding: 9px 14px; border-radius: 10px; }
   .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
   aside { background: var(--ink); color: #E9ECF5; display: flex; flex-direction: column; gap: 10px; padding: 16px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
   .brand { display: flex; gap: 10px; align-items: center; padding: 4px 6px 10px; }

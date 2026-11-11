@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Db } from '../db/index';
 import { config } from '../config';
+import { getSite } from '../lib/site';
+import { socialLinks } from '@kb/shared';
 import { zepayMode } from '../lib/zepay';
 import { bad, forbidden, getSettings, sha256, track, HttpError } from '../lib/core';
 import { createSession, createUser, destroySession, loadAdmin, loadUser, requireUser } from '../lib/auth';
@@ -58,6 +60,7 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
 
   app.get('/api/config', async (req) => {
     const s = await getSettings(db);
+    const site = await getSite(db);
     const f = s.features;
     return {
       login: {
@@ -73,6 +76,9 @@ export default async function authRoutes(app: FastifyInstance, { db }: { db: Db 
       whatsapp: waEnabled() && (await getChannels(db)).whatsapp.enabled,
       midtransClientKey: config.paymentProvider === 'midtrans' ? config.midtransClientKey : null,
       midtransProduction: config.midtransProduction,
+      social: socialLinks(site.social),
+      // permintaan ini hanya lolos saat perawatan bila admin boleh lewat: game menampilkan penanda kecil
+      maintenance: site.maintenance.on ? { bypass: true } : null,
     };
   });
 

@@ -5,6 +5,8 @@ export const A = $state({
   route: 'dashboard',
   /** bagian setelah halaman di tautan (#/players/<id>) */
   arg: '' as string,
+  /** mode perawatan sedang aktif (penanda merah di semua halaman admin) */
+  maint: false,
 });
 const RANK = { moderator: 1, admin: 2, owner: 3 } as const;
 export const can = (min: keyof typeof RANK) => !!A.me && RANK[A.me.admin.role] >= RANK[min];

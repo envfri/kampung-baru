@@ -131,6 +131,10 @@ curl -s https://amt.ai.id/healthz && echo && curl -s https://amt.ai.id/api/versi
 5. Uji: kirim email uji (admin → Email), WhatsApp uji (admin → WhatsApp), beli paket Mutiara lalu **Simulasi lunas** (admin → Pembayaran).
 6. Siap dibuka: ganti ke kunci **live** (`zpk_live_…`, `kf_live_…`), `docker compose up -d`, lalu **daftarkan ulang webhook** (webhook uji dan live terpisah). Beli satu paket kecil sungguhan.
 7. Pasang pemantau uptime (mis. UptimeRobot) ke `https://amt.ai.id/healthz`.
+8. **Google & pratinjau tautan** (admin → **Situs & SEO**):
+   - Periksa judul, deskripsi, gambar pratinjau, dan akun media sosial (Instagram bawaan: @playbudi).
+   - Buka [Google Search Console](https://search.google.com/search-console), tambahkan properti `https://amt.ai.id/`, pilih verifikasi **Tag HTML**, lalu tempel tag meta-nya di kolom "Verifikasi Google Search Console" dan simpan. Setelah terverifikasi, kirim sitemap `https://amt.ai.id/sitemap.xml`.
+   - Indeks hanya aktif di server produksi (`NODE_ENV=production`) dengan `PUBLIC_URL` ber-`https://`; server uji otomatis `noindex`.
 
 ## 7. Update versi baru
 
@@ -139,6 +143,36 @@ cd ~/bupi && bash deploy/update.sh
 ```
 
 `update.sh` membuat **backup database dulu**, menarik commit terbaru, membangun ulang, menunggu sampai sehat, lalu menampilkan versi yang berjalan. Riwayatnya terlihat di admin → **Versi & changelog**. Pemain melihat banner "Versi baru tersedia" di game.
+
+### Mode perawatan
+
+Untuk pekerjaan yang lebih lama (migrasi besar, cut-off, perbaikan data), nyalakan admin → **Situs & SEO** → **Aktifkan mode perawatan** sebelum mulai. Selama aktif:
+
+- Pemain melihat halaman perawatan beranimasi dengan perkiraan selesai dan tautan Instagram. Pemain yang sedang main langsung dialihkan, lalu kembali ke game sendiri begitu mode perawatan dimatikan.
+- Server membalas **HTTP 503 + Retry-After**, jadi Google tidak menurunkan atau menghapus halaman.
+- Panel admin, webhook (ZePay, Mailketing, Klik Flow), file gambar, dan `/healthz` tetap jalan. Admin yang sedang masuk di browser yang sama tetap bisa main untuk mengecek (bisa dimatikan).
+- Semua halaman admin menampilkan penanda merah supaya tidak lupa dimatikan. Nyala/mati tercatat di Log audit.
+
+**Opsional: halaman perawatan saat server sedang dimulai ulang.** Selama `update.sh` membangun ulang container (biasanya beberapa detik), Caddy menampilkan halaman kosong "502". Untuk menggantinya dengan halaman perawatan statis (`deploy/perawatan/index.html`, ikut dibuat oleh `npm run site-assets`):
+
+1. Di `docker-compose.yml`, pada layanan `caddy` → `volumes`, tambahkan `- ./deploy/perawatan:/srv/perawatan:ro`.
+2. Di `deploy/Caddyfile`, di dalam blok `{$DOMAIN} { ... }` setelah `reverse_proxy app:8787`, tambahkan:
+   ```
+   	handle_errors 502 503 504 {
+   		root * /srv/perawatan
+   		rewrite * /index.html
+   		file_server
+   	}
+   ```
+3. Periksa dulu sebelum dipakai, lalu jalankan ulang Caddy:
+   ```bash
+   docker compose run --rm caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+   ```
+   ```bash
+   docker compose up -d caddy
+   ```
+
+Halaman 503 dari server sendiri (mode perawatan di admin) tidak terpengaruh: Caddy hanya memakai halaman statis bila server tidak bisa dihubungi.
 
 ## 8. Rollback (kembali ke versi sebelumnya)
 

@@ -1,3 +1,5 @@
+import { MAINT } from './maint.svelte';
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public data?: any) {
     super(message);
@@ -23,6 +25,8 @@ async function call<T = any>(method: string, url: string, body?: unknown): Promi
   try { data = text ? JSON.parse(text) : null; } catch { /* bukan JSON */ }
   if (!res.ok) {
     const e = data?.error;
+    // server sedang perawatan: tampilkan layar perawatan (App.svelte), apa pun permintaannya
+    if (res.status === 503 && e?.code === 'maintenance') MAINT.info = { title: e.maintenance?.title ?? e.message ?? 'BUPI sedang perawatan', message: e.maintenance?.message ?? '', until: e.maintenance?.until ?? null };
     throw new ApiError(res.status, e?.code ?? 'error', e?.message ?? 'Terjadi kesalahan. Coba lagi.', e);
   }
   return data as T;
