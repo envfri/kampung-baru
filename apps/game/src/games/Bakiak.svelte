@@ -14,20 +14,41 @@
   let taps: [number, Foot][] = [];
   let t0 = 0, duration = 20000, lockUntil = 0, last = -1e9, raf = 0;
   let steps = $state(0), stumbles = $state(0), now = $state(0), shake = $state(false);
+  // posisi yang tampil dihaluskan; setelah finis tim terus berlari melewati bendera sebelum kartu hasil muncul
+  const START_X = 76, LINE_X = 268, RUN_OUT = 330;
+  const trackX = (n: number) => START_X + Math.min(1, n / BAKIAK.finish) * (LINE_X - 32 - START_X);
+  let dx = $state(START_X), odx = $state(START_X), oppSteps = $state(0), wob = $state(false), ended = false;
 
   const run = createRun('bakiak', (r) => {
     prompts = bakiakPrompts(r.seed);
     duration = r.durationMs ?? cfg.durationMs ?? 20000;
     taps = []; steps = 0; stumbles = 0; lockUntil = 0; last = -1e9;
+    dx = odx = START_X; oppSteps = 0; ended = false;
     t0 = performance.now();
+    cancelAnimationFrame(raf);
     loop();
   });
   function loop() {
-    now = performance.now() - t0;
-    if (now >= duration || steps >= BAKIAK.finish) return end();
-    raf = requestAnimationFrame(loop);
+    const ph = run.st.phase;
+    if (ph === 'play') {
+      now = performance.now() - t0;
+      if (!ended && (now >= duration || steps >= BAKIAK.finish)) end();
+    }
+    const done = steps >= BAKIAK.finish;
+    dx += ((done ? RUN_OUT : trackX(steps)) - dx) * (done ? 0.07 : 0.32);
+    if (run.st.duel) {
+      oppSteps = run.opp() ?? 0;
+      odx += ((oppSteps >= BAKIAK.finish ? RUN_OUT : trackX(oppSteps)) - odx) * 0.25;
+    }
+    // langkah kaki: ikut ketukan saat main, berlari sendiri saat melewati garis finis
+    wob = done ? Math.floor(performance.now() / 110) % 2 === 0 : steps % 2 === 1;
+    if (ph === 'play' || ph === 'finale') raf = requestAnimationFrame(loop);
   }
-  function end() { cancelAnimationFrame(raf); run.finish({ taps }); }
+  function end() {
+    ended = true;
+    const done = steps >= BAKIAK.finish;
+    run.finish({ taps }, done ? { banner: 'Finis!', hold: 1500 } : { banner: 'Waktu habis!', good: false, hold: 1100 });
+  }
 
   function tap(f: Foot) {
     if (run.st.phase !== 'play') return;
@@ -45,13 +66,11 @@
   }
   onDestroy(() => { cancelAnimationFrame(raf); run.stop(); });
 
-  const team = $derived([renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((w) => w.data?.slot !== 'back')), renderPet(KARUNG_RIVALS[0] as any), renderPet(KARUNG_RIVALS[1] as any)]);
-  const x = $derived(50 + Math.min(1, steps / BAKIAK.finish) * 270);
+  // pet sendiri di depan (paling kanan), dua teman setim di belakangnya
+  const team = $derived([renderPet(KARUNG_RIVALS[1] as any), renderPet(KARUNG_RIVALS[0] as any), renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((w) => w.data?.slot !== 'back'))]);
   // duel: tim lawan di lajur belakang (bayangan = transparan)
   const duel = $derived(run.st.duel);
-  const rivalTeam = $derived(duel?.them?.pet ? [renderPet(duel.them.pet, wearItems(duel.them.pet.wear).filter((w) => w.data?.slot !== 'back')), renderPet(KARUNG_RIVALS[2] as any), renderPet(KARUNG_RIVALS[3] as any)] : []);
-  const oppSteps = $derived.by(() => { void now; return duel ? run.opp() ?? 0 : 0; });
-  const ox = $derived(50 + Math.min(1, oppSteps / BAKIAK.finish) * 270);
+  const rivalTeam = $derived(duel?.them?.pet ? [renderPet(KARUNG_RIVALS[3] as any), renderPet(KARUNG_RIVALS[2] as any), renderPet(duel.them.pet, wearItems(duel.them.pet.wear).filter((w) => w.data?.slot !== 'back'))] : []);
   const timeLeft = $derived(Math.max(0, Math.ceil((duration - now) / 1000)));
   const label = (f?: Foot) => (f === 'L' ? 'KIRI' : f === 'R' ? 'KANAN' : '');
 </script>
@@ -65,26 +84,28 @@
     <rect x="-300" y="380" width="1000" height="60" fill="#E9D9AE" stroke="#2B2F4A" stroke-width="2.5" />
     {#each Array(9) as _, i}<path d="M{20 + i * 45} 410h22" stroke="#C9B582" stroke-width="3" />{/each}
     <!-- garis finis -->
-    <path d="M352 300V440" stroke="#2B2F4A" stroke-width="4" />
-    <path d="M354 300h34v12h-34zM354 312h34v12h-34z" fill="#E0583F" stroke="#2B2F4A" stroke-width="2" /><path d="M354 312h34" stroke="#FFFFFF" stroke-width="12" opacity=".9" />
+    <path d="M{LINE_X} 300V440" stroke="#2B2F4A" stroke-width="4" />
+    <path d="M{LINE_X + 2} 300h34v12h-34zM{LINE_X + 2} 312h34v12h-34z" fill="#E0583F" stroke="#2B2F4A" stroke-width="2" /><path d="M{LINE_X + 2} 312h34" stroke="#FFFFFF" stroke-width="12" opacity=".9" />
+    <!-- kotak-kotak garis finis di lintasan -->
+    {#each Array(6) as _, k}<rect x={LINE_X - 4 + (k % 2) * 4} y={380 + k * 10} width="4" height="10" fill="#2B2F4A" />{/each}
     {#if duel && rivalTeam.length}
-      <g transform="translate({ox.toFixed(1)} 372)" opacity={duel.ghost ? 0.55 : 1}>
+      <g transform="translate({odx.toFixed(1)} 372)" opacity={duel.ghost ? 0.55 : 1}>
         <g transform="rotate({oppSteps % 2 ? 3 : -3})">
           {#each rivalTeam as t, i}<g transform="translate({(i - 1) * 30} -5) scale(.3)">{@html t}</g>{/each}
           <rect x="-60" y="-5" width="120" height="9" rx="4" fill="#9C7A4A" stroke="#2B2F4A" stroke-width="2.2" />
         </g>
       </g>
     {/if}
-    <g transform="translate({x.toFixed(1)} 404)" class:shake>
-      <g transform="rotate({steps % 2 ? 3 : -3})">
+    <g transform="translate({dx.toFixed(1)} 404)" class:shake>
+      <g transform="rotate({wob ? 3 : -3})">
         {#each team as t, i}<g transform="translate({(i - 1) * 34} -6) scale(.36)">{@html t}</g>{/each}
         <rect x="-70" y="-6" width="140" height="10" rx="4" fill="#B98B4E" stroke="#2B2F4A" stroke-width="2.5" />
       </g>
     </g>
   </svg>
 
-  {#if run.st.phase === 'play' || run.st.phase === 'count'}
-    <div class="top"><span>{steps}/{BAKIAK.finish} langkah</span><span>{timeLeft} d</span></div>
+  {#if run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale'}
+    <div class="top"><span>{Math.min(steps, BAKIAK.finish)}/{BAKIAK.finish} langkah</span><span>{timeLeft} d</span></div>
     {#if run.st.phase === 'play'}
       <div class="prompt" class:bad={shake} class:low={!!duel}>{shake ? 'Tersandung!' : label(prompts[steps])}<small>lalu {label(prompts[steps + 1])}</small></div>
       <div class="pads">

@@ -21,6 +21,7 @@
 </script>
 
 {#if run.st.phase === 'count'}<div class="count">{run.st.count}</div>{/if}
+{#if run.st.phase === 'finale' && run.st.banner}{#key run.st.banner.text}<div class="banner" class:bad={!run.st.banner.good} role="status">{run.st.banner.text}</div>{/key}{/if}
 {#if run.st.phase === 'intro' && inDuel}
   <div class="card"><h2>{title}</h2><p>Menyiapkan duel…</p><div class="row"><button class="btn" onclick={back}>{@html I.back} Duel</button></div></div>
 {:else if run.st.phase === 'intro' || run.st.phase === 'done'}
@@ -56,6 +57,10 @@
 
 <style>
   .count { position: absolute; z-index: 8; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 120px; font-weight: 800; color: var(--paper); -webkit-text-stroke: 5px var(--ink); pointer-events: none; }
+  .banner { position: absolute; z-index: 8; left: 50%; top: 30%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(44px, 13vw, 76px); font-weight: 800; color: #FFE27A; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); pointer-events: none; animation: bannerIn .45s cubic-bezier(.2, 1.6, .4, 1) both; }
+  .banner.bad { color: #FFFDF7; }
+  @keyframes bannerIn { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .banner { animation: none; } }
   .card { position: absolute; z-index: 8; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(420px, calc(100vw - 20px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
   h2 { margin: 0; font-size: 24px; font-weight: 800; }
   h2.win { color: #1E7A4C; }

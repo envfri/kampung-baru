@@ -28,7 +28,7 @@
   });
   function loop() {
     now = performance.now() - t0;
-    if (now >= duration) { cancelAnimationFrame(raf); run.finish({ caught }); return; }
+    if (now >= duration) { cancelAnimationFrame(raf); run.finish({ caught }, { banner: 'Waktu habis!', good: false, hold: 1000 }); return; }
     raf = requestAnimationFrame(loop);
   }
   const visible = $derived(run.st.phase === 'play' ? sched.map((k, i) => ({ k, i })).filter(({ k, i }) => !taken.has(i) && now >= k.t && now <= k.t + LAYANGAN_FALL_MS) : []);
@@ -71,7 +71,7 @@
     {/each}
     {#if flash}{#key flash.n}<text x={flash.x} y={flash.y - 30} text-anchor="middle" class="flash" class:bad={!flash.good}>{flash.text}</text>{/key}{/if}
   </svg>
-  {#if run.st.phase === 'play' || run.st.phase === 'count'}
+  {#if run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale'}
     <div class="top"><span>{score} poin</span><span>{timeLeft} d</span></div>
   {/if}
   <VsBar {run} mine={score} fmt={(v) => `${v} poin`} />

@@ -26,7 +26,12 @@
     if (now >= duration || maxH >= PINANG.top) return end();
     raf = requestAnimationFrame(loop);
   }
-  function end() { cancelAnimationFrame(raf); run.finish({ taps }); }
+  // sampai puncak: pet bertahan di atas sebentar sambil merayakan, baru kartu hasil
+  function end() {
+    cancelAnimationFrame(raf);
+    const top = maxH >= PINANG.top;
+    run.finish({ taps }, top ? { banner: 'Sampai puncak!', hold: 1600 } : { banner: 'Waktu habis!', good: false, hold: 1000 });
+  }
   // sama persis dengan hitungan server (pinangReplay)
   function climb() {
     if (run.st.phase !== 'play') return;
@@ -75,10 +80,10 @@
       <path d="M214 {py}h26" stroke="#2B2F4A" stroke-width="2" /><rect x="240" y={py - 11} width="54" height="22" rx="11" fill={maxH >= p ? '#8FD3A7' : '#FFFDF7'} stroke="#2B2F4A" stroke-width="2" />
       <text x="267" y={py + 5} text-anchor="middle" font-family="'Baloo 2',sans-serif" font-weight="800" font-size="13" fill="#2B2F4A">{cfg.rewards?.[i] ?? ''} koin</text>
     {/each}
-    <g transform="translate(200 {y.toFixed(1)})" class:slip><g transform="scale(.4)">{@html pet}</g></g>
+    <g transform="translate(200 {y.toFixed(1)})" class:slip class:cheer={run.st.phase === 'finale' && maxH >= PINANG.top}><g transform="scale(.4)">{@html pet}</g></g>
     {#if slip}<text x="120" y={y - 30} text-anchor="middle" class="flash bad">Licin!</text>{/if}
   </svg>
-  {#if run.st.phase === 'play' || run.st.phase === 'count'}
+  {#if run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale'}
     <div class="top"><span>{Math.round(shown)}% tiang</span><span>{timeLeft} d</span></div>
     {#if run.st.phase === 'play'}
       <div class="pads"><button class="btn hot pad" onpointerdown={(e) => { e.preventDefault(); climb(); }}>Panjat!</button></div>
@@ -92,6 +97,9 @@
 
 <style>
   .slip { animation: slipShake .12s ease-in-out infinite alternate; }
+  .cheer { animation: cheer .35s ease-in-out infinite alternate; }
+  @keyframes cheer { from { translate: 0 0; } to { translate: 0 -10px; } }
+  @media (prefers-reduced-motion: reduce) { .cheer { animation: none; } }
   @keyframes slipShake { from { translate: -3px 0; } to { translate: 3px 0; } }
   .pads { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); bottom: calc(var(--safe-b) + 20px); display: flex; }
   .pad { flex: 1; min-height: 96px; font-size: 24px; touch-action: none; }

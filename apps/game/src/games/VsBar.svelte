@@ -7,15 +7,15 @@
   const them = $derived(run.st.duel?.them);
   let opp = $state<number | null>(null);
   const tick = setInterval(() => {
-    if (!run.st.duel || run.st.phase !== 'play') return;
-    run.report(mine);
+    if (!run.st.duel || (run.st.phase !== 'play' && run.st.phase !== 'finale')) return;
+    if (run.st.phase === 'play') run.report(mine);
     opp = run.opp();
   }, 150);
   onDestroy(() => clearInterval(tick));
   const lead = $derived(opp === null ? 0 : Math.sign(mine - opp));
 </script>
 
-{#if run.st.duel && (run.st.phase === 'play' || run.st.phase === 'count')}
+{#if run.st.duel && (run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale')}
   <div class="vsbar" aria-label="Skor duel">
     <span class="me" class:lead={lead > 0}>{@html petSVG(G.me.pet, wearItems(G.me.pet.wear))}<b>{fmt(mine)}</b></span>
     <i>VS</i>

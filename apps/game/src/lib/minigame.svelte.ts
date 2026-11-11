@@ -6,10 +6,12 @@ import { G, merge, fail, toast, refreshMe } from './game.svelte';
 import { api } from './api';
 import { sfx } from './sfx';
 
-export type Phase = 'intro' | 'count' | 'play' | 'done';
+/** finale = aksi sudah selesai, animasi akhir ("Finis!" / "Waktu habis!") masih berjalan sebelum kartu hasil. */
+export type Phase = 'intro' | 'count' | 'play' | 'finale' | 'done';
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function createRun(game: string, onPlay: (start: any) => void) {
-  const st = $state({ phase: 'intro' as Phase, count: 3, busy: false, result: null as any, start: null as any, duel: null as any, oppLive: null as null | number, oppDone: false });
+  const st = $state({ phase: 'intro' as Phase, count: 3, busy: false, result: null as any, start: null as any, duel: null as any, oppLive: null as null | number, oppDone: false, banner: null as null | { text: string; good: boolean } });
   let tick: any, lastSent = 0, t0 = 0, poll: any;
   const duel = () => (G.duel && G.duel.game === game ? G.duel : null);
 
@@ -23,6 +25,7 @@ export function createRun(game: string, onPlay: (start: any) => void) {
       if (d) { r.runId = d.id; Object.assign(r, r.meta ?? {}); st.duel = { ...d, ghost: r.ghost, seed: r.seed, meta: r.meta }; st.oppLive = null; st.oppDone = !!r.ghost; }
       st.start = r;
       st.result = null;
+      st.banner = null;
       G.immersive = true;
       st.phase = 'count';
       st.count = 3;
@@ -36,13 +39,22 @@ export function createRun(game: string, onPlay: (start: any) => void) {
     } catch (e) { fail(e); if (duel()) leaveDuel(); } finally { st.busy = false; }
   }
 
-  async function finish(payload: Record<string, unknown>) {
-    if (st.phase === 'done' || !st.start) return;
-    st.phase = 'done';
+  /**
+   * Kirim hasil. Dengan `banner`, layar menahan animasi akhir selama `hold` ms (mis. tim melewati garis finis)
+   * sebelum kartu hasil muncul; hasil sudah dikirim ke server bersamaan.
+   */
+  async function finish(payload: Record<string, unknown>, opts: { banner?: string; good?: boolean; hold?: number } = {}) {
+    if (st.phase === 'done' || st.phase === 'finale' || !st.start) return;
+    const hold = opts.banner ? opts.hold ?? 1300 : 0;
+    st.phase = hold ? 'finale' : 'done';
+    st.banner = opts.banner ? { text: opts.banner, good: opts.good !== false } : null;
+    if (hold) { if (opts.good !== false) sfx.level(); else sfx.pop(); }
     st.busy = true;
+    const held = sleep(hold);
     try {
       if (st.duel) {
         const r = await api.post(`/api/duels/${st.duel.id}/finish`, { inputs: payload });
+        await held; st.phase = 'done';
         merge(r);
         st.result = { score: r.duel.me.label, reward: r.reward, duel: r.duel };
         if (r.duel.result === 'menang') sfx.level(); else if (r.reward) sfx.coin();
@@ -52,12 +64,13 @@ export function createRun(game: string, onPlay: (start: any) => void) {
         refreshMe().catch(() => {});
       } else {
         const r = await api.post(`/api/games/${game}/finish`, { runId: st.start.runId, ...payload });
+        await held; st.phase = 'done';
         merge(r);
         st.result = r;
         if (r.reward) sfx.coin();
         if (r.levelUp) toast(`Naik ke Lv ${r.levelUp}!`, 'good');
       }
-    } catch (e) { fail(e); st.result = { error: true, reward: 0 }; } finally { st.busy = false; G.immersive = false; }
+    } catch (e) { await held; st.phase = 'done'; fail(e); st.result = { error: true, reward: 0 }; } finally { st.busy = false; st.banner = null; G.immersive = false; }
   }
 
   function waitResult(id: string) {
@@ -84,7 +97,7 @@ export function createRun(game: string, onPlay: (start: any) => void) {
   /** Progres lawan sekarang: dari bayangan (tantangan) atau dari laporan langsung (main bareng). */
   function opp() {
     if (!st.duel) return null;
-    if (st.duel.ghost) return ghostAt(game, st.duel.seed, st.duel.meta, st.duel.ghost, st.phase === 'play' ? performance.now() - t0 : 1e9);
+    if (st.duel.ghost) return ghostAt(game, st.duel.seed, st.duel.meta, st.duel.ghost, st.phase === 'play' || st.phase === 'finale' ? performance.now() - t0 : 1e9);
     return st.oppLive;
   }
 

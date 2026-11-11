@@ -39,9 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.16.1',
+    date: '2026-11-11',
+    title: 'Akhir mini-game lebih jelas',
+    items: [
+      { kind: 'perbaikan', text: 'Balap Bakiak: tim kini benar-benar melewati bendera finis dulu ("Finis!") sebelum hasil muncul. Gerakan tim lebih halus, pet-mu di depan, dan garis finis tidak lagi di ujung layar HP.', player: true },
+      { kind: 'perbaikan', text: 'Lomba Karung: pet berhenti tepat di garis finis yang tergambar (sebelumnya berhenti sebelum garis) lalu melompatinya; lawan tetap berlomba sebentar sebelum papan hasil.', player: true },
+      { kind: 'perbaikan', text: 'Semua mini-game memberi tanda akhir sebelum kartu hasil: "Waktu habis!", "Sampai puncak!" (Panjat Pinang), atau total putaran Gasing.', player: true },
+      { kind: 'perbaikan', text: 'Lomba Karung punya batas waktu (semua lawan finis + 8 detik) dan Gasing melepas otomatis setelah 8 detik, supaya pemain yang berhenti tidak terjebak di layar permainan tanpa tombol keluar.', player: true },
+    ],
+  },
+  {
     version: '0.16.0',
     date: '2026-11-11',
     title: 'Persiapan peluncuran: Mutiara uji aman & cut-off',
+    commits: ['3836f4d'],
     items: [
       { kind: 'keamanan', text: 'Server produksi yang masih memakai pembayaran simulasi (PAYMENT_PROVIDER=mock): pembelian Mutiara terkunci untuk pemain (game menampilkan "Pembelian Mutiara belum dibuka"); halaman simulasi & checkout hanya bisa dipakai admin yang sedang login di browser yang sama.' },
       { kind: 'baru', text: 'Pembayaran uji (simulasi atau kunci uji ZePay) ditandai "uji" di admin › Pembayaran, dan Mutiara-nya bisa ditarik kembali dari admin › Peluncuran.' },

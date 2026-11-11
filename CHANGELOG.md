@@ -4,6 +4,15 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.16.1 · 2026-11-11 · Akhir mini-game lebih jelas
+
+### Perbaikan
+
+- Balap Bakiak: tim kini benar-benar melewati bendera finis dulu ("Finis!") sebelum hasil muncul. Gerakan tim lebih halus, pet-mu di depan, dan garis finis tidak lagi di ujung layar HP. _(pemain)_
+- Lomba Karung: pet berhenti tepat di garis finis yang tergambar (sebelumnya berhenti sebelum garis) lalu melompatinya; lawan tetap berlomba sebentar sebelum papan hasil. _(pemain)_
+- Semua mini-game memberi tanda akhir sebelum kartu hasil: "Waktu habis!", "Sampai puncak!" (Panjat Pinang), atau total putaran Gasing. _(pemain)_
+- Lomba Karung punya batas waktu (semua lawan finis + 8 detik) dan Gasing melepas otomatis setelah 8 detik, supaya pemain yang berhenti tidak terjebak di layar permainan tanpa tombol keluar. _(pemain)_
+
 ## 0.16.0 · 2026-11-11 · Persiapan peluncuran: Mutiara uji aman & cut-off
 
 ### Baru
@@ -19,6 +28,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 ### Keamanan
 
 - Server produksi yang masih memakai pembayaran simulasi (PAYMENT_PROVIDER=mock): pembelian Mutiara terkunci untuk pemain (game menampilkan "Pembelian Mutiara belum dibuka"); halaman simulasi & checkout hanya bisa dipakai admin yang sedang login di browser yang sama.
+
+Commit: [`3836f4d`](https://github.com/envfri/kampung-baru/commit/3836f4d)
 
 ## 0.15.0 · 2026-11-11 · Simpan progres & pindah perangkat
 

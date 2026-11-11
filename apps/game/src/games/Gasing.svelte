@@ -15,6 +15,9 @@
   let spins = $state<number[]>([]);
   let releases: number[] = [];
   let roundStart = 0, raf = 0, timer: any;
+  // tidak ditekan sama sekali: gasing dilepas otomatis supaya permainan tetap selesai (layar penuh tanpa tombol keluar)
+  const AUTO_MS = 8000;
+  let waited = $state(0);
 
   const run = createRun('gasing', (r) => {
     rounds = gasingRounds(r.seed, r.rounds ?? cfg.rounds ?? 5);
@@ -25,7 +28,13 @@
     mode = 'aim';
     roundStart = performance.now();
     cancelAnimationFrame(raf);
-    const loop = () => { meter = gasingMeter(performance.now() - roundStart, rounds[idx].speed); raf = requestAnimationFrame(loop); };
+    const loop = () => {
+      const t = performance.now() - roundStart;
+      meter = gasingMeter(t, rounds[idx].speed);
+      waited = t;
+      if (t >= AUTO_MS && run.st.phase === 'play') return release();
+      raf = requestAnimationFrame(loop);
+    };
     loop();
   }
   function release() {
@@ -40,7 +49,7 @@
     s >= 10 ? sfx.level() : s >= 6 ? sfx.coin() : sfx.pop();
     buzz(s >= 10 ? [20, 40, 20] : 15);
     timer = setTimeout(() => {
-      if (idx + 1 >= rounds.length) run.finish({ releases });
+      if (idx + 1 >= rounds.length) run.finish({ releases }, { banner: `${(Math.round(spins.reduce((a, b) => a + b, 0) * 10) / 10).toFixed(1)} detik!`, hold: 1100 });
       else { idx++; startRound(); }
     }, GASING_SPIN_MS);
   }
@@ -71,7 +80,7 @@
     </g>
     {#if mode === 'spin'}<text x="170" y="300" text-anchor="middle" class="flash" class:bad={last < 6}>{last.toFixed(1)} detik!</text>{/if}
     <!-- penunjuk tenaga -->
-    {#if r}
+    {#if r && run.st.phase !== 'finale'}
       <g transform="translate(340 0)">
         <rect x="-18" y={BAR_T} width="36" height={BAR_H} rx="10" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="3" />
         <rect x="-15" y={BAR_T + (1 - r.zone - r.width) * BAR_H} width="30" height={r.width * 2 * BAR_H} fill="#8FD3A7" />
@@ -82,10 +91,10 @@
     {/if}
   </svg>
 
-  {#if run.st.phase === 'play' || run.st.phase === 'count'}
+  {#if run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale'}
     <div class="top"><span>Ronde {Math.min(idx + 1, rounds.length || 5)}/{rounds.length || cfg.rounds}</span><span>{total.toFixed(1)} d</span></div>
     {#if run.st.phase === 'play'}
-      <div class="pads"><button class="btn hot pad" disabled={mode !== 'aim'} onpointerdown={(e) => { e.preventDefault(); release(); }}>Lepas gasing!</button></div>
+      <div class="pads"><button class="btn hot pad" disabled={mode !== 'aim'} onpointerdown={(e) => { e.preventDefault(); release(); }}>{mode === 'aim' && waited > AUTO_MS - 3000 ? `Lepas! (${Math.ceil((AUTO_MS - waited) / 1000)})` : 'Lepas gasing!'}</button></div>
     {/if}
   {/if}
   <VsBar {run} mine={Math.round(total * 10)} fmt={(v) => `${(v / 10).toFixed(1)} d`} />

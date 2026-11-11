@@ -6,7 +6,7 @@
   import { sfx, buzz } from '../lib/sfx';
   import { I, COIN } from '../lib/icons';
 
-  type Phase = 'intro' | 'count' | 'race' | 'done';
+  type Phase = 'intro' | 'count' | 'race' | 'finale' | 'done';
   let phase = $state<Phase>('intro');
   let count = $state(3);
   let rivals = $state<any[]>([]);
@@ -21,11 +21,12 @@
   let raf = 0;
   let busy = $state(false);
   const cfg = $derived(settings().karung ?? {});
-  const START = 40, FINISH = 352;
+  // LINE = garis finis yang digambar. Pet tepat di garis pada lompatan terakhir, lalu melompat melewatinya (END).
+  const START = 40, LINE = 340, END = 370;
   const laneY = (i: number) => 150 + i * 92;
-
-  const playerX = $derived(START + (Math.min(hops, KARUNG_HOPS) / KARUNG_HOPS) * (FINISH - START));
-  const rivalX = (r: any) => START + Math.min(1, elapsed / r.timeMs) * (FINISH - START);
+  const trackX = (p: number) => (p >= 1 ? END : START + p * (LINE - START));
+  let playerX = $state(START);
+  const rivalX = (r: any) => trackX(elapsed / r.timeMs);
 
   function sackPet(look: any, wear: any[], x: number, y: number, hopping: boolean, scale = 0.42) {
     const lift = hopping ? -10 : 0;
@@ -39,21 +40,22 @@
       s += `<rect x="16" y="${y - 70}" width="368" height="84" rx="10" fill="${i % 2 ? '#9CD07E' : '#93CB74'}"/>`;
       s += `<path d="M24 ${y + 14}H376" stroke="#FFFDF7" stroke-width="3" stroke-dasharray="8 8"/>`;
     }
-    s += `<rect x="${FINISH + 30}" y="70" width="10" height="${4 * 92}" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="2"/>`;
-    for (let k = 0; k < 18; k++) s += `<rect x="${FINISH + 30}" y="${70 + k * 20.4}" width="10" height="10.2" fill="#2B2F4A"/>`;
+    s += `<rect x="${LINE - 5}" y="70" width="10" height="${4 * 92}" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="2"/>`;
+    for (let k = 0; k < 18; k++) s += `<rect x="${LINE - 5}" y="${70 + k * 20.4}" width="10" height="10.2" fill="#2B2F4A"/>`;
     let fl = '';
     for (let i = 0; i < 12; i++) fl += `<path d="M${20 + i * 32} 40l14 0-7 14z" fill="${i % 2 ? '#FFFFFF' : '#E0583F'}" stroke="#2B2F4A" stroke-width="1.2"/>`;
     s += `<path d="M10 40H390" stroke="#2B2F4A" stroke-width="1.5"/>${fl}`;
     const t = elapsed;
     rivals.forEach((r, i) => {
       const x = rivalX(r);
-      const hopping = phase === 'race' && x < FINISH && Math.floor(t / 180 + i) % 2 === 0;
+      const hopping = (phase === 'race' || phase === 'finale') && x < END - 1 && Math.floor(t / 180 + i) % 2 === 0;
       s += sackPet(r, [], x, laneY(i), hopping);
-      s += `<text x="${x}" y="${laneY(i) - 52}" text-anchor="middle" class="nm">${r.name}</text>`;
+      s += `<text x="${Math.min(x, 352).toFixed(1)}" y="${laneY(i) - 52}" text-anchor="middle" class="nm">${r.name}</text>`;
     });
     const me = G.me.pet;
-    s += sackPet(me, wearItems(me.wear).filter((w) => w.data?.slot !== 'back'), playerX, laneY(3), hopAnim);
-    s += `<text x="${playerX}" y="${laneY(3) - 52}" text-anchor="middle" class="nm me">${me.name}</text>`;
+    const meHop = phase === 'finale' && playerX < END - 1 ? Math.floor(t / 150) % 2 === 0 : hopAnim;
+    s += sackPet(me, wearItems(me.wear).filter((w) => w.data?.slot !== 'back'), playerX, laneY(3), meHop);
+    s += `<text x="${Math.min(playerX, 352).toFixed(1)}" y="${laneY(3) - 52}" text-anchor="middle" class="nm me">${me.name}</text>`;
     return s;
   });
   let hopAnim = $state(false);
@@ -65,7 +67,7 @@
       merge(r);
       rivals = r.rivals.slice(0, 3);
       raceId = r.raceId;
-      hops = 0; taps = 0; last = null; elapsed = 0; result = null;
+      hops = 0; taps = 0; last = null; elapsed = 0; result = null; playerX = START; banner = '';
       phase = 'count';
       G.immersive = true;
       count = 3;
@@ -78,10 +80,25 @@
     } catch (e) { fail(e); } finally { busy = false; }
   }
 
+  // batas waktu: semua lawan sudah finis + 8 detik. Tanpa ini pemain yang berhenti mengetuk terjebak di layar penuh.
+  const limitMs = () => Math.max(0, ...rivals.map((r) => r.timeMs)) + 8000;
+  function timeUp() {
+    phase = 'finale';
+    banner = 'Waktu habis!';
+    sfx.pop();
+    setTimeout(() => {
+      phase = 'done'; cancelAnimationFrame(raf);
+      result = { timeout: true, rank: rivals.length + 1, reward: 0, timeMs: elapsed };
+      G.immersive = false;
+    }, 1100);
+  }
   function loop() {
     elapsed = performance.now() - t0;
-    if (phase === 'race') raf = requestAnimationFrame(loop);
+    if (phase === 'race' && elapsed > limitMs()) timeUp();
+    playerX += (trackX(Math.min(hops, KARUNG_HOPS) / KARUNG_HOPS) - playerX) * (hops >= KARUNG_HOPS ? 0.12 : 0.35);
+    if (phase === 'race' || phase === 'finale') raf = requestAnimationFrame(loop);
   }
+  let banner = $state('');
 
   function press(side: 'L' | 'R') {
     if (phase !== 'race') return;
@@ -97,17 +114,23 @@
   }
 
   async function finish(timeMs: number) {
-    phase = 'done';
-    cancelAnimationFrame(raf);
-    elapsed = timeMs;
+    // pet melompati garis finis & lawan masih berlomba sebentar; hasil dikirim bersamaan
+    phase = 'finale';
+    banner = 'Finis!';
+    sfx.level();
     busy = true;
+    const held = new Promise((ok) => setTimeout(ok, 1500));
     try {
       const r = await api.post('/api/karung/finish', { raceId, timeMs: Math.round(timeMs), taps });
+      await held;
+      phase = 'done'; cancelAnimationFrame(raf);
       merge(r);
       result = { ...r, timeMs };
       if (r.reward) sfx.coin();
       if (r.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.levelUp}!`, 'good'); }
     } catch (e: any) {
+      await held;
+      phase = 'done'; cancelAnimationFrame(raf);
       if (e?.code === 'invalid_run') { sfx.error(); result = { invalid: true, timeMs }; }
       else { fail(e); result = { rank: 0, reward: 0, timeMs, error: true }; }
     } finally { busy = false; G.immersive = false; }
@@ -143,9 +166,14 @@
     </div>
   {:else if phase === 'count'}
     <div class="count">{count}</div>
+  {:else if phase === 'finale'}
+    <div class="banner" role="status">{banner}</div>
   {:else if phase === 'done'}
     <div class="card">
-      {#if result?.invalid}
+      {#if result?.timeout}
+        <h2>Belum sampai finis</h2>
+        <p>Semua lawan sudah finis. Ketuk <b>KIRI</b> dan <b>KANAN</b> bergantian lebih cepat, ya!</p>
+      {:else if result?.invalid}
         <h2>Hasil tidak sah</h2>
         <p>Ketukanmu terlalu cepat untuk dihitung ({(result.timeMs / 1000).toFixed(2)} detik). Coba lagi dengan ritme kiri-kanan yang wajar.</p>
       {:else if result?.error}
@@ -191,6 +219,7 @@
   .row { display: flex; gap: 8px; justify-content: space-between; margin-top: 6px; }
   .row .btn { flex: 1 1 auto; }
   .count { position: absolute; z-index: 8; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 120px; font-weight: 800; color: var(--paper); -webkit-text-stroke: 5px var(--ink); animation: pop .5s; }
+  .banner { position: absolute; z-index: 8; left: 50%; top: 34%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(44px, 13vw, 76px); font-weight: 800; color: #FFE27A; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); pointer-events: none; animation: pop .45s; }
   .pads { position: absolute; z-index: 8; left: 0; right: 0; bottom: calc(var(--safe-b) + 12px); display: flex; gap: 10px; padding: 0 max(12px, var(--safe-r)) 0 max(12px, var(--safe-l)); align-items: stretch; }
   .pad { flex: 1; height: 150px; border: 3px solid var(--ink); border-radius: 24px; background: var(--coin); box-shadow: 0 6px 0 var(--ink); font-size: 28px; font-weight: 800; touch-action: none; cursor: pointer; }
   .pad:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); background: #FFD36B; }

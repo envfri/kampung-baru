@@ -6,7 +6,7 @@
   import { sfx, buzz } from '../lib/sfx';
   import { I, COIN } from '../lib/icons';
 
-  type Phase = 'intro' | 'count' | 'play' | 'done';
+  type Phase = 'intro' | 'count' | 'play' | 'finale' | 'done';
   let phase = $state<Phase>('intro');
   let count = $state(3);
   let busy = $state(false);
@@ -73,16 +73,20 @@
   }
 
   async function finish() {
-    phase = 'done';
+    // "Waktu habis!" tampil sebentar (skor terakhir masih terlihat) sebelum kartu hasil
+    phase = 'finale';
     cancelAnimationFrame(raf);
+    sfx.pop();
     busy = true;
+    const held = new Promise((ok) => setTimeout(ok, 1000));
     try {
       const r = await api.post('/api/games/panen/finish', { runId, caught });
+      await held; phase = 'done';
       merge(r);
       result = r;
       if (r.reward) sfx.coin();
       if (r.levelUp) toast(`Naik ke Lv ${r.levelUp}!`, 'good');
-    } catch (e: any) { fail(e); result = { score, reward: 0, error: true }; } finally { busy = false; G.immersive = false; }
+    } catch (e: any) { await held; phase = 'done'; fail(e); result = { score, reward: 0, error: true }; } finally { busy = false; G.immersive = false; }
   }
 
   function moveTo(clientX: number) {
@@ -125,10 +129,10 @@
     {/if}
   </svg>
 
-  {#if phase === 'play' || phase === 'count'}
+  {#if phase === 'play' || phase === 'count' || phase === 'finale'}
     <div class="top"><span>{@html COIN} {score} poin</span><span>{timeLeft} d</span></div>
     {#if phase === 'count'}<div class="count">{count}</div>{/if}
-    <p class="hint">Geser jari ke kiri-kanan</p>
+    {#if phase === 'finale'}<div class="banner" role="status">Waktu habis!</div>{:else}<p class="hint">Geser jari ke kiri-kanan</p>{/if}
   {:else}
     <div class="card">
       {#if phase === 'intro'}
@@ -156,6 +160,7 @@
   .top { position: absolute; top: calc(var(--safe-t) + 10px); left: 12px; right: 12px; display: flex; justify-content: space-between; z-index: 5; }
   .top span { display: flex; align-items: center; gap: 4px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 17px; box-shadow: 0 2px 0 var(--ink); }
   .top :global(svg) { width: 20px; height: 20px; }
+  .banner { position: absolute; z-index: 8; left: 50%; top: 34%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(44px, 13vw, 76px); font-weight: 800; color: #FFFDF7; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); pointer-events: none; animation: pop .45s; }
   .count { position: absolute; z-index: 8; left: 50%; top: 38%; transform: translate(-50%, -50%); font-size: 120px; font-weight: 800; color: var(--paper); -webkit-text-stroke: 5px var(--ink); }
   .hint { position: absolute; bottom: calc(var(--safe-b) + 14px); left: 50%; transform: translateX(-50%); margin: 0; background: rgba(255,253,247,.9); border: 2px solid var(--ink); border-radius: 12px; padding: 2px 10px; font-weight: 700; font-size: 13px; pointer-events: none; }
   .card { position: absolute; z-index: 8; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(420px, calc(100vw - 20px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
