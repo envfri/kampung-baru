@@ -2,7 +2,8 @@
   // Bar kunjungan bareng: main dengan pet teman (saat berkunjung), obrolan, ekspresi, foto bareng, main bareng.
   // Di rumah sendiri bar ini muncul bila ada tamu yang sedang live.
   import { G, item, items, toast } from '../lib/game.svelte';
-  import { H, say, emote, coop, takePhoto, kick } from '../lib/house.svelte';
+  import { H, say, emote, coop, takePhoto, kick, block } from '../lib/house.svelte';
+  import { ask } from '../lib/account.svelte';
   import { ACT_ICON, EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { itemIcon, PHOTO_POSES } from '@kb/shared';
   import { sfx } from '../lib/sfx';
@@ -23,7 +24,7 @@
   const hostName = $derived(G.visit?.pet?.name ?? 'pet teman');
 
   const status = $derived.by(() => {
-    if (mode === 'home') return `Tamu di sini: ${here.map((m) => m.name).join(', ')}`;
+    if (mode === 'home') return here.length ? `Tamu di sini: ${here.map((m) => m.name).join(', ')}${H.elsewhere.length ? ` · di ruangan lain: ${H.elsewhere.length}` : ''}` : `Tamu di ruangan lain: ${H.elsewhere.map((m) => m.name).join(', ')}`;
     if (H.full) return 'Rumah sedang ramai (penuh). Kamu tetap bisa main dengan pet teman.';
     if (H.reason === 'host_off') return `${G.visit?.owner?.display_name} sedang tidak menerima tamu live. Kamu tetap bisa main dengan ${hostName}.`;
     const others = here.filter((m) => !m.host).map((m) => m.name);
@@ -90,7 +91,7 @@
       <button class="btn sm" disabled={!liveOn && mode === 'visit'} onclick={() => toggle('emote')}>Ekspresi</button>
       <button class="btn sm" onclick={() => toggle('photo')}>Foto</button>
       <button class="btn sm" onclick={() => toggle('play')}>Main bareng</button>
-      {#if mode === 'home'}<button class="btn sm" onclick={() => toggle('guests')}>Tamu ({here.length})</button>{/if}
+      {#if mode === 'home'}<button class="btn sm" onclick={() => toggle('guests')}>Tamu ({here.length + H.elsewhere.length})</button>{/if}
     </div>
   {/if}
 
@@ -122,8 +123,11 @@
   {:else if pop === 'guests'}
     <div class="pop col" role="menu">
       <b>Tamu di rumahmu</b>
-      {#each here as m (m.id)}
-        <div class="guest"><span>{m.name}{m.pet ? ` · ${m.pet.name}` : ''}</span><button class="btn sm" onclick={() => { kick(m.id); pop = null; }}>Antar pulang</button></div>
+      {#each [...here, ...H.elsewhere.filter((e) => !e.host)] as m (m.id)}
+        <div class="guest"><span>{m.name}{(m as any).pet ? ` · ${(m as any).pet.name}` : ' · ruangan lain'}</span>
+          <span class="gb"><button class="btn sm" onclick={() => { kick(m.id); pop = null; }}>Antar pulang</button>
+          <button class="btn sm" onclick={async () => { pop = null; if (await ask({ title: `Blokir ${m.name}?`, text: `${m.name} akan diantar pulang, berhenti berteman denganmu, dan tidak bisa menambahkanmu atau berkunjung lagi. Bisa dibuka lagi di Pengaturan.`, yes: 'Blokir', danger: true })) block(m.id, m.name); }}>Blokir</button></span>
+        </div>
       {/each}
     </div>
   {/if}
@@ -151,6 +155,7 @@
   .pop small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
   .em :global(svg) { width: 34px; height: 34px; }
+  .gb { display: flex; gap: 4px; }
   .guest { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     /* layar lebar: bar di sisi kanan supaya lantai ruangan tidak tertutup */

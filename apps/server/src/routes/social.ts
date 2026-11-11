@@ -6,7 +6,7 @@ import { loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { eventOn, notifyEvent } from '../lib/notify';
-import { presenceOf, guestsAt } from './house';
+import { presenceOf, guestsAt, forgetFriend } from './house';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -53,6 +53,8 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const other = await db.one<{ id: string; display_name: string }>(`select id, display_name from users where friend_code = $1 and banned_at is null`, [norm]);
     if (!other) throw notFound('Kode teman tidak ditemukan.');
     if (other.id === me.id) throw bad('self', 'Itu kode teman kamu sendiri.');
+    // pemain yang memblokir / diblokir tidak bisa berteman lagi
+    if (await db.one(`select 1 from blocks where (user_id = $1 and blocked_id = $2) or (user_id = $2 and blocked_id = $1)`, [me.id, other.id])) throw forbidden('Tidak bisa berteman dengan pemain ini.');
     const s = await getSettings(db);
     const n = (await db.one<{ c: number }>(`select count(*)::int as c from friendships where user_id = $1`, [me.id]))!.c;
     if (n >= s.social.maxFriends) throw bad('max_friends', `Maksimal ${s.social.maxFriends} teman.`);
@@ -68,6 +70,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const id = String(req.params.id);
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
     await db.query(`delete from friendships where (user_id = $1 and friend_id = $2) or (user_id = $2 and friend_id = $1)`, [req.user!.id, id]);
+    forgetFriend(req.user!.id, id);
     return { ok: true };
   });
 

@@ -105,7 +105,8 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
 @keyframes fxUp { 0% { opacity: 0; transform: translateY(0) scale(.5); } 20% { opacity: 1; transform: translateY(-10px) scale(1); } 100% { opacity: 0; transform: translateY(-62px) scale(1); } }
 @keyframes selPulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
-@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+/* pakai properti `scale` (bukan transform) supaya tidak menimpa translate yang memusatkan kotak */
+@keyframes pop { 0% { scale: .6; opacity: 0; } 60% { scale: 1.06; opacity: 1; } 100% { scale: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .pet-bob, .eyes, .pet-hop.go, .furn.sel, .pet[class*='pose-'] .pet-bob, .pm-capek .m-base, .pm-capek .m-yawn { animation: none; }
   .pet .look { transition: none; }

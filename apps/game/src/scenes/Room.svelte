@@ -469,6 +469,8 @@
   }
   $effect(() => {
     const t = setInterval(() => {
+      // tidak ada pet lain & gelembung: tidak perlu menghitung posisi
+      if (document.hidden || (!comps.size && !H.bubbles.length)) { if (tags.length) tags = []; return; }
       const w = wrapEl?.getBoundingClientRect();
       if (!w) return;
       const bp: Record<string, { x: number; y: number }> = {};

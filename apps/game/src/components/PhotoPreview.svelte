@@ -10,6 +10,9 @@
   const svg = $derived(p ? renderPhoto(p.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), p.pose, item(p.scene?.wall), item(p.scene?.floor), p.scene?.theme) : '');
   const isMine = $derived(!!p && p.members.some((m: any) => m.id === G.me.user.id));
   function close() { H.photo = null; onclose?.(); }
+  async function remove() {
+    try { await api.del(`/api/photos/${p.id}`); toast('Foto dihapus dari albummu.'); await refreshMe(); close(); } catch (e) { fail(e); }
+  }
   async function feature() {
     try {
       await api.post(`/api/photos/${p.id}/feature`);
@@ -31,6 +34,7 @@
       {#if isMine && G.me.photo?.id !== p.id}<button class="btn hot" onclick={feature}>Pajang di rumahku</button>{/if}
       <button class="btn" onclick={close}>Tutup</button>
     </div>
+    {#if isMine}<button class="link" onclick={remove}>Hapus dari albumku</button>{/if}
   </div>
 {/if}
 
@@ -41,4 +45,5 @@
   p { margin: 0; font-weight: 800; text-align: center; }
   small { text-align: center; font-weight: 600; color: var(--muted); font-size: 12.5px; }
   .row { display: flex; gap: 8px; } .row .btn { flex: 1; }
+  .link { background: none; border: 0; color: var(--muted); font-weight: 700; text-decoration: underline; cursor: pointer; align-self: center; font-size: 13.5px; }
 </style>

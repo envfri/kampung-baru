@@ -90,6 +90,9 @@
     try { await api.del('/api/me', { confirm: del }); G.me = null; G.sheet = null; toast('Akun dihapus.'); } catch (e) { fail(e); }
   }
   const toggle = (k: 'sound' | 'haptics') => { prefs[k] = !prefs[k]; setPref(k, prefs[k]); };
+  let blocks = $state<any[] | null>(null);
+  async function loadBlocks() { try { blocks = (await api.get('/api/blocks')).blocks; } catch (e) { fail(e); } }
+  async function unblock(b: any) { try { await api.del(`/api/blocks/${b.id}`); toast(`Blokir ${b.name} dibuka.`); loadBlocks(); } catch (e) { fail(e); } }
   async function privacy(k: 'showOnline' | 'liveVisits', v: boolean) {
     try {
       const r = await api.post('/api/me/privacy', { [k]: v });
@@ -145,6 +148,11 @@
     <label class="tg"><input type="checkbox" checked={G.me.user.show_online !== false} onchange={(e) => privacy('showOnline', (e.target as HTMLInputElement).checked)} /> Tampilkan status online ke teman</label>
     <label class="tg"><input type="checkbox" checked={G.me.user.live_visits !== false} onchange={(e) => privacy('liveVisits', (e.target as HTMLInputElement).checked)} /> Teman bisa langsung main bareng di rumahku</label>
     <p class="muted small">Bila dimatikan, teman tetap bisa berkunjung dan main dengan pet-mu, tapi tidak tampil bersamaan secara langsung.</p>
+    {#if blocks === null}<button class="link" onclick={loadBlocks}>Pemain yang diblokir</button>
+    {:else}
+      {#if !blocks.length}<p class="muted small">Belum ada pemain yang diblokir.</p>{/if}
+      {#each blocks as b (b.id)}<div class="row blk"><span>{b.name}</span><button class="btn sm" onclick={() => unblock(b)}>Buka blokir</button></div>{/each}
+    {/if}
   </section>
 
   <section>
@@ -235,6 +243,7 @@
   h3 { margin: 0; font-size: 18px; font-weight: 800; }
   p { margin: 0; font-weight: 600; }
   .warn { background: #FBEFD2; border-radius: 10px; padding: 8px 10px; font-size: 14.5px; }
+  .blk { justify-content: space-between; align-items: center; font-weight: 700; }
   .ok { background: #E6F3EC; border-radius: 10px; padding: 8px 10px; font-size: 14.5px; }
   .sub { font-size: 15px; margin-top: 4px; }
   .row { flex-wrap: wrap; }

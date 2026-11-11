@@ -245,8 +245,8 @@
     </div>
   {/if}
 
-  {#if G.view === 'home' && !G.edit && !G.bath && H.members.length > 0}<HouseBar mode="home" />{/if}
-  {#if G.view === 'visit' && G.visit}<HouseBar mode="visit" />{/if}
+  {#if G.view === 'home' && !G.edit && !G.bath && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
+  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false}<HouseBar mode="visit" />{/if}
   {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
 
   {#if G.view === 'visit' && G.visit}

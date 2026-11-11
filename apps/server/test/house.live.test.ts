@@ -5,7 +5,7 @@ import { config } from '../src/config';
 
 config.paymentProvider = 'mock';
 const { buildApp } = await import('../src/app');
-const { resetHouses } = await import('../src/routes/house');
+const { resetHouses, resetActGap } = await import('../src/routes/house');
 let app: any;
 let db: any;
 before(async () => { ({ app, db } = await buildApp({ memoryDb: true, logger: false, rateLimit: false, worker: false })); });
@@ -49,21 +49,26 @@ test('interaksi dengan pet teman: hadiah terbatas, camilan menambah Kenyang pet 
   assert.equal(v.body.together.left, 6);
   const s1 = await b.c.post(`/api/visit/${a.id}/act`, { kind: 'sapa' });
   assert.equal(s1.status, 200, JSON.stringify(s1.body));
+  assert.equal((await b.c.post(`/api/visit/${a.id}/act`, { kind: 'sapa' })).body.error?.code, 'too_fast', 'ada jeda antaraksi');
+  resetActGap();
   assert.equal(s1.body.rewarded, true);
   assert.ok(s1.body.coins > 0);
   // camilan dari tas B untuk pet A
   await db.query(`update pets set kenyang = 40 where user_id = $1`, [a.id]);
   await db.query(`insert into inventory (user_id, item_id, qty) values ($1, 'klepon', 2) on conflict (user_id, item_id) do update set qty = 2`, [b.id]);
   const c1 = await b.c.post(`/api/visit/${a.id}/act`, { kind: 'camilan', itemId: 'klepon' });
+  resetActGap();
   assert.equal(c1.status, 200, JSON.stringify(c1.body));
   assert.ok(c1.body.hostPet.needs.kenyang > 40, 'Kenyang pet teman bertambah');
   assert.equal(c1.body.inventory.klepon, 1, 'camilan berkurang dari tas tamu');
-  for (let i = 0; i < 5; i++) await b.c.post(`/api/visit/${a.id}/act`, { kind: 'peluk' });
+  for (let i = 0; i < 5; i++) { await b.c.post(`/api/visit/${a.id}/act`, { kind: 'peluk' }); resetActGap(); }
   const over = await b.c.post(`/api/visit/${a.id}/act`, { kind: 'kejar' });
   assert.equal(over.status, 200);
   assert.equal(over.body.rewarded, false, 'lewat batas: tetap boleh main, tanpa hadiah');
   const me = (await a.c.get('/api/me')).body;
-  assert.ok(me.guestbookUnread >= 8, 'buku tamu bertambah');
+  assert.equal(me.guestbookUnread, 6, 'buku tamu hanya mencatat aksi berhadiah & camilan (tidak bisa dibanjiri)');
+  // batas keras per teman per hari
+  for (let i = 0; i < 40; i++) { resetActGap(); const r = await b.c.post(`/api/visit/${a.id}/act`, { kind: 'sapa' }); if (r.body.error) { assert.equal(r.body.error.code, 'daily_limit'); break; } }
   const gb = (await a.c.get('/api/guestbook')).body;
   assert.equal(gb.entries[0].name, 'Kopi');
   assert.equal((await a.c.get('/api/me')).body.guestbookUnread, 0, 'sudah dibaca');
@@ -170,7 +175,9 @@ test('foto bareng: masuk album semua pet di foto & dipajang di lukisan rumah', a
   resetHouses();
   const a = await player('Kebun'), b = await player('Pelancong');
   await friends(a, b);
-  // tuan rumah tidak online: pet-nya tetap ikut berfoto
+  // memotret dari luar ruangan ditolak; harus masuk dulu (tuan rumah tidak online: pet-nya tetap ikut berfoto)
+  assert.equal((await b.c.post(`/api/house/${a.id}/photo`, { roomId: a.room })).body.error?.code, 'not_here');
+  await b.c.post(`/api/house/${a.id}/sync`, { roomId: a.room, x: 2, y: 2 });
   const p = await b.c.post(`/api/house/${a.id}/photo`, { roomId: a.room, pose: 'peluk' });
   assert.equal(p.status, 200, JSON.stringify(p.body));
   assert.equal(p.body.photo.members.length, 2);
@@ -181,6 +188,43 @@ test('foto bareng: masuk album semua pet di foto & dipajang di lukisan rumah', a
   assert.equal((await a.c.get('/api/me')).body.photo.id, p.body.photo.id);
   assert.equal((await b.c.get(`/api/visit/${a.id}`)).body.photo.id, p.body.photo.id, 'tamu melihat foto di lukisan rumah teman');
   assert.equal((await a.c.post(`/api/photos/${p.body.photo.id}/feature`, { off: true })).body.featured, null);
+  // "tidak dipajang" diingat: foto berikutnya tidak otomatis dipajang lagi
+  await b.c.post(`/api/house/${a.id}/photo`, { roomId: a.room, pose: 'senyum' });
+  assert.equal((await a.c.get('/api/me')).body.photo, null);
+  // hapus dari album sendiri
+  assert.equal((await a.c.call('DELETE', `/api/photos/${p.body.photo.id}`)).status, 200);
+  assert.equal((await a.c.get('/api/photos')).body.photos.length, 1);
+  assert.equal((await b.c.get('/api/photos')).body.photos.length, 2, 'album teman tidak berubah');
   const solo = await player('Sendiri');
   assert.equal((await solo.c.post(`/api/house/${solo.id}/photo`, { roomId: solo.room })).body.error?.code, 'photo_alone');
+});
+
+test('blokir & antar pulang: berlaku untuk semua aksi, tidak bisa berteman lagi; main bareng yang langsung dihentikan tanpa hadiah', async () => {
+  resetHouses();
+  const a = await player('Tuan'), b = await player('Usil'), c = await player('Baik');
+  await friends(a, b, c);
+  const sync = (p: any) => p.c.post(`/api/house/${a.id}/sync`, { roomId: a.room, x: 2, y: 2 });
+  await sync(a); await sync(b); await sync(c);
+  // diantar pulang: aksi, obrolan & foto juga ditolak
+  await a.c.post(`/api/house/${a.id}/kick`, { userId: b.id });
+  assert.equal((await b.c.post(`/api/visit/${a.id}/act`, { kind: 'sapa' })).status, 403);
+  assert.equal((await b.c.post(`/api/house/${a.id}/say`, { text: 'Halo!' })).status, 403);
+  assert.equal((await b.c.post(`/api/house/${a.id}/photo`, { roomId: a.room })).status, 403);
+  // blokir: pertemanan putus, tidak bisa menambah lagi, rumah tertutup
+  assert.equal((await a.c.post('/api/blocks', { userId: b.id })).status, 200);
+  assert.equal((await b.c.get(`/api/visit/${a.id}`)).status, 403);
+  const code = (await a.c.get('/api/me')).body.user.friend_code;
+  assert.equal((await b.c.post('/api/friends', { code })).status, 403, 'tidak bisa berteman lagi');
+  assert.equal((await a.c.get('/api/blocks')).body.blocks[0].id, b.id);
+  assert.equal((await a.c.call('DELETE', `/api/blocks/${b.id}`)).status, 200);
+  assert.equal((await b.c.post('/api/friends', { code })).status, 200, 'setelah blokir dibuka boleh berteman lagi');
+  // main bareng dimulai lalu langsung dihentikan: tanpa hadiah & tidak memakai jatah
+  const coinsBefore = (await c.c.get('/api/me')).body.wallet.coin;
+  const st = await c.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'bola' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  const q = await c.c.post(`/api/house/${a.id}/coop`, { action: 'quit', coopId: st.body.coop.id });
+  assert.equal(q.body.coop.done, true);
+  assert.ok(q.body.coop.results.every((r: any) => r.coins === 0));
+  assert.equal((await c.c.get('/api/me')).body.wallet.coin, coinsBefore);
+  assert.equal((await db.one(`select count(*)::int c from daily_counters where key = 'coop' and user_id = $1`, [c.id])).c, 0, 'jatah harian tidak terpakai');
 });

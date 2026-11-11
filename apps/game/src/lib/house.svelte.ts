@@ -26,7 +26,7 @@ export const H = $state({
   actReq: null as null | { kind: string; itemId?: string },
 });
 
-let timer: any = null, seq = 0, busy = false, pendingEmote: string | null = null, bubbleId = 0, gen = 0;
+let timer: any = null, seq = 0, boot = '', busy = false, pendingEmote: string | null = null, bubbleId = 0, gen = 0;
 const others = () => H.members.length + H.elsewhere.length;
 
 export function bubble(who: string, b: { text?: string; emote?: string }, ms = 4200) {
@@ -41,9 +41,13 @@ async function tick(myGen: number) {
   if (busy || document.hidden) return schedule(myGen);
   busy = true;
   try {
-    const r = await api.post(`/api/house/${H.hostId}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: pendingEmote ?? undefined, since: seq });
-    pendingEmote = null;
+    // ekspresi yang ditekan selama permintaan berjalan tetap terkirim di sinkron berikutnya
+    const sending = pendingEmote;
+    const r = await api.post(`/api/house/${H.hostId}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: sending ?? undefined, since: seq });
+    if (pendingEmote === sending) pendingEmote = null;
     if (myGen !== gen) return;
+    // server baru restart: nomor urut kejadian mulai lagi dari awal
+    if (r.boot && r.boot !== boot) { if (boot) seq = 0; boot = r.boot; }
     H.live = !!r.live; H.full = !!r.full; H.reason = r.reason ?? '';
     if (r.reason === 'kicked') { leaveHouse(); if (G.view === 'visit') { G.view = 'home'; G.visit = null; } toast('Tuan rumah mengantarmu pulang.'); return; }
     if (r.live) {
@@ -54,15 +58,25 @@ async function tick(myGen: number) {
       for (const e of r.events ?? []) handle(e);
       seq = Math.max(seq, r.seq ?? 0);
     } else { H.members = []; H.elsewhere = []; H.coop = null; }
-  } catch { /* sinyal lemah: coba lagi */ } finally { busy = false; }
+  } catch (e) {
+    // tidak boleh lagi di rumah ini (diblokir / tidak berteman lagi): pulang
+    if (e instanceof ApiError && e.status === 403 && H.hostId !== G.me?.user?.id) {
+      busy = false;
+      leaveHouse();
+      if (G.view === 'visit') { G.view = 'home'; G.visit = null; }
+      toast('Kamu tidak bisa berada di rumah itu lagi.');
+      return;
+    }
+    /* sinyal lemah: coba lagi */
+  } finally { busy = false; }
   schedule(myGen);
 }
 function schedule(myGen: number) {
   clearTimeout(timer);
   if (myGen !== gen || !H.hostId) return;
-  // tuan rumah tanpa tamu cukup sesekali (supaya tamu yang datang terlihat), selain itu ±0,9 detik
+  // tuan rumah tanpa tamu cukup sesekali (supaya tamu yang datang terlihat); rumah yang tidak live jarang dicek; selain itu ±0,9 detik
   const alone = H.hostId === G.me?.user?.id && others() === 0 && !H.coop;
-  timer = setTimeout(() => tick(myGen), alone ? 5000 : 900);
+  timer = setTimeout(() => tick(myGen), !H.live && H.reason ? 15000 : alone ? 8000 : 900);
 }
 
 function handle(e: any) {
@@ -137,4 +151,8 @@ export async function takePhoto(pose: string) {
 export async function kick(userId: string) {
   if (!H.hostId) return;
   try { await api.post(`/api/house/${H.hostId}/kick`, { userId }); poke(); } catch (e) { fail(e); }
+}
+/** Blokir: putus pertemanan & tidak bisa berkunjung lagi. */
+export async function block(userId: string, name: string) {
+  try { await api.post('/api/blocks', { userId }); toast(`${name} diblokir. Kalian tidak berteman lagi.`); poke(); } catch (e) { fail(e); }
 }

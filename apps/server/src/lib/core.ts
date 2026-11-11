@@ -143,7 +143,9 @@ export async function checkName(db: Db, name: string) {
   return n;
 }
 /** Obrolan bebas: tolak tautan/akun/nomor dan kata terlarang (sama seperti nama). */
-export async function checkChat(db: Db, text: string) {
+export async function checkChat(db: Db, raw: string) {
+  // karakter tak terlihat & angka lebar penuh dinormalkan dulu supaya tidak bisa menyelinapkan nomor/kata
+  const text = raw.normalize('NFKC').replace(/\p{Cf}/gu, '');
   if (/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|id|net|org|io|co|me|xyz|link|ly)\b|@[a-z0-9_.]{3,}|\d[\d\s.-]{6,}\d)/i.test(text)) {
     throw bad('chat_link', 'Jangan bagikan tautan, akun, atau nomor, ya.');
   }
