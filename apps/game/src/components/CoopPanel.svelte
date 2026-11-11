@@ -1,5 +1,6 @@
 <script lang="ts">
   // Main bareng di rumah: Masak bareng (bergiliran memilih bahan sesuai resep) & Lempar bola (oper tepat waktu).
+  // Diawali ajakan: yang lain memilih sendiri Ikut main (tidak ada yang ditarik otomatis).
   import { onDestroy } from 'svelte';
   import { G, item, serverNow } from '../lib/game.svelte';
   import { H, coop } from '../lib/house.svelte';
@@ -13,7 +14,16 @@
   // hasil hanya untuk yang ikut main sejak berjalan (bukan setelah muat ulang halaman)
   const watched = new Set<string>();
   $effect(() => { if (c && !c.done && mine) watched.add(c.id); });
-  const show = $derived(!!c && mine && (!c.done || (H.coopSeen !== c.id && watched.has(c.id))));
+  const inviting = $derived(!!c && !c.done && c.phase === 'ajak');
+  // ajakan tampil juga untuk yang belum ikut (sampai ditolak); hasil hanya untuk pemain
+  // ajakan batal / tidak ada yang ikut / dihentikan sebelum ada langkah: tidak ada hasil untuk ditampilkan
+  const empty = $derived(!!c?.done && (c.results ?? []).every((r: any) => r.none));
+  const show = $derived(!!c && ((inviting && (mine || H.coopSeen !== c.id)) || (mine && !empty && (!c.done || (H.coopSeen !== c.id && watched.has(c.id))))));
+  const starter = $derived(!!c && c.starter === H.me);
+  const gameName = $derived(c?.game === 'masak' ? 'Masak bareng' : 'Lempar bola');
+  const inviteLeft = $derived(c?.inviteUntil ? Math.max(0, Math.ceil((c.inviteUntil - serverNow()) / 1000)) : 0);
+  async function join() { sfx.tap(); await coop({ action: 'join', coopId: c.id }); }
+  async function begin() { sfx.tap(); await coop({ action: 'begin', coopId: c.id }); }
   const nameOf = (id: string) => c?.players?.find((p: any) => p.id === id)?.name ?? 'Teman';
   let now = $state(Date.now());
   const clock = setInterval(() => (now = Date.now()), 100);
@@ -51,8 +61,29 @@
 </script>
 
 {#if show}
-  <div class="coop" role="dialog" aria-label={c.game === 'masak' ? 'Masak bareng' : 'Lempar bola'}>
-    {#if !c.done}
+  <div class="coop" role="dialog" aria-label={gameName}>
+    {#if inviting}
+      <header><b>{starter ? `Mengajak ${gameName.toLowerCase()}` : `${c.starterName ?? 'Teman'} mengajak ${gameName.toLowerCase()}!`}</b><span class="time">{inviteLeft} d</span></header>
+      <ul class="who" aria-label="Yang ikut">
+        {#each c.players as p (p.id)}<li>{p.name}{p.id === H.me ? ' (kamu)' : ''}</li>{/each}
+      </ul>
+      {#if !mine}
+        <p class="hint">{gameName}: {c.game === 'masak' ? 'bergiliran memilih bahan sesuai resep' : 'oper bola tepat waktu'}. Hadiah koin untuk semua yang ikut (memakai jatah main bareng harianmu).</p>
+        <div class="row2">
+          <button class="btn" onclick={() => { sfx.tap(); close(); }}>Tidak</button>
+          <button class="btn hot" disabled={busy || c.players.length >= (c.max ?? 5)} onclick={join}>Ikut main</button>
+        </div>
+      {:else if starter}
+        <p class="hint">{c.players.length < 2 ? 'Menunggu teman menekan Ikut…' : `${c.players.length - 1} teman ikut. Mulai sekarang, atau tunggu yang lain.`} Kalau tidak ada yang ikut, ajakan batal sendiri.</p>
+        <div class="row2">
+          <button class="btn" onclick={quit}>Batal</button>
+          <button class="btn hot" disabled={c.players.length < 2} onclick={begin}>Mulai sekarang</button>
+        </div>
+      {:else}
+        <p class="hint">Kamu ikut! Menunggu {c.starterName ?? 'teman'} memulai…</p>
+        <button class="link" onclick={quit}>Tidak jadi ikut</button>
+      {/if}
+    {:else if !c.done}
       <header><b>{c.game === 'masak' ? `Masak ${item(c.dish)?.name ?? 'bareng'}` : 'Lempar bola'}</b><span class="time">{left} d</span></header>
       {#if c.game === 'masak'}
         <div class="recipe" aria-label="Resep">
@@ -124,4 +155,7 @@
   .dish { align-self: center; }
   .dish :global(svg) { width: 64px; height: 64px; }
   .link { background: none; border: 0; color: var(--muted); font-weight: 700; text-decoration: underline; cursor: pointer; align-self: center; }
+  .who { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+  .who li { border: 2px solid var(--ink); border-radius: 999px; padding: 1px 10px; font-weight: 800; font-size: 13.5px; background: #E6F3EC; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 </style>

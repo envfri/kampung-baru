@@ -24,6 +24,7 @@ const roomIdOf = (v: unknown) => {
 };
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { claimQuest, questEvent, questList, questSummary } from '../lib/quests';
+import { forgetHouseRooms } from './house';
 
 /** Jalankan mutasi sekali saja per requestId (aman dari klik ganda / retry di sinyal lemah). */
 export async function once<T>(db: Db, userId: string, requestId: string | undefined, fn: (t: Db) => Promise<T>): Promise<T> {
@@ -333,6 +334,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
           [u.id, itemId, item!.name, deco(item!.data?.wall, 'wallpaper'), deco(item!.data?.floor, 'floor'), n.m + 1],
         ))!;
         await track(t, u.id, 'purchase', { itemId, kind: 'room', currency, total: price });
+        forgetHouseRooms(u.id);
         return { ok: true, roomId: room.id, ...(await patch(t, u.id, ['wallet', 'room'])) };
       });
     }
@@ -447,7 +449,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       for (const p of list) {
         const id = String(p?.id ?? '');
         if (!rows.some((r) => r.id === id) || pos.has(id)) throw bad('invalid', 'Ruangan di denah tidak dikenal.');
-        pos.set(id, { gx: int(p?.gx, 'Letak', { min: -200, max: 200 }), gy: int(p?.gy, 'Letak', { min: -200, max: 200 }) });
+        pos.set(id, { gx: int(p?.gx, 'Letak', { min: -1000, max: 1000 }), gy: int(p?.gy, 'Letak', { min: -1000, max: 1000 }) });
       }
       const plan = rows.map((r) => ({ id: r.id, size: roomMeta(r.room_item, cat, s, r.size).size, ...pos.get(r.id)! }));
       const problem = planProblem(plan);
@@ -478,6 +480,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       await track(t, u.id, 'room_expand', { size: meta.expand.size, coins: meta.expand.coins });
       // denah buatan pemain yang jadi bertumpuk / terpisah karena ruangan membesar: kembali disusun otomatis
       const planReset = await resetPlanIfBroken(t, u.id, cat, s);
+      forgetHouseRooms(u.id);
       return { ok: true, roomId: room.id, size: meta.expand.size, coins: meta.expand.coins, planReset, ...(await patch(t, u.id, ['wallet', 'room'])) };
     });
   });

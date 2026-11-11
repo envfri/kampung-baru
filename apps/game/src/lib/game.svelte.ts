@@ -1,6 +1,6 @@
 // State global game (Svelte 5 runes). Semua angka penting berasal dari server;
 // client hanya menghitung ulang tampilan kebutuhan pet di antara respons.
-import { decayNeeds, houseLayout, needsWithSleep, petLookState, planProblem, type ItemLike, type Needs } from '@kb/shared';
+import { decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planProblem, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
@@ -112,6 +112,8 @@ export function merge(p: any) {
 }
 
 export function setState(s: any) {
+  // akun lain / masuk ulang: mode atur denah & atur mebel milik keadaan lama
+  if (G.me?.user?.id !== s?.user?.id) { G.plan = null; G.edit = false; G.draft = null; }
   G.me = s;
   if (s?.serverNow) G.offset = s.serverNow - Date.now();
 }
@@ -237,7 +239,8 @@ export function curRoom(): RoomState {
 
 /** Pindah ke ruangan lain: kamera ke ruangan itu dan pet berjalan ke sana (lewat pintu). */
 export function switchRoom(id: string) {
-  if (G.edit || G.plan) return;
+  // saat mandi pet tidak bisa ditinggal ke ruangan lain
+  if (G.edit || G.plan || G.bath) return;
   G.roomId = id;
   G.cam = 'room';
   G.view = 'home';
@@ -266,8 +269,10 @@ export function movePlanRoom(id: string, gx: number, gy: number) {
   const pl = G.plan;
   const cur = pl?.pos[id];
   if (!pl || !cur || (cur.gx === gx && cur.gy === gy)) return false;
-  const test = planRooms().map((r) => (r.id === id ? { ...r, gx, gy } : r));
-  if (planProblem(test) === 'overlap') return false;
+  const rs = planRooms(), me = rs.find((r) => r.id === id);
+  if (!me) return false;
+  const over = (b: { gx: number; gy: number; size: number }) => gx < b.gx + b.size && b.gx < gx + me.size && gy < b.gy + b.size && b.gy < gy + me.size;
+  if (rs.some((r) => r.id !== id && over(r))) return false;
   pl.pos = { ...pl.pos, [id]: { gx, gy } };
   pl.auto = false;
   return true;
@@ -285,6 +290,36 @@ export async function savePlan() {
   if (r) { G.plan = null; G.cam = 'house'; sfx.pop(); toast('Denah rumah disimpan', 'good'); }
 }
 export function cancelPlan() { G.plan = null; G.cam = 'house'; }
+
+/**
+ * Mode atur mebel: ruangan yang jadi tidak bisa dimasuki pet & tamu karena jalannya (pintu / lorong) tertutup mebel.
+ * Ditelusuri petak demi petak dari kamar; ruangan yang masih bisa dicapai lewat pintu lain tidak dianggap masalah.
+ */
+export function cutOffRooms(): string[] {
+  const rooms = houseRooms();
+  const edit = curRoom()?.id;
+  if (!G.edit || !G.draft || rooms.length < 2 || edit === undefined) return [];
+  const map = Object.fromEntries(items());
+  const lay = (id: string) => (id === edit ? G.draft! : rooms.find((r) => r.id === id)?.layout ?? []);
+  const occ = new Map(rooms.map((r) => [r.id, occupied(lay(r.id), map)]));
+  const plan = houseLayout(rooms.map((r) => ({ id: r.id, size: r.size, theme: r.theme, gx: r.gx, gy: r.gy })), (id) => occ.get(id));
+  const free = (x: number, y: number) => { const r = plan.at(x, y); return !!r && !occ.get(r.id)!.has(`${x - r.gx},${y - r.gy}`); };
+  const first = plan.rooms[0];
+  let start: [number, number] | null = null;
+  for (let x = first.gx; x < first.gx + first.size && !start; x++) for (let y = first.gy; y < first.gy + first.size && !start; y++) if (free(x, y)) start = [x, y];
+  if (!start) return [];
+  const seen = new Set([start.join(',')]), q = [start], reached = new Set<string>();
+  for (let i = 0; i < q.length; i++) {
+    const [x, y] = q[i];
+    reached.add(plan.at(x, y)!.id);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, k = `${nx},${ny}`;
+      if (!seen.has(k) && free(nx, ny) && plan.pass(x, y, nx, ny)) { seen.add(k); q.push([nx, ny]); }
+    }
+  }
+  // ruangan yang seluruh lantainya tertutup mebel tidak dihitung (memang tidak bisa diinjak)
+  return plan.rooms.filter((r) => !reached.has(r.id) && occ.get(r.id)!.size < r.size * r.size).map((r) => rooms.find((x) => x.id === r.id)?.name ?? 'Ruangan');
+}
 
 /** Jalan ke tempat di peta kampung (pet berjalan dulu, lalu tempatnya dibuka). */
 export function goTo(locId: string, opts: { tab?: 'buy' | 'sell' } = {}) {

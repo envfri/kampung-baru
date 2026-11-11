@@ -28,7 +28,7 @@ export interface HouseDoor { a: string; b: string; axis: 'x' | 'y'; line: number
 export interface HousePlan {
   rooms: HouseRoom[];
   doors: HouseDoor[];
-  /** ukuran denah (petak) */
+  /** ukuran denah (petak); di mode strict koordinat bisa tidak mulai dari 0 */
   W: number;
   D: number;
   /** berubah bila letak/ukuran ruangan berubah (bukan karena pintu bergeser) */
@@ -55,7 +55,7 @@ function sharedEdge(a: { gx: number; gy: number; s: number }, b: { gx: number; g
 const touches = (a: Rect, b: { gx: number; gy: number; s: number }) => !!(sharedEdge(a, b) ?? sharedEdge(b, a));
 
 const sizeOf = (v: unknown) => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(v) || 6)));
-const isPos = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) <= 200;
+const isPos = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) <= 2000;
 
 /** Ruangan yang menempel satu sama lain, mulai dari ruangan pertama (indeks dalam `list`). */
 function linked<T extends { gx: number; gy: number; s: number }>(list: T[]) {
@@ -150,17 +150,19 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
     r.gx = best.gx; r.gy = best.gy;
     placed.push(r);
   }
-  // geser supaya koordinat mulai dari 0
+  // geser supaya koordinat mulai dari 0 — kecuali saat mengatur denah: ruangan lain tidak boleh ikut bergeser
+  // ketika satu ruangan dipindah melewati pojok belakang rumah
   const x0 = placed.length ? Math.min(...placed.map((r) => r.gx)) : 0, y0 = placed.length ? Math.min(...placed.map((r) => r.gy)) : 0;
-  for (const r of placed) { r.gx -= x0; r.gy -= y0; }
-  const W = placed.length ? Math.max(...placed.map((r) => r.gx + r.s)) : 0;
-  const D = placed.length ? Math.max(...placed.map((r) => r.gy + r.s)) : 0;
+  if (!opts.strict) for (const r of placed) { r.gx -= x0; r.gy -= y0; }
+  const ox = opts.strict ? x0 : 0, oy = opts.strict ? y0 : 0;
+  const W = placed.length ? Math.max(...placed.map((r) => r.gx + r.s)) - ox : 0;
+  const D = placed.length ? Math.max(...placed.map((r) => r.gy + r.s)) - oy : 0;
 
   // petak → ruangan
-  const grid: (Rect | undefined)[] = new Array(W * D);
-  for (const r of placed) for (let x = r.gx; x < r.gx + r.s; x++) for (let y = r.gy; y < r.gy + r.s; y++) grid[y * W + x] = r;
-  const cell = (x: number, y: number) => (x >= 0 && y >= 0 && x < W && y < D ? grid[Math.floor(y) * W + Math.floor(x)] : undefined);
-  const inHouse = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < D && !!grid[Math.floor(y) * W + Math.floor(x)];
+  const grid = new Map<string, Rect>();
+  for (const r of placed) for (let x = r.gx; x < r.gx + r.s; x++) for (let y = r.gy; y < r.gy + r.s; y++) grid.set(`${x},${y}`, r);
+  const cell = (x: number, y: number) => grid.get(`${Math.floor(x)},${Math.floor(y)}`);
+  const inHouse = (x: number, y: number) => grid.has(`${Math.floor(x)},${Math.floor(y)}`);
 
   // pintu: satu per pasangan ruangan yang bersebelahan, di petak kosong paling dekat ke tengah sisi bersama
   const doors: HouseDoor[] = [];

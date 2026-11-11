@@ -57,8 +57,15 @@ await W(1800); await shot(A, '05-obrolan-di-rumah');
 await C.p.click('.hbar .act:has-text("Peluk")');
 const hostSeen = []; for (let i = 0; i < 8; i++) { hostSeen.push(await C.p.locator('.tag:text-is("Mochi")').count()); await W(250); }
 await shot(C, '06-peluk'); await W(2000);
-// Masak bareng: A memulai, semua bergiliran memilih bahan sesuai resep
+// Masak bareng: A mengajak, yang lain menekan Ikut main, A memulai; semua bergiliran memilih bahan sesuai resep
 await A.p.click('.hbar .btn:has-text("Main bareng")'); await A.p.click('.pop .btn:has-text("Masak bareng")');
+for (const v of [B, C, D, E]) { await v.p.waitForSelector('.coop .btn:has-text("Ikut main")', { timeout: 6000 }); }
+await shot(C, '07a-ajakan-masak');
+for (const v of [B, C, D, E]) await v.p.click('.coop .btn:has-text("Ikut main")');
+await W(1500);
+// 5 pemain = penuh: permainan langsung mulai (tanpa perlu Mulai sekarang)
+if (await A.p.locator('.coop .btn:has-text("Mulai sekarang")').count()) await A.p.click('.coop .btn:has-text("Mulai sekarang")');
+if (!(await A.p.locator('.coop .recipe').count())) errors.push('masak bareng tidak dimulai setelah semua ikut');
 await W(2500); await shot(C, '07-masak-bareng');
 const players = [A, B, C, D, E];
 for (let n = 0; n < 60; n++) {

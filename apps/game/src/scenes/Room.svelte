@@ -2,7 +2,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, houseLayout, houseBase, houseFlats, houseDraws, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY } from '../lib/house.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
@@ -36,6 +36,10 @@
     rooms.map((r) => ({ id: r.id, size: r.size ?? defSize(), theme: r.theme, gx: planning ? G.plan!.pos[r.id]?.gx : r.gx, gy: planning ? G.plan!.pos[r.id]?.gy : r.gy })),
     (id) => occ.get(id), { strict: planning },
   ));
+  /** berubah hanya bila letak/ukuran ruangan berubah (bukan setiap denah dibuat ulang) */
+  const planSig = $derived(plan.sig);
+  /** naik setiap denah berubah: aktivitas / jalan ke kasur yang masih berjalan berhenti (koordinatnya sudah usang) */
+  let planGen = 0;
   /** petak yang tertutup mebel (koordinat rumah) */
   const blocked = $derived.by(() => {
     const s = new Set<string>();
@@ -114,6 +118,7 @@
         const nr = oldR ? p.byId.get(oldR.id) : undefined;
         let at: [number, number] | null = cur && oldR && nr ? [cur[0] - oldR.gx + nr.gx, cur[1] - oldR.gy + nr.gy] : null;
         placedSig = p.sig;
+        planGen++;
         halt();
         pose = null; acting = false; menu = null; bedSpot = null;
         if (!at || b.has(tileOf(at)) || !p.at(at[0], at[1])) at = spotIn(nr?.id ?? (mode === 'home' ? focusId : p.rooms[0]?.id ?? ''));
@@ -202,11 +207,13 @@
       out[r.id] = {
         layout: layoutOf(r), wall: item(r.wall), floor: item(r.floor),
         edit: r.id === editId, dim: editId !== null && r.id !== editId, sel: r.id === editId ? G.sel : -1,
-        crumbs: r.id === crumbRoom ? crumbs : undefined, photo: r.id === photoRoom ? photoSvg : '',
+        photo: r.id === photoRoom ? photoSvg : '',
       };
     return out;
   });
-  const baseHtml = $derived(houseBase(plan, art, activeDecor()) + houseFlats(plan, art, itemMap));
+  // lapisan bawah dipotong per ruangan (hanya ruangan yang berubah digambar ulang); remah di lapisan sendiri
+  const layers = $derived(houseLayers(plan, art, itemMap, activeDecor()));
+  const crumbsHtml = $derived(G.edit ? '' : houseCrumbs(plan, crumbRoom, crumbs));
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
   type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string } };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
@@ -220,7 +227,7 @@
         out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip }), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
     return out;
   });
-  const draws = $derived<Draw[]>([...fixedDraws, ...petDraws].sort((a, b) => a.d - b.d));
+  const draws = $derived<Draw[]>([...fixedDraws, ...petDraws].sort(houseDrawOrder));
 
   const petEl = () => svgEl?.querySelector('.pet') as SVGGElement | null;
   function place() {
@@ -309,6 +316,7 @@
     cancelAnimationFrame(raf);
     raf = 0;
     path = [];
+    roomGoal = '';
     walking = false;
     clearTimeout(idleTimer);
     const a = arrived;
@@ -325,7 +333,7 @@
     idleTimer = setTimeout(wander, 2500 + Math.random() * 5000);
   }
   function wander() {
-    if (!live || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
+    if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     // jalan-jalan kecil di dalam ruangan yang sama
     const options = freeIn(roomAt(live)?.id).filter(([x, y]) => { const m = Math.abs(x - cx) + Math.abs(y - cy); return m > 0 && m <= 3; });
@@ -334,10 +342,13 @@
   }
 
   /** Pet berjalan ke ruangan lain (dipilih dari Rumahku); tanpa jalan (pintu tertutup mebel) langsung pindah. */
+  /** ruangan tujuan jalan yang sedang berlangsung (supaya tidak diulang) */
+  let roomGoal = '';
   function goRoom(id: string) {
     if (!live) return;
     halt();
     menu = null;
+    roomGoal = id;
     const sp = spotIn(id);
     const p = routeFrom(live, [[Math.floor(sp[0]), Math.floor(sp[1])]]) ?? routeFrom(live, freeIn(id));
     if (p && p.length) { walkPath(p).then(() => { if (!acting) scheduleIdle(); }); return; }
@@ -359,13 +370,14 @@
     if (mode !== 'home' || !r || G.edit || G.plan) return;
     untrack(() => { if ((curRoom()?.id ?? '') !== r) { followed = r; G.roomId = r; } });
   });
-  // ruangan dipilih pemain (Rumahku / toko): pet berjalan ke sana
+  // ruangan dipilih pemain (Rumahku / toko): pet berjalan ke sana — langsung, atau setelah selesai mandi/beraktivitas/tidur
   $effect(() => {
-    const f = focusId;
+    const f = focusId, busy = acting || asleep || !!G.bath || G.edit || !!G.plan;
+    void petRoomId;
     if (mode !== 'home' || !f) return;
     untrack(() => {
       if (f === followed) { followed = ''; return; }
-      if (!live || !placedSig || petRoomId === f || G.edit || G.plan || G.bath || acting || asleep) return;
+      if (busy || !live || !placedSig || petRoomId === f || roomGoal === f) return;
       goRoom(f);
     });
   });
@@ -424,10 +436,11 @@
   $effect(() => {
     const m = G.cam, f = focusId, w = vw, h = vh, pl = planning;
     // saat mengatur denah kamera tidak ikut bergeser setiap ruangan dipindah
-    if (!pl) void plan.sig;
+    if (!pl) void planSig;
     void editId; void guestBar;
-    if (!w || !h || !plan.rooms.length) return;
+    if (!w || !h) return;
     untrack(() => {
+      if (!plan.rooms.length) return;
       if (m === 'free') { cam = clampCam(); return; }
       if (m === 'house') {
         const b = houseBounds(plan);
@@ -436,8 +449,13 @@
       } else aim(fit(houseBounds(plan, f), true));
     });
   });
-  // mandi, makan & atur: kamera kembali ke ruangan
-  $effect(() => { if ((G.bath || G.feeding || G.edit) && G.cam === 'house') untrack(() => (G.cam = 'room')); });
+  // mulai mandi, makan, atau atur: kamera kembali ke ruangan (sesudahnya pemain tetap boleh menggeser)
+  let careOn = false;
+  $effect(() => {
+    const on = !!(G.bath || G.feeding || G.edit);
+    if (on && !careOn) untrack(() => { if (G.cam !== 'room') G.cam = 'room'; });
+    careOn = on;
+  });
   const viewBox = $derived(vw && vh ? `${(cam.x - vw / 2 / cam.k).toFixed(1)} ${(cam.y - vh / 2 / cam.k).toFixed(1)} ${(vw / cam.k).toFixed(1)} ${(vh / cam.k).toFixed(1)}` : '-260 -170 520 500');
 
   const ptrs = new Map<number, { x: number; y: number }>();
@@ -449,19 +467,26 @@
     return [c.x + (sx - r.left - vw / 2) / c.k, c.y + (sy - r.top - vh / 2) / c.k];
   };
   /** mode Atur denah: ruangan yang sedang digeser */
-  let roomDrag: null | { id: string; pid: number; x0: number; y0: number; gx0: number; gy0: number; moved: boolean } = null;
+  let roomDrag: null | { id: string; pid: number; x0: number; y0: number; lx: number; ly: number; gx0: number; gy0: number; moved: boolean } = null;
   function down(e: PointerEvent) {
     if (G.bath) return bathDown(e);
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (planning && G.plan && !ptrs.size) {
-      const el = (e.target as Element).closest('[data-r]') as SVGElement | null;
-      const id = el?.dataset.r;
-      const at = id !== undefined ? G.plan.pos[id] : undefined;
-      if (id !== undefined && at) {
-        G.plan.sel = id;
-        roomDrag = { id, pid: e.pointerId, x0: e.clientX, y0: e.clientY, gx0: at.gx, gy0: at.gy, moved: false };
-        try { svgEl?.setPointerCapture(e.pointerId); } catch { /* tidak apa */ }
-        return;
+    if (planning && G.plan) {
+      // jari kedua saat menyeret ruangan: batalkan seretan (ruangan kembali) lalu cubit untuk zoom
+      if (roomDrag) {
+        movePlanRoom(roomDrag.id, roomDrag.gx0, roomDrag.gy0);
+        ptrs.set(roomDrag.pid, { x: roomDrag.lx, y: roomDrag.ly });
+        roomDrag = null;
+      } else if (!ptrs.size) {
+        // hanya ruangan yang sudah dipilih yang bisa diseret; ruangan lain diketuk dulu (seret di tempat lain = geser kamera)
+        const el = (e.target as Element).closest('[data-r]') as SVGElement | null;
+        const id = el?.dataset.r;
+        const at = id !== undefined ? G.plan.pos[id] : undefined;
+        if (id !== undefined && at && G.plan.sel === id) {
+          roomDrag = { id, pid: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, gx0: at.gx, gy0: at.gy, moved: false };
+          try { svgEl?.setPointerCapture(e.pointerId); } catch { /* tidak apa */ }
+          return;
+        }
       }
     }
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -475,6 +500,7 @@
   }
   function panMove(e: PointerEvent) {
     if (roomDrag && roomDrag.pid === e.pointerId) {
+      roomDrag.lx = e.clientX; roomDrag.ly = e.clientY;
       // geser layar → geser petak (kebalikan proyeksi isometrik), lompat ke letak terdekat yang tidak bertumpuk
       const dx = (e.clientX - roomDrag.x0) / cam.k, dy = (e.clientY - roomDrag.y0) / cam.k;
       if (!roomDrag.moved && Math.hypot(e.clientX - roomDrag.x0, e.clientY - roomDrag.y0) > 8) roomDrag.moved = true;
@@ -631,11 +657,11 @@
     visitFocus = roomAt(at)?.id ?? '';
     compVer++;
   }
-  $effect(() => { void G.visit?.owner?.id; void plan.sig; untrack(() => { if (mode === 'visit') { comps.delete(SELF); ensureSelf(); } }); });
+  $effect(() => { void G.visit?.owner?.id; void planSig; untrack(() => { if (mode === 'visit') { comps.delete(SELF); ensureSelf(); } }); });
   // tamu (atau tuan rumah) yang sedang live: posisinya dikirim per ruangan lalu dipetakan ke denah
   $effect(() => {
     const ms = H.members;
-    void plan.sig;
+    void planSig;
     untrack(() => {
       let changed = false;
       const keep = new Set([SELF]);
@@ -678,6 +704,13 @@
       const pick = spotNearHost(SELF, 1);
       if (pick) compWalk(me, [pick]);
     }, 4500);
+    // tamu yang sudah pergi dihapus walau sinkron berikutnya masih lama (tuan rumah sendirian dicek tiap 8 detik)
+    const sweep = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (const [id, since] of missing) if (now - since > 2500) { comps.delete(id); missing.delete(id); changed = true; }
+      if (changed) compVer++;
+    }, 1000);
     // laporkan posisi pet ke rumah live (ruangan + posisi di dalam ruangan itu)
     const rep = setInterval(() => {
       const me = comps.get(SELF);
@@ -690,7 +723,7 @@
       if (mode === 'visit' && me) { H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
       else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' ? 'duduk' : walking ? 'jalan' : null; }
     }, 200);
-    return () => { clearInterval(selfWander); clearInterval(rep); cancelAnimationFrame(compRaf); };
+    return () => { clearInterval(selfWander); clearInterval(rep); clearInterval(sweep); cancelAnimationFrame(compRaf); };
   });
   // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
   let entered = '';
@@ -801,6 +834,7 @@
   /** Pet berjalan ke kasur (di ruangan ini dulu, lalu ruangan lain) lalu tidur; tanpa kasur tidur di lantai. */
   async function goToBed(instant = false) {
     if (!live) return;
+    const gen = planGen;
     halt();
     menu = null;
     const here = roomAt(live)?.id;
@@ -819,8 +853,8 @@
       for (let b = 0; b < f.d; b++) goals.push([p.x - 1, p.y + b], [p.x + f.w, p.y + b]);
       const g = goals.filter(([x, y]) => x >= 0 && y >= 0 && x < r.size && y < r.size).map(([x, y]) => [x + r.gx, y + r.gy] as [number, number]);
       if (!instant) { const q = routeToAny(g); if (q) await walkPath(q); }
-      if (!untrack(() => asleep)) return;
-      bedSpot = live ? [...live] as [number, number] : null;
+      if (!untrack(() => asleep) || gen !== planGen) return;
+      if (!bedSpot) bedSpot = live ? [...live] as [number, number] : null;
       const c: [number, number] = [r.gx + p.x + f.w / 2, r.gy + p.y + f.d / 2];
       live = [...c]; pos = [...c];
       pose = { pose: 'tidur', lift: ACTIVITY_ANIMS.tidur.lift };
@@ -833,10 +867,11 @@
     queueMicrotask(place);
     scheduleIdle();
   }
-  let wasAsleep = false;
+  // keadaan awal saat rumah dibuka sudah ditangani penempatan pet (langsung di kasur); ini hanya untuk perubahan
+  let wasAsleep: boolean | null = null;
   $effect(() => {
     const a = asleep;
-    if (a === wasAsleep) return;
+    if (wasAsleep === null || a === wasAsleep) { wasAsleep = a; return; }
     wasAsleep = a;
     untrack(() => (a ? goToBed() : wakeUp()));
   });
@@ -910,10 +945,13 @@
     acting = true;
     clearTimeout(idleTimer);
     // permintaan ke server berjalan bersamaan dengan pet berjalan, supaya terasa cepat
+    const gen = planGen;
     const req = run(() => post('/api/activity', { activityId: a.id, roomId: t.room || undefined, ...(t.spot ? { spot: t.spot } : { index: t.index }) }));
     const p = routeToAny(g.goals);
     if (p) await walkPath(p);
     const r: any = await req;
+    // denah berubah selama berjalan (ruangan diperluas / denah diatur): koordinat tujuan sudah usang
+    if (gen !== planGen) { if (r) G.cool['act:' + a.id] = Date.now() + (r.result?.cooldownSec ?? a.cooldown_sec ?? 0) * 1000; return; }
     if (!r) { acting = false; scheduleIdle(); return; }
     G.cool['act:' + a.id] = Date.now() + (r.result?.cooldownSec ?? a.cooldown_sec ?? 0) * 1000;
     const standAt: [number, number] | null = live ? [...live] : null;
@@ -924,6 +962,7 @@
     queueMicrotask(place);
     const beats = Math.max(1, Math.round(anim.ms / 800));
     for (let i = 0; i < beats; i++) { fx(anim.fx as any); if (i === 0) (a.anim === 'tidur' ? sfx.tap : sfx.pop)(); await sleep(anim.ms / beats); }
+    if (gen !== planGen) return;
     pose = null;
     if (anim.on && standAt) { live = standAt; pos = [...standAt]; }
     queueMicrotask(place);
@@ -1054,8 +1093,9 @@
       if (!tile && other && other.dataset.r !== undefined && other.dataset.r !== editId) switchEdit(other.dataset.r);
       return;
     }
-    if (acting) return;
-    if (asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
+    // pet tuan rumah yang tidur / beraktivitas tidak menghalangi tamu berjalan
+    if (mode === 'home' && acting) return;
+    if (mode === 'home' && asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
     if (mode === 'home') {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) return openMenu(e, { room: f.dataset.r ?? '', index: Number(f.dataset.i) });
@@ -1227,7 +1267,12 @@
   <svg bind:this={svgEl} class="room" class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
     class:mangap={mouthOpen || chewing} class:chew={chewing} class:asleep class:editing={mode === 'home' && G.edit}
     {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} onclick={click} onpointerdown={down}>
-    {@html baseHtml}
+    {@html layers.shadow}
+    {#each layers.back as l (l.key)}<g>{@html l.h}</g>{/each}
+    {#each layers.floor as l (l.key)}<g>{@html l.h}</g>{/each}
+    {@html layers.mats}
+    {#each layers.flats as l (l.key)}<g>{@html l.h}</g>{/each}
+    <g>{@html crumbsHtml}</g>
     {#each draws as d (d.key)}
       {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
     {/each}

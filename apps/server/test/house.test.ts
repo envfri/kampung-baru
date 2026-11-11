@@ -248,8 +248,15 @@ test('atur denah: letak ruangan disimpan, ditolak bila bertumpuk/terpisah, kemba
   assert.equal(e2.status, 200, JSON.stringify(e2.body));
   assert.equal(e2.body.planReset, true);
   assert.ok(e2.body.rooms.every((r: any) => r.gx === null && r.gy === null));
-  // kembali otomatis atas permintaan
-  await c.post('/api/room/plan', { rooms: e2.body.rooms.map((r: any, i: number) => ({ id: r.id, gx: i * 20, gy: 0 })) });
+  // denah sah disimpan lagi, lalu kembali otomatis atas permintaan
+  const sizes = Object.fromEntries(e2.body.rooms.map((r: any) => [r.id, r.size]));
+  let x = 0;
+  const row = e2.body.rooms.map((r: any) => { const p = { id: r.id, gx: x, gy: 0 }; x += sizes[r.id]; return p; });
+  const again = await c.post('/api/room/plan', { rooms: row });
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.ok(again.body.rooms.every((r: any) => r.gx !== null), 'denah berderet tersimpan');
+  assert.equal((await c.post('/api/room/plan', { rooms: row.map((r: any, i: number) => (i ? r : { ...r, id: row[1].id })) })).body.error?.code, 'invalid', 'id ganda ditolak');
+  assert.equal((await c.post('/api/room/plan', { rooms: row.map((r: any) => ({ ...r, gx: r.gx + 5000 })) })).body.error?.code, 'invalid', 'koordinat terlalu jauh ditolak');
   const auto = await c.post('/api/room/plan', { auto: true });
   assert.equal(auto.status, 200);
   assert.ok(auto.body.rooms.every((r: any) => r.gx === null));

@@ -89,8 +89,15 @@ function handle(e: any) {
     case 'emote': if (!mine) bubble(e.from, { emote: e.emote }, 2600); break;
     case 'act': if (!mine) bubble(e.from, { text: ACT_SAY[e.act] ?? 'Main yuk!' }, 3000); break;
     case 'kick': if (e.target !== H.me && seq) toast(`${e.name} diantar pulang.`); break;
-    case 'coop_start': if (!mine && seq) { sfx.level(); toast(e.game === 'masak' ? 'Ayo masak bareng!' : 'Ayo lempar bola!', 'good'); } break;
-    case 'coop_end': if (seq) { const me = (e.results ?? []).find((x: any) => x.id === H.me); if (me) { e.ok ? sfx.level() : sfx.pop(); refreshMe().catch(() => {}); } } break;
+    case 'coop_start': if (!mine && seq) { sfx.pop(); H.coopSeen = ''; } break;
+    case 'coop_join': if (!mine && seq && H.coop?.starter === H.me) sfx.pop(); break;
+    case 'coop_go': if (seq && H.coop?.players?.some((p: any) => p.id === H.me)) { sfx.level(); toast(e.game === 'masak' ? 'Ayo masak bareng!' : 'Ayo lempar bola!', 'good'); } break;
+    case 'coop_end':
+      if (!seq) break;
+      // ajakan yang tidak diikuti siapa pun
+      if (e.why === 'sepi' && H.coop?.starter === H.me) { toast('Belum ada yang ikut main. Coba ajak lagi nanti, ya.'); break; }
+      { const me = (e.results ?? []).find((x: any) => x.id === H.me); if (me && !me.none) { e.ok ? sfx.level() : sfx.pop(); refreshMe().catch(() => {}); } }
+      break;
     case 'photo': if (!mine && seq) { sfx.coin(); toast(`${nameOf(e.from)} mengambil foto bareng! Lihat di album.`, 'good'); } break;
   }
 }

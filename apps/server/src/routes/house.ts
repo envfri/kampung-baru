@@ -9,7 +9,7 @@ import { applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from 
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { currentNeeds, isAsleep, loadRooms, lockPet, petView, savePet } from '../lib/state';
+import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
 import { grantXp, patch } from './game';
 
@@ -23,12 +23,14 @@ const ACTS_LIVE = new Set(['jalan', 'duduk', 'sapa', 'peluk', 'kejar', 'makan', 
 /** bahan Masak bareng & hidangannya (hidangan = item makanan yang dibagikan bila berhasil) */
 export const COOK_INGREDIENTS = ['bawang', 'cabai', 'telur', 'tomat', 'kecap', 'garam', 'nasi', 'daun'] as const;
 const DISHES = ['pisang-goreng', 'bakso', 'sate', 'martabak', 'klepon'];
-const COOK_STEPS = 6, BALL_GOAL = 15, BALL_OK = 5, COOP_MS = 60_000;
+const COOK_STEPS = 6, BALL_GOAL = 15, BALL_OK = 5, COOP_MS = 60_000, INVITE_MS = 15_000, COOP_MAX = 5;
 
 type Member = { id: string; name: string; pet: any; roomId: string; x: number; y: number; flip: boolean; act: string | null; seenAt: number; joinedAt: number; petAt: number; host: boolean; emoteAt: number };
 type Ev = { seq: number; at: number; kind: string; from?: string; [k: string]: unknown };
 type Coop = {
   id: string; hostId: string; game: 'masak' | 'bola'; roomId: string; players: string[]; names: Record<string, string>;
+  /** ajak: menunggu pemain lain menekan Ikut (tidak ada yang ditarik otomatis); main: permainan berjalan */
+  phase: 'ajak' | 'main'; starter: string; inviteUntil: number;
   /** pemain yang berhenti sendiri (permainan tetap jalan untuk yang lain) */
   quit: Set<string>; moves: number; settled: boolean;
   seed: number; startedAt: number; endsAt: number; endedAt: number; done: boolean; ok: boolean | null; results: any[] | null;
@@ -37,7 +39,8 @@ type Coop = {
   // bola
   passes: number; lives: number; holder: string; lastPassAt: number;
 };
-type House = { members: Map<string, Member>; events: Ev[]; seq: number; coop: Coop | null; kicked: Map<string, number> };
+/** rooms: id & ukuran ruangan tuan rumah (cache ±1 menit) untuk memeriksa posisi yang dikirim tamu */
+type House = { members: Map<string, Member>; events: Ev[]; seq: number; coop: Coop | null; kicked: Map<string, number>; rooms?: { at: number; size: Map<string, number>; first: string } };
 
 const HOUSES = new Map<string, House>();
 const PRESENCE = new Map<string, { at: number; where: string; host?: string }>();
@@ -50,6 +53,8 @@ const fresh = (m: Member, now = Date.now()) => now - m.seenAt < LIVE_MS;
 const BOOT = Math.random().toString(36).slice(2, 10);
 const ACT_GAP_MS = 4000, ACT_HARD_CAP = 30;
 const LAST_ACT = new Map<string, number>();
+/** Ruangan tuan rumah berubah (dibeli / diperluas): muat ulang daftar ruangan untuk memeriksa posisi tamu. */
+export function forgetHouseRooms(hostId: string) { const h = HOUSES.get(hostId); if (h) h.rooms = undefined; }
 /** Lupakan cache pertemanan (dipanggil saat berhenti berteman / memblokir). */
 export function forgetFriend(a: string, b: string) { FRIENDS.delete(`${a}:${b}`); FRIENDS.delete(`${b}:${a}`); }
 // sapu berkala: rumah kosong, status online lama, cache & catatan sementara
@@ -140,6 +145,15 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
   // posisi dikirim per ruangan (roomId + x, y di dalamnya); layar rumah memetakannya ke denah rumah tersambung
   const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: m.roomId, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host });
 
+  /** id & ukuran ruangan tuan rumah (cache ±1 menit per rumah) */
+  async function hostRooms(hostId: string, h: House) {
+    if (h.rooms && Date.now() - h.rooms.at < 60_000) return h.rooms;
+    const [s, cat]: [any, any] = await Promise.all([getSettings(db), getCatalog(db)]);
+    const rows = await db.query<{ id: string; room_item: string | null; size: number | null }>(`select id, room_item, size from rooms where user_id = $1 order by sort, id`, [hostId]);
+    h.rooms = { at: Date.now(), size: new Map(rows.map((r) => [r.id, roomMeta(r.room_item, cat, s, r.size).size])), first: rows[0]?.id ?? '' };
+    return h.rooms;
+  }
+
   /* ---------------- rumah live ---------------- */
 
   app.post('/api/house/:hostId/sync', fast, async (req: any) => {
@@ -155,8 +169,11 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     if (kickedUntil && kickedUntil > Date.now()) return { live: false, reason: 'kicked' };
     prune(h);
     await settleCoop(hostId, h, s);
-    const roomId = String(b.roomId ?? '').slice(0, 64);
-    const num = (v: unknown) => Math.max(0, Math.min(16, Number(v) || 0));
+    // posisi dikirim per ruangan: ruangan harus milik tuan rumah, posisi dibatasi ukuran ruangan itu
+    const hr = await hostRooms(hostId, h);
+    const roomId = hr.size.has(String(b.roomId ?? '')) ? String(b.roomId) : hr.first;
+    const lim = hr.size.get(roomId) ?? 16;
+    const num = (v: unknown) => Math.max(0, Math.min(lim, Number(v) || 0));
     let m = h.members.get(uid);
     let full = false;
     if (!m) {
@@ -321,7 +338,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
 
   function coopView(c: Coop | null) {
     if (!c) return null;
-    const base = { id: c.id, game: c.game, roomId: c.roomId, players: c.players.map((id) => ({ id, name: c.names[id] })), endsAt: c.endsAt, done: c.done, ok: c.ok, results: c.results };
+    const base = { id: c.id, game: c.game, roomId: c.roomId, players: c.players.map((id) => ({ id, name: c.names[id] })), endsAt: c.endsAt, done: c.done, ok: c.ok, results: c.results, phase: c.phase, starter: c.starter, starterName: c.names[c.starter], inviteUntil: c.inviteUntil, max: COOP_MAX };
     if (c.game === 'masak') return { ...base, dish: c.dish, steps: c.recipe.length, step: c.step, recipe: c.recipe, done_steps: c.recipe.slice(0, c.step), options: c.options[c.step] ?? [], active: c.done ? null : activeCook(c), mistakes: c.mistakes };
     return { ...base, passes: c.passes, goal: BALL_GOAL, lives: c.lives, holder: c.done ? null : c.holder };
   }
@@ -341,11 +358,34 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     // hasil permainan yang sudah selesai cukup tampil sebentar
     if (c?.done && Date.now() - c.endedAt > 20_000) { h.coop = null; return; }
     if (!c || c.done) return;
+    if (c.phase === 'ajak') {
+      // waktu ajakan habis: mulai bila ada yang ikut, selain itu batal (tanpa memakai jatah siapa pun)
+      if (!alive(c).includes(c.starter)) return endCoop(hostId, h, s, false, 'batal');
+      if (Date.now() >= c.inviteUntil) return alive(c).length >= 2 ? beginCoop(h, c) : endCoop(hostId, h, s, false, 'sepi');
+      return;
+    }
     const left = alive(c).length;
     if (Date.now() > c.endsAt) return endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'waktu');
     if (left < 2) return endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'bubar');
     // pemegang bola keluar: bola pindah ke pemain lain supaya permainan tidak macet
     if (c.game === 'bola' && !alive(c).includes(c.holder)) c.holder = alive(c)[0];
+  }
+
+  function beginCoop(h: House, c: Coop) {
+    c.players = alive(c);
+    c.phase = 'main';
+    c.startedAt = Date.now(); c.endsAt = Date.now() + COOP_MS; c.lastPassAt = Date.now();
+    c.holder = c.players.includes(c.starter) ? c.starter : c.players[0];
+    push(h, { kind: 'coop_go', game: c.game, coopId: c.id });
+  }
+  /** salah satu memblokir yang lain */
+  async function blockedWith(a: string, others: string[]) {
+    const list = others.filter((o) => o !== a);
+    if (!list.length) return new Set<string>();
+    const rows = await db.query<{ other: string }>(
+      `select case when user_id = $1 then blocked_id else user_id end as other from blocks
+        where (user_id = $1 and blocked_id = any($2::uuid[])) or (blocked_id = $1 and user_id = any($2::uuid[]))`, [a, list]);
+    return new Set(rows.map((r) => r.other));
   }
 
   async function endCoop(hostId: string, h: House, s: any, ok: boolean, why: string) {
@@ -397,8 +437,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     if (b.action === 'start') {
       if (h.coop && !h.coop.done) throw bad('coop_busy', 'Masih ada permainan yang berjalan di rumah ini.');
       const game = b.game === 'bola' ? 'bola' : 'masak';
-      const here = [me, ...[...h.members.values()].filter((m) => m.id !== uid && fresh(m))].slice(0, 5);
-      if (here.length < 2) throw bad('coop_alone', 'Butuh minimal 2 pet di rumah ini. Ajak teman main ke sini dulu!');
+      const others = [...h.members.values()].filter((m) => m.id !== uid && fresh(m));
+      if (!others.length) throw bad('coop_alone', 'Butuh minimal 2 pet di rumah ini. Ajak teman main ke sini dulu!');
       const seed = randomInt(1, 2_000_000_000);
       const r = mulberry32(seed);
       const recipe: string[] = [], options: string[][] = [];
@@ -409,9 +449,11 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
         while (opts.size < 4) opts.add(COOK_INGREDIENTS[Math.floor(r() * COOK_INGREDIENTS.length)]);
         options.push([...opts].sort(() => r() - 0.5));
       }
+      // hanya yang memulai yang langsung ikut; yang lain diajak & memilih sendiri (jatah harian hanya terpakai bila ikut)
       h.coop = {
-        id: randomUUID(), hostId, quit: new Set(), moves: 0, settled: false, game, roomId: me.roomId, players: here.map((m) => m.id), names: Object.fromEntries(here.map((m) => [m.id, m.name])),
-        seed, startedAt: Date.now(), endsAt: Date.now() + COOP_MS, endedAt: 0, done: false, ok: null, results: null,
+        id: randomUUID(), hostId, quit: new Set(), moves: 0, settled: false, game, roomId: me.roomId, players: [uid], names: { [uid]: me.name },
+        phase: 'ajak', starter: uid, inviteUntil: Date.now() + INVITE_MS,
+        seed, startedAt: Date.now(), endsAt: Date.now() + INVITE_MS + COOP_MS, endedAt: 0, done: false, ok: null, results: null,
         dish: DISHES[Math.floor(r() * DISHES.length)], recipe, options, step: 0, mistakes: 0,
         passes: 0, lives: 3, holder: uid, lastPassAt: Date.now(),
       };
@@ -420,7 +462,26 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     }
     const c = h.coop;
     if (!c || c.done || c.id !== b.coopId) throw bad('coop_over', 'Permainan ini sudah selesai.');
+    if (b.action === 'join') {
+      if (c.phase !== 'ajak') throw bad('coop_started', 'Permainannya sudah dimulai.');
+      if (c.players.includes(uid)) return { ok: true, coop: coopView(c) };
+      if (alive(c).length >= COOP_MAX) throw bad('coop_full', 'Pemainnya sudah penuh.');
+      // tidak bisa main bareng dengan pemain yang memblokir / diblokir
+      if ((await blockedWith(uid, alive(c))).size) throw bad('coop_blocked', 'Kamu tidak bisa ikut permainan ini.');
+      c.players.push(uid); c.names[uid] = me.name; c.quit.delete(uid);
+      push(h, { kind: 'coop_join', from: uid, name: me.name, coopId: c.id });
+      if (alive(c).length >= COOP_MAX) beginCoop(h, c);
+      return { ok: true, coop: coopView(h.coop) };
+    }
     if (!c.players.includes(uid)) throw bad('coop_not_player', 'Kamu tidak ikut permainan ini.');
+    if (b.action === 'begin') {
+      if (c.phase !== 'ajak') return { ok: true, coop: coopView(c) };
+      if (uid !== c.starter) throw bad('not_starter', 'Hanya yang mengajak yang bisa memulai.');
+      if (alive(c).length < 2) throw bad('coop_alone', 'Tunggu ada yang ikut dulu.');
+      beginCoop(h, c);
+      return { ok: true, coop: coopView(h.coop) };
+    }
+    if (c.phase === 'ajak' && b.action !== 'quit') throw bad('coop_waiting', 'Tunggu permainannya dimulai.');
     if (b.action === 'pick' && c.game === 'masak') {
       if (activeCook(c) !== uid) throw bad('not_turn', 'Belum giliranmu.');
       const good = String(b.pick) === c.recipe[c.step];
@@ -444,10 +505,11 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       if (c.passes >= BALL_GOAL) await endCoop(hostId, h, s, true, 'selesai');
       else if (c.lives <= 0) await endCoop(hostId, h, s, c.passes >= BALL_OK, 'jatuh');
     } else if (b.action === 'quit') {
-      // berhenti untuk diri sendiri; permainan selesai bila tinggal satu pemain
+      // berhenti untuk diri sendiri; permainan selesai bila tinggal satu pemain (yang mengajak batal: ajakan selesai)
       c.quit.add(uid);
       push(h, { kind: 'coop_move', from: uid, quit: true });
-      if (alive(c).length < 2) await endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'berhenti');
+      if (c.phase === 'ajak') { if (uid === c.starter) await endCoop(hostId, h, s, false, 'batal'); }
+      else if (alive(c).length < 2) await endCoop(hostId, h, s, c.game === 'bola' ? c.passes >= BALL_OK : false, 'berhenti');
       else if (c.game === 'bola' && c.holder === uid) c.holder = alive(c)[0];
     } else throw bad('invalid', 'Aksi tidak dikenal.');
     return { ok: true, coop: coopView(h.coop) };
@@ -469,9 +531,16 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     // yang memotret harus sedang ada di rumah itu (supaya tidak bisa memotret tamu lain dari jauh);
     // bila tuan rumah mematikan main bareng langsung, foto hanya berisi tuan rumah & yang memotret
     if (!inHouse && u.id !== hostId && (await hostLive(hostId))) throw bad('not_here', 'Masuk ke rumah temanmu dulu untuk berfoto.');
-    const here = h && inHouse ? [...h.members.values()].filter((m) => fresh(m)).map((m) => m.id) : [];
-    // tuan rumah selalu ikut (pet-nya ada di rumahnya sendiri), lalu yang memotret, lalu yang sedang di rumah
-    const ids = [...new Set([hostId, u.id, ...here])].slice(0, 6);
+    // yang ikut berfoto: yang sedang satu ruangan dengan pemotret
+    const here = h && inHouse ? [...h.members.values()].filter((m) => fresh(m) && m.roomId === me!.roomId).map((m) => m.id) : [];
+    // tuan rumah selalu ikut (pet-nya ada di rumahnya sendiri), lalu yang memotret, lalu yang seruangan;
+    // pemain yang saling memblokir tidak pernah ada di foto yang sama
+    const ids: string[] = [];
+    for (const id of [...new Set([hostId, u.id, ...here])]) {
+      if (ids.length >= 6) break;
+      if (ids.length && (await blockedWith(id, ids)).size) continue;
+      ids.push(id);
+    }
     if (ids.length < 2) throw bad('photo_alone', 'Foto bareng butuh minimal 2 pet. Berkunjunglah ke rumah teman!');
     const cat = await getCatalog(db);
     const rooms = await loadRooms(db, hostId, cat, s, false);

@@ -985,13 +985,15 @@ function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
 }
 
 /** Jendela di dinding kanan (bisa diketuk: pet melihat ke luar). */
+/** tinggi jendela & lukisan tidak ikut membesar melewati dinding (dinding selalu 150 px) pada petak besar */
+const vk = (g: Ctx) => Math.min(1, 1.1 / g.s);
 function windowSVG(g: Ctx, W: number, wall: WallC, rid?: string) {
-  const s = g.s;
+  const k = vk(g), s = g.s * k;
   let o = `<g class="spot" data-spot="jendela"${rid !== undefined ? ` data-r="${esc(rid)}"` : ''}>`;
   const trim = shade(wall.main, -0.45);
   const wx0 = W / 2 - 1.1, wx1 = W / 2 + 1.1;
-  o += g.quadY(0, wx0 - 0.1, wx1 + 0.1, 50, 56, trim);
-  o += g.quadY(0, wx0, wx1, 56, 122, '#BFE3F5');
+  o += g.quadY(0, wx0 - 0.1, wx1 + 0.1, 50 * k, 56 * k, trim);
+  o += g.quadY(0, wx0, wx1, 56 * k, 122 * k, '#BFE3F5');
   const wm = g.iso(W / 2, 0), wl = g.iso(wx0, 0), wr = g.iso(wx1, 0);
   o += `<ellipse cx="${f1(wm[0] + 14)}" cy="${f1(wm[1] - 104 * s)}" rx="15" ry="5.5" fill="#FFFFFF"/><ellipse cx="${f1(wl[0] + 30)}" cy="${f1(wl[1] - 84 * s)}" rx="11" ry="4" fill="#FFFFFF"/>`;
   o += `<path d="M${f1(wm[0])} ${f1(wm[1] - 56 * s)}V${f1(wm[1] - 122 * s)}M${f1(wl[0])} ${f1(wl[1] - 89 * s)}L${f1(wr[0])} ${f1(wr[1] - 89 * s)}" stroke="${trim}" stroke-width="4"/>`;
@@ -1000,19 +1002,19 @@ function windowSVG(g: Ctx, W: number, wall: WallC, rid?: string) {
 
 /** Lukisan di dinding kiri (bisa diketuk); isinya foto bareng bila ada. */
 function paintingSVG(g: Ctx, W: number, photo = '', rid?: string) {
-  const s = g.s;
+  const k = vk(g), s = g.s * k;
   let o = `<g class="spot" data-spot="lukisan"${rid !== undefined ? ` data-r="${esc(rid)}"` : ''}>`;
   const py0 = W / 2 + 0.35, py1 = W / 2 + 1.65;
-  o += g.quadX(0, py0, py1, 62, 110, '#FFFDF7');
+  o += g.quadX(0, py0, py1, 62 * k, 110 * k, '#FFFDF7');
   if (photo) {
     // foto bareng yang dipajang: isi kotak 136×100 dipetakan ke bidang dinding kiri
     const y0 = py0 + 0.13, y1 = py1 - 0.13;
-    o += g.quadX(0, y0, y1, 68, 104, '#DDEFF5');
+    o += g.quadX(0, y0, y1, 68 * k, 104 * k, '#DDEFF5');
     const a0 = g.iso(0, y0), a1 = g.iso(0, y1);
     const m = [(a0[0] - a1[0]) / 136, (a0[1] - a1[1]) / 136, 0, (36 * s) / 100, a1[0], a1[1] - 104 * s].map((v) => Math.round(v * 1000) / 1000);
     return o + `<g class="photo" transform="matrix(${m.join(' ')})">${photo}</g></g>`;
   }
-  o += g.quadX(0, py0 + 0.13, py1 - 0.13, 68, 104, '#9FD3C2');
+  o += g.quadX(0, py0 + 0.13, py1 - 0.13, 68 * k, 104 * k, '#9FD3C2');
   const Q = (yy: number, v: number) => { const p = g.iso(0, yy); return [p[0], p[1] - v * s]; };
   o += `<polygon points="${P([Q(py0 + 0.2, 70), Q(py0 + 0.6, 94), Q(py0 + 1.0, 70)])}" fill="#3FA06A"/><polygon points="${P([Q(py0 + 0.5, 70), Q(py0 + 0.85, 86), Q(py0 + 1.13, 70)])}" fill="#2F7F55"/>`;
   const sun = Q(py0 + 0.35, 97);
@@ -1127,12 +1129,23 @@ export interface HouseRoomArt {
   /** ruangan lain selama mode atur (diredupkan) */
   dim?: boolean;
   sel?: number;
-  crumbs?: { x: number; y: number; k: string; c?: string }[];
   /** isi lukisan (foto bareng) */
   photo?: string;
 }
-/** satu benda yang diurutkan menurut kedalaman (dinding rendah, mebel, pet) */
-export interface HouseDraw { key: string; d: number; h: string }
+/**
+ * Satu benda yang diurutkan menurut kedalaman (dinding rendah, mebel, pet); d kecil digambar dulu.
+ * w: garis dinding (sumbu & letak), b: kotak mebel [x0, y0, x1, y1] — dipakai bila kedalamannya seri.
+ */
+export interface HouseDraw { key: string; d: number; h: string; w?: ['x' | 'y', number]; b?: [number, number, number, number] }
+/** Urutan gambar: menurut kedalaman; bila seri, mebel di belakang garis dinding digambar sebelum dindingnya. */
+export function houseDrawOrder(a: HouseDraw, b: HouseDraw) {
+  const d = a.d - b.d;
+  if (Math.abs(d) > 1e-6) return d;
+  const behind = (box: [number, number, number, number], w: ['x' | 'y', number]) => (w[0] === 'x' ? box[2] <= w[1] : box[3] <= w[1]);
+  if (a.w && b.b) return behind(b.b, a.w) ? 1 : -1;
+  if (b.w && a.b) return behind(a.b, b.w) ? -1 : 1;
+  return 0;
+}
 
 const runsOf = (segs: WallSeg[], ok: (s: WallSeg) => boolean) => {
   const out: [number, number][] = [];
@@ -1161,9 +1174,15 @@ export function houseBounds(plan: HousePlan, roomId?: string) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** Lapisan bawah rumah: dinding belakang tinggi & pagar luar, lantai, keset pintu, karpet, remah. */
-export function houseBase(plan: HousePlan, art: Record<string, HouseRoomArt>, decor?: string) {
-  let shadow = '', back = '', floors = '';
+/** satu potong lapisan milik satu ruangan (disusun ulang hanya bila isinya berubah) */
+export interface HousePart { key: string; h: string }
+/**
+ * Lapisan bawah rumah, dipotong per ruangan supaya perubahan kecil (pilih mebel, remah) tidak menggambar ulang seluruh rumah:
+ * bayangan, dinding belakang tinggi & pagar luar, lantai, keset pintu, karpet (mebel datar).
+ */
+export function houseLayers(plan: HousePlan, art: Record<string, HouseRoomArt>, items: Record<string, ItemLike>, decor?: string) {
+  let shadow = '';
+  const back: HousePart[] = [], floor: HousePart[] = [], flats: HousePart[] = [];
   const dimWrap = (a: HouseRoomArt, s: string) => (a.dim && s ? `<g class="dim">${s}</g>` : s);
   for (const r of plan.rooms) {
     const a = art[r.id] ?? { layout: [] };
@@ -1181,10 +1200,30 @@ export function houseBase(plan: HousePlan, art: Record<string, HouseRoomArt>, de
       if (r.painting) b += paintingSVG(g, W, a.photo ?? '', r.id);
       b += roomDecor(g, W, decor, tl, tr, r.window);
     }
-    back += dimWrap(a, b);
-    floors += dimWrap(a, floorSVG(g, W, floorColors(a.floor, r.outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!a.edit, r.id));
+    // data-r: dinding juga bisa diketuk untuk memilih ruangan (atur denah / mode atur)
+    back.push({ key: r.id, h: b ? dimWrap(a, `<g data-r="${esc(r.id)}">${b}</g>`) : '' });
+    floor.push({ key: r.id, h: dimWrap(a, floorSVG(g, W, floorColors(a.floor, r.outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!a.edit, r.id)) });
+    let f = '';
+    a.layout.forEach((p, idx) => {
+      const it = items[p.i];
+      if (!it || !footprint(it).flat) return;
+      f += `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
+    });
+    flats.push({ key: r.id, h: dimWrap(a, f) });
   }
-  return shadow + back + floors;
+  return { shadow, back, floor, mats: plan.doors.map(doorMat).join(''), flats };
+}
+/** Semua lapisan bawah sebagai satu string (pratinjau & uji). */
+export function houseBase(plan: HousePlan, art: Record<string, HouseRoomArt>, decor?: string, items: Record<string, ItemLike> = {}) {
+  const l = houseLayers(plan, art, items, decor);
+  return l.shadow + l.back.map((p) => p.h).join('') + l.floor.map((p) => p.h).join('') + l.mats + l.flats.map((p) => p.h).join('');
+}
+/** Remah & bulu rontok di satu ruangan (lapisan sendiri: sering berubah). */
+export function houseCrumbs(plan: HousePlan, roomId: string, crumbs: { x: number; y: number; k: string; c?: string }[]) {
+  const r = plan.byId.get(roomId);
+  if (!r || !crumbs.length) return '';
+  const g = roomG(r);
+  return crumbs.map((c, i) => crumbSVG(g, c, i)).join('');
 }
 
 /** keset di ambang pintu */
@@ -1195,23 +1234,6 @@ function doorMat(d: HouseDoor) {
   return `<polygon points="${P(pts)}" fill="#C98A52" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round" pointer-events="none"/><line x1="${f1(mid[0][0])}" y1="${f1(mid[0][1])}" x2="${f1(mid[1][0])}" y2="${f1(mid[1][1])}" stroke="#A86E3C" stroke-width="2" pointer-events="none"/>`;
 }
 
-/** Lapisan atas yang tidak bergerak: keset pintu, karpet (mebel datar), remah. Digambar di atas lantai, di bawah mebel & pet. */
-export function houseFlats(plan: HousePlan, art: Record<string, HouseRoomArt>, items: Record<string, ItemLike>) {
-  let o = plan.doors.map(doorMat).join('');
-  for (const r of plan.rooms) {
-    const a = art[r.id] ?? { layout: [] };
-    const g = roomG(r);
-    let f = '';
-    a.layout.forEach((p, idx) => {
-      const it = items[p.i];
-      if (!it || !footprint(it).flat) return;
-      f += `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
-    });
-    if (!a.edit) (a.crumbs ?? []).forEach((c, i) => (f += crumbSVG(g, c, i)));
-    o += a.dim && f ? `<g class="dim">${f}</g>` : f;
-  }
-  return o;
-}
 const furnCls = (a: HouseRoomArt, idx: number) => (a.dim ? 'furn-x' : `furn${a.edit ? ' editable' : ''}${a.edit && a.sel === idx ? ' sel' : ''}`);
 
 /** dinding rendah satu petak (pemisah ruangan / dinding luar di sisi depan rumah) */
@@ -1263,7 +1285,7 @@ export function houseDraws(plan: HousePlan, art: Record<string, HouseRoomArt>, i
           const isWall = (x?: WallSeg) => !!x && (x.k === 'low' || x.k === 'part');
           h = lowWall(g, side, k, r.outdoor ? OUTSIDE_WALL : wall.main, !isWall(prev), !isWall(next), prev?.k === 'door', next?.k === 'door');
         }
-        out.push({ key: `w:${r.id}:${side}${k}`, d, h: dim(h) });
+        out.push({ key: `w:${r.id}:${side}${k}`, d, h: dim(`<g data-r="${esc(r.id)}">${h}</g>`), w: side === 'L' ? ['x', gx] : ['y', gy] });
       });
     }
     a.layout.forEach((p, idx) => {
@@ -1271,7 +1293,8 @@ export function houseDraws(plan: HousePlan, art: Record<string, HouseRoomArt>, i
       if (!it) return;
       const f = footprint(it);
       if (f.flat) return;
-      out.push({ key: `f:${r.id}:${idx}`, d: r.gx + p.x + r.gy + p.y + (f.w + f.d) / 2, h: dim(`<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`) });
+      const x0 = r.gx + p.x, y0 = r.gy + p.y;
+      out.push({ key: `f:${r.id}:${idx}`, d: x0 + y0 + (f.w + f.d) / 2, h: dim(`<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`), b: [x0, y0, x0 + f.w, y0 + f.d] });
     });
   }
   return out;

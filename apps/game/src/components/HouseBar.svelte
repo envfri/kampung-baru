@@ -103,7 +103,7 @@
     <div class="pop col" role="menu">
       <b>Foto bareng: pilih gaya</b>
       {#each Object.entries(PHOTO_POSES) as [k, l]}<button class="btn sm" role="menuitem" onclick={() => photo(k)}>{l}</button>{/each}
-      <small>Semua pet yang ada di rumah ikut berfoto. Fotonya masuk album semua yang ada di foto.</small>
+      <small>Pet yang sedang satu ruangan denganmu ikut berfoto (juga pet tuan rumah). Fotonya masuk album semua yang ada di foto.</small>
     </div>
   {:else if pop === 'play'}
     <div class="pop col" role="menu">
@@ -111,7 +111,7 @@
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('bola')}>Lempar bola</button>
       <button class="btn sm" role="menuitem" onclick={duel}>Tantang duel</button>
-      {#if here.length < 1}<small>Masak bareng & Lempar bola butuh minimal 2 pemain yang sedang di rumah ini.</small>{/if}
+      {#if here.length < 1}<small>Masak bareng & Lempar bola butuh minimal 2 pemain yang sedang di rumah ini.</small>{:else}<small>Yang lain mendapat ajakan dan memilih sendiri mau ikut atau tidak.</small>{/if}
     </div>
   {:else if pop === 'snack'}
     <div class="pop" role="menu" aria-label="Pilih camilan">

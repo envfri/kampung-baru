@@ -133,7 +133,18 @@ test('main bareng: Masak bareng bergiliran & Lempar bola, hadiah untuk semua pem
   await sync(b);
   const st = await a.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'masak' });
   assert.equal(st.status, 200, JSON.stringify(st.body));
-  let coop = st.body.coop;
+  // ajakan: yang lain tidak ikut otomatis, harus menekan Ikut
+  assert.equal(st.body.coop.phase, 'ajak');
+  assert.deepEqual(st.body.coop.players.map((p: any) => p.id), [a.id]);
+  assert.equal((await b.c.post(`/api/house/${a.id}/coop`, { action: 'pick', coopId: st.body.coop.id, pick: 'nasi' })).body.error?.code, 'coop_not_player');
+  assert.equal((await a.c.post(`/api/house/${a.id}/coop`, { action: 'begin', coopId: st.body.coop.id })).body.error?.code, 'coop_alone', 'belum ada yang ikut');
+  const jn = await b.c.post(`/api/house/${a.id}/coop`, { action: 'join', coopId: st.body.coop.id });
+  assert.equal(jn.status, 200, JSON.stringify(jn.body));
+  assert.equal(jn.body.coop.players.length, 2);
+  assert.equal((await b.c.post(`/api/house/${a.id}/coop`, { action: 'begin', coopId: st.body.coop.id })).body.error?.code, 'not_starter');
+  const go = await a.c.post(`/api/house/${a.id}/coop`, { action: 'begin', coopId: st.body.coop.id });
+  assert.equal(go.body.coop.phase, 'main');
+  let coop = go.body.coop;
   const coinsBefore = (await b.c.get('/api/me')).body.wallet.coin;
   const who = (id: string) => (id === a.id ? a : b);
   const other = (id: string) => (id === a.id ? b : a);
@@ -159,7 +170,8 @@ test('main bareng: Masak bareng bergiliran & Lempar bola, hadiah untuk semua pem
   // Lempar bola
   const lb = await b.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'bola' });
   assert.equal(lb.status, 200, JSON.stringify(lb.body));
-  let ball = lb.body.coop;
+  await a.c.post(`/api/house/${a.id}/coop`, { action: 'join', coopId: lb.body.coop.id });
+  let ball = (await b.c.post(`/api/house/${a.id}/coop`, { action: 'begin', coopId: lb.body.coop.id })).body.coop;
   for (let i = 0; i < 6; i++) {
     await new Promise((r) => setTimeout(r, 520));
     const r = await who(ball.holder).c.post(`/api/house/${a.id}/coop`, { action: 'pass', coopId: ball.id, hit: true });
@@ -247,18 +259,28 @@ test('rumah tersambung: tamu di ruangan berbeda saling terlihat, main bareng & f
   assert.equal(inKitchen.roomId, room2, 'posisi dikirim bersama ruangannya');
   assert.equal(inKitchen.x, 1.5);
   assert.deepEqual(rc.body.elsewhere, []);
-  // posisi lebih besar dari ruangan 12×12 (ruangan diperluas) tetap diterima
-  const big = await sync(b, room2, 13.5, 14.5);
-  assert.equal(big.body.live, true);
-  assert.equal((await sync(c, a.room)).body.members.find((m: any) => m.name === 'Tamu2').y, 14.5);
-  // main bareng mengajak semua yang ada di rumah (ruangan mana pun)
+  // posisi dibatasi ukuran ruangannya (dapur 5×5); ruangan yang bukan milik tuan rumah → ruangan pertama
+  await sync(b, room2, 13.5, 14.5);
+  assert.equal((await sync(c, a.room)).body.members.find((m: any) => m.name === 'Tamu2').y, 5);
+  await sync(b, 'ruangan-palsu', 2, 2);
+  assert.equal((await sync(c, a.room)).body.members.find((m: any) => m.name === 'Tamu2').roomId, a.room);
+  await sync(b, room2, 1.5, 3.5);
+  // main bareng: semua yang di rumah (ruangan mana pun) boleh ikut lewat ajakan
   const st = await b.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'bola' });
   assert.equal(st.status, 200, JSON.stringify(st.body));
-  assert.equal(st.body.coop.players.length, 3);
+  assert.equal((await c.c.post(`/api/house/${a.id}/coop`, { action: 'join', coopId: st.body.coop.id })).body.coop.players.length, 2);
   await b.c.post(`/api/house/${a.id}/coop`, { action: 'quit', coopId: st.body.coop.id });
-  await c.c.post(`/api/house/${a.id}/coop`, { action: 'quit', coopId: st.body.coop.id });
-  // foto bareng: semua pet di rumah ikut, latar dari ruangan yang memotret
+  // foto bareng: tuan rumah + yang memotret + yang seruangan (Tamu3 di kamar tidak ikut)
   const ph = await b.c.post(`/api/house/${a.id}/photo`, { roomId: room2, pose: 'senyum' });
   assert.equal(ph.status, 200, JSON.stringify(ph.body));
-  assert.equal(ph.body.photo.members.length, 3);
+  assert.deepEqual(ph.body.photo.members.map((m: any) => m.name).sort(), ['Rumah2', 'Tamu2']);
+  await sync(c, room2, 3, 3);
+  assert.equal((await b.c.post(`/api/house/${a.id}/photo`, { roomId: room2, pose: 'senyum' })).body.photo.members.length, 3);
+  // saling memblokir: tidak bisa ikut main bareng yang sama & tidak ada di foto yang sama
+  await db.query(`insert into blocks (user_id, blocked_id) values ($1, $2)`, [c.id, b.id]);
+  const ph2 = await b.c.post(`/api/house/${a.id}/photo`, { roomId: room2, pose: 'lompat' });
+  assert.deepEqual(ph2.body.photo.members.map((m: any) => m.name).sort(), ['Rumah2', 'Tamu2'], 'yang memblokir pemotret tidak ikut difoto');
+  const st2 = await b.c.post(`/api/house/${a.id}/coop`, { action: 'start', game: 'masak' });
+  assert.equal((await c.c.post(`/api/house/${a.id}/coop`, { action: 'join', coopId: st2.body.coop.id })).body.error?.code, 'coop_blocked');
+  assert.equal((await a.c.post(`/api/house/${a.id}/coop`, { action: 'join', coopId: st2.body.coop.id })).status, 200, 'tuan rumah tetap boleh ikut');
 });

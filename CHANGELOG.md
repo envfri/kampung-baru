@@ -4,6 +4,30 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.20.1 · 2026-11-11 · Audit rumah tersambung & atur denah
+
+### Baru
+
+- Saat Atur mebel, ada peringatan bila sebuah ruangan jadi tidak bisa dimasuki karena jalannya tertutup mebel. _(pemain)_
+
+### Perubahan
+
+- Main bareng sekarang lewat ajakan: yang memulai mengajak, teman lain memilih sendiri "Ikut main" atau "Tidak" (15 detik). Jatah main bareng harian hanya terpakai kalau kamu ikut. Kalau tidak ada yang ikut, ajakan batal sendiri. _(pemain)_
+- Foto bareng berisi pet tuan rumah, yang memotret, dan pet yang sedang satu ruangan dengannya. _(pemain)_
+- API main bareng: action join / begin, fase ajak → main (event coop_join, coop_go; why sepi/batal). Tes: ajakan & blokir di main bareng, foto se-ruangan & blokir, validasi sinkron, uji "Susun otomatis" yang sungguhan.
+
+### Perbaikan
+
+- Atur denah: kamera tidak lagi bergeser sendiri saat ruangan dipindah, ruangan lain tidak ikut bergeser saat satu ruangan dibawa ke pojok belakang, ruangan baru bisa diseret setelah dipilih (seret di tempat lain = geser layar, cubit tetap bisa), dan ada tombol nama ruangan untuk memilih tanpa mengetuk gambar. _(pemain)_
+- Pet tidak lagi berbelok ke petak acak saat diminta pindah ruangan, tetap berjalan ke ruangan pilihan setelah selesai mandi/beraktivitas/tidur, dan tidak lagi berdiri di atas kasur setelah bangun. Tamu tetap bisa berjalan walau pet tuan rumah sedang tidur. _(pemain)_
+- Rumah lebih ringan di HP: hanya ruangan yang berubah yang digambar ulang, remah di lapisan sendiri. Mebel yang menempel ke dinding pemisah tidak lagi tergambar di depan dinding. Jendela & lukisan di pratinjau admin tidak lagi mencuat melewati dinding.
+- Atur denah otomatis dibatalkan saat pindah layar atau ganti akun; semua masalah denah (bertumpuk, terpisah, terlalu jauh) punya pesan sendiri. Tamu yang pulang langsung hilang dari rumah walau tuan rumah sendirian.
+
+### Keamanan
+
+- Pemain yang saling memblokir tidak pernah ikut main bareng yang sama dan tidak ada di foto yang sama (foto tidak masuk album / lukisan mereka).
+- Sinkron rumah live: ruangan yang dikirim harus milik tuan rumah dan posisi dibatasi ukuran ruangannya (cache daftar ruangan dibersihkan saat ruangan dibeli/diperluas). Batas koordinat denah diperlebar (±1000) supaya denah yang sah tidak tertolak setelah digeser.
+
 ## 0.20.0 · 2026-11-11 · Atur denah sendiri
 
 _Sekarang kamu bisa mengatur letak ruangan sendiri: halaman di samping, dapur di belakang, sesukamu. Pintunya muncul sendiri._
@@ -19,6 +43,8 @@ _Sekarang kamu bisa mengatur letak ruangan sendiri: halaman di samping, dapur di
 
 - Kalau ruangan yang diperluas jadi menabrak ruangan lain di denahmu, denah kembali tersusun otomatis (ada pemberitahuan) dan bisa diatur lagi. _(pemain)_
 - Teman yang berkunjung melihat denah rumahmu persis seperti yang kamu atur.
+
+Commit: [`01eae37`](https://github.com/envfri/kampung-baru/commit/01eae37)
 
 ## 0.19.0 · 2026-11-11 · Rumah tersambung
 
