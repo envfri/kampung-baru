@@ -110,7 +110,7 @@
       {/each}
     </div>
   {:else if tab === 'top'}
-    <p class="visitors">Rumah yang paling banyak disukai minggu ini. Sukai rumah teman saat berkunjung (sekali seminggu per teman).{#if top} Rumahmu: <b>{top.mine}</b> suka.{/if}</p>
+    <p class="visitors">Rumah yang paling banyak disukai minggu ini. Sukai rumah teman saat berkunjung (sekali seminggu per teman).{#if top}{' '}Rumahmu: <b>{top.mine}</b> suka.{/if}</p>
     {#if top === null}<p class="muted">Memuat…</p>
     {:else if !top.top.length}<p class="muted">Belum ada rumah yang disukai minggu ini. Jadi yang pertama!</p>{/if}
     <div class="list">

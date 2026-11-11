@@ -39,9 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.13.1',
+    date: '2026-11-11',
+    title: 'Rapi di layar komputer',
+    items: [
+      { kind: 'perbaikan', text: 'Di layar komputer, tombol mini-game (Kiri/Kanan, Lepas gasing, Panjat!) tidak lagi melebar selebar layar.', player: true },
+      { kind: 'perbaikan', text: 'Warung Jamu di peta tidak lagi tertimpa pohon, dan tempat yang diklik tidak memunculkan kotak garis.', player: true },
+      { kind: 'perbaikan', text: 'Spasi yang hilang di keterangan tab Terfavorit.' },
+    ],
+  },
+  {
     version: '0.13.0',
     date: '2026-11-10',
     title: 'Pet terasa hidup: rawat dengan sentuhan, jamu, lencana, mini-game Nusantara',
+    commits: ['bade17f'],
     summary: 'Wajah pet kini ikut perasaannya. Suapi, mandikan, dan tidurkan dengan sentuhan. Ada Warung Jamu, lencana, empat mini-game baru, dan suka rumah teman.',
     items: [
       { kind: 'baru', text: 'Wajah pet ikut perasaannya: senang tersenyum lebar, lapar berair mata, capek sayu dan menguap, kotor bernoda dan dikerubungi lalat, sakit berkompres. Matanya mengikuti jarimu.', player: true },

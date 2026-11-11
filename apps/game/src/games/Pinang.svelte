@@ -93,6 +93,6 @@
 <style>
   .slip { animation: slipShake .12s ease-in-out infinite alternate; }
   @keyframes slipShake { from { translate: -3px 0; } to { translate: 3px 0; } }
-  .pads { position: absolute; z-index: 5; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 20px); display: flex; }
+  .pads { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); bottom: calc(var(--safe-b) + 20px); display: flex; }
   .pad { flex: 1; min-height: 96px; font-size: 24px; touch-action: none; }
 </style>

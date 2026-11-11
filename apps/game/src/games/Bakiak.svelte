@@ -91,6 +91,6 @@
   .prompt { position: absolute; z-index: 5; left: 50%; top: calc(var(--safe-t) + 64px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; background: var(--paper); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 6px 22px; font-size: 34px; font-weight: 800; }
   .prompt small { font-size: 13px; color: var(--muted); }
   .prompt.bad { background: #F8C9BE; }
-  .pads { position: absolute; z-index: 5; left: 12px; right: 12px; bottom: calc(var(--safe-b) + 20px); display: flex; gap: 12px; }
+  .pads { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); bottom: calc(var(--safe-b) + 20px); display: flex; gap: 12px; }
   .pad { flex: 1; min-height: 96px; font-size: 22px; touch-action: none; }
 </style>

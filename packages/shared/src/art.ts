@@ -1200,7 +1200,7 @@ function mapDecor(decor: string | undefined) {
 export function renderMap(locations: LocationLike[], decor?: string) {
   let o = `<rect x="-200" y="-200" width="1500" height="900" fill="#A9D18A"/>`;
   for (let i = 0; i < 96; i++) o += `<circle cx="${(i * 137) % MAP_W}" cy="${(i * 89) % 440}" r="3" fill="#97C478"/>`;
-  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [1060, 60], [1066, 150]].forEach(([x, y]) => {
+  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [1062, 52], [1050, 330]].forEach(([x, y]) => {
     o += `<circle cx="${x}" cy="${y + 16}" r="5" fill="#7A5232"/><circle cx="${x}" cy="${y}" r="20" fill="#5DA05A" stroke="${INK}" stroke-width="2.5"/><circle cx="${x - 6}" cy="${y - 6}" r="7" fill="#7CC57D"/>`;
   });
   const road = `M-20 240H${MAP_W + 20}M420 240V470`;

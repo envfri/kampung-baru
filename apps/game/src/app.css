@@ -71,7 +71,8 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .tile:hover { fill: #FFE7A0; }
 .furn.editable { cursor: grab; }
 .furn.sel { animation: selPulse 1s ease-in-out infinite; }
-.loc { cursor: pointer; }
+.loc { cursor: pointer; outline: none; }
+.loc:focus-visible .lift { filter: drop-shadow(0 0 4px #3F7FBF) drop-shadow(0 0 2px #3F7FBF); }
 .loc .lift { transition: transform .15s; }
 .loc:hover .lift, .loc:focus .lift { transform: translateY(-4px); }
 /* wajah pet: mata mengikuti jari, mulut mangap saat disuapi, menguap saat capek */

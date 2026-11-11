@@ -4,6 +4,14 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.13.1 · 2026-11-11 · Rapi di layar komputer
+
+### Perbaikan
+
+- Di layar komputer, tombol mini-game (Kiri/Kanan, Lepas gasing, Panjat!) tidak lagi melebar selebar layar. _(pemain)_
+- Warung Jamu di peta tidak lagi tertimpa pohon, dan tempat yang diklik tidak memunculkan kotak garis. _(pemain)_
+- Spasi yang hilang di keterangan tab Terfavorit.
+
 ## 0.13.0 · 2026-11-10 · Pet terasa hidup: rawat dengan sentuhan, jamu, lencana, mini-game Nusantara
 
 _Wajah pet kini ikut perasaannya. Suapi, mandikan, dan tidurkan dengan sentuhan. Ada Warung Jamu, lencana, empat mini-game baru, dan suka rumah teman._
@@ -28,6 +36,8 @@ _Wajah pet kini ikut perasaannya. Suapi, mandikan, dan tidurkan dengan sentuhan.
 ### Perubahan
 
 - Aktivitas kasur bawaan menjadi "Rebahan" sebentar; tidur sungguhan lewat lampu (tombol Tidur, atau ketuk kasur/lampu). _(pemain)_
+
+Commit: [`bade17f`](https://github.com/envfri/kampung-baru/commit/bade17f)
 
 ## 0.12.0 · 2026-11-10 · Rumah berkamar-kamar, mebel bisa dipakai, belanja jalan kaki
 
