@@ -25,7 +25,7 @@
   const photoSvg = (p: any) => renderPhoto(p.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), p.pose, item(p.scene?.wall), item(p.scene?.floor), p.scene?.theme);
   const whereText = (f: any) => (f.where === 'home' ? 'di rumah' : f.where === 'visit' ? (f.at ? `main ke rumah ${f.at}` : 'sedang berkunjung') : f.where === 'alun' ? `di Alun-alun${f.alun > 1 ? ` ${f.alun}` : ''}` : 'di kampung');
   /** susul teman ke alun-alun yang sama (bila masih muat) */
-  function joinSquare(f: any) { sfx.tap(); H.inst = f.alun || 0; G.sheet = null; goTo('alun'); }
+  function joinSquare(f: any) { sfx.tap(); H.want = f.alun || 0; G.sheet = null; goTo('alun'); }
   let top = $state<any>(null);
   async function loadTop() { tab = 'top'; try { top = await api.get('/api/houses/top'); } catch (e) { fail(e); top = { top: [], mine: 0 }; } }
   const myCode = $derived(G.me.user.friend_code);

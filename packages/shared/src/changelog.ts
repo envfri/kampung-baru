@@ -39,9 +39,26 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.21.1',
+    date: '2026-11-11',
+    title: 'Audit alun-alun',
+    items: [
+      { kind: 'keamanan', text: 'Laporan hanya sah dari pemain yang sedang bertemu dengan yang dilaporkan di alun-alun yang sama (dan sudah 1 menit di sana). Akun sekali pakai tidak bisa lagi membisukan orang lain. Bisu 30 menit hanya sekali per gelombang laporan (tidak diperpanjang terus), tersimpan di server, berlaku di alun-alun & rumah, dan bisa dibuka moderator.' },
+      { kind: 'keamanan', text: 'Filter obrolan diperketat: yang disimpan & disiarkan adalah teks yang sudah dibersihkan; karakter pembalik arah, huruf mirip dari aksara lain, tanda gabung & angka aksara lain ditolak; kode akun / kode pindah perangkat dan nomor yang dicicil beberapa pesan ditolak; kata terlarang yang dieja per huruf tertangkap. Nama yang menyamar jadi tim BUPI (Admin, Moderator, Tim BUPI, ...) tidak bisa dipakai.', player: true },
+      { kind: 'baru', text: 'Pengingat di obrolan alun-alun: jangan bagikan kode akun, kode pindah perangkat, nomor, atau alamat. Tim BUPI tidak pernah memintanya.', player: true },
+      { kind: 'baru', text: 'Tombol Main di bar alun-alun: pilih nonton, komidi putar, ayunan, berteduh, duduk, atau jajan tanpa harus mengetuk bendanya.', player: true },
+      { kind: 'perbaikan', text: 'Mandi atau nampan makan yang belum selesai di rumah tidak lagi membuat alun-alun macet. Ketuk jalan batu kini membuat pet berjalan ke sana, ketukan lantai tidak mengganggu aktivitas yang sedang berjalan, menu aktivitas tidak tertutup bar, dan label nama tidak lagi menumpuk jadi kolom panjang saat ramai (ada label "(kamu)" untuk pet sendiri).', player: true },
+      { kind: 'perbaikan', text: 'Obrolan & ekspresi lama tidak diputar ulang saat baru masuk, tidak ada pemberitahuan setiap orang asing datang/pergi, pemberitahuan foto hanya bila kamu ikut difoto, foto alun-alun bergaya luar ruang, dan menyusul teman ke alun-alun yang sudah penuh diberi tahu.', player: true },
+      { kind: 'ubah', text: 'Main di alun-alun diberi jeda 3 detik; setelah jatah harian habis tetap boleh main tanpa koin, XP, ceria, atau kemajuan tugas. Joget bareng dihitung dari joget sungguhan saat musik. Foto alun-alun masuk album yang memotret & temannya saja, dan tidak dihitung untuk lencana foto di rumah teman.', player: true },
+      { kind: 'perbaikan', text: 'Server: nomor urut kejadian bersama (obrolan tidak hilang saat alun-alun kosong dibuat ulang), pengaturan bernilai 0 dihormati, alun-alun yang ditutup juga menolak obrolan/aksi/foto/laporan, laporan dengan ID salah tidak lagi error 500, kabar masuk tidak membanjiri saat keluar-masuk cepat, log obrolan alun-alun dibersihkan setelah 60 hari. Game: penanganan galat jaringan, posisi terbaru dikirim saat masuk & berfoto, polling lebih jarang saat sendirian, dan gambar pet lain disimpan per pet.' },
+      { kind: 'baru', text: 'Migrasi 020 (users.chat_muted_until). Admin: Buka bisu di Moderasi & detail pemain, jumlah pelapor berbeda per 7 hari. Tes alun-alun diperluas (jam panggung tetap, laporan, bisu, filter, batas 0, kejadian setelah dibuat ulang, nama terlarang).' },
+    ],
+  },
+  {
     version: '0.21.0',
     date: '2026-11-11',
     title: 'Alun-alun kampung',
+    commits: ['c6b1e76'],
     summary: 'Alun-alun sudah dibuka! Jalan-jalan ke sana dari peta kampung, ketemu pemain lain, nonton panggung, naik komidi putar, jajan, dan joget bareng.',
     items: [
       { kind: 'baru', text: 'Alun-alun di peta kampung: lapangan luas tempat semua pemain berkumpul, dengan beringin kembar, air mancur, jalan batu, bangku, lampu taman, komidi putar, ayunan, dan gerobak jajanan.', player: true },

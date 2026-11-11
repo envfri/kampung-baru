@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { unhide } from '../lib/house.svelte';
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
   import AuthOptions from '../components/AuthOptions.svelte';
@@ -92,7 +93,7 @@
   const toggle = (k: 'sound' | 'haptics') => { prefs[k] = !prefs[k]; setPref(k, prefs[k]); };
   let blocks = $state<any[] | null>(null);
   async function loadBlocks() { try { blocks = (await api.get('/api/blocks')).blocks; } catch (e) { fail(e); } }
-  async function unblock(b: any) { try { await api.del(`/api/blocks/${b.id}`); toast(`Blokir ${b.name} dibuka.`); loadBlocks(); } catch (e) { fail(e); } }
+  async function unblock(b: any) { try { await api.del(`/api/blocks/${b.id}`); unhide(b.id); toast(`Blokir ${b.name} dibuka.`); loadBlocks(); } catch (e) { fail(e); } }
   async function privacy(k: 'showOnline' | 'liveVisits', v: boolean) {
     try {
       const r = await api.post('/api/me/privacy', { [k]: v });

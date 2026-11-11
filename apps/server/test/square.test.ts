@@ -6,7 +6,8 @@ import { squareShow } from '@kb/shared';
 
 config.paymentProvider = 'mock';
 const { buildApp } = await import('../src/app');
-const { resetSquares } = await import('../src/routes/square');
+const { resetSquares, setSquareClock, resetSquareActGap } = await import('../src/routes/square');
+const resetSquareGap = async (_p?: unknown) => resetSquareActGap();
 let app: any;
 let db: any;
 before(async () => { ({ app, db } = await buildApp({ memoryDb: true, logger: false, rateLimit: false, worker: false })); });
@@ -101,51 +102,163 @@ test('alun-alun: yang saling memblokir tidak saling melihat & obrolannya tidak s
   assert.ok(names.includes('Blok3') && !(names.includes('Blok1') && names.includes('Blok2')), `bukan pasangan terblokir: ${names}`);
 });
 
-test('alun-alun: main berhadiah terbatas, jajan, joget hanya saat musik, laporan membisukan obrolan', async () => {
+/** waktu (ms) setelah `from` saat musik sedang main di panggung */
+function musicAt(from: number, music = true) {
+  let t = from;
+  while (squareShow(t).music !== music || (music === false && squareShow(t).playing)) t += 1000;
+  return t;
+}
+const setVisit = async (key: string, patch: Record<string, unknown>) => {
+  const row = await db.one(`select value from settings where key = 'game'`);
+  const v = row?.value ?? {};
+  v[key] = { ...(v[key] ?? {}), ...patch };
+  await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value`, [JSON.stringify(v)]);
+  (await import('../src/lib/core')).invalidateCaches();
+};
+
+test('alun-alun: main berhadiah terbatas, jeda antaraksi, jajan, joget & nonton mengikuti jadwal panggung', async () => {
   resetSquares();
-  const a = await player('Main1');
+  const realNow = Date.now();
+  try {
+    const a = await player('Main1');
+    await sync(a);
+    await db.query(`update wallets set coin = 500 where user_id = $1`, [a.id]);
+    const gap = () => resetSquareGap(a);
+    const r1 = await a.c.post('/api/square/act', { kind: 'naik' });
+    assert.equal(r1.status, 200, JSON.stringify(r1.body));
+    assert.equal(r1.body.rewarded, true);
+    assert.ok(r1.body.coins > 0);
+    assert.equal((await a.c.post('/api/square/act', { kind: 'ayun' })).body.error?.code, 'too_fast', 'ada jeda antaraksi');
+    for (let i = 0; i < 12; i++) { await gap(); await a.c.post('/api/square/act', { kind: 'ayun' }); }
+    await gap();
+    await db.query(`update pets set ceria = 10 where user_id = $1`, [a.id]);
+    const capped = await a.c.post('/api/square/act', { kind: 'duduk' });
+    assert.equal(capped.status, 200);
+    assert.equal(capped.body.rewarded, false, 'lewat batas harian: tetap boleh main tanpa hadiah');
+    assert.equal(capped.body.ceria, 0, 'lewat batas: tidak menambah ceria');
+    assert.equal((await db.one(`select ceria from pets where user_id = $1`, [a.id])).ceria, 10);
+    // jajan bakso: koin berkurang, Kenyang naik
+    await gap();
+    await db.query(`update pets set kenyang = 40 where user_id = $1`, [a.id]);
+    const before = (await a.c.get('/api/me')).body.wallet.coin;
+    const j = await a.c.post('/api/square/act', { kind: 'jajan', item: 'alun-bakso' });
+    assert.equal(j.status, 200, JSON.stringify(j.body));
+    assert.ok(j.body.pet.needs.kenyang > 40);
+    assert.equal(j.body.wallet.coin, before - 18, 'harga bakso 18 koin');
+    await gap();
+    assert.equal((await a.c.post('/api/square/act', { kind: 'jajan', item: 'kue-palsu' })).status, 400);
+    // joget & nonton mengikuti jadwal panggung (jam alun-alun dipasang tetap)
+    setSquareClock(() => musicAt(realNow));
+    await gap();
+    assert.equal((await a.c.post('/api/square/act', { kind: 'joget' })).status, 200, 'joget saat musik');
+    setSquareClock(() => musicAt(realNow, false));
+    await gap();
+    assert.equal((await a.c.post('/api/square/act', { kind: 'joget' })).body.error?.code, 'no_music');
+    await gap();
+    assert.equal((await a.c.post('/api/square/act', { kind: 'nonton' })).body.error?.code, 'show_break');
+    // joget yang diklaim lewat sinkron di luar musik tidak tampil
+    await sync(a, { act: 'joget' });
+    const b = await player('Main2');
+    assert.equal((await sync(b)).body.members[0].act, null);
+  } finally { setSquareClock(() => Date.now()); }
+});
+
+test('alun-alun: batas 0 dari admin dihormati', async () => {
+  resetSquares();
+  await setVisit('square', { actsPerDay: 0, snacksPerDay: 0 });
+  try {
+    const a = await player('Nol1');
+    await sync(a);
+    const r = await a.c.post('/api/square/act', { kind: 'duduk' });
+    assert.equal(r.body.rewarded, false, 'actsPerDay 0 = tidak ada main berhadiah');
+    await resetSquareGap(a);
+    assert.equal((await a.c.post('/api/square/act', { kind: 'jajan', item: 'alun-dawet' })).body.error?.code, 'daily_limit');
+  } finally { await setVisit('square', { actsPerDay: 10, snacksPerDay: 5 }); }
+});
+
+test('alun-alun: laporan hanya dari yang bertemu, bisu sekali per gelombang & bisa dibuka admin', async () => {
+  resetSquares();
+  const realNow = Date.now();
+  try {
+    const a = await player('Lapor0');
+    await sync(a);
+    // tiga akun yang tidak pernah ke alun-alun tidak bisa melapor
+    const outsiders = [await player('Luar1'), await player('Luar2'), await player('Luar3')];
+    for (const o of outsiders) assert.equal((await o.c.post('/api/square/report', { userId: a.id })).body.error?.code, 'not_here');
+    // baru masuk: belum boleh melapor
+    const rs = [await player('Lapor1'), await player('Lapor2'), await player('Lapor3'), await player('Lapor4')];
+    for (const r of rs) await sync(r);
+    assert.equal((await rs[0].c.post('/api/square/report', { userId: a.id })).body.error?.code, 'too_soon');
+    setSquareClock(() => realNow + 120_000);
+    // id huruf besar = orang yang sama; tidak bisa melapor diri sendiri; id tak dikenal ditolak
+    assert.equal((await rs[0].c.post('/api/square/report', { userId: rs[0].id.toUpperCase() })).body.error?.code, 'invalid');
+    assert.equal((await rs[0].c.post('/api/square/report', { userId: '00000000-0000-0000-0000-000000000000' })).body.error?.code, 'not_met');
+    assert.equal((await rs[0].c.post('/api/square/report', { userId: '------------------------------------' })).status, 400);
+    for (const r of rs.slice(0, 3)) assert.equal((await r.c.post('/api/square/report', { userId: a.id.toUpperCase(), reason: 'kata kasar' })).status, 200);
+    const u1 = await db.one(`select chat_muted_until from users where id = $1`, [a.id]);
+    assert.ok(u1.chat_muted_until, 'dibisukan setelah 3 pelapor');
+    assert.equal((await a.c.post('/api/square/say', { text: 'Halo semua!' })).status, 403);
+    // laporan berikutnya tidak memperpanjang bisu
+    assert.equal((await rs[3].c.post('/api/square/report', { userId: a.id })).status, 200);
+    const u2 = await db.one(`select chat_muted_until from users where id = $1`, [a.id]);
+    assert.equal(new Date(u2.chat_muted_until).getTime(), new Date(u1.chat_muted_until).getTime(), 'bisu tidak diperpanjang');
+    // admin membuka bisu → bisa mengobrol lagi, laporan lama tidak membisukan ulang
+    const { forgetMute } = await import('../src/routes/square');
+    await db.query(`update users set chat_muted_until = now() - interval '1 second' where id = $1`, [a.id]);
+    forgetMute(a.id);
+    assert.equal((await a.c.post('/api/square/say', { text: 'Halo semua!' })).status, 200);
+  } finally { setSquareClock(() => Date.now()); }
+});
+
+test('alun-alun: obrolan tersaring dari karakter pembalik arah, huruf mirip, kode akun & nomor dicicil', async () => {
+  resetSquares();
+  const a = await player('Saring1');
   await sync(a);
-  await db.query(`update wallets set coin = 500 where user_id = $1`, [a.id]);
-  const r1 = await a.c.post('/api/square/act', { kind: 'naik' });
-  assert.equal(r1.status, 200, JSON.stringify(r1.body));
-  assert.equal(r1.body.rewarded, true);
-  assert.ok(r1.body.coins > 0);
-  for (let i = 0; i < 12; i++) await a.c.post('/api/square/act', { kind: 'ayun' });
-  const capped = await a.c.post('/api/square/act', { kind: 'duduk' });
-  assert.equal(capped.status, 200);
-  assert.equal(capped.body.rewarded, false, 'lewat batas harian: tetap boleh main tanpa hadiah');
-  // jajan bakso: koin berkurang, Kenyang naik
-  await db.query(`update pets set kenyang = 40 where user_id = $1`, [a.id]);
-  const before = (await a.c.get('/api/me')).body.wallet.coin;
-  const j = await a.c.post('/api/square/act', { kind: 'jajan', item: 'alun-bakso' });
-  assert.equal(j.status, 200, JSON.stringify(j.body));
-  assert.ok(j.body.pet.needs.kenyang > 40);
-  assert.equal(j.body.wallet.coin, before - 18, 'harga bakso 18 koin');
-  assert.equal((await a.c.post('/api/square/act', { kind: 'jajan', item: 'kue-palsu' })).status, 400);
-  // joget & nonton mengikuti jadwal panggung
-  const show = squareShow(Date.now());
-  const jg = await a.c.post('/api/square/act', { kind: 'joget' });
-  if (show.music) assert.equal(jg.status, 200); else assert.equal(jg.body.error?.code, 'no_music');
-  const nt = await a.c.post('/api/square/act', { kind: 'nonton' });
-  if (show.playing) assert.equal(nt.status, 200); else assert.equal(nt.body.error?.code, 'show_break');
-  // tiga pelapor berbeda dalam satu jam → obrolan dibisukan
-  const rs = [await player('Lapor1'), await player('Lapor2'), await player('Lapor3')];
-  for (const r of rs) { await sync(r); assert.equal((await r.c.post('/api/square/report', { userId: a.id, reason: 'kata kasar' })).status, 200); }
-  assert.equal((await db.one(`select count(*)::int c from reports where target_id = $1`, [a.id])).c, 3);
-  assert.equal((await a.c.post('/api/square/say', { text: 'Halo semua!' })).status, 403, 'dibisukan sementara');
-  assert.equal((await a.c.post('/api/square/report', { userId: a.id })).status, 400, 'tidak bisa melapor diri sendiri');
+  const say = async (text: string) => { await new Promise((r) => setTimeout(r, 1550)); return a.c.post('/api/square/say', { text }); };
+  // pembalik arah dibuang: yang disiarkan & disimpan "moc.ukotok" (tidak terbaca sebagai tautan)
+  assert.equal((await say('\u202Emoc.ukotok')).status, 200);
+  assert.equal((await db.one(`select text from square_chat where user_id = $1 order by id desc limit 1`, [a.id])).text, 'moc.ukotok');
+  assert.equal((await say('halo аdmin')).status, 400, 'huruf Kirilik mirip ditolak');
+  assert.equal((await say('kodenya K7QM-2XPA ya')).body.error?.code, 'chat_code', 'kode pindah perangkat ditolak');
+  assert.equal((await say('0812')).status, 200);
+  assert.equal((await say('3456')).body.error?.code, 'chat_link', 'nomor yang dicicil ditolak');
+  const ok = await say('Petmu  lucu   banget 😊');
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal((await db.one(`select text from square_chat where user_id = $1 order by id desc limit 1`, [a.id])).text, 'Petmu lucu banget 😊', 'yang disimpan teks bersih');
+});
+
+test('alun-alun: kejadian tetap sampai setelah alun-alun kosong dibuat ulang', async () => {
+  resetSquares();
+  const a = await player('Ulang1'), b = await player('Ulang2');
+  await sync(a);
+  await a.c.post('/api/square/say', { text: 'Halo semua!' });
+  const seqA = (await sync(a)).body.seq;
+  await a.c.post('/api/square/leave');
+  // alun-alun 1 kosong lalu dibuat ulang (nomor kejadian tidak mulai dari 0 lagi)
+  const { squareCounts } = await import('../src/routes/square');
+  void squareCounts;
+  await sync(b);
+  await b.c.post('/api/square/say', { text: 'Salam kenal!' });
+  const ra = await sync(a, { since: seqA });
+  assert.ok(ra.body.events.some((e: any) => e.kind === 'say' && e.text === 'Salam kenal!'), 'obrolan baru tetap sampai');
+});
+
+test('nama yang menyamar jadi tim BUPI ditolak', async () => {
+  const c = client();
+  await c.post('/api/auth/guest');
+  for (const name of ['Admin', 'Mod Bupi', 'Tim BUPI', 'Moderator1']) assert.equal((await c.post('/api/pet', { name, color: '#F6B7A8', ear: 'tunas' })).body.error?.code, 'name_reserved', name);
 });
 
 test('alun-alun: ditutup admin & pet yang tidur tidak bisa masuk', async () => {
   resetSquares();
   const a = await player('Tutup1');
-  await db.query(`update pets set sleep = '{"since": 1, "wakeAt": 9999999999999}'::jsonb where user_id = $1`, [a.id]).catch(() => {});
+  await db.query(`update pets set sleep_from = now() where user_id = $1`, [a.id]);
   const asleep = await sync(a);
-  const row = await db.one(`select value from settings where key = 'game'`);
-  const v = row?.value ?? {};
-  v.square = { ...(v.square ?? {}), enabled: false };
-  await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value`, [JSON.stringify(v)]);
-  (await import('../src/lib/core')).invalidateCaches();
-  assert.equal((await sync(a)).body.reason, 'off');
-  void asleep;
+  assert.equal(asleep.body.reason, 'asleep');
+  await db.query(`update pets set sleep_from = null where user_id = $1`, [a.id]);
+  await setVisit('square', { enabled: false });
+  try {
+    assert.equal((await sync(a)).body.reason, 'off');
+    assert.equal((await a.c.post('/api/square/say', { text: 'Halo semua!' })).status, 403);
+  } finally { await setVisit('square', { enabled: true }); }
 });

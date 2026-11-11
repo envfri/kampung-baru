@@ -220,6 +220,8 @@
         layout: layoutOf(r), wall: item(r.wall), floor: r.floorItem ?? item(r.floor),
         edit: r.id === editId, dim: editId !== null && r.id !== editId, sel: r.id === editId ? G.sel : -1,
         photo: r.id === photoRoom ? photoSvg : '',
+        // alun-alun: jalan batu bagian dari lantai (ketukan diteruskan ke petak di bawahnya)
+        inertFlats: square,
       };
     return out;
   });
@@ -230,13 +232,23 @@
   type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string } };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
   const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop }) : '');
+  /** gambar pet lain disimpan per pet: hanya dibuat ulang bila tampilannya berubah (bukan setiap ada yang pindah petak) */
+  const markupCache = new Map<string, { k: string; h: string }>();
+  function compMarkup(c: Comp) {
+    const k = JSON.stringify([c.look?.color, c.look?.ear, c.look?.pattern, c.look?.eyes, c.look?.tail, c.wear?.map((w: any) => w.id), c.state, c.flip]);
+    const hit = markupCache.get(c.id);
+    if (hit && hit.k === k) return hit.h;
+    const h = petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip });
+    markupCache.set(c.id, { k, h });
+    return h;
+  }
   const petDraws = $derived.by(() => {
     void compVer;
     const out: Draw[] = [];
     if (mainMarkup && pos) out.push({ key: 'pet', d: pos[0] + pos[1] + 0.01, h: mainMarkup, pet: { cls: `pet${pose?.pose ? ' pose-' + pose.pose : ''}`, tf: tf(pos, pose?.lift ?? 0) } });
     if (!(mode === 'home' && (G.edit || G.plan)))
       for (const c of comps.values())
-        out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip }), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
+        out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: compMarkup(c), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
     return out;
   });
   const draws = $derived<Draw[]>([...fixedDraws, ...petDraws, ...npcDraws].sort(houseDrawOrder));
@@ -493,7 +505,7 @@
   /** mode Atur denah: ruangan yang sedang digeser */
   let roomDrag: null | { id: string; pid: number; x0: number; y0: number; lx: number; ly: number; gx0: number; gy0: number; moved: boolean } = null;
   function down(e: PointerEvent) {
-    if (G.bath) return bathDown(e);
+    if (G.bath && mode === 'home') return bathDown(e);
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (planning && G.plan) {
       // jari kedua saat menyeret ruangan: batalkan seretan (ruangan kembali) lalu cubit untuk zoom
@@ -533,7 +545,7 @@
       movePlanRoom(roomDrag.id, roomDrag.gx0 + ux, roomDrag.gy0 + uy);
       return;
     }
-    if (!ptrs.has(e.pointerId) || G.bath) return;
+    if (!ptrs.has(e.pointerId) || (G.bath && mode === 'home')) return;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && ptrs.size >= 2) {
       const [a, b] = [...ptrs.values()];
@@ -571,7 +583,7 @@
     const el = svgEl;
     if (!el) return;
     const wheel = (e: WheelEvent) => {
-      if (G.bath) return;
+      if (G.bath && mode === 'home') return;
       e.preventDefault();
       const [lo, hi] = kRange();
       const k = Math.max(lo, Math.min(hi, cam.k * Math.exp(-e.deltaY * 0.0015)));
@@ -736,7 +748,10 @@
       if (changed) compVer++;
     }, 1000);
     // laporkan posisi pet ke rumah live (ruangan + posisi di dalam ruangan itu)
-    const rep = setInterval(() => {
+    const rep = setInterval(reportPos, 200);
+    return () => { clearInterval(selfWander); clearInterval(rep); clearInterval(sweep); cancelAnimationFrame(compRaf); };
+  });
+  function reportPos() {
       const me = comps.get(SELF);
       const at = mode === 'visit' ? me?.live : live;
       if (!at) return;
@@ -746,15 +761,14 @@
       H.pos.y = +(at[1] - (r?.gy ?? 0)).toFixed(2);
       if (mode === 'visit' && me) { H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
       else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' || pose?.pose === 'naik' || pose?.pose === 'ayun' ? 'duduk' : pose?.pose === 'joget' ? 'joget' : pose?.pose === 'lihat' ? 'lihat' : walking ? 'jalan' : null; }
-    }, 200);
-    return () => { clearInterval(selfWander); clearInterval(rep); clearInterval(sweep); cancelAnimationFrame(compRaf); };
-  });
+  }
   // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
   let entered = '';
   $effect(() => {
     const hid = square ? SQUARE : mode === 'visit' ? G.visit?.owner?.id : G.me?.user?.id;
     if (!hid || (mode === 'visit' && G.visit?.together && !G.visit.together.on)) return;
-    untrack(() => { enterHouse(hid, focusId); entered = hid; });
+    // posisi sekarang dikirim di sinkron pertama (bukan posisi dari tempat sebelumnya)
+    untrack(() => { H.pos.act = null; reportPos(); enterHouse(hid, focusId); entered = hid; });
   });
   onDestroy(() => { if (entered && H.hostId === entered) leaveHouse(); });
 
@@ -814,7 +828,20 @@
     H.pos.act = null;
     selfBusy = false;
   }
-  $effect(() => { const q = H.actReq; if (q) untrack(() => { H.actReq = null; if (square) { if (q.kind === 'joget') doJoget(); } else doVisitAct(q.kind, q.itemId); }); });
+  $effect(() => {
+    const q = H.actReq;
+    if (!q) return;
+    untrack(() => {
+      H.actReq = null;
+      if (!square) return doVisitAct(q.kind, q.itemId);
+      if (q.kind === 'joget') return doJoget();
+      // dari daftar Main di bar alun-alun: "<aksi>@<indeks benda>"
+      const [act, idx] = String(q.kind).split('@');
+      const t: Target = { room: ALUN_ROOM, index: Number(idx) };
+      const a = activitiesFor(t).find((x: any) => x.id === act);
+      if (a && !a.off) doSquareAct(a, t); else if (a?.off) toast(a.note);
+    });
+  });
 
   /* ---------------- gelembung obrolan & label nama di atas pet ---------------- */
   let tags = $state<{ id: string; x: number; y: number; name: string; self: boolean }[]>([]);
@@ -830,7 +857,7 @@
   $effect(() => {
     const t = setInterval(() => {
       // tidak ada pet lain & gelembung: tidak perlu menghitung posisi
-      if (document.hidden || (!comps.size && !H.bubbles.length)) { if (tags.length) tags = []; return; }
+      if (document.hidden || (!comps.size && !H.bubbles.length && !square)) { if (tags.length) tags = []; return; }
       const w = wrapEl?.getBoundingClientRect();
       if (!w) return;
       const bp: Record<string, { x: number; y: number }> = {};
@@ -839,17 +866,31 @@
         if (r) bp[b.who] = { x: Math.max(70, Math.min(w.width - 70, r.left + r.width / 2 - w.left)), y: Math.max(48, r.top - w.top + 6) };
       }
       bpos = bp;
-      const tg: typeof tags = [];
-      for (const c of comps.values()) {
-        const el = svgEl?.querySelector(`[data-o="${c.id}"]`);
-        const r = el?.getBoundingClientRect();
-        if (r && r.bottom > w.top && r.top < w.bottom && r.right > w.left && r.left < w.right) tg.push({ id: c.id, x: r.left + r.width / 2 - w.left, y: r.bottom - w.top + 2, name: c.self ? `${c.name} (kamu)` : c.name, self: !!c.self });
+      let tg: (typeof tags[number] & { far: number })[] = [];
+      const meAt = square ? live : null;
+      // di alun-alun: label pet sendiri juga, dan yang sedang bicara selalu diberi label
+      const talking = new Set(H.bubbles.map((b) => b.who));
+      const list: { id: string; el: Element | null | undefined; name: string; self: boolean; at: [number, number] }[] = [...comps.values()].map((c) => ({ id: c.id, el: svgEl?.querySelector(`[data-o="${c.id}"]`), name: c.self ? `${c.name} (kamu)` : c.name, self: !!c.self, at: c.live }));
+      if (square && live && G.me?.pet) list.push({ id: SELF, el: petEl(), name: `${G.me.pet.name} (kamu)`, self: true, at: live });
+      for (const c of list) {
+        const r = c.el?.getBoundingClientRect();
+        if (r && r.bottom > w.top && r.top < w.bottom && r.right > w.left && r.left < w.right) tg.push({ id: c.id, x: r.left + r.width / 2 - w.left, y: r.bottom - w.top + 2, name: c.name, self: c.self, far: c.self || talking.has(c.id) ? -1 : meAt ? Math.hypot(c.at[0] - meAt[0], c.at[1] - meAt[1]) : 0 });
       }
-      // label nama yang bertumpuk digeser ke bawah supaya tetap terbaca
-      tg.sort((a, b) => a.y - b.y);
-      for (let i = 1; i < tg.length; i++) for (let j = 0; j < i; j++) if (Math.abs(tg[i].x - tg[j].x) < 76 && Math.abs(tg[i].y - tg[j].y) < 19) tg[i].y = tg[j].y + 19;
-      tags = tg;
-    }, 80);
+      // ramai (alun-alun): label hanya untuk diri sendiri, yang bicara, dan pet terdekat; saat melihat seluruh alun-alun lebih sedikit
+      if (square) tg = tg.sort((a, b) => a.far - b.far).slice(0, G.cam === 'house' ? 4 : 8);
+      // label yang bertumpuk digeser sedikit (paling banyak 2 baris); yang masih bertumpuk disembunyikan
+      tg.sort((a, b) => (a.self === b.self ? a.y - b.y : a.self ? -1 : 1));
+      const out: typeof tags = [];
+      for (const t of tg) {
+        for (let k = 0; k < 3; k++) {
+          const y = t.y + k * 19;
+          if (out.some((o) => Math.abs(o.x - t.x) < 76 && Math.abs(o.y - y) < 19)) continue;
+          out.push({ id: t.id, x: t.x, y, name: t.name, self: t.self });
+          break;
+        }
+      }
+      tags = out;
+    }, square ? 120 : 80);
     return () => clearInterval(t);
   });
 
@@ -922,7 +963,7 @@
       const key = it?.art?.type === 'builtin' ? it.art.key : '';
       return (SQUARE_ACTS[key] ?? []).map((a) => {
         if (a.id === 'jajan' && it && SQUARE_SNACKS[it.id]) return { ...a, name: `Jajan ${SQUARE_SNACKS[it.id].name}`, note: `${SQUARE_SNACKS[it.id].coins} koin`, item: it.id };
-        if (a.id === 'nonton' && show && !show.playing) return { ...a, note: `${show.next.name} mulai ${Math.max(1, Math.ceil((show.until - serverNow()) / 1000))} dtk lagi` };
+        if (a.id === 'nonton' && show && !show.playing) return { ...a, off: true, note: `${show.next.name} mulai ${Math.max(1, Math.ceil((show.until - serverNow()) / 1000))} dtk lagi` };
         if (a.id === 'nonton' && show) return { ...a, note: `Sedang tampil: ${show.name}` };
         return { ...a, note: a.id === 'foto' ? 'Bersama pet di dekatmu' : '' };
       });
@@ -1014,6 +1055,12 @@
 
   /** acara panggung sekarang (dari jam server: semua orang melihat yang sama) */
   const show = $derived(square ? squareShow(serverNow()) : null);
+  // jam berubah tiap detik: yang bergantung pada acara cukup memakai kunci ini (tidak dihitung ulang tiap detik)
+  const showKey = $derived(show ? `${show.key}|${show.playing}` : '');
+  const music = $derived(!!show?.music);
+  /** komponen masih tampil (aktivitas yang masih berjalan berhenti diam-diam setelah keluar) */
+  let alive = true;
+  onDestroy(() => { alive = false; });
 
   async function doSquareAct(a: any, t: Target) {
     menu = null;
@@ -1024,7 +1071,7 @@
     clearTimeout(idleTimer);
     const p = routeToAny(g.goals);
     if (p) await walkPath(p);
-    if (gen !== planGen) return;
+    if (gen !== planGen || !alive) return;
     if (g.faceTo && live) { const sx = (g.faceTo[0] - live[0]) - (g.faceTo[1] - live[1]); if (Math.abs(sx) > 0.01) flip = sx < 0; }
     if (a.id === 'foto') {
       // foto bareng dengan pet di sekitar (pratinjau foto muncul sendiri)
@@ -1034,6 +1081,7 @@
       return;
     }
     const r: any = await run(() => api.post('/api/square/act', { kind: a.id, item: a.item }));
+    if (!alive) return;
     if (!r) { acting = false; scheduleIdle(); return; }
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
     const standAt: [number, number] | null = live ? [...live] : null;
@@ -1044,8 +1092,8 @@
     queueMicrotask(place);
     if (r.kind === 'jajan') { sfx.eat(); fx('food'); } else sfx.pop();
     const beats = Math.max(2, Math.round(anim.ms / 700));
-    for (let i = 0; i < beats; i++) { fx((r.kind === 'jajan' ? 'food' : a.id === 'nonton' ? 'notes' : anim.fx) as any); await sleep(anim.ms / beats + 200); }
-    if (gen !== planGen) return;
+    for (let i = 0; i < beats; i++) { if (!alive) return; fx((r.kind === 'jajan' ? 'food' : a.id === 'nonton' ? 'notes' : anim.fx) as any); await sleep(anim.ms / beats + 200); }
+    if (gen !== planGen || !alive) return;
     pose = null;
     if (seat && standAt) { live = standAt; pos = [...standAt]; }
     queueMicrotask(place);
@@ -1059,14 +1107,16 @@
 
   /** Joget saat musik di panggung: pet joget 6 detik; makin banyak yang joget bareng, makin ceria. */
   async function doJoget() {
-    if (!square || acting || G.busy || !live) return;
+    if (!square || !live) return;
+    if (acting || G.busy) { toast(`${G.me.pet.name} masih asyik. Joget sebentar lagi, ya.`); return; }
     if (!show?.music) { toast('Joget saat ada musik di panggung, ya.'); return; }
     halt();
     acting = true;
     pose = { pose: 'joget', lift: 0 };
     queueMicrotask(place);
     const r: any = await run(() => api.post('/api/square/act', { kind: 'joget' }));
-    for (let i = 0; i < 4; i++) { fx('notes'); await sleep(1500); }
+    for (let i = 0; i < 4; i++) { if (!alive) return; fx('notes'); await sleep(1500); }
+    if (!alive) return;
     pose = null;
     queueMicrotask(place);
     acting = false;
@@ -1082,18 +1132,19 @@
   const SHOW_PROPS: Record<string, (string | undefined)[]> = { orkes: ['gitar', 'kendang', 'gitar'], wayang: ['wayang', undefined, 'wayang'], tari: ['payungtari', 'payungtari', 'payungtari'], sulap: [undefined, 'topi', undefined] };
   const NPC_AT: [number, number][] = [[8.9, 1.25], [10, 1.35], [11.1, 1.25]];
   const npcDraws = $derived.by(() => {
-    if (!square || !show?.playing) return [] as Draw[];
-    const props = SHOW_PROPS[show.key] ?? [];
-    const dance = show.key === 'tari';
+    const [key, playing] = showKey.split('|');
+    if (!square || playing !== 'true') return [] as Draw[];
+    const props = SHOW_PROPS[key] ?? [];
+    const dance = key === 'tari';
     return NPC_AT.map((p, i) => {
-      const at = show.key === 'sulap' && i !== 1 ? null : p;
+      const at = key === 'sulap' && i !== 1 ? null : p;
       if (!at) return null;
       return { key: `npc:${i}`, d: at[0] + at[1] + 0.03, h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: i === 2, prop: props[i] }), pet: { cls: `npc ${dance ? 'pose-joget' : 'pose-tampil'}`, tf: tf(at, 22.6) } } as Draw;
     }).filter(Boolean) as Draw[];
   });
   // not musik melayang dari panggung saat musik dimainkan
   $effect(() => {
-    if (!square || !show?.music) return;
+    if (!square || !music) return;
     const t = setInterval(() => { const [x, y] = houseIso(10, 1); spawn(x, y - 110, 'notes'); }, 1800);
     return () => clearInterval(t);
   });
@@ -1183,7 +1234,7 @@
   function click(e: MouseEvent) {
     if (Date.now() - suppressAt < 300) return;
     const t = e.target as Element;
-    if (G.bath) return;
+    if (G.bath && mode === 'home') return;
     if (planning && G.plan) {
       // ketuk ruangan untuk memilih; ketuk di luar rumah untuk melepas pilihan
       const r = t.closest('[data-r]') as SVGElement | null;
@@ -1217,7 +1268,7 @@
       return;
     }
     // pet tuan rumah yang tidur / beraktivitas tidak menghalangi tamu berjalan
-    if (mode === 'home' && acting) return;
+    if ((mode === 'home' || square) && acting) return;
     if (mode === 'home' && asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
     if (mode === 'home' || square) {
       const f = t.closest('.furn') as SVGElement | null;
@@ -1358,7 +1409,10 @@
     if (!menu || !wrapEl) return '';
     const w = wrapEl.clientWidth, h = wrapEl.clientHeight;
     const left = Math.max(8, Math.min(w - 248, menu.x - 120));
-    const top = menu.y > h * 0.55 ? Math.max(8, menu.y - 18 - 64 * menu.acts.length - 40) : Math.min(h - 80, menu.y + 18);
+    // jangan sampai tertutup bar bawah (aksi / alun-alun / tamu): buka ke atas bila tidak muat
+    const tall = 64 * menu.acts.length + 40, bottom = h - Math.max(90, insets().b);
+    const down = menu.y + 18;
+    const top = menu.y > h * 0.55 || down + tall > bottom ? Math.max(8, menu.y - 18 - tall) : down;
     return `left:${left}px;top:${top}px`;
   });
   /* ---------------- mode Atur denah: garis ruangan terpilih, ruangan terpisah, nama ruangan ---------------- */
@@ -1425,7 +1479,7 @@
       {#each menu.acts as a (a.id)}
         {@const cd = cdLeft(a.id)}
         {@const lock = (a.min_level ?? 1) > G.me.pet.level}
-        <button class="btn sm" class:hot={a.id === '__sleep'} role="menuitem" disabled={cd > 0 || lock || G.busy} onclick={() => doActivity(a, menu!.target)}>
+        <button class="btn sm" class:hot={a.id === '__sleep'} role="menuitem" disabled={cd > 0 || lock || G.busy || a.off} onclick={() => doActivity(a, menu!.target)}>
           <span class="nm">{a.name}</span>
           <span class="ef">{a.note ?? (lock ? `Lv ${a.min_level}` : cd > 0 ? fmtCd(cd) : effText(a.effects) || (a.coins ? `+${a.coins} koin` : ''))}</span>
         </button>
@@ -1483,7 +1537,7 @@
   .bubble { position: absolute; z-index: 11; transform: translate(-50%, calc(-100% - 10px)); margin: 0; width: max-content; max-width: min(240px, 70vw); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); padding: 5px 12px; font-weight: 800; font-size: 14.5px; line-height: 1.2; pointer-events: none; animation: talk 3.8s ease-out forwards; }
   .bubble::after { content: ''; position: absolute; left: 50%; bottom: -9px; width: 14px; height: 14px; background: var(--paper); border-right: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
   @keyframes talk { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 2px)) scale(.8); } 8%, 88% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 14px)); } }
-  .menu { position: absolute; z-index: 12; width: 240px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; animation: pop .18s ease-out; }
+  .menu { position: absolute; z-index: 20; width: 240px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; animation: pop .18s ease-out; }
   .menu b { font-size: 15px; padding: 0 4px; }
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; }
   .menu .nm { font-weight: 800; }

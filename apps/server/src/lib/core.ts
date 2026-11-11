@@ -140,22 +140,54 @@ export async function checkName(db: Db, name: string) {
   for (const w of bannedCache.words) {
     if (norm.split(/[^a-z]+/).includes(w) || (w.length >= 5 && squashed.includes(w))) throw bad('name_banned', 'Nama itu tidak bisa dipakai. Coba nama lain.');
   }
+  // nama yang bisa dipakai menyamar jadi tim BUPI (mis. untuk meminta kode pindah perangkat)
+  const tokens = norm.split(/[^a-z]+/);
+  if (/admin|moderator|official|resmi|sistem|system|petugas/.test(squashed) || tokens.some((t) => ['bupi', 'staf', 'staff', 'mod', 'cs', 'tim'].includes(t))) {
+    throw bad('name_reserved', 'Nama itu khusus untuk tim BUPI. Coba nama lain.');
+  }
   return n;
 }
 /** Obrolan bebas: tolak tautan/akun/nomor dan kata terlarang (sama seperti nama). */
-export async function checkChat(db: Db, raw: string) {
+/** angka yang dikirim tiap pemain beberapa menit terakhir (supaya nomor tidak bisa dicicil per pesan) */
+const DIGITS = new Map<string, { at: number; n: number }[]>();
+/**
+ * Obrolan bebas. Kembalikan teks yang sudah dibersihkan — simpan & siarkan teks INI, bukan teks mentah.
+ * Ditolak: tautan/akun/nomor (juga dicicil), kode akun/pindah perangkat, kata terlarang (juga dieja berspasi),
+ * dan huruf/angka di luar huruf Latin biasa (huruf mirip dari aksara lain, tanda gabung, pembalik arah, braille kosong).
+ */
+export async function checkChat(db: Db, raw: string, uid?: string) {
   // karakter tak terlihat & angka lebar penuh dinormalkan dulu supaya tidak bisa menyelinapkan nomor/kata
-  const text = raw.normalize('NFKC').replace(/\p{Cf}/gu, '');
+  const text = raw.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/\s+/g, ' ').trim();
+  if (/[^\p{Script=Latin}0-9 .,!?'"()\-:;~*&+=%#/…“”‘’\p{Extended_Pictographic}\p{Emoji_Modifier}\u200d\ufe0f]/u.test(text)) {
+    throw bad('chat_chars', 'Pakai huruf, angka, tanda baca biasa, atau emoji saja, ya.');
+  }
   if (/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|id|net|org|io|co|me|xyz|link|ly)\b|@[a-z0-9_.]{3,}|\d[\d\s.-]{6,}\d)/i.test(text)) {
     throw bad('chat_link', 'Jangan bagikan tautan, akun, atau nomor, ya.');
+  }
+  // kode akun / kode pindah perangkat (mis. K7QM-2XPA): campuran huruf & angka sepanjang 6+ (boleh dipisah)
+  for (const m of text.match(/[a-z0-9]{2,}(?:[\s._-]?[a-z0-9]{2,})+/gi) ?? []) {
+    const t = m.replace(/[\s._-]/g, '');
+    if (t.length >= 6 && /\d/.test(t) && /[a-z]/i.test(t)) throw bad('chat_code', 'Jangan bagikan kode apa pun, ya. Tim BUPI tidak pernah meminta kode akunmu.');
+  }
+  // nomor yang dicicil beberapa pesan: total angka 3 menit terakhir
+  const digits = (text.match(/\d/g) ?? []).length;
+  if (uid && digits) {
+    const now = Date.now();
+    const recent = (DIGITS.get(uid) ?? []).filter((d) => now - d.at < 180_000);
+    if (recent.reduce((a, d) => a + d.n, 0) + digits >= 7) throw bad('chat_link', 'Jangan bagikan nomor, ya.');
+    recent.push({ at: now, n: digits });
+    DIGITS.set(uid, recent);
+    if (DIGITS.size > 5000) for (const [k, v] of DIGITS) if (!v.some((d) => now - d.at < 180_000)) DIGITS.delete(k);
   }
   if (!bannedCache || Date.now() - bannedCache.at > TTL) {
     bannedCache = { at: Date.now(), words: (await db.query<{ word: string }>('select word from banned_words')).map((r) => r.word.toLowerCase()) };
   }
   const norm = text.toLowerCase().replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't').replace(/@/g, 'a');
   const squashed = norm.replace(/[^a-z]/g, '');
+  // kata yang dieja per huruf (b a b i / b.a.b.i)
+  const spelled = (norm.match(/(?:\b[a-z]\b[\s._-]*){3,}/g) ?? []).map((x) => x.replace(/[^a-z]/g, ''));
   for (const w of bannedCache.words) {
-    if (norm.split(/[^a-z]+/).includes(w) || (w.length >= 5 && squashed.includes(w))) throw bad('chat_banned', 'Pesan itu memakai kata yang tidak boleh. Coba kata lain, ya.');
+    if (norm.split(/[^a-z]+/).includes(w) || (w.length >= 5 && squashed.includes(w)) || spelled.some((x) => x.includes(w))) throw bad('chat_banned', 'Pesan itu memakai kata yang tidak boleh. Coba kata lain, ya.');
   }
   return text;
 }

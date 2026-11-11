@@ -5,10 +5,10 @@
   import { H, say, emote, block, report, takePhoto } from '../lib/house.svelte';
   import { ask } from '../lib/account.svelte';
   import { EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
-  import { squareShow, PHOTO_POSES } from '@kb/shared';
+  import { squareShow, PHOTO_POSES, ALUN_LAYOUT, SQUARE_SNACKS } from '@kb/shared';
   import { sfx } from '../lib/sfx';
 
-  let pop = $state<null | 'emote' | 'photo' | 'people'>(null);
+  let pop = $state<null | 'emote' | 'photo' | 'people' | 'play'>(null);
   let text = $state('');
   let chatting = $state(false);
   let sending = $state(false);
@@ -26,11 +26,24 @@
     const msg = (t ?? text).trim();
     if (!msg || sending) return;
     sending = true;
-    if (await say(msg)) { text = ''; if (!t) chatting = false; }
+    // frasa siap pakai tidak menghapus ketikan yang belum dikirim
+    if (await say(msg) && !t) { text = ''; chatting = false; }
     sending = false;
   }
+  // daftar main (bisa juga dengan mengetuk bendanya di lapangan): aksi@indeks benda di ALUN_LAYOUT
+  const at = (id: string) => ALUN_LAYOUT.findIndex((p) => p.i === id);
+  const PLAY = [
+    { k: `nonton@${at('alun-panggung')}`, l: 'Nonton pertunjukan', show: true },
+    { k: `naik@${at('alun-komidi')}`, l: 'Naik komidi putar' },
+    { k: `ayun@${at('alun-ayunan')}`, l: 'Main ayunan' },
+    { k: `teduh@${at('alun-beringin')}`, l: 'Berteduh di bawah beringin' },
+    { k: `duduk@${at('alun-bangku')}`, l: 'Duduk santai di bangku' },
+    ...['alun-dawet', 'alun-bakso', 'alun-arummanis'].map((id) => ({ k: `jajan@${at(id)}`, l: `Jajan ${SQUARE_SNACKS[id].name} (${SQUARE_SNACKS[id].coins} koin)` })),
+  ];
+  function play(k: string) { pop = null; sfx.tap(); H.actReq = { kind: k }; }
+  function onWinKey(e: KeyboardEvent) { if (e.key === 'Escape' && pop) { pop = null; reporting = null; } }
   function onKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); send(); } if (e.key === 'Escape') chatting = false; }
-  const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; };
+  const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; reporting = null; };
   function joget() { pop = null; sfx.tap(); H.actReq = { kind: 'joget' }; }
   async function photo(pose: string) { pop = null; await takePhoto(pose); }
   function home() { sfx.tap(); G.mapAt = 'alun'; G.view = 'map'; }
@@ -41,6 +54,7 @@
   }
 </script>
 
+<svelte:window onkeydown={onWinKey} />
 <div class="sbar">
   <p class="status">
     <b>Alun-alun {H.inst || ''}</b><span>{H.live ? `${H.count}/${H.max} orang` : 'Menyambung…'}</span>
@@ -48,6 +62,7 @@
   </p>
 
   {#if chatting}
+    <p class="tip">Jangan bagikan kode akun, kode pindah perangkat, nomor, atau alamat. Tim BUPI tidak pernah memintanya.</p>
     <div class="phr" role="group" aria-label="Frasa siap pakai">
       {#each phrases as p}<button class="chip" disabled={sending} onclick={() => send(p)}>{p}</button>{/each}
     </div>
@@ -64,6 +79,7 @@
     <div class="social">
       <button class="btn sm" disabled={!H.live} onclick={() => { chatting = true; sfx.tap(); }}>Ngobrol</button>
       <button class="btn sm" disabled={!H.live} onclick={() => toggle('emote')}>Ekspresi</button>
+      <button class="btn sm" disabled={!H.live} onclick={() => toggle('play')} aria-haspopup="dialog">Main</button>
       <button class="btn sm" class:hot={show.music} disabled={!show.music || !H.live} onclick={joget} title={show.music ? 'Joget bareng di depan panggung' : 'Joget saat ada musik'}>Joget</button>
       <button class="btn sm" disabled={!H.live} onclick={() => toggle('photo')}>Foto</button>
       <button class="btn sm" onclick={() => toggle('people')}>Orang ({people.length})</button>
@@ -71,18 +87,24 @@
     </div>
   {/if}
 
-  {#if pop === 'emote'}
+  {#if pop === 'play'}
+    <div class="pop col" role="dialog" aria-label="Main di alun-alun">
+      <b>Main di alun-alun</b>
+      {#each PLAY as a (a.k)}<button class="btn sm" disabled={a.show && !show.playing} onclick={() => play(a.k)}>{a.l}{a.show && !show.playing ? ` · mulai ${secs} dtk lagi` : ''}</button>{/each}
+      <small>Bisa juga mengetuk bendanya langsung di lapangan.</small>
+    </div>
+  {:else if pop === 'emote'}
     <div class="pop" role="menu">
       {#each Object.keys(EMOTE_ICON) as k}<button class="em" role="menuitem" onclick={() => { emote(k); pop = null; }} aria-label={EMOTE_LABEL[k]}>{@html EMOTE_ICON[k]}<span>{EMOTE_LABEL[k]}</span></button>{/each}
     </div>
   {:else if pop === 'photo'}
-    <div class="pop col" role="menu">
+    <div class="pop col" role="dialog" aria-label="Foto bareng">
       <b>Foto bareng: pilih gaya</b>
       {#each Object.entries(PHOTO_POSES) as [k, l]}<button class="btn sm" role="menuitem" onclick={() => photo(k)}>{l}</button>{/each}
-      <small>Pet yang ada di dekatmu ikut berfoto. Fotonya masuk album semua yang ada di foto.</small>
+      <small>Pet yang ada di dekatmu ikut berfoto. Foto masuk albummu dan album temanmu yang ikut difoto.</small>
     </div>
   {:else if pop === 'people'}
-    <div class="pop col" role="menu">
+    <div class="pop col" role="dialog" aria-label="Orang di alun-alun">
       <b>Di alun-alun ini</b>
       {#if reporting}
         <p class="rep">Laporkan <b>{reporting.name}</b>? Admin akan memeriksa obrolannya.</p>
@@ -105,6 +127,7 @@
 
 <style>
   .sbar { position: absolute; z-index: 14; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(560px, calc(100vw - 16px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .tip { margin: 0; font-size: 12px; font-weight: 700; color: #8A5A00; background: #FFF4D6; border-radius: 8px; padding: 2px 8px; }
   .status { margin: 0; font-size: 13px; font-weight: 700; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
   .status b { color: var(--ink); font-size: 15px; }
   .show { margin-left: auto; background: #FFF4D6; border: 2px solid var(--ink); border-radius: 999px; padding: 0 8px; color: var(--ink); }

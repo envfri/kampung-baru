@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { forgetMute } from './square';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
@@ -709,10 +710,19 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     reports: await db.query(
       `select r.id, r.place, r.reason, r.evidence, r.created_at, r.handled_at, r.handled_by,
               t.id as target_id, t.display_name as target_name, t.banned_at, rp.display_name as reporter_name,
-              (select count(*)::int from reports x where x.target_id = r.target_id and x.created_at > now() - interval '7 days') as week
+              t.chat_muted_until as muted_until,
+              (select count(distinct x.reporter_id)::int from reports x where x.target_id = r.target_id and x.created_at > now() - interval '7 days') as week
          from reports r join users t on t.id = r.target_id left join users rp on rp.id = r.reporter_id
         where ($1::boolean or r.handled_at is null) order by r.created_at desc limit 200`, [req.query?.all === '1']),
   }));
+  app.post('/api/admin/players/:id/unmute', mod, async (req: any) => {
+    const id = String(req.params.id);
+    if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
+    await db.query(`update users set chat_muted_until = null where id = $1`, [id]);
+    forgetMute(id);
+    await audit(db, req, 'player_unmute', id, {});
+    return { ok: true };
+  });
   app.post('/api/admin/reports/:id/handle', mod, async (req: any) => {
     const id = int(Number(req.params.id), 'Laporan', { min: 1 });
     const r = await db.one(`update reports set handled_at = now(), handled_by = $2 where id = $1 and handled_at is null returning target_id`, [id, req.admin!.email]);

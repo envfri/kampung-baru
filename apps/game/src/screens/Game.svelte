@@ -179,6 +179,8 @@
   void serverNow;
   // atur denah hanya di rumah sendiri: pindah ke kampung / berkunjung / tautan notifikasi membatalkannya
   $effect(() => { if (G.plan && G.view !== 'home') G.plan = null; });
+  // mandi & nampan makan hanya di rumah: pindah layar membatalkannya (jangan terbawa ke alun-alun / kunjungan)
+  $effect(() => { if (G.view !== 'home' && (G.bath || G.feeding || G.feedDrag)) { G.bath = null; G.feeding = false; G.feedDrag = null; } });
   const doorsShut = $derived(G.edit ? cutOffRooms() : []);
   let planSay = $state('');
   let nudgeAfterSheet = false;
@@ -195,7 +197,7 @@
 </script>
 
 {#snippet camBtn()}
-  <button class="cambtn" onclick={() => { sfx.tap(); G.cam = G.cam === 'room' ? 'house' : 'room'; }} aria-label={G.cam === 'room' ? (G.view === 'alun' ? 'Lihat seluruh alun-alun' : 'Lihat seluruh rumah') : 'Kembali ke ruangan pet'}>
+  <button class="cambtn" onclick={() => { sfx.tap(); G.cam = G.cam === 'room' ? 'house' : 'room'; }} aria-label={G.cam === 'room' ? (G.view === 'alun' ? 'Seluruh alun-alun' : 'Seluruh rumah') : 'Ikuti pet'} title={G.cam === 'room' ? 'Lihat semuanya' : 'Kembali mengikuti pet'}>
     {#if G.cam === 'room'}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12.5 12 9l4 3.5V16H8Z" fill="currentColor"/></svg><span>{G.view === 'alun' ? 'Seluruh alun-alun' : 'Seluruh rumah'}</span>
     {:else}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg><span>Ikuti pet</span>{/if}
   </button>

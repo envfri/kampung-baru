@@ -1279,6 +1279,8 @@ export interface HouseRoomArt {
   sel?: number;
   /** isi lukisan (foto bareng) */
   photo?: string;
+  /** mebel datar hanya hiasan (jalan batu alun-alun): tidak menangkap ketukan */
+  inertFlats?: boolean;
 }
 /**
  * Satu benda yang diurutkan menurut kedalaman (dinding rendah, mebel, pet); d kecil digambar dulu.
@@ -1355,7 +1357,7 @@ export function houseLayers(plan: HousePlan, art: Record<string, HouseRoomArt>, 
     a.layout.forEach((p, idx) => {
       const it = items[p.i];
       if (!it || !footprint(it).flat) return;
-      f += `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
+      f += a.inertFlats ? `<g pointer-events="none">${furnDraw(g, it, p.x, p.y)}</g>` : `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
     });
     flats.push({ key: r.id, h: dimWrap(a, f) });
   }
@@ -1660,7 +1662,7 @@ export function photoScene(members: { look: PetLook; wear: ItemLike[]; state?: P
 
 /** Foto polaroid untuk album: latar dari dinding & lantai ruangan tempat foto diambil. */
 export function renderPhoto(members: { look: PetLook; wear: ItemLike[]; state?: PetStateLook }[], pose: string, wall?: ItemLike | null, floor?: ItemLike | null, theme = 'dalam') {
-  const outdoor = theme === 'luar';
+  const outdoor = theme === 'luar' || theme === 'alun';
   const w = outdoor ? { main: '#BFE3F5', accent: '#A9D6EE' } : wallColors(wall);
   const f = floorColors(floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR);
   return `<svg viewBox="0 0 160 140" aria-hidden="true"><rect x="1" y="1" width="158" height="138" rx="6" fill="#FFFDF7" stroke="${INK}" stroke-width="2"/>`

@@ -27,6 +27,8 @@ export const H = $state({
   actReq: null as null | { kind: string; itemId?: string },
   /** alun-alun: nomor alun-alun, jumlah orang, alun-alun lain yang ramai, pemain yang disembunyikan (diblokir) */
   inst: 0,
+  /** alun-alun yang ingin disusul (teman di sana); dipakai sekali saat masuk */
+  want: 0,
   count: 0,
   max: 20,
   others: [] as { id: number; count: number }[],
@@ -36,7 +38,7 @@ export const H = $state({
 export const SQUARE = 'alun';
 const base = () => (H.hostId === SQUARE ? '/api/square' : `/api/house/${H.hostId}`);
 
-let timer: any = null, seq = 0, boot = '', busy = false, pendingEmote: string | null = null, bubbleId = 0, gen = 0;
+let timer: any = null, seq = 0, boot = '', busy = false, pendingEmote: string | null = null, bubbleId = 0, gen = 0, fails = 0;
 const others = () => H.members.length + H.elsewhere.length;
 
 export function bubble(who: string, b: { text?: string; emote?: string }, ms = 4200) {
@@ -53,7 +55,8 @@ async function tick(myGen: number) {
   try {
     // ekspresi yang ditekan selama permintaan berjalan tetap terkirim di sinkron berikutnya
     const sending = pendingEmote;
-    const r = await api.post(`${base()}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: sending ?? undefined, since: seq, inst: H.inst || undefined });
+    const r = await api.post(`${base()}/sync`, { roomId: H.roomId, x: H.pos.x, y: H.pos.y, flip: H.pos.flip, act: H.pos.act, emote: sending ?? undefined, since: seq, inst: H.inst || H.want || undefined });
+    fails = 0;
     if (pendingEmote === sending) pendingEmote = null;
     if (myGen !== gen) return;
     // server baru restart: nomor urut kejadian mulai lagi dari awal
@@ -62,6 +65,9 @@ async function tick(myGen: number) {
     if (H.hostId === SQUARE && r.live) {
       // pindah ke alun-alun lain (mis. penuh): nomor urut kejadian mulai lagi
       if (H.inst && r.inst !== H.inst) seq = 0;
+      // menyusul teman tapi alun-alunnya sudah penuh
+      if (H.want && r.inst !== H.want) toast(`Alun-alun ${H.want} sudah penuh, kamu masuk Alun-alun ${r.inst}.`);
+      H.want = 0;
       H.inst = r.inst; H.count = r.count; H.max = r.max; H.others = r.others ?? [];
       if (r.welcome) { merge(r.welcome); toast(`Selamat datang di Alun-alun! +${r.welcome.coins} koin`, 'good'); }
     }
@@ -82,6 +88,14 @@ async function tick(myGen: number) {
       seq = Math.max(seq, r.seq ?? 0);
     } else { H.members = []; H.elsewhere = []; H.coop = null; }
   } catch (e) {
+    // alun-alun menolak (mis. belum punya pet): jangan mencoba terus, kembali ke peta
+    if (e instanceof ApiError && H.hostId === SQUARE && e.status >= 400 && e.status < 500 && e.status !== 429) {
+      busy = false;
+      leaveHouse();
+      if (G.view === 'alun') { G.view = 'map'; G.mapAt = 'alun'; }
+      toast(e.message || 'Alun-alun sedang tidak bisa dimasuki.');
+      return;
+    }
     // tidak boleh lagi di rumah ini (diblokir / tidak berteman lagi): pulang
     if (e instanceof ApiError && e.status === 403 && H.hostId !== G.me?.user?.id) {
       busy = false;
@@ -90,7 +104,8 @@ async function tick(myGen: number) {
       toast('Kamu tidak bisa berada di rumah itu lagi.');
       return;
     }
-    /* sinyal lemah: coba lagi */
+    // sinyal lemah: coba lagi; setelah beberapa kali gagal tampilkan "menyambung" & bekukan daftar orang
+    if (++fails >= 3) { H.live = false; H.members = []; }
   } finally { busy = false; }
   schedule(myGen);
 }
@@ -99,11 +114,18 @@ function schedule(myGen: number) {
   if (myGen !== gen || !H.hostId) return;
   // tuan rumah tanpa tamu cukup sesekali (supaya tamu yang datang terlihat); rumah yang tidak live jarang dicek; selain itu ±0,9 detik
   const alone = H.hostId === G.me?.user?.id && others() === 0 && !H.coop;
-  timer = setTimeout(() => tick(myGen), !H.live && H.reason ? 15000 : alone ? 8000 : 900);
+  // sendirian di alun-alun: cukup tiap 3 detik
+  const lonely = H.hostId === SQUARE && H.live && H.count <= 1;
+  timer = setTimeout(() => tick(myGen), !H.live && H.reason ? 15000 : alone ? 8000 : lonely ? 3000 : fails >= 3 ? 3000 : 900);
 }
 
 function handle(e: any) {
   const mine = e.from === H.me;
+  const square = H.hostId === SQUARE;
+  // sinkron pertama berisi kejadian ±1 menit terakhir: tidak diputar ulang
+  if (!seq && ['say', 'emote', 'act', 'photo'].includes(e.kind)) return;
+  // di alun-alun orang datang & pergi terus: tidak perlu diberitahu satu per satu
+  if (square && (e.kind === 'join' || e.kind === 'leave')) return;
   switch (e.kind) {
     case 'join': if (!mine && seq) { toast(e.host ? `${e.name} pulang ke rumah. Halo!` : `${e.name} datang main!`, 'good'); sfx.pop(); } break;
     case 'leave': if (!mine && seq) toast(`${e.name} pulang.`); break;
@@ -120,7 +142,11 @@ function handle(e: any) {
       if (e.why === 'sepi' && H.coop?.starter === H.me) { toast('Belum ada yang ikut main. Coba ajak lagi nanti, ya.'); break; }
       { const me = (e.results ?? []).find((x: any) => x.id === H.me); if (me && !me.none) { e.ok ? sfx.level() : sfx.pop(); refreshMe().catch(() => {}); } }
       break;
-    case 'photo': if (!mine && seq) { sfx.coin(); toast(`${nameOf(e.from)} mengambil foto bareng! Lihat di album.`, 'good'); } break;
+    case 'photo':
+      // hanya bila kamu ikut difoto (di alun-alun foto orang asing tidak masuk albummu)
+      if (!mine && seq && (!e.members || e.members.includes(H.me)) && !square) { sfx.coin(); toast(`${nameOf(e.from)} mengambil foto bareng! Lihat di album.`, 'good'); }
+      else if (!mine && seq && square && e.members?.includes(H.me)) { sfx.coin(); toast(`${nameOf(e.from)} memotretmu di foto bareng!`, 'good'); }
+      break;
   }
 }
 export const ACT_SAY: Record<string, string> = { sapa: 'Halo!', peluk: 'Peluk!', camilan: 'Ini camilan!', kejar: 'Kejar aku!', duduk: 'Duduk bareng, yuk', nonton: 'Seru!', naik: 'Wiii!', ayun: 'Hore!', joget: 'Joget!', teduh: 'Adem…' };
@@ -132,7 +158,8 @@ export function enterHouse(hostId: string, roomId: string) {
   gen++;
   H.hostId = hostId; H.roomId = roomId; seq = 0;
   H.members = []; H.elsewhere = []; H.coop = null; H.bubbles = []; H.live = false; H.full = false;
-  if (hostId !== SQUARE) H.inst = 0;
+  H.inst = 0; H.count = 0; H.others = []; pendingEmote = null; fails = 0;
+  if (hostId !== SQUARE) H.want = 0;
   tick(gen);
 }
 export function poke() { clearTimeout(timer); tick(gen); }
@@ -141,6 +168,7 @@ export function leaveHouse() {
   gen++;
   clearTimeout(timer);
   H.hostId = null; H.members = []; H.elsewhere = []; H.coop = null; H.live = false;
+  H.inst = 0; H.count = 0; H.others = []; pendingEmote = null;
   if (h) api.post(h === SQUARE ? '/api/square/leave' : `/api/house/${h}/leave`).catch(() => {});
 }
 
@@ -171,7 +199,8 @@ export async function coop(body: Record<string, unknown>) {
 export async function takePhoto(pose: string) {
   if (!H.hostId) return null;
   try {
-    const r = await api.post(`${base()}/photo`, { roomId: H.roomId, pose });
+    // posisi terbaru ikut dikirim (sinkron bisa tertinggal ±1 detik)
+    const r = await api.post(`${base()}/photo`, { roomId: H.roomId, pose, x: H.pos.x, y: H.pos.y });
     sfx.coin();
     H.photo = r.photo;
     poke();
@@ -194,6 +223,8 @@ export async function block(userId: string, name: string) {
     poke();
   } catch (e) { fail(e); }
 }
+/** Blokir dibuka (Pengaturan): tampilkan lagi pemain itu. */
+export function unhide(userId: string) { H.hidden = H.hidden.filter((x) => x !== userId); }
 /** Laporkan pemain di alun-alun (obrolan / perilaku tidak sopan). */
 export async function report(userId: string, name: string, reason: string) {
   try { await api.post('/api/square/report', { userId, reason }); toast(`Laporan tentang ${name} terkirim. Terima kasih!`, 'good'); return true; } catch (e) { fail(e); return false; }

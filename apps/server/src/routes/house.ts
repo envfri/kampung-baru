@@ -237,14 +237,18 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const m = h?.members.get(uid);
     if (!h || !m || !fresh(m)) throw bad('not_here', 'Kamu belum ada di rumah ini.');
     if (Date.now() - (SAID.get(uid) ?? 0) < 1200) throw bad('too_fast', 'Pelan-pelan, ya.');
-    const text = String(req.body?.text ?? '').replace(/\s+/g, ' ').trim();
+    const muted = await db.one<{ until: string | null }>(`select chat_muted_until as until from users where id = $1 and chat_muted_until > now()`, [uid]);
+    if (muted) throw forbidden('Obrolanmu sedang dibatasi sementara karena laporan pemain lain.');
+    const raw = String(req.body?.text ?? '').replace(/\s+/g, ' ').trim();
     const max = Math.max(10, Math.min(200, Number(s.visit.chatMax) || 80));
-    if (!text) throw bad('empty', 'Tulis pesan dulu.');
-    if (text.length > max) throw bad('too_long', `Pesan maksimal ${max} huruf.`);
-    const preset = (s.visit.phrases ?? []).includes(text);
+    if (!raw) throw bad('empty', 'Tulis pesan dulu.');
+    if (raw.length > max) throw bad('too_long', `Pesan maksimal ${max} huruf.`);
+    const preset = (s.visit.phrases ?? []).includes(raw);
+    let text = raw;
     if (!preset) {
       if (!s.visit.freeChat) throw bad('preset_only', 'Pilih salah satu frasa yang tersedia.');
-      await checkChat(db, text);
+      // simpan & siarkan teks yang sudah dibersihkan filter (bukan teks mentah)
+      text = await checkChat(db, raw, uid);
     }
     SAID.set(uid, Date.now());
     await db.query(`insert into house_chat (host_id, user_id, text) values ($1,$2,$3)`, [hostId, uid, text]);

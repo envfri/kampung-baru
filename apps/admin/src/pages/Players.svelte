@@ -66,6 +66,7 @@
         <p>Daftar {dt(d.user.created_at)} · aktif {dt(d.user.last_seen_at)}</p>
         <p>Dompet: <b>{num(d.wallet?.coin ?? 0)}</b> koin · <b>{num(d.wallet?.pearl ?? 0)}</b> Mutiara</p>
         {#if d.user.banned_at}<p class="chip no">Diblokir: {d.user.ban_reason}</p>{/if}
+        {#if d.user.chat_muted_until && new Date(d.user.chat_muted_until).getTime() > Date.now()}<p class="chip mute">Obrolan dibisukan sampai {dt(d.user.chat_muted_until)} <button class="btn" disabled={busy} onclick={() => act(() => api.post(`/api/admin/players/${d.user.id}/unmute`), 'Obrolan dibuka')}>Buka bisu</button></p>{/if}
       </div>
     </div>
 

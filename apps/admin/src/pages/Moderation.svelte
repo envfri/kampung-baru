@@ -13,6 +13,8 @@
       reports = (await api.get(`/api/admin/reports${allReports ? '?all=1' : ''}`)).reports;
     } catch (e) { err(e); }
   }
+  async function unmute(r: any) { try { await api.post(`/api/admin/players/${r.target_id}/unmute`); toast('Obrolan pemain dibuka lagi'); load(); } catch (e) { err(e); } }
+  const isMuted = (r: any) => r.muted_until && new Date(r.muted_until).getTime() > Date.now();
   async function handle(r: any) { try { await api.post(`/api/admin/reports/${r.id}/handle`); toast('Laporan ditandai selesai'); load(); } catch (e) { err(e); } }
   onMount(load);
   async function add(e: Event) { e.preventDefault(); try { await api.post('/api/admin/banned-words', { word: w }); w = ''; toast('Kata ditambahkan'); load(); } catch (e) { err(e); } }
@@ -24,7 +26,7 @@
 <div class="words">{#each words as x}<span class="w">{x}<button aria-label="Hapus {x}" onclick={() => rm(x)}>×</button></span>{/each}</div>
 
 <h2>Laporan pemain</h2>
-<p class="muted">Laporan dari Alun-alun (tempat semua pemain bertemu). Tiga pelapor berbeda dalam satu jam otomatis membisukan obrolan pemain itu 30 menit. Blokir akun lewat menu Pemain bila perlu.</p>
+<p class="muted">Laporan dari Alun-alun (tempat semua pemain bertemu). Laporan hanya diterima dari pemain yang sedang bertemu dengan yang dilaporkan di alun-alun yang sama (dan sudah 1 menit di sana). Tiga pelapor berbeda dalam satu jam otomatis membisukan obrolan pemain itu 30 menit (di alun-alun & rumah), sekali saja per gelombang laporan; bisa dibuka di sini. Blokir akun lewat menu Pemain bila perlu.</p>
 <label class="chk"><input type="checkbox" bind:checked={allReports} onchange={load} /> Tampilkan juga yang sudah ditangani</label>
 <table class="tbl">
   <thead><tr><th>Waktu</th><th>Dilaporkan</th><th>Oleh</th><th>Alasan</th><th>Obrolan terakhir</th><th></th></tr></thead>
@@ -32,7 +34,8 @@
     {#each reports as r (r.id)}
       <tr>
         <td>{dt(r.created_at)}</td>
-        <td><a href="#/players/{r.target_id}">{r.target_name}</a>{#if r.banned_at} <span class="chip">diblokir</span>{/if}<br /><small class="muted">{r.week} laporan / 7 hari</small></td>
+        <td><a href="#/players/{r.target_id}">{r.target_name}</a>{#if r.banned_at} <span class="chip">diblokir</span>{/if}<br /><small class="muted">{r.week} pelapor / 7 hari</small>
+          {#if isMuted(r)}<br /><span class="chip">dibisukan s.d. {dt(r.muted_until)}</span> <button class="btn" onclick={() => unmute(r)}>Buka bisu</button>{/if}</td>
         <td>{r.reporter_name ?? '-'}</td>
         <td>{r.reason ?? '-'}</td>
         <td class="ev">{#each r.evidence ?? [] as e}<div>“{e.text}”</div>{:else}<span class="muted">-</span>{/each}</td>
