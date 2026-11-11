@@ -27,6 +27,7 @@
     "test:e2e:situs": "node scripts/e2e-situs.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",
+    "instagram": "node --import tsx scripts/instagram.mjs",
     "changelog": "node --import tsx scripts/changelog.mjs"
   },
   "repository": {
