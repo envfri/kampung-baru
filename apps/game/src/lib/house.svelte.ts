@@ -34,6 +34,10 @@ export const H = $state({
   max: 20,
   others: [] as { id: number; count: number }[],
   hidden: [] as string[],
+  /** kartu profil pemain yang diketuk (id pemain) */
+  card: null as string | null,
+  /** efek di pet pemain lain yang diminta dari luar Room (mis. tombol Kirim hati di kartu profil) */
+  fxReq: null as null | { id: string; kind: string; n: number },
 });
 /** id tempat live untuk alun-alun (rumah memakai id tuan rumah) */
 export const SQUARE = 'alun';
@@ -160,7 +164,7 @@ export function enterHouse(hostId: string, roomId: string) {
   gen++;
   H.hostId = hostId; H.roomId = roomId; seq = 0;
   H.members = []; H.elsewhere = []; H.coop = null; H.bubbles = []; H.live = false; H.full = false;
-  H.inst = 0; H.count = 0; H.others = []; pendingEmote = null; fails = 0;
+  H.inst = 0; H.count = 0; H.others = []; H.card = null; pendingEmote = null; fails = 0;
   if (hostId !== SQUARE) H.want = 0;
   tick(gen);
 }
@@ -225,6 +229,8 @@ export async function block(userId: string, name: string) {
     poke();
   } catch (e) { fail(e); }
 }
+/** Kirim hati ke pet pemain lain: efek hati di pet itu + ekspresi hati (terlihat semua yang ada di sini). */
+export function sendHeart(userId: string) { H.fxReq = { id: userId, kind: 'hearts', n: (H.fxReq?.n ?? 0) + 1 }; emote('hati'); }
 /** Blokir dibuka (Pengaturan): tampilkan lagi pemain itu. */
 export function unhide(userId: string) { H.hidden = H.hidden.filter((x) => x !== userId); }
 /** Laporkan pemain di alun-alun (obrolan / perilaku tidak sopan). */

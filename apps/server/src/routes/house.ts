@@ -679,10 +679,13 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const b = req.body ?? {};
     if (typeof b.showOnline === 'boolean') await db.query(`update users set show_online = $2 where id = $1`, [uid, b.showOnline]);
     if (typeof b.liveVisits === 'boolean') { await db.query(`update users set live_visits = $2 where id = $1`, [uid, b.liveVisits]); HOSTPREF.delete(uid); }
-    if (typeof b.friendRequests === 'boolean') await db.query(`update users set friend_requests = $2 where id = $1`, [uid, b.friendRequests]);
+    // menjawab "Mau punya teman baru?" (Ya / Nanti) atau mengubahnya di Pengaturan: ajakan sekali itu tidak muncul lagi
+    if (typeof b.friendRequests === 'boolean') await db.query(`update users set friend_requests = $2, friend_prompt_at = coalesce(friend_prompt_at, now()) where id = $1`, [uid, b.friendRequests]);
+    if (b.friendPrompt === 'later') await db.query(`update users set friend_prompt_at = coalesce(friend_prompt_at, now()) where id = $1`, [uid]);
     if (b.showOnline === false) PRESENCE.delete(uid);
-    const r = await db.one<{ show_online: boolean; live_visits: boolean; friend_requests: boolean }>(`select show_online, live_visits, friend_requests from users where id = $1`, [uid]);
-    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true, friendRequests: r?.friend_requests ?? true };
+    const r = await db.one<{ show_online: boolean; live_visits: boolean; friend_requests: boolean; friend_prompt_at: string | null }>(
+      `select show_online, live_visits, friend_requests, friend_prompt_at from users where id = $1`, [uid]);
+    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true, friendRequests: r?.friend_requests ?? false, friendPromptAt: r?.friend_prompt_at ?? null };
   });
 }
 

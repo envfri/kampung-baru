@@ -42,6 +42,8 @@
   import HouseBar from '../components/HouseBar.svelte';
   import SquareBar from '../components/SquareBar.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
+  import PersonCard from '../components/PersonCard.svelte';
+  import FriendPrompt from '../components/FriendPrompt.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
   import PhotoPreview from '../components/PhotoPreview.svelte';
   import { H } from '../lib/house.svelte';
@@ -318,6 +320,8 @@
     <SquareBar /><PhotoPreview />
   {/if}
   <FriendAskCard />
+  {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
+  {#if G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests}<FriendPrompt />{/if}
 
   {#if G.view === 'visit' && G.visit}
     <div class="visit">

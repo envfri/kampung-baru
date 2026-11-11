@@ -85,8 +85,11 @@ for (const pl of players) { const t = pl.p.locator('.coop .btn:has-text("Tutup")
 await B.p.click('.hbar .btn:has-text("Foto")'); await B.p.click('.pop .btn:has-text("Peluk")');
 await B.p.waitForSelector('.ph'); await W(500); await shot(B, '09-foto-bareng');
 await B.p.click('.ph .btn:has-text("Tutup")').catch(() => {});
-// tuan rumah mengantar Serabi pulang
-await A.p.click('.hbar .btn:has-text("Tamu (")'); await A.p.click('.pop .guest:has-text("Serabi") .btn');
+// tuan rumah mengetuk pet Serabi → kartu profil → Antar pulang
+await A.p.evaluate((id) => document.querySelector(`svg.room .opet[data-o="${id}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true })), E.id);
+await A.p.waitForSelector('.pcard[role="dialog"]'); await W(400);
+await shot(A, '09b-kartu-profil-tamu');
+await A.p.click('.pcard .foot button:has-text("Antar pulang")');
 await W(2500);
 const eView = await E.p.evaluate(() => document.querySelector('.hbar') ? 'masih' : 'pulang');
 // lukisan rumah A sekarang berisi foto

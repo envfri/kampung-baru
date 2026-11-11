@@ -52,6 +52,15 @@ await W(300); await shot(A, '01-peta-alun-alun');
 
 for (const pl of [A, B, C]) await enter(pl);
 await W(4000);
+// sekali saja: "Mau punya teman baru?" (terima ajakan berteman bawaannya mati). Klepon menyalakannya.
+check(await A.p.locator('.fp:has-text("Mau punya teman baru?")').count() === 1, 'kartu sekali "Mau punya teman baru?" muncul');
+await shot(A, '02a-hp-mau-punya-teman');
+await A.p.click('.fp .btn:has-text("Nanti")');
+await B.p.click('.fp .btn:has-text("Ya, boleh")');
+await C.p.click('.fp .btn:has-text("Nanti")');
+await W(400);
+check(await A.p.locator('.fp').count() === 0, 'kartu sekali tertutup setelah dijawab');
+check((await (await B.ctx.request.get(BASE + '/api/me')).json()).user.friend_requests === true, 'Ya, boleh: terima ajakan berteman menyala');
 const sees = async (pl, name) => pl.p.locator(`.tag:text-is("${name}")`).count();
 let both = false;
 for (let i = 0; i < 20 && !both; i++) { both = (await sees(A, 'Klepon')) + (await sees(A, 'Cenil')) >= 1; if (!both) await W(500); }
@@ -73,13 +82,18 @@ check(heard, 'obrolan sampai ke pemain lain');
 await A.p.click('.sbar .btn:has-text("Tutup")');
 await shot(B, '05-desktop-obrolan');
 
-// ajak berteman orang yang baru ditemui → kartu ajakan → Terima
-await A.p.click('.sbar .btn:has-text("Orang")'); await W(800);
-check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .btn:has-text("Ajak berteman")').count() === 1, 'daftar orang: tombol Ajak berteman');
-await A.p.click('.sbar .pop .guest:has-text("Klepon") .btn:has-text("Ajak berteman")'); await W(700);
-check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .tag:has-text("Menunggu")').count() === 1, 'ajakan terkirim: status Menunggu');
-await shot(A, '05a-hp-ajak-berteman');
-await A.p.click('.sbar .btn:has-text("Orang")');
+// ketuk pet orang lain → kartu profil → Ajak berteman → kartu ajakan di layar yang diajak → Terima
+const tapPet = (pl, id) => pl.p.evaluate((u) => document.querySelector(`svg.room .opet[data-o="${u}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true })), id);
+check(await A.p.locator('.sbar .btn:has-text("Orang")').count() === 0, 'tombol Orang sudah tidak ada');
+await tapPet(A, B.id);
+await A.p.waitForSelector('.pcard[role="dialog"]');
+check((await A.p.locator('.pcard').textContent()).includes('Pemilik: Klepon'), 'kartu profil: nama pet & pemilik');
+check(await A.p.locator('.pcard .btn:has-text("Ajak berteman")').count() === 1, 'kartu profil: tombol Ajak berteman');
+await W(400); await shot(A, '05a-hp-kartu-profil');
+await A.p.click('.pcard .btn:has-text("Ajak berteman")'); await W(700);
+check(await A.p.locator('.pcard .btn:has-text("menunggu jawaban")').count() === 1, 'ajakan terkirim: menunggu jawaban');
+await A.p.click('.pcard .x');
+check(await A.p.locator('.pcard').count() === 0, 'kartu tertutup dengan ×');
 let card = false;
 for (let i = 0; i < 15 && !card; i++) { await W(400); card = (await B.p.locator('.ask:has-text("Gethuk ngajak kamu berteman")').count()) === 1; }
 check(card, 'yang diajak melihat kartu ajakan berteman');
@@ -89,9 +103,19 @@ let okToast = false;
 for (let i = 0; i < 15 && !okToast; i++) { await W(400); okToast = (await A.p.locator('.toast:has-text("menerima ajakan berteman")').count()) > 0; }
 check(okToast, 'pengajak diberi tahu ajakan diterima');
 check((await (await A.ctx.request.get(BASE + '/api/friends')).json()).friends.some((f) => f.id === B.id), 'sekarang berteman');
-await A.p.click('.sbar .btn:has-text("Orang")'); await W(800);
-check(await A.p.locator('.sbar .pop .guest:has-text("Klepon") .tag:has-text("Teman")').count() === 1, 'daftar orang: status Teman');
-await A.p.click('.sbar .btn:has-text("Orang")');
+// label nama juga bisa diketuk; teman: Kunjungi rumahnya
+await A.p.locator('.tag.tap', { hasText: 'Klepon' }).first().click({ force: true });
+await A.p.waitForSelector('.pcard[role="dialog"]'); await W(500);
+check(await A.p.locator('.pcard .chip:has-text("Teman")').count() === 1 && await A.p.locator('.pcard .btn:has-text("Kunjungi rumahnya")').count() === 1, 'label nama → kartu: Teman + Kunjungi rumahnya');
+await A.p.click('.pcard .btn:has-text("Kirim hati")'); await W(300);
+await A.p.keyboard.press('Escape');
+check(await A.p.locator('.pcard').count() === 0, 'kartu tertutup dengan Esc');
+// yang belum menyalakan terima ajakan
+await tapPet(C, A.id);
+await C.p.waitForSelector('.pcard[role="dialog"]'); await W(500);
+check(await C.p.locator('.pcard .btn:has-text("Belum menerima ajakan berteman")').count() === 1, 'pemain yang belum menerima ajakan: tombol tidak aktif');
+await W(300); await shot(C, '05c-hp-belum-menerima-ajakan');
+await C.p.click('.pcard .x');
 
 // jalan batu bagian dari lantai: mengetuknya membuat pet berjalan ke sana
 const before = await A.p.evaluate(() => document.querySelector('svg.room .pet')?.getAttribute('transform'));
@@ -141,21 +165,19 @@ check(await B.p.locator('.ph').count() === 1 || (await B.p.locator('.toast:has-t
 await shot(B, '09-desktop-foto');
 await B.p.locator('.ph .btn:has-text("Tutup")').click().catch(() => {});
 
-// laporkan & blokir
-await C.p.click('.sbar .btn:has-text("Orang")'); await W(300);
-await C.p.click('.sbar .pop .guest:has-text("Klepon") .btn:has-text("Laporkan")');
-await C.p.fill('.sbar .pop .input', 'uji laporan');
-await C.p.click('.sbar .pop .btn:has-text("Kirim laporan")'); await W(600);
+// laporkan & blokir lewat kartu profil
+await tapPet(C, B.id); await C.p.waitForSelector('.pcard[role="dialog"]');
+await C.p.click('.pcard .foot button:has-text("Laporkan")');
+await C.p.fill('.pcard .input', 'uji laporan');
+await C.p.click('.pcard .btn:has-text("Kirim laporan")'); await W(600);
 check((await C.p.locator('.toast').textContent().catch(() => '')).includes('Laporan'), 'laporan terkirim');
-await C.p.click('.sbar .btn:has-text("Orang")'); await W(300);
-await C.p.click('.sbar .pop .guest:has-text("Gethuk") .btn:has-text("Blokir")');
+await tapPet(C, A.id); await C.p.waitForSelector('.pcard[role="dialog"]');
+await C.p.click('.pcard .foot button:has-text("Blokir")');
 await C.p.click('[role="alertdialog"] .btn:has-text("Blokir")');
 await W(3000);
 const blocks = await (await C.ctx.request.get(BASE + '/api/blocks')).json();
 check(blocks.blocks?.some((x) => x.id === A.id), 'blokir tersimpan');
-check(await sees(C, 'Gethuk') === 0 && !(await C.p.locator('.sbar .pop .guest:has-text("Gethuk")').count()), 'pemain yang diblokir hilang dari alun-alun');
-await C.p.click('.sbar .btn:has-text("Orang")'); await W(300);
-check(!(await C.p.locator('.sbar .pop .guest:has-text("Gethuk")').count()), 'yang diblokir tidak ada di daftar orang');
+check(await sees(C, 'Gethuk') === 0 && await C.p.locator(`svg.room .opet[data-o="${A.id}"]`).count() === 0, 'pemain yang diblokir hilang dari alun-alun');
 await shot(C, '10-hp-setelah-blokir');
 
 // pulang ke peta

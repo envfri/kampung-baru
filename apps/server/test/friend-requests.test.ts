@@ -37,12 +37,21 @@ async function player(name: string) {
 }
 const square = (p: any) => p.c.post('/api/square/sync', { x: 10, y: 18 });
 const ask = (from: any, to: any) => from.c.post('/api/friends/requests', { userId: to.id });
+/** menyalakan "Terima ajakan berteman" (bawaannya mati) */
+const open = async (p: any) => assert.equal((await p.c.post('/api/me/privacy', { friendRequests: true })).body.friendRequests, true);
 const areFriends = async (a: any, b: any) => !!(await db.one(`select 1 from friendships where user_id = $1 and friend_id = $2`, [a.id, b.id]));
 
 test('alun-alun: ajak berteman → kabar live + notifikasi → terima → berteman (dua arah)', async () => {
   resetSquares(); resetPings();
   const a = await player('Ajeng'), b = await player('Bayu');
   await square(a); await square(b);
+  // bawaan: belum menerima ajakan (tombol tidak aktif, server menolak)
+  assert.deepEqual((await a.c.get(`/api/friends/relations?ids=${b.id}`)).body.closed, [b.id]);
+  const shut = await ask(a, b);
+  assert.equal(shut.status, 403);
+  assert.match(shut.body.error.message, /belum menerima ajakan/);
+  await open(b);
+  assert.deepEqual((await a.c.get(`/api/friends/relations?ids=${b.id}`)).body.closed, []);
   const r = await ask(a, b);
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.status, 'sent');
@@ -106,6 +115,7 @@ test('saling mengajak = langsung berteman; ditolak = diam-diam tidak mengganggu 
   resetSquares(); resetPings();
   const a = await player('Eka'), b = await player('Fajar'), c = await player('Gita');
   await square(a); await square(b); await square(c);
+  await open(b); await open(c);
   assert.equal((await ask(a, b)).body.status, 'sent');
   const back = await ask(b, a);
   assert.equal(back.body.status, 'friends');
@@ -127,12 +137,22 @@ test('privasi & blokir: penerima bisa menutup ajakan; blokir menghapus ajakan da
   resetSquares(); resetPings();
   const a = await player('Hana'), b = await player('Indra'), c = await player('Joko');
   await square(a); await square(b); await square(c);
-  const off = await b.c.post('/api/me/privacy', { friendRequests: false });
-  assert.equal(off.body.friendRequests, false);
-  assert.equal((await b.c.get('/api/me')).body.user.friend_requests, false);
+  // bawaan mati; "Nanti" pada ajakan sekali di alun-alun hanya mencatat sudah ditanya
+  const me0 = (await b.c.get('/api/me')).body.user;
+  assert.equal(me0.friend_requests, false);
+  assert.equal(me0.friend_prompt_at, null);
+  const later = await b.c.post('/api/me/privacy', { friendPrompt: 'later' });
+  assert.equal(later.body.friendRequests, false);
+  assert.ok(later.body.friendPromptAt);
+  assert.ok((await b.c.get('/api/me')).body.user.friend_prompt_at, 'tidak ditanya lagi');
   const r = await ask(a, b);
   assert.equal(r.status, 403);
-  assert.match(r.body.error.message, /tidak menerima ajakan/);
+  assert.match(r.body.error.message, /belum menerima ajakan/);
+  // menyalakan lalu mematikan lagi di Pengaturan
+  await open(b);
+  assert.equal((await b.c.post('/api/me/privacy', { friendRequests: false })).body.friendRequests, false);
+  assert.equal((await ask(a, b)).status, 403);
+  await open(a);
   // c mengajak a lalu a memblokir c: ajakan hilang, ajakan baru ditolak dua arah
   assert.equal((await ask(c, a)).body.status, 'sent');
   await a.c.post('/api/blocks', { userId: c.id });
@@ -144,6 +164,7 @@ test('privasi & blokir: penerima bisa menutup ajakan; blokir menghapus ajakan da
 test('rumah teman: tamu yang belum saling berteman bisa saling mengajak', async () => {
   resetHouses(); resetSquares(); resetPings();
   const host = await player('Kirana'), b = await player('Lintang'), c = await player('Melati');
+  await open(c);
   for (const g of [b, c]) await g.c.post('/api/friends', { code: host.code });
   const sync = (p: any) => p.c.post(`/api/house/${host.id}/sync`, { roomId: host.room, x: 2, y: 2 });
   const sb = await sync(b);
@@ -168,6 +189,7 @@ test('akun tamu tanpa nama: ajakan memakai nama yang sama seperti di alun-alun (
   const st = await anon.post('/api/pet', { name: 'Klepon', color: '#9FD0E8', ear: 'kucing' });
   const a = { c: anon, id: st.body.state.user.id as string };
   const b = await player('Oki');
+  await open(b);
   await square(a); await square(b);
   assert.equal((await ask(a, b)).body.status, 'sent');
   const p = (await square(b)).body.pings[0];

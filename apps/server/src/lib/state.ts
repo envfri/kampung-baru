@@ -151,7 +151,7 @@ export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Setting
 export async function playerState(db: Db, userId: string) {
   const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
   const [user, pet, wallet, inv, rooms, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
-    db.one<any>(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at, show_online, live_visits, friend_requests, featured_photo, guestbook_seen_at from users where id = $1`, [userId]),
+    db.one<any>(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at, show_online, live_visits, friend_requests, friend_prompt_at, featured_photo, guestbook_seen_at from users where id = $1`, [userId]),
     db.one<PetRow>(`select * from pets where user_id = $1`, [userId]),
     db.one<{ coin: number; pearl: number }>(`select coin, pearl from wallets where user_id = $1`, [userId]),
     db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]),

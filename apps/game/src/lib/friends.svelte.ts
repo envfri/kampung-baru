@@ -5,7 +5,7 @@ import { G, toast, fail } from './game.svelte';
 import { sfx } from './sfx';
 
 export interface FriendAsk { id: string; from: string; name: string; pet?: any; place?: string }
-type Rel = 'friend' | 'sent' | 'incoming';
+type Rel = 'friend' | 'sent' | 'incoming' | 'closed';
 export const FR = $state({
   /** hubungan dengan pemain yang sedang terlihat */
   rel: {} as Record<string, Rel>,
@@ -23,6 +23,7 @@ export async function loadRelations(ids: string[]) {
   try {
     const r = await api.get(`/api/friends/relations?ids=${want.join(',')}`);
     for (const id of want) { delete FR.rel[id]; delete FR.incoming[id]; }
+    for (const id of r.closed ?? []) FR.rel[id] = 'closed';
     for (const id of r.sent ?? []) FR.rel[id] = 'sent';
     for (const x of r.incoming ?? []) { FR.rel[x.from] = 'incoming'; FR.incoming[x.from] = x.id; }
     for (const id of r.friends ?? []) FR.rel[id] = 'friend';
@@ -36,7 +37,7 @@ export async function askFriend(id: string, name: string) {
     const r = await api.post('/api/friends/requests', { userId: id });
     if (r.status === 'friends') { FR.rel[id] = 'friend'; sfx.level(); toast(`Kamu sekarang berteman dengan ${name}!`, 'good'); G.me.friendsCount = (G.me.friendsCount ?? 0) + 1; }
     else { FR.rel[id] = 'sent'; sfx.pop(); toast(`Ajakan berteman dikirim ke ${name}. Tunggu dia menerimanya, ya.`, 'good'); }
-  } catch (e) { fail(e); } finally { FR.busy = ''; }
+  } catch (e) { fail(e); if ((e as any)?.status === 403) FR.rel[id] = 'closed'; } finally { FR.busy = ''; }
 }
 
 /** Jawab ajakan berteman (Terima / Tolak). Penolakan tidak diberitahukan ke pengajak. */

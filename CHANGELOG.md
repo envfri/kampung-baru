@@ -4,21 +4,30 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
-## 0.23.0 · 2026-11-11 · Ajak berteman orang yang kamu temui
+## 0.24.0 · 2026-11-11 · Kartu profil & ajakan berteman
 
 ### Baru
 
-- Ketemu orang baru di Alun-alun atau di rumah teman? Buka daftar Orang lalu ketuk "Ajak berteman". Yang diajak langsung melihat kartu ajakan (Terima / Tolak); setelah diterima kalian berteman dan bisa saling berkunjung. Kalau dua orang saling mengajak, langsung berteman. _(pemain)_
-- Ajakan yang belum dijawab tersimpan di menu Teman › Ajakan berteman (berlaku 14 hari), dengan tanda angka di tab Teman serta notifikasi. _(pemain)_
-- Saat berkunjung ke rumah teman ada tombol Orang untuk melihat siapa saja yang sedang di sana dan mengajak tamu lain berteman. _(pemain)_
+- Ketuk pet atau label nama orang lain di Alun-alun, rumah teman, atau rumahmu untuk membuka kartu profilnya: nama pet, pemilik, level, dan tempat. Dari kartu ini kamu bisa Ajak berteman, Kirim hati, atau langsung Kunjungi rumahnya kalau sudah berteman. _(pemain)_
+- Ajakan berteman harus diterima dulu: yang diajak melihat kartu ajakan (Terima / Tolak), ajakannya juga tersimpan di menu Teman › Ajakan berteman selama 14 hari. Kalau dua orang saling mengajak, langsung berteman. Berteman lewat kode teman tetap langsung. _(pemain)_
 
 ### Perubahan
 
-- Berteman lewat kode teman tetap langsung (kode = persetujuan). Migrasi 021 (friend_requests, users.friend_requests); jenis notifikasi baru di Pusat notifikasi: Ajakan berteman & Ajakan berteman diterima. Tes server & uji e2e alun-alun diperluas.
+- "Terima ajakan berteman dari orang yang ditemui" bawaannya mati. Saat pertama masuk Alun-alun kamu ditanya sekali "Mau punya teman baru?"; bisa diubah kapan saja di Pengaturan › Privasi. _(pemain)_
+- Tombol Orang di alun-alun & rumah teman serta daftar Tamu di rumahmu diganti kartu profil. Laporkan, Blokir, dan Antar pulang ada di bagian bawah kartu. Mengetuk pet orang lain tidak lagi langsung mengirim hati: pakai tombol Kirim hati. _(pemain)_
+- Migrasi 022 (users.friend_requests bawaan false untuk semua pemain, users.friend_prompt_at); /api/friends/relations memberi status closed; label nama bisa difokus keyboard sebagai pengganti daftar. Tes server & e2e alun-alun/kunjungan diperbarui.
 
 ### Keamanan
 
-- Ajakan hanya bisa dikirim ke orang yang benar-benar sedang/baru saja (10 menit) berada di alun-alun atau rumah yang sama, maksimal 30 ajakan per hari. Penolakan tidak diberitahukan, dan orang yang menolak tidak diganggu lagi selama 7 hari. Blokir membatalkan ajakan. Pengaturan › Privasi: bisa menolak semua ajakan dari orang yang ditemui. _(pemain)_
+- Ajakan hanya untuk orang yang benar-benar sedang/baru saja (10 menit) berada di tempat yang sama, maksimal 30 per hari. Penolakan tidak diberitahukan dan yang menolak tidak diganggu lagi selama 7 hari. Blokir membatalkan ajakan. _(pemain)_
+
+## 0.23.0 · 2026-11-11 · Ajak berteman (dasar server)
+
+### Baru
+
+- Dasar ajakan berteman untuk pemain yang bertemu di alun-alun / rumah teman: tabel friend_requests (migrasi 021), API ajakan, kabar live lewat sinkron, notifikasi Ajakan berteman & Ajakan berteman diterima, pengaturan privasi. Tampilannya diganti kartu profil di 0.24.0.
+
+Commit: [`d7d1ff9`](https://github.com/envfri/kampung-baru/commit/d7d1ff9)
 
 ## 0.22.1 · 2026-11-11 · Akun Instagram yang benar: @playbupi
 

@@ -121,7 +121,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       await befriend(back.id, to, me.id, req.log);
       return { ok: true, status: 'friends', friend: { id: other.id, display_name: other.display_name } };
     }
-    if (other.friend_requests === false) throw forbidden(`${other.display_name} sedang tidak menerima ajakan berteman.`);
+    if (other.friend_requests === false) throw forbidden(`${other.display_name} belum menerima ajakan berteman.`);
     const s = await getSettings(db);
     if ((await friendCount(db, me.id)) >= s.social.maxFriends) throw bad('max_friends', `Maksimal ${s.social.maxFriends} teman.`);
     const pending = await db.one(
@@ -166,13 +166,15 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
   app.get('/api/friends/relations', auth, async (req: any) => {
     const uid = req.user!.id;
     const ids = String(req.query?.ids ?? '').split(',').map((x) => x.trim().toLowerCase()).filter((x) => UUID.test(x)).slice(0, 40);
-    if (!ids.length) return { friends: [], sent: [], incoming: [] };
-    const [f, s2, inc] = await Promise.all([
+    if (!ids.length) return { friends: [], sent: [], incoming: [], closed: [] };
+    const [f, s2, inc, closed] = await Promise.all([
       db.query<{ friend_id: string }>(`select friend_id from friendships where user_id = $1 and friend_id = any($2::uuid[])`, [uid, ids]),
       db.query<{ to_id: string }>(`select to_id from friend_requests where from_id = $1 and to_id = any($2::uuid[]) and status in ('pending','declined') and coalesce(answered_at, created_at) > now() - interval '${DECLINE_DAYS} days'`, [uid, ids]),
       db.query<{ id: string; from_id: string }>(`select id, from_id from friend_requests where to_id = $1 and from_id = any($2::uuid[]) and status = 'pending' and created_at > now() - interval '${ASK_DAYS} days'`, [uid, ids]),
+      // belum menyalakan "Terima ajakan berteman" (bawaan mati): tombol Ajak berteman tidak aktif
+      db.query<{ id: string }>(`select id from users where id = any($1::uuid[]) and not friend_requests`, [ids]),
     ]);
-    return { friends: f.map((r) => r.friend_id), sent: s2.map((r) => r.to_id), incoming: inc.map((r) => ({ id: r.id, from: r.from_id })) };
+    return { friends: f.map((r) => r.friend_id), sent: s2.map((r) => r.to_id), incoming: inc.map((r) => ({ id: r.id, from: r.from_id })), closed: closed.map((r) => r.id) };
   });
 
   async function myAsk(uid: string, id: string) {

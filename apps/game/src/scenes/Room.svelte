@@ -1247,7 +1247,13 @@
     if (cr && homeLive) return sweepCrumb(Number(cr.dataset.c), e);
     if (t.closest('.pet')) return tapPet();
     const op = t.closest('.opet') as SVGElement | null;
-    if (op) { const id = op.dataset.o!; fxAtComp(id, 'hearts'); sfx.pop(); if (id !== SELF) hemote('hati'); return; }
+    if (op) {
+      const id = op.dataset.o!;
+      // pet pemain lain: buka kartu profil (ajak berteman, kirim hati, laporkan / blokir / antar pulang)
+      if (id !== SELF && H.members.some((m) => m.id === id)) { H.card = id; sfx.tap(); return; }
+      fxAtComp(id, 'hearts'); sfx.pop(); if (id !== SELF) hemote('hati');
+      return;
+    }
     if (mode === 'home' && G.edit) {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) { G.sel = Number(f.dataset.i); sfx.tap(); return; }
@@ -1296,6 +1302,9 @@
     else if (Math.random() < 0.5) sayLine('elus');
     await run(() => post('/api/action', { type: 'elus' }));
   }
+
+  // tombol Kirim hati di kartu profil: efek hati di pet pemain itu
+  $effect(() => { const r = H.fxReq; if (r) untrack(() => { fxAtComp(r.id, r.kind); sfx.pop(); }); });
 
   function key(e: KeyboardEvent) { if (e.key === 'Escape') { if (menu) menu = null; else if (G.bath) G.bath = null; } }
 
@@ -1464,7 +1473,10 @@
     <g bind:this={foamLayer} pointer-events="none"></g>
     <g bind:this={fxLayer} pointer-events="none"></g>
   </svg>
-  {#each tags as t (t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>{/each}
+  {#each tags as t (t.id)}
+    {#if t.self || !H.members.some((m) => m.id === t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>
+    {:else}<button class="tag tap" style="left:{t.x}px;top:{t.y}px" aria-label="Lihat profil {t.name}" onclick={() => { H.card = t.id; sfx.tap(); }}>{t.name}</button>{/if}
+  {/each}
   {#each planLabels as l (l.id)}<span class="plabel" class:sel={l.sel} class:apart={l.apart} style="left:{l.x}px;top:{l.y}px">{l.name}</span>{/each}
   {#each H.bubbles as b (b.id)}
     {@const at = bpos[b.who]}
@@ -1519,6 +1531,8 @@
   @keyframes joget { from { transform: rotate(-12deg) translateY(0); } to { transform: rotate(12deg) translateY(-8px); } }
   .tag { position: absolute; z-index: 10; transform: translateX(-50%); background: rgba(255, 253, 247, .92); border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
   .tag.self { background: #FFE8A3; z-index: 11; }
+  .tag.tap { pointer-events: auto; cursor: pointer; font-family: inherit; color: var(--ink); line-height: 1.45; }
+  .tag.tap:focus-visible { outline: 3px solid #3F7FBF; outline-offset: 2px; }
   .room :global(.planmarks polygon) { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
   .room :global(.planmarks .selroom) { stroke: #F2B632; stroke-width: 5; fill: rgba(242, 182, 50, .16); }
   .room :global(.planmarks .apart) { stroke: #D9534F; stroke-width: 3.5; stroke-dasharray: 9 6; fill: rgba(217, 83, 79, .12); }
