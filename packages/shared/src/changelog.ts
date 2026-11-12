@@ -39,9 +39,27 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.25.0',
+    date: '2026-11-12',
+    title: 'Main bareng: Congklak, Ular Tangga Kampung, Balap Karung Live + set premium',
+    summary: 'Tiga permainan baru untuk dimainkan bareng teman, lima set hiasan premium, dan pohon alun-alun yang tidak lagi menutupi pet.',
+    items: [
+      { kind: 'baru', text: 'Congklak (2 pemain) di rumah: Main bareng › Congklak. Tiap lubang berisi 7 biji. Biji terakhir jatuh di lumbungmu = jalan lagi, di lubang berisi = ambil dan bagi lagi, di lubang kosongmu = tembak biji lawan di seberangnya. Giliran 15 detik.', player: true },
+      { kind: 'baru', text: 'Ular Tangga Kampung (2–4 pemain) di rumah atau di tikar Ular Tangga di alun-alun: naik tangga bambu, turun lewat ular sawah, kotak Warung maju 2, kotak Becek diam sekali. Giliran 10 detik.', player: true },
+      { kind: 'baru', text: 'Balap Karung Live (2–5 pemain) di garis start alun-alun: semua lomba bersamaan dan saling melihat posisi masing-masing. Kontrolnya sama dengan Lomba Karung (KIRI/KANAN bergantian), memakai energi & jatah Lomba Karung, hadiahnya lebih besar.', player: true },
+      { kind: 'baru', text: 'Saat ada yang mengajak main, yang lain di tempat itu mendapat kartu ajakan (Nanti / Ikut main). Permainan mulai otomatis saat kursi penuh atau hitung mundur habis, dan pengajak bisa menekan Mulai sekarang. Yang tidak ikut bisa menonton.', player: true },
+      { kind: 'baru', text: 'Lima set hiasan premium di Toko Mutiara (tab Set): Taman Malam, Keraton, Kafe Kopi Kampung, Pantai, dan Kamar Bintang. Ada perabot, dinding, dan lantai baru, sebagian bergerak (kolam koi, lampu berkelip, uap kopi, ikan berenang).', player: true },
+      { kind: 'baru', text: 'Beli satu set sekaligus lebih hemat 20%, dihitung dari item yang belum kamu punya. Pasang minimal 3 item dari set yang sama di satu ruangan untuk memunculkan suasana khususnya (mis. bintang berkelip di Kamar Bintang).', player: true },
+      { kind: 'ubah', text: 'Pohon di alun-alun dan halaman lebih kecil. Daun pohon jadi tembus pandang saat ada pet di belakangnya, jadi pet tidak lagi tertutup.', player: true },
+      { kind: 'ubah', text: 'Hadiah: Congklak & Ular Tangga memakai jatah dan hadiah Main bareng (Congklak menang 25 / kalah 10 / seri 15 koin; Ular Tangga 25/15/10/5 menurut peringkat). Balap Karung Live = hadiah Lomba Karung + 5 koin per peringkat. Semua mengikuti pengali event.', player: true },
+      { kind: 'ubah', text: 'Teknis: sesi permainan di memori server (routes/bareng.ts, aturan di shared/bareng.ts) dengan giliran otomatis saat waktu habis dan pemain hilang 15 detik dianggap keluar; data permainan ikut sinkron rumah/alun-alun. Paket konten 9 (30 item premium, 12 aktivitas), POST /api/shop/bundle, pengaturan premium (bundleDiscount, bonusMin). Uji server bareng.test.ts dan npm run test:e2e:bareng.' },
+    ],
+  },
+  {
     version: '0.24.0',
     date: '2026-11-11',
     title: 'Kartu profil & ajakan berteman',
+    commits: ['1524edb'],
     items: [
       { kind: 'baru', text: 'Ketuk pet atau label nama orang lain di Alun-alun, rumah teman, atau rumahmu untuk membuka kartu profilnya: nama pet, pemilik, level, dan tempat. Dari kartu ini kamu bisa Ajak berteman, Kirim hati, atau langsung Kunjungi rumahnya kalau sudah berteman.', player: true },
       { kind: 'baru', text: 'Ajakan berteman harus diterima dulu: yang diajak melihat kartu ajakan (Terima / Tolak), ajakannya juga tersimpan di menu Teman › Ajakan berteman selama 14 hari. Kalau dua orang saling mengajak, langsung berteman. Berteman lewat kode teman tetap langsung.', player: true },

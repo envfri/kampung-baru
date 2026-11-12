@@ -9,6 +9,7 @@ import { applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from 
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
 import { takePings } from '../lib/pings';
+import { barengViews } from './bareng';
 import { requireUser } from '../lib/auth';
 import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
@@ -105,6 +106,13 @@ export function presenceOf(userId: string, lastSeen?: Date | string | null) {
   if (p && Date.now() - p.at < PRESENCE_MS) return { where: p.where, host: p.host ?? null };
   if (lastSeen && Date.now() - new Date(lastSeen).getTime() < 150_000) return { where: 'game', host: null };
   return null;
+}
+/** Pemain yang sedang live di rumah ini (termasuk tuan rumah), untuk game main bareng. */
+export function houseLive(hostId: string) {
+  const h = HOUSES.get(hostId);
+  if (!h) return [];
+  const now = Date.now();
+  return [...h.members.values()].filter((m) => fresh(m, now)).map((m) => ({ id: m.id, name: m.name, pet: m.pet }));
 }
 /** Tamu yang sedang live di rumah seseorang (tanpa tuan rumah). */
 export function guestsAt(hostId: string) {
@@ -226,6 +234,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       elsewhere: [],
       events: h.events.filter((e) => e.seq > since),
       coop: coopView(h.coop),
+      games: barengViews(`h:${hostId}`),
       serverNow: now,
       pings: takePings(uid),
     };

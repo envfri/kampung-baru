@@ -10,3 +10,5 @@ export * from './games';
 export * from './notify';
 export * from './changelog';
 export * from './site';
+export * from './premium';
+export * from './bareng';

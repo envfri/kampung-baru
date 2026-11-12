@@ -35,6 +35,8 @@
     { k: `teduh@${at('alun-beringin')}`, l: 'Berteduh di bawah beringin' },
     { k: `duduk@${at('alun-bangku')}`, l: 'Duduk santai di bangku' },
     ...['alun-dawet', 'alun-bakso', 'alun-arummanis'].map((id) => ({ k: `jajan@${at(id)}`, l: `Jajan ${SQUARE_SNACKS[id].name} (${SQUARE_SNACKS[id].coins} koin)` })),
+    { k: `ular@${at('alun-tikarular')}`, l: 'Ular Tangga bareng (2–4 orang)' },
+    { k: `karung@${at('alun-garisstart')}`, l: 'Balap Karung Live (2–5 orang)' },
   ];
   function play(k: string) { pop = null; sfx.tap(); H.actReq = { kind: k }; }
   function onWinKey(e: KeyboardEvent) { if (e.key === 'Escape' && pop) pop = null; }

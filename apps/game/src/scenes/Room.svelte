@@ -2,8 +2,9 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
+  import { startGame } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom } from '../lib/game.svelte';
@@ -1073,6 +1074,12 @@
     if (p) await walkPath(p);
     if (gen !== planGen || !alive) return;
     if (g.faceTo && live) { const sx = (g.faceTo[0] - live[0]) - (g.faceTo[1] - live[1]); if (Math.abs(sx) > 0.01) flip = sx < 0; }
+    if (a.id === 'ular' || a.id === 'karung') {
+      // tikar ular tangga / garis start: ajak main bareng orang di alun-alun
+      acting = false; scheduleIdle();
+      await startGame(a.id);
+      return;
+    }
     if (a.id === 'foto') {
       // foto bareng dengan pet di sekitar (pratinjau foto muncul sendiri)
       pose = { pose: 'lihat', lift: 0 };
@@ -1425,6 +1432,78 @@
     return `left:${left}px;top:${top}px`;
   });
   /* ---------------- mode Atur denah: garis ruangan terpilih, ruangan terpisah, nama ruangan ---------------- */
+  /* ---------------- suasana set premium (≥ bonusMin item berbeda dari set yang sama dalam satu ruangan) ---------------- */
+  const moodHtml = $derived.by(() => {
+    if (square || planning) return '';
+    const min = Number(settings().premium?.bonusMin ?? 3);
+    const setOf = (id: string) => item(id)?.data?.set as string | undefined;
+    let out = '';
+    for (const r of rooms) {
+      const pr = plan.byId.get(r.id);
+      if (!pr) continue;
+      const k = roomMood([...layoutOf(r).map((p: any) => p.i), r.wall, r.floor], setOf, min);
+      if (k) out += moodSvg(k, pr);
+    }
+    return out;
+  });
+  function moodSvg(key: string, r: { gx: number; gy: number; size: number; outdoor?: boolean }) {
+    const at = (u: number, v: number, up = 0) => { const p = houseIso(r.gx + u * r.size, r.gy + v * r.size); return [p[0], p[1] - up]; };
+    const fl = [at(0, 0), at(1, 0), at(1, 1), at(0, 1)].map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' ');
+    const fr = (k: number, m: number) => ((k * m) % 1 + 1) % 1;
+    const pts = (n: number, hi: number) => Array.from({ length: n }, (_, k) => at(0.1 + fr(k, 0.618) * 0.8, 0.1 + fr(k, 0.382) * 0.8, 12 + fr(k, 0.271) * hi));
+    const blink = (k: number) => `class="blink" style="animation-delay:-${((k * 0.37) % 1.7).toFixed(2)}s"`;
+    let o = '';
+    if (key === 'tamanmalam') {
+      o += `<polygon points="${fl}" fill="#2B3A6B" fill-opacity=".16"/>`;
+      pts(9, 70).forEach(([x, y], k) => (o += `<g ${blink(k)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#EFFF7A" fill-opacity=".28"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="#EFFF7A"/></g>`));
+    } else if (key === 'keraton') {
+      o += `<polygon points="${fl}" fill="#FFD27A" fill-opacity=".12"/>`;
+      pts(7, HOUSE_WALL_H * 0.7).forEach(([x, y], k) => (o += `<path ${blink(k)} transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" d="M0 -6L1.6 -1.6 6 0 1.6 1.6 0 6-1.6 1.6-6 0-1.6-1.6Z" fill="#FFE27A"/>`));
+    } else if (key === 'kafe') {
+      o += `<polygon points="${fl}" fill="#F2994A" fill-opacity=".1"/>`;
+      pts(4, 40).forEach(([x, y], k) => (o += `<circle ${blink(k)} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="22" fill="#FFE7A0" fill-opacity=".16"/>`));
+    } else if (key === 'pantai') {
+      const top = at(0, 0, HOUSE_WALL_H);
+      for (let k = 0; k < 4; k++) { const a = at(0.15 + k * 0.2, 1), b = at(0.3 + k * 0.2, 1); o += `<polygon points="${(top[0] + 30 + k * 26).toFixed(1)},${top[1].toFixed(1)} ${a[0].toFixed(1)},${a[1].toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}" fill="#FFF6C8" fill-opacity=".13"/>`; }
+    } else if (key === 'bintang') {
+      o += `<polygon points="${fl}" fill="#1B2350" fill-opacity=".14"/>`;
+      pts(12, HOUSE_WALL_H * 0.8).forEach(([x, y], k) => (o += `<circle ${blink(k)} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(1.6 + (k % 3) * 0.7).toFixed(1)}" fill="#FFF6C8"/>`));
+    }
+    // label suasana di atas sudut belakang ruangan
+    const set = PREMIUM_SET_BY_KEY[key];
+    const lb = at(0.5, 0, r.outdoor ? 34 : HOUSE_WALL_H + 14);
+    const text = `✦ Suasana ${set?.name.replace(/^Set /, '') ?? key}`;
+    const w = text.length * 6.4 + 18;
+    o += `<g transform="translate(${lb[0].toFixed(1)} ${lb[1].toFixed(1)})"><rect x="${(-w / 2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="20" rx="10" fill="${set?.color ?? '#2B2F4A'}" stroke="#2B2F4A" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g>`;
+    return o;
+  }
+
+  /* ---------------- pohon tidak menutupi: kanopi tembus pandang bila ada pet / benda di belakangnya ---------------- */
+  $effect(() => {
+    const t = setInterval(() => {
+      if (document.hidden || !svgEl) return;
+      const cans = svgEl.querySelectorAll<SVGGElement>('.draws .canopy');
+      if (!cans.length) return;
+      const behind = [...svgEl.querySelectorAll<SVGGElement>('.draws .pet, .draws .opet, .draws .npc, .draws .furn')].filter((e) => !e.querySelector('.canopy'));
+      const rects = behind.map((e) => e.getBoundingClientRect());
+      // pet/orang cukup tertutup 25%; benda diam (bangku, air mancur) baru dihitung bila tertutup separuh, supaya pohon tidak pudar terus
+      const need = behind.map((e) => (e.classList.contains('furn') ? 0.5 : 0.25));
+      for (const c of cans) {
+        const r = c.getBoundingClientRect();
+        let hide = false;
+        for (let i = 0; i < behind.length && !hide; i++) {
+          const q = rects[i];
+          const ix = Math.min(q.right, r.right) - Math.max(q.left, r.left), iy = Math.min(q.bottom, r.bottom) - Math.max(q.top, r.top);
+          // tertutup cukup banyak dan digambar sebelum pohon (= di belakangnya)
+          if (ix <= 0 || iy <= 0 || ix * iy < need[i] * q.width * q.height) continue;
+          if (behind[i].compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) hide = true;
+        }
+        c.classList.toggle('seethru', hide);
+      }
+    }, 220);
+    return () => clearInterval(t);
+  });
+
   const roomPoly = (r: { gx: number; gy: number; size: number }) => [houseIso(r.gx, r.gy), houseIso(r.gx + r.size, r.gy), houseIso(r.gx + r.size, r.gy + r.size), houseIso(r.gx, r.gy + r.size)].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ');
   /** ruangan yang tidak tersambung (lewat pintu) ke ruangan pertama */
   const apart = $derived.by(() => {
@@ -1459,9 +1538,12 @@
     {@html layers.mats}
     {#each layers.flats as l (l.key)}<g>{@html l.h}</g>{/each}
     <g>{@html crumbsHtml}</g>
+    <g class="draws">
     {#each draws as d (d.key)}
       {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
     {/each}
+    </g>
+    {#if moodHtml}<g class="moods" pointer-events="none">{@html moodHtml}</g>{/if}
     {#if planning}
       <g class="planmarks" pointer-events="none">
         {#each plan.rooms as r (r.id)}
@@ -1523,6 +1605,14 @@
   .room :global(.pet.pose-naik .pet-bob) { animation: ride 1.6s ease-in-out infinite alternate; }
   .room :global(.pet.pose-ayun .pet-bob) { animation: swingpet 2.2s ease-in-out infinite alternate; }
   .room :global(.dove) { animation: ride 1.2s ease-in-out infinite alternate; }
+  .room :global(.blink) { animation: blink 1.7s ease-in-out infinite alternate; }
+  .room :global(.flicker) { animation: flicker .45s ease-in-out infinite alternate; }
+  .room :global(.swim) { animation: swim 9s linear infinite; }
+  .room :global(.canopy) { transition: opacity .25s; }
+  .room :global(.canopy.seethru) { opacity: .32; }
+  @keyframes blink { from { opacity: .3; } to { opacity: 1; } }
+  @keyframes flicker { from { transform: scale(1, 1); } to { transform: scale(.86, 1.1); } }
+  @keyframes swim { to { transform: rotate(360deg); } }
   @keyframes water { to { stroke-dashoffset: -22; } }
   @keyframes ride { from { transform: translateY(0); } to { transform: translateY(-9px); } }
   @keyframes swing { from { rotate: -14deg; } to { rotate: 14deg; } }
@@ -1556,5 +1646,5 @@
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; }
   .menu .nm { font-weight: 800; }
   .menu .ef { font-size: 12px; font-weight: 700; color: var(--muted); white-space: normal; text-align: right; }
-  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob) { animation: none; } .bubble { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob) { animation: none; } .bubble { animation: none; } }
 </style>

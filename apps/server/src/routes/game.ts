@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, fits, NEED_KEYS, PET_COLORS, PET_PARTS, partLevel, planProblem, type Needs } from '@kb/shared';
+import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -12,7 +12,7 @@ function partFor(kind: keyof typeof PART_LABEL, value: unknown, level: number) {
 import type { Db } from '../db/index';
 import {
   addItem, bad, checkName, coinMultiplier, cooldown, counter, credit, getCatalog, getSettings,
-  HttpError, notFound, purchasable, today, track, yesterday, bumpCounter,
+  HttpError, notFound, purchasable, today, track, yesterday, bumpCounter, type CatalogItem,
 } from '../lib/core';
 import { requireUser } from '../lib/auth';
 import { J, loadRooms, lockPet, maxItemsFor, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds, currentWeight, assertAwake, assertHealthy, isAsleep, isSick, wakePet, crumbsNow } from '../lib/state';
@@ -89,6 +89,18 @@ export async function grantXp(t: Db, userId: string, pet: { level: number; xp: n
   if (r.levelsGained > 0 && s.economy.levelUpCoins > 0) await credit(t, userId, 'coin', s.economy.levelUpCoins * r.levelsGained, 'level_up', String(r.level));
   if (r.levelsGained > 0) await track(t, userId, 'level_up', { level: r.level });
   return r;
+}
+
+/** Item yang dimiliki pemain: di tas, terpasang di ruangan, atau dipakai sebagai dinding/lantai. */
+async function ownedOf(q: Db, uid: string, ids: string[]) {
+  const [inv, placed, deco] = await Promise.all([
+    q.query<{ item_id: string }>(`select item_id from inventory where user_id = $1 and qty > 0 and item_id = any($2::text[])`, [uid, ids]),
+    q.query<{ i: string }>(`select distinct p->>'i' as i from rooms r, jsonb_array_elements(r.layout) p where r.user_id = $1 and p->>'i' = any($2::text[])`, [uid, ids]),
+    q.query<{ wall: string | null; floor: string | null }>(`select wall, floor from rooms where user_id = $1`, [uid]),
+  ]);
+  const own = new Set<string>([...inv.map((r) => r.item_id), ...placed.map((r) => r.i)]);
+  for (const r of deco) { if (r.wall && ids.includes(r.wall)) own.add(r.wall); if (r.floor && ids.includes(r.floor)) own.add(r.floor); }
+  return own;
 }
 
 export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db }) {
@@ -343,6 +355,33 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       await addItem(t, u.id, itemId, qty);
       await track(t, u.id, 'purchase', { itemId, kind: item!.kind, currency, total: price * qty });
       return { ok: true, ...(await patch(t, u.id, ['wallet', 'inventory'])) };
+    });
+  });
+
+  /**
+   * Paket set premium: semua item set yang belum dimiliki sekaligus, dengan diskon (Ekonomi & fitur › premium).
+   * "Dimiliki" = ada di tas, terpasang di ruangan, atau dipakai sebagai dinding/lantai.
+   */
+  app.post('/api/shop/bundle', { ...auth, config: { rateLimit: { max: 20, timeWindow: '10 minutes' } } }, async (req: any) => {
+    const u = req.user!;
+    const set = PREMIUM_SET_BY_KEY[String(req.body?.set ?? '')];
+    if (!set) throw bad('invalid', 'Paket tidak ditemukan.');
+    // katalog & pengaturan dimuat di luar transaksi (PGlite)
+    const [cat, s] = await Promise.all([getCatalog(db), getSettings(db)]);
+    const items = set.items.map((id) => cat.byId.get(id)).filter((it) => purchasable(cat, it) && (it?.price_pearl ?? 0) > 0) as CatalogItem[];
+    if (!items.length) throw bad('not_for_sale', 'Paket ini sedang tidak dijual.');
+    const expect = Number(req.body?.price);
+    return once(db, u.id, reqId(req.body?.requestId), async (t) => {
+      const own = await ownedOf(t, u.id, items.map((i) => i.id));
+      const missing = items.filter((i) => !own.has(i.id));
+      if (!missing.length) throw bad('owned', 'Kamu sudah punya semua item di set ini.');
+      const { price } = bundlePrice(missing.map((i) => i.price_pearl), Number((s as any).premium?.bundleDiscount ?? 20));
+      // harga berubah sejak dilihat (mis. item lain baru dibeli): minta konfirmasi ulang
+      if (Number.isFinite(expect) && expect !== price) throw bad('price_changed', `Harga paket sekarang ${price} Mutiara. Coba lagi.`);
+      await credit(t, u.id, 'pearl', -price, 'buy', `set:${set.key}`);
+      for (const it of missing) await addItem(t, u.id, it.id, 1);
+      await track(t, u.id, 'purchase', { bundle: set.key, items: missing.map((i) => i.id), currency: 'pearl', total: price });
+      return { ok: true, items: missing.map((i) => i.id), price, ...(await patch(t, u.id, ['wallet', 'inventory'])) };
     });
   });
 

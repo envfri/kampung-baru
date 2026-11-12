@@ -21,13 +21,15 @@ const PROPS: Record<string, PropDef> = {
   'alun-lampu': { key: 'lampujalan', name: 'Lampu Taman', w: 1, d: 1 },
   'alun-pohon': { key: 'pohon', name: 'Pohon', w: 1, d: 1 },
   'alun-payung': { key: 'payung', name: 'Payung Taman', w: 1, d: 1, colors: { main: '#E0583F', accent: '#FFFFFF' } },
+  'alun-tikarular': { key: 'tikarular', name: 'Tikar Ular Tangga', w: 3, d: 3, flat: true },
+  'alun-garisstart': { key: 'garisstart', name: 'Garis Start Balap Karung', w: 3, d: 1 },
 };
 // jalan batu: satu item per ukuran (1×1 sampai 4×4) karena ukuran mebel ikut item
 for (let w = 1; w <= 4; w++) for (let d = 1; d <= 4; d++) PROPS[`alun-jalan-${w}x${d}`] = { key: 'paving', name: 'Jalan Batu', w, d, flat: true };
 
 /** Benda di alun-alun dalam bentuk item mebel (digambar dengan art builtin). */
 export const ALUN_ITEMS: Record<string, ItemLike> = Object.fromEntries(
-  Object.entries(PROPS).map(([id, p]) => [id, { id, kind: 'furniture', name: p.name, art: { type: 'builtin', key: p.key, colors: p.colors, params: p.params }, data: { w: p.w, d: p.d, flat: !!p.flat } } as ItemLike]),
+  Object.entries(PROPS).map(([id, p]) => [id, { id, kind: 'furniture', name: p.name, art: { type: 'builtin', key: p.key, colors: p.colors, params: p.params }, data: { w: p.w, d: p.d, flat: !!p.flat, tap: p.key === 'tikarular' } } as ItemLike]),
 );
 
 const path = (x: number, y: number, w: number, d: number): Placed[] => {
@@ -51,6 +53,8 @@ export const ALUN_LAYOUT: Placed[] = [
   { i: 'alun-bangku', x: 3, y: 16 }, { i: 'alun-bangku', x: 13, y: 17 }, { i: 'alun-bangku', x: 5, y: 6 }, { i: 'alun-bangku', x: 13, y: 5 },
   { i: 'alun-lampu', x: 8, y: 12 }, { i: 'alun-lampu', x: 12, y: 12 }, { i: 'alun-lampu', x: 8, y: 16 }, { i: 'alun-lampu', x: 12, y: 16 },
   { i: 'alun-pohon', x: 0, y: 8 }, { i: 'alun-pohon', x: 0, y: 17 }, { i: 'alun-pohon', x: 18, y: 17 }, { i: 'alun-pohon', x: 19, y: 13 }, { i: 'alun-pohon', x: 1, y: 0 },
+  // game main bareng (ditaruh paling akhir supaya urutan benda lama tetap)
+  { i: 'alun-tikarular', x: 5, y: 16 }, { i: 'alun-garisstart', x: 14, y: 15 },
 ];
 
 /** Aksi yang bisa dilakukan di tiap benda (diketuk). anim: pose pet (lihat ACTIVITY_ANIMS) */
@@ -62,6 +66,8 @@ export const SQUARE_ACTS: Record<string, { id: string; name: string; anim: strin
   airmancur: [{ id: 'foto', name: 'Foto bareng di air mancur', anim: 'lihat' }],
   bangku: [{ id: 'duduk', name: 'Duduk santai', anim: 'duduk' }],
   gerobak: [{ id: 'jajan', name: 'Jajan', anim: 'lihat' }],
+  tikarular: [{ id: 'ular', name: 'Main Ular Tangga (2–4 orang)', anim: 'lihat' }],
+  garisstart: [{ id: 'karung', name: 'Balap Karung Live (2–5 orang)', anim: 'lihat' }],
 };
 /** aksi alun-alun yang memberi hadiah harian (koin, XP, ceria) */
 export const SQUARE_PLAY = ['nonton', 'naik', 'ayun', 'teduh', 'duduk', 'joget'] as const;

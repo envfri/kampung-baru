@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
-import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7, seedPackV8 } from './db/seed';
+import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7, seedPackV8, seedPackV9 } from './db/seed';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -28,6 +28,7 @@ import launchRoutes from './routes/launch';
 import houseRoutes from './routes/house';
 import squareRoutes from './routes/square';
 import siteRoutes from './routes/site';
+import barengRoutes from './routes/bareng';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -60,6 +61,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV6(db)) app.log.info('Paket konten v6 (duel dengan teman) ditambahkan');
   if (await seedPackV7(db)) app.log.info('Paket konten v7 (kunjungan bareng) ditambahkan');
   if (await seedPackV8(db)) app.log.info('Paket konten v8 (alun-alun) ditambahkan');
+  if (await seedPackV9(db)) app.log.info('Paket konten v9 (set item premium) ditambahkan');
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
@@ -150,6 +152,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(houseRoutes, { db });
   await app.register(squareRoutes, { db });
   await app.register(siteRoutes, { db });
+  await app.register(barengRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {

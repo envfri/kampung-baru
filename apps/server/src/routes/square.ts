@@ -14,6 +14,7 @@ import { currentNeeds, isAsleep, lockPet, petView, savePet } from '../lib/state'
 import { grantXp, patch } from './game';
 import { EMOTES, markPresence } from './house';
 import { takePings } from '../lib/pings';
+import { barengViews } from './bareng';
 
 const LIVE_MS = 10_000;
 /** jeda antaraksi di alun-alun per pemain */
@@ -90,6 +91,20 @@ export function resetSquareActGap() { LAST_ACT.clear(); }
 export function metInSquare(a: string, b: string, ms = 10 * 60_000) {
   const x = SEEN.get(a), y = SEEN.get(b), now = Date.now();
   return !!x && !!y && x.inst === y.inst && now - x.at < ms && now - y.at < ms;
+}
+/** Pemain yang sedang live di alun-alun nomor inst. */
+export function squareMembers(inst: number) {
+  const q = SQUARES.get(inst);
+  const now = Date.now();
+  return q ? [...q.members.values()].filter((m) => fresh(m, now)).map((m) => ({ id: m.id, name: m.name, pet: m.pet })) : [];
+}
+/** Alun-alun tempat pemain sedang live & siapa saja di sana (untuk game main bareng). */
+export function squareLiveOf(uid: string) {
+  const id = WHERE.get(uid);
+  const q = id ? SQUARES.get(id) : undefined;
+  const now = Date.now();
+  if (!q || !q.members.get(uid) || !fresh(q.members.get(uid)!, now)) return null;
+  return { inst: q.id, members: [...q.members.values()].filter((m) => fresh(m, now)).map((m) => ({ id: m.id, name: m.name, pet: m.pet })) };
 }
 export function resetSquares() { SQUARES.clear(); WHERE.clear(); SEEN.clear(); SAID.clear(); LAST_ACT.clear(); JOINED.clear(); MUTE_CACHE.clear(); BLOCKS.clear(); }
 
@@ -215,6 +230,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
       others: squareCounts().filter((x) => x.id !== id),
       mutedUntil: (await mutedUntil(uid)) || null,
       pings: takePings(uid),
+      games: barengViews(`a:${id}`),
     };
   });
 

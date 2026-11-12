@@ -3,6 +3,7 @@
   // Di rumah sendiri bar ini muncul bila ada tamu yang sedang live.
   import { G, item, items, toast } from '../lib/game.svelte';
   import { H, say, emote, coop, takePhoto } from '../lib/house.svelte';
+  import { startGame } from '../lib/bareng.svelte';
   import { ACT_ICON, EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { itemIcon, PHOTO_POSES } from '@kb/shared';
   import { sfx } from '../lib/sfx';
@@ -108,8 +109,10 @@
       <b>Main bareng di rumah</b>
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
       <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('bola')}>Lempar bola</button>
+      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => { pop = null; startGame('congklak'); }}>Congklak <small>2 pemain</small></button>
+      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => { pop = null; startGame('ular'); }}>Ular Tangga <small>2–4 pemain</small></button>
       <button class="btn sm" role="menuitem" onclick={duel}>Tantang duel</button>
-      {#if here.length < 1}<small>Masak bareng & Lempar bola butuh minimal 2 pemain yang sedang di rumah ini.</small>{:else}<small>Yang lain mendapat ajakan dan memilih sendiri mau ikut atau tidak.</small>{/if}
+      {#if here.length < 1}<small>Permainan bareng butuh minimal 2 pemain yang sedang di rumah ini.</small>{:else}<small>Yang lain mendapat ajakan dan memilih sendiri mau ikut atau tidak.</small>{/if}
     </div>
   {:else if pop === 'snack'}
     <div class="pop" role="menu" aria-label="Pilih camilan">

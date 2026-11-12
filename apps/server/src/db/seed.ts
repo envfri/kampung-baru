@@ -378,6 +378,79 @@ export async function seedPackV6(db: Db) {
 
 /** Paket konten v7: kunjungan bareng (tugas harian & lencana main di rumah teman, masak bareng, foto bareng). */
 /** v8: Alun-alun di peta kampung + tugas & lencana. */
+// Paket konten v9: set item premium (Mutiara) — Taman Malam, Keraton, Kafe Kopi Kampung, Pantai, Kamar Bintang.
+const P = (id: string, kind: SeedItem['kind'], name: string, description: string, price: number, key: string, set: string, data: Record<string, unknown> = {}): SeedItem =>
+  ({ id, kind, name, description, price_pearl: price, shop: 'mutiara', art: b(key), data: { ...data, set } });
+export const SEED_ITEMS_V9: SeedItem[] = [
+  P('tm-kolamkoi', 'furniture', 'Kolam Koi Bercahaya', 'Kolam batu dengan ikan koi yang berenang dan cahaya lembut di malam hari.', 20, 'kolamkoi', 'tamanmalam', { w: 2, d: 2 }),
+  P('tm-pohonlampu', 'furniture', 'Pohon Lampu Kelip', 'Pohon rindang berhias lampu warna-warni yang berkelip.', 8, 'pohonlampu', 'tamanmalam', { w: 1, d: 1 }),
+  P('tm-lenterastupa', 'furniture', 'Lentera Stupa', 'Lentera batu berbentuk stupa dengan cahaya hangat.', 4, 'lenterastupa', 'tamanmalam', { w: 1, d: 1 }),
+  P('tm-jembatan', 'furniture', 'Jembatan Kayu', 'Jembatan kayu merah melengkung, enak untuk duduk-duduk.', 10, 'jembatan', 'tamanmalam', { w: 2, d: 1 }),
+  P('tm-topleskunang', 'furniture', 'Toples Kunang-kunang', 'Kunang-kunang yang menyala di dalam toples kaca.', 5, 'topleskunang', 'tamanmalam', { w: 1, d: 1 }),
+  P('fl-batutaman', 'floor', 'Lantai Batu Taman', 'Rumput dengan batu pijakan, cocok untuk halaman.', 6, 'batutaman', 'tamanmalam'),
+  P('kr-gamelan', 'furniture', 'Gamelan Mini', 'Saron kecil berukir emas. Pet bisa memainkannya.', 18, 'gamelan', 'keraton', { w: 2, d: 1 }),
+  P('kr-kursiraja', 'furniture', 'Kursi Raja Ukir', 'Kursi kayu berukir dengan bantal beludru merah.', 10, 'kursiraja', 'keraton', { w: 1, d: 1 }),
+  P('kr-gebyok', 'furniture', 'Sekat Gebyok Ukir', 'Sekat kayu berukir motif kawung dengan mahkota emas.', 12, 'gebyok', 'keraton', { w: 2, d: 1 }),
+  P('kr-lampukuningan', 'furniture', 'Lampu Kuningan', 'Lampu berdiri dari kuningan dengan cahaya hangat.', 6, 'lampukuningan', 'keraton', { w: 1, d: 1 }),
+  P('kr-karpetparang', 'furniture', 'Karpet Batik Parang', 'Karpet bermotif parang, 2×2.', 8, 'karpetparang', 'keraton', { w: 2, d: 2, flat: true }),
+  P('wp-kawung', 'wallpaper', 'Dinding Batik Kawung', 'Dinding bermotif batik kawung.', 8, 'kawung', 'keraton'),
+  P('kf-mesinkopi', 'furniture', 'Mesin Kopi', 'Mesin kopi di atas lemari. Pet bisa bikin kopi.', 15, 'mesinkopi', 'kafe', { w: 1, d: 1 }),
+  P('kf-mejabar', 'furniture', 'Meja Bar Kayu', 'Meja bar tinggi lengkap dengan cangkir dan toples kue.', 8, 'mejabar', 'kafe', { w: 2, d: 1 }),
+  P('kf-raktoples', 'furniture', 'Rak Toples Kerupuk', 'Rak berisi toples kerupuk warna-warni.', 6, 'raktoples', 'kafe', { w: 1, d: 1 }),
+  P('kf-papanmenu', 'furniture', 'Papan Menu Kapur', 'Papan tulis kapur berisi menu hari ini.', 4, 'papanmenu', 'kafe', { w: 1, d: 1 }),
+  P('kf-lampuedison', 'furniture', 'Lampu Edison', 'Tiang lampu dengan bohlam edison yang berpendar.', 5, 'lampuedison', 'kafe', { w: 1, d: 1 }),
+  P('fl-terasoemas', 'floor', 'Lantai Teraso Emas', 'Lantai teraso krem berbintik emas.', 8, 'terasoemas', 'kafe'),
+  P('pt-hammock', 'furniture', 'Hammock', 'Ayunan jaring untuk tidur siang. Berayun pelan.', 15, 'hammock', 'pantai', { w: 2, d: 1 }),
+  P('pt-kursipantai', 'furniture', 'Kursi Pantai', 'Kursi lipat bergaris untuk bersantai.', 6, 'kursipantai', 'pantai', { w: 1, d: 1 }),
+  P('pt-papanselancar', 'furniture', 'Papan Selancar', 'Papan selancar biru untuk hiasan.', 5, 'papanselancar', 'pantai', { w: 1, d: 1 }),
+  P('pt-oborbambu', 'furniture', 'Obor Bambu', 'Obor bambu dengan api yang menari.', 4, 'oborbambu', 'pantai', { w: 1, d: 1 }),
+  P('pt-akuariumombak', 'furniture', 'Akuarium Ombak', 'Akuarium lebar dengan ombak, karang, dan ikan.', 12, 'akuariumombak', 'pantai', { w: 2, d: 1 }),
+  P('fl-pasir', 'floor', 'Lantai Pasir Pantai', 'Pasir pantai dengan kerang kecil.', 6, 'pasir', 'pantai'),
+  P('kb-kasurroket', 'furniture', 'Kasur Roket', 'Kasur berbentuk roket untuk penjelajah angkasa.', 15, 'kasurroket', 'bintang', { w: 2, d: 1 }),
+  P('kb-proyektor', 'furniture', 'Proyektor Bintang', 'Lampu tidur yang memancarkan bintang berkelip.', 12, 'proyektorbintang', 'bintang', { w: 1, d: 1 }),
+  P('kb-tenda', 'furniture', 'Tenda Kemah', 'Tenda kemah dengan bendera dan umbul-umbul kecil.', 10, 'tendakemah', 'bintang', { w: 2, d: 2 }),
+  P('kb-karpetawan', 'furniture', 'Karpet Awan', 'Karpet empuk berbentuk awan, 2×2.', 6, 'karpetawan', 'bintang', { w: 2, d: 2, flat: true }),
+  P('kb-rakpelangi', 'furniture', 'Rak Buku Pelangi', 'Rak buku dengan buku warna-warni dan pelangi di atasnya.', 8, 'rakpelangi', 'bintang', { w: 1, d: 1 }),
+  P('wp-langit', 'wallpaper', 'Dinding Langit Malam', 'Dinding biru malam dengan bulan dan bintang berkelip.', 10, 'langit', 'bintang'),
+];
+export const SEED_ACTIVITIES_V9 = [
+  { id: 'kasih-makan-koi', name: 'Kasih makan koi', targets: ['art:kolamkoi'], anim: 'lihat', effects: { ceria: 10 }, xp: 3, cooldown_sec: 900, message: '{pet} memberi makan ikan koi. Ikannya berebut!' },
+  { id: 'duduk-jembatan', name: 'Duduk di jembatan', targets: ['art:jembatan'], anim: 'duduk', effects: { ceria: 6, energi: 4 }, xp: 1, cooldown_sec: 300, message: '{pet} duduk di jembatan sambil melihat kunang-kunang.' },
+  { id: 'main-gamelan', name: 'Main gamelan', targets: ['art:gamelan'], anim: 'musik', effects: { ceria: 12, energi: -4 }, xp: 3, cooldown_sec: 900, message: '{pet} memainkan gamelan. Ning-nong-ning-gung!' },
+  { id: 'duduk-raja', name: 'Duduk bak raja', targets: ['art:kursiraja'], anim: 'duduk', effects: { ceria: 8, energi: 4 }, xp: 1, cooldown_sec: 300, message: '{pet} duduk di kursi raja. Gagah sekali!' },
+  { id: 'bikin-kopi', name: 'Bikin kopi', targets: ['art:mesinkopi'], anim: 'kopi', effects: { ceria: 10, energi: 8 }, xp: 3, cooldown_sec: 1200, daily_limit: 4, message: '{pet} bikin kopi tubruk. Harumnya sampai ke tetangga!' },
+  { id: 'tidur-hammock', name: 'Tidur siang', targets: ['art:hammock'], anim: 'tidur', effects: { energi: 15, ceria: 6 }, xp: 2, cooldown_sec: 900, message: '{pet} tidur siang di hammock, berayun pelan.' },
+  { id: 'duduk-pantai', name: 'Santai di kursi pantai', targets: ['art:kursipantai'], anim: 'duduk', effects: { ceria: 6, energi: 6 }, xp: 1, cooldown_sec: 300, message: '{pet} bersantai di kursi pantai.' },
+  { id: 'lihat-ombak', name: 'Lihat ombak', targets: ['art:akuariumombak'], anim: 'lihat', effects: { ceria: 8 }, xp: 1, cooldown_sec: 300, message: '{pet} melihat ombak dan ikan di akuarium.' },
+  { id: 'tidur-roket', name: 'Rebahan di roket', targets: ['art:kasurroket'], anim: 'tidur', effects: { energi: 15 }, xp: 2, cooldown_sec: 600, message: '{pet} rebahan di kasur roket. Meluncur ke alam mimpi!' },
+  { id: 'lihat-bintang', name: 'Lihat bintang', targets: ['art:proyektorbintang'], anim: 'lihat', effects: { ceria: 8, energi: 3 }, xp: 2, cooldown_sec: 300, message: '{pet} menghitung bintang dari proyektor.' },
+  { id: 'main-kemah', name: 'Main kemah-kemahan', targets: ['art:tendakemah'], anim: 'lihat', effects: { ceria: 10, energi: -3 }, xp: 2, cooldown_sec: 600, message: '{pet} ngumpet di tenda. Ssst!' },
+  { id: 'baca-pelangi', name: 'Baca buku', targets: ['art:rakpelangi'], anim: 'baca', effects: { ceria: 8 }, xp: 3, cooldown_sec: 300, message: '{pet} membaca buku cerita angkasa.' },
+];
+
+export async function seedPackV9(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 9) return false;
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V9) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), (sort += 10)],
+    );
+  }
+  let asort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from activities'))!.m;
+  for (const a of SEED_ACTIVITIES_V9) {
+    await db.query(
+      `insert into activities (id, name, targets, anim, effects, xp, cooldown_sec, daily_limit, message, sort)
+       values ($1,$2,$3::text::jsonb,$4,$5::text::jsonb,$6,$7,$8,$9,$10) on conflict (id) do nothing`,
+      [a.id, a.name, JSON.stringify(a.targets), a.anim, JSON.stringify(a.effects), a.xp, a.cooldown_sec, (a as any).daily_limit ?? 0, a.message, (asort += 10)],
+    );
+  }
+  await db.query(`insert into settings (key, value) values ('content_pack', '9'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}
+
 export async function seedPackV8(db: Db) {
   const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
   if (Number(row?.value ?? 1) >= 8) return false;

@@ -15,6 +15,8 @@ export const ACTIVITY_ANIMS: Record<string, { label: string; on: boolean; lift: 
   main: { label: 'Bermain (di dekatnya)', on: false, lift: 0, fx: 'coins', prop: 'main', ms: 2400 },
   olahraga: { label: 'Olahraga lompat tali (di dekatnya)', on: false, lift: 0, fx: 'drops', prop: 'tali', ms: 3000 },
   gowes: { label: 'Bersepeda statis (naik ke mebel)', on: true, lift: 20, fx: 'drops', ms: 3000 },
+  musik: { label: 'Main musik (di dekatnya)', on: false, lift: 0, fx: 'notes', ms: 2800 },
+  kopi: { label: 'Bikin & minum kopi (di dekatnya)', on: false, lift: 0, fx: 'steam', prop: 'cangkir', ms: 2800 },
 };
 
 /** Efek aktivitas: empat kebutuhan + berat badan (negatif = menurunkan berat). */

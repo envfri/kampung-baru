@@ -42,6 +42,7 @@
   import HouseBar from '../components/HouseBar.svelte';
   import SquareBar from '../components/SquareBar.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
+  import BarengLayer from '../components/bareng/BarengLayer.svelte';
   import PersonCard from '../components/PersonCard.svelte';
   import FriendPrompt from '../components/FriendPrompt.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
@@ -320,6 +321,7 @@
     <SquareBar /><PhotoPreview />
   {/if}
   <FriendAskCard />
+  {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && H.live}<BarengLayer />{/if}
   {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
   {#if G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests}<FriendPrompt />{/if}
 

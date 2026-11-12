@@ -187,6 +187,8 @@ export function canBuy(it: CatalogItem, now = serverNow()) {
 }
 
 export const owned = (id: string) => (G.me?.inventory?.[id] ?? 0) as number;
+/** Dimiliki dalam bentuk apa pun: di tas, terpasang di ruangan, atau dipakai sebagai dinding/lantai. */
+export const hasItem = (id: string) => owned(id) > 0 || (G.me?.rooms ?? []).some((r: any) => r.wall === id || r.floor === id || (r.layout ?? []).some((p: any) => p.i === id));
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('id-ID');
 

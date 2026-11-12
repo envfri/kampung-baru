@@ -3,6 +3,7 @@
 import { G, toast, fail, refreshMe, merge } from './game.svelte';
 import { api, ApiError } from './api';
 import { onPings } from './friends.svelte';
+import { syncGames } from './bareng.svelte';
 import { sfx } from './sfx';
 
 export type Bubble = { id: number; who: string; text?: string; emote?: string; until: number };
@@ -34,6 +35,8 @@ export const H = $state({
   max: 20,
   others: [] as { id: number; count: number }[],
   hidden: [] as string[],
+  /** game main bareng di tempat ini (Congklak, Ular Tangga, Balap Karung Live) dari sinkron */
+  games: [] as any[],
   /** kartu profil pemain yang diketuk (id pemain) */
   card: null as string | null,
   /** efek di pet pemain lain yang diminta dari luar Room (mis. tombol Kirim hati di kartu profil) */
@@ -92,6 +95,7 @@ async function tick(myGen: number) {
       for (const e of r.events ?? []) handle(e);
       seq = Math.max(seq, r.seq ?? 0);
       onPings(r.pings);
+      if (Array.isArray(r.games)) syncGames(r.games);
     } else { H.members = []; H.elsewhere = []; H.coop = null; }
   } catch (e) {
     // alun-alun menolak (mis. belum punya pet): jangan mencoba terus, kembali ke peta
@@ -164,7 +168,7 @@ export function enterHouse(hostId: string, roomId: string) {
   gen++;
   H.hostId = hostId; H.roomId = roomId; seq = 0;
   H.members = []; H.elsewhere = []; H.coop = null; H.bubbles = []; H.live = false; H.full = false;
-  H.inst = 0; H.count = 0; H.others = []; H.card = null; pendingEmote = null; fails = 0;
+  H.inst = 0; H.count = 0; H.others = []; H.card = null; H.games = []; pendingEmote = null; fails = 0;
   if (hostId !== SQUARE) H.want = 0;
   tick(gen);
 }

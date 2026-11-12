@@ -260,6 +260,12 @@ Uji Situs & SEO + mode perawatan (server dijalankan dengan `ADMIN_EMAIL`/`ADMIN_
 npm run test:e2e:situs
 ```
 
+Uji game main bareng (Congklak & Ular Tangga di rumah, Balap Karung Live di alun-alun, 3 pemain):
+
+```bash
+npm run test:e2e:bareng
+```
+
 ## Keamanan & anti-curang
 
 - Server memegang saldo dan inventori. Client hanya mengirim niat (mis. "beri makan item X").

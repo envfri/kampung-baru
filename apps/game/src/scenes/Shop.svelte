@@ -2,8 +2,8 @@
   // Di dalam toko: pet sudah berjalan ke sini dari peta. Yang dijual hanya barang toko ini.
   import { onMount } from 'svelte';
   import ItemCard from '../components/ItemCard.svelte';
-  import { G, canBuy, effText, fmt, owned, run, post, toast, switchRoom, settings, item as itemOf } from '../lib/game.svelte';
-  import { footprint, itemIcon, renderPet, shade } from '@kb/shared';
+  import { G, canBuy, effText, fmt, owned, hasItem, run, post, toast, switchRoom, settings, item as itemOf } from '../lib/game.svelte';
+  import { footprint, itemIcon, renderPet, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice } from '@kb/shared';
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
   import ExpandRooms from '../components/ExpandRooms.svelte';
@@ -24,7 +24,21 @@
   const cats = $derived([...new Set(all.map((i) => i.kind))]);
   let cat = $state('');
   let confirm = $state('');
-  const list = $derived(all.filter((i) => !cat || i.kind === cat));
+  const list = $derived(cat === 'set' ? [] : all.filter((i) => !cat || i.kind === cat));
+  // set premium (Toko Mutiara): paket semua item yang belum dimiliki dengan diskon, bonus suasana di ruangan
+  const sets = $derived(loc?.kind === 'pearl' ? PREMIUM_SETS.map((st) => {
+    const its = st.items.map((id) => all.find((i) => i.id === id)).filter(Boolean) as any[];
+    const left = its.filter((i) => !hasItem(i.id));
+    return { st, its, left, bp: bundlePrice(left.map((i) => i.price_pearl), Number(settings().premium?.bundleDiscount ?? 20)) };
+  }).filter((x) => x.its.length) : []);
+  async function buySet(x: (typeof sets)[number]) {
+    if (confirm !== 'set:' + x.st.key) { confirm = 'set:' + x.st.key; sfx.tap(); return; }
+    confirm = '';
+    const r: any = await run(() => post('/api/shop/bundle', { set: x.st.key, price: x.bp.price }));
+    if (!r) return;
+    sfx.level();
+    toast(`${x.st.name}: ${r.items.length} item masuk Tas. Pasang 3 atau lebih di satu ruangan untuk suasananya!`, 'good');
+  }
   const sellable = $derived(Object.entries(G.me.inventory ?? {}).map(([id, n]) => ({ it: itemOf(id), n: n as number })).filter((x) => x.it && x.it.sell_coin > 0));
   const eventIds = $derived(new Set((G.me.events ?? []).map((e: any) => e.id)));
   const rooms = $derived<any[]>(G.me.rooms ?? []);
@@ -36,7 +50,9 @@
 
   function sub(it: any) {
     if (it.kind === 'food') return (it.data?.cure ? 'Menyembuhkan · ' : '') + effText(it.data?.effects);
-    if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}`; }
+    const setName = PREMIUM_SET_BY_KEY[it.data?.set]?.name;
+    if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}${setName ? ` · ${setName}` : ''}`; }
+    if ((it.kind === 'wallpaper' || it.kind === 'floor') && setName) return `${it.kind === 'floor' ? 'Lantai' : 'Dinding'} · ${setName}`;
     if (it.kind === 'seed') return `Panen dalam ${it.data?.growMinutes} mnt`;
     if (it.kind === 'wear') return { head: 'Kepala', face: 'Wajah', neck: 'Leher', back: 'Punggung' }[it.data?.slot as 'head'] ?? '';
     if (it.kind === 'wallpaper') return 'Dinding';
@@ -113,10 +129,26 @@
       {#if cats.length > 1}
         <div class="tabbar" role="tablist">
           <button role="tab" aria-selected={!cat} class:on={!cat} onclick={() => (cat = '')}>Semua</button>
+          {#if sets.length}<button role="tab" aria-selected={cat === 'set'} class:on={cat === 'set'} onclick={() => (cat = 'set')}>Set ✦</button>{/if}
           {#each cats as k}<button role="tab" aria-selected={cat === k} class:on={cat === k} onclick={() => (cat = k)}>{KIND_LABEL[k] ?? k}</button>{/each}
         </div>
       {/if}
-      {#if list.length === 0}<p class="muted">Belum ada barang di toko ini.</p>{/if}
+      {#if cat === 'set'}
+        <p class="hint">Paket berisi semua item set yang belum kamu punya, hemat {settings().premium?.bundleDiscount ?? 20}%. Pasang {settings().premium?.bonusMin ?? 3} item atau lebih dari set yang sama di satu ruangan untuk efek suasana.</p>
+        {#each sets as x (x.st.key)}
+          <div class="set" style="--sc:{x.st.color}">
+            <div class="sh"><b>{x.st.name}</b><span>{x.its.length - x.left.length}/{x.its.length} dimiliki</span></div>
+            <p class="sd">{x.st.desc}</p>
+            <div class="sicons">{#each x.its as i (i.id)}<span class:own={hasItem(i.id)} title={i.name}>{@html itemIcon(i)}</span>{/each}</div>
+            <p class="sb">✦ Suasana: {x.st.bonus}</p>
+            {#if x.left.length}
+              <button class="btn hot sbuy" class:sure={confirm === 'set:' + x.st.key} disabled={G.busy || G.me.wallet.pearl < x.bp.price} onclick={() => buySet(x)}>
+                {#if confirm === 'set:' + x.st.key}Yakin? {@html PEARL}{x.bp.price}{:else}Beli paket {x.left.length} item · {@html PEARL}{x.bp.price}{#if x.bp.total > x.bp.price}<s>{x.bp.total}</s>{/if}{/if}
+              </button>
+            {:else}<span class="chip done">Set lengkap ✓</span>{/if}
+          </div>
+        {/each}
+      {:else if list.length === 0}<p class="muted">Belum ada barang di toko ini.</p>{/if}
       {#if loc?.id === 'bangunan' && !cat}
         <div class="expand"><b>Perluas ruangan</b><ExpandRooms /></div>
       {/if}
@@ -160,6 +192,20 @@
 </div>
 
 <style>
+  .set { display: flex; flex-direction: column; gap: 6px; border: 2.5px solid var(--ink); border-radius: 18px; padding: 10px 12px; background: var(--paper); box-shadow: 0 3px 0 var(--ink); border-top: 8px solid var(--sc); }
+  .sh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .sh b { font-size: 17px; font-weight: 800; }
+  .sh span { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .sd, .sb { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .sb { color: var(--ink); }
+  .sicons { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .sicons span { aspect-ratio: 1; border-radius: 10px; background: var(--soft); display: grid; place-items: center; opacity: .55; }
+  .sicons span.own { opacity: 1; box-shadow: inset 0 0 0 2px #3FA06A; }
+  .sicons :global(svg) { width: 100%; height: 100%; }
+  .sbuy { gap: 4px; }
+  .sbuy :global(svg) { width: 18px; height: 18px; }
+  .sbuy s { margin-left: 4px; opacity: .6; font-weight: 700; }
+  .chip.done { align-self: flex-start; background: #DCEFE8; color: #1E7A63; font-weight: 800; border-radius: 999px; padding: 2px 10px; }
   .shop { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--body); }
   .front { position: relative; flex: 0 0 auto; height: min(44dvh, 380px); padding-top: calc(var(--safe-t) + 100px); }
   .scene { display: block; width: 100%; height: 100%; }
