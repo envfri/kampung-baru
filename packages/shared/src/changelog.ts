@@ -39,9 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.28.2',
+    date: '2026-11-12',
+    title: 'Permainan lebih besar di layar desktop',
+    items: [
+      { kind: 'ubah', text: 'Desktop: papan Congklak sekarang hampir dua kali lebih lebar, dengan nama, sisa waktu, dan petunjuk yang ikut membesar.', player: true },
+      { kind: 'ubah', text: 'Desktop: papan Ular Tangga setinggi layar di sebelah kiri, sedangkan daftar pemain, catatan langkah, dadu, dan tombol lempar ada di panel kanan.', player: true },
+      { kind: 'ubah', text: 'Desktop: kartu Ingat Jajanan lebih besar dan disusun 8 × 2 di tengah layar lebar. Tampilan di HP tidak berubah.', player: true },
+    ],
+  },
+  {
     version: '0.28.1',
     date: '2026-11-12',
     title: 'Kartu rumah teman ikut disembunyikan saat main bareng',
+    commits: ['1ed18f0'],
     items: [
       { kind: 'perbaikan', text: 'Saat main bareng di rumah teman, kartu "Rumah …" (Ambil koin, Suka, Hadiah, Pulang) ikut disembunyikan supaya tidak mengintip di belakang papan di HP. Kartunya kembali setelah permainan selesai.', player: true },
     ],

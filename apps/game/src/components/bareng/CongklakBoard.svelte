@@ -143,4 +143,16 @@
   .hn { font-size: 12px; font-weight: 800; fill: #FFE08A; text-anchor: middle; font-family: var(--font); }
   .ripple { pointer-events: none; transform-box: fill-box; transform-origin: center; animation: ripple .35s ease-out forwards; }
   @keyframes ripple { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.35); } }
+  /* desktop: papan selebar layar (dibatasi tinggi layar supaya tetap muat), teks ikut besar */
+  @media (min-width: 900px) and (min-height: 520px) {
+    .sheet { width: min(880px, calc(100vw - 64px), calc((100dvh - var(--safe-t) - var(--safe-b) - 330px) * 2.02 + 48px)); padding: 16px 22px; gap: 8px; border-radius: 24px; }
+    .board { overflow: visible; margin: -4.5% 0 -3%; }
+    .who { font-size: 18px; gap: 10px; }
+    .ava { width: 46px; height: 48px; }
+    .turn { font-size: 14px; padding: 2px 10px; }
+    .ring { width: 44px; height: 44px; font-size: 16px; border-width: 4px; }
+    .msg { font-size: 19px; }
+    .log { font-size: 15px; }
+    .note { font-size: 13.5px; text-align: center; }
+  }
 </style>

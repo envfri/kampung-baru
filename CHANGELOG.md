@@ -4,11 +4,21 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.28.2 · 2026-11-12 · Permainan lebih besar di layar desktop
+
+### Perubahan
+
+- Desktop: papan Congklak sekarang hampir dua kali lebih lebar, dengan nama, sisa waktu, dan petunjuk yang ikut membesar. _(pemain)_
+- Desktop: papan Ular Tangga setinggi layar di sebelah kiri, sedangkan daftar pemain, catatan langkah, dadu, dan tombol lempar ada di panel kanan. _(pemain)_
+- Desktop: kartu Ingat Jajanan lebih besar dan disusun 8 × 2 di tengah layar lebar. Tampilan di HP tidak berubah. _(pemain)_
+
 ## 0.28.1 · 2026-11-12 · Kartu rumah teman ikut disembunyikan saat main bareng
 
 ### Perbaikan
 
 - Saat main bareng di rumah teman, kartu "Rumah …" (Ambil koin, Suka, Hadiah, Pulang) ikut disembunyikan supaya tidak mengintip di belakang papan di HP. Kartunya kembali setelah permainan selesai. _(pemain)_
+
+Commit: [`1ed18f0`](https://github.com/envfri/kampung-baru/commit/1ed18f0)
 
 ## 0.28.0 · 2026-11-12 · Main bareng langkah demi langkah & latar bermotif
 

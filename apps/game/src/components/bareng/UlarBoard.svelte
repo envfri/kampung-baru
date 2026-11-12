@@ -179,4 +179,17 @@
   .big { flex: 1; min-height: 48px; font-size: 17px; }
   .ring { width: 34px; height: 34px; border-radius: 50%; border: 3.5px solid #C9C2B0; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
   .ring.hot { border-color: #F2B632; }
+  /* desktop: papan setinggi layar di kiri, pemain + log + dadu di panel kanan */
+  @media (min-width: 900px) and (min-aspect-ratio: 5/4) and (min-height: 520px) {
+    .wrap { --bs: min(calc(100dvh - var(--safe-t) - var(--safe-b) - 200px), calc(100vw - 420px), 820px); width: auto; display: grid; grid-template-columns: var(--bs) 300px; grid-template-rows: auto auto 1fr auto; gap: 12px 18px; padding: 14px 18px; border-radius: 24px; }
+    .board { grid-column: 1; grid-row: 1 / -1; width: var(--bs); align-self: center; }
+    .turns { grid-column: 2; grid-row: 1; flex-direction: column; align-items: flex-start; gap: 6px; }
+    .turns span { font-size: 16px; padding: 2px 14px 2px 3px; gap: 6px; }
+    .turns i { width: 32px; height: 34px; }
+    .log { grid-column: 2; grid-row: 2; font-size: 15.5px; padding: 8px 12px; }
+    .ctrl { grid-column: 2; grid-row: 4; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+    .die { width: 68px; height: 68px; }
+    .ring { width: 46px; height: 46px; font-size: 17px; border-width: 4px; }
+    .big { flex: 1 0 100%; order: 3; min-height: 58px; font-size: 19px; }
+  }
 </style>

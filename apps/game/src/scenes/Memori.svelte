@@ -126,4 +126,13 @@
   .reward { display: flex; align-items: center; gap: 6px; font-size: 20px; font-weight: 800; }
   .reward :global(svg) { width: 26px; height: 26px; }
   .row { display: flex; gap: 8px; } .row .btn { flex: 1; }
+  /* desktop: kartu lebih besar; layar lebar disusun 8 × 2 supaya memakai lebar layar */
+  @media (min-width: 900px) {
+    .grid { width: min(600px, 100%, calc((100dvh - var(--safe-t) - var(--safe-b) - 250px) * .75)); gap: 12px; }
+    .card-m { border-radius: 16px; }
+    .memori { justify-content: center; padding-bottom: calc(var(--safe-b) + 100px); }
+  }
+  @media (min-width: 900px) and (min-aspect-ratio: 4/3) {
+    .grid { grid-template-columns: repeat(8, 1fr); width: min(1400px, calc(100vw - 80px), calc((100dvh - var(--safe-t) - var(--safe-b) - 260px) * 3)); }
+  }
 </style>
