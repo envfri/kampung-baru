@@ -1,6 +1,7 @@
 <script lang="ts">
   // Papan congklak: 7 lubang per pemain + lumbung. Baris bawah = lubangmu (ketuk saat giliranmu).
-  import { petSVG } from '@kb/shared';
+  import { untrack } from 'svelte';
+  import { petSVG, congklakFrames, type CongklakFrame } from '@kb/shared';
   import { wearItems } from '../../lib/game.svelte';
   import { moveGame, serverNow } from '../../lib/bareng.svelte';
   import { sfx } from '../../lib/sfx';
@@ -10,35 +11,60 @@
   const player = $derived(g.players.some((x: any) => x.id === me));
   const opp = $derived(g.players[p === 0 ? 1 : 0]);
   const self = $derived(g.players[p]);
-  const myTurn = $derived(player && g.phase === 'main' && g.turn === me);
-  const board: number[] = $derived(g.board?.length ? g.board : Array(16).fill(0));
   const myIdx = (k: number) => (p === 0 ? k : 8 + k);
   const oppIdx = (k: number) => (p === 0 ? 14 - k : 6 - k);
   const myStore = $derived(p === 0 ? 7 : 15), oppStore = $derived(p === 0 ? 15 : 7);
-  /** posisi layar tiap lubang (untuk penanda yang berjalan saat biji dibagi) */
+  /** posisi layar tiap lubang (untuk tangan yang membawa biji) */
   function posOf(i: number): [number, number] {
     if (i === myStore) return [316, 84];
     if (i === oppStore) return [24, 84];
     for (let k = 0; k < 7; k++) { if (myIdx(k) === i) return [62 + k * 36, 110]; if (oppIdx(k) === i) return [62 + k * 36, 56]; }
     return [170, 84];
   }
-  // animasi langkah terakhir: penanda menyusuri lubang yang diisi
-  let mark = $state<[number, number] | null>(null);
-  let seenSeq = 0;
+
+  /* ---- langkah demi langkah: biji diambil lalu dijatuhkan satu per satu ---- */
+  // papan yang tampil (bisa tertinggal dari server selama animasi berjalan)
+  let shown = $state<number[]>((g.board?.length ? g.board : Array(16).fill(0)).slice());
+  let hand = $state<{ at: number; n: number; kind: CongklakFrame['kind'] } | null>(null);
+  let pulse = $state<{ at: number; k: number } | null>(null);
+  let playing = $state(false);
+  let lastAt = g.last?.at ?? 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let finalBoard: number[] | null = null;
+  function finish() { clearTimeout(timer); if (finalBoard) shown = finalBoard; finalBoard = null; hand = null; playing = false; }
+  function play(frames: CongklakFrame[], target: number[], skip: number) {
+    finalBoard = target.slice(); playing = true;
+    let i = 0, used = 0;
+    // langkah yang datang terlambat: lewati bingkai yang sudah lewat waktunya
+    while (i < frames.length - 1 && used + frames[i].ms < skip) used += frames[i++].ms;
+    const step = () => {
+      if (i >= frames.length) { finish(); return; }
+      const f = frames[i++];
+      shown = f.board;
+      hand = f.kind === 'sweep' ? null : { at: f.at, n: f.hand, kind: f.kind };
+      pulse = { at: f.at, k: (pulse?.k ?? 0) + 1 };
+      if (f.kind === 'drop') sfx.tap(); else if (f.kind === 'capture' || f.kind === 'store') sfx.level(); else sfx.pop();
+      timer = setTimeout(step, f.ms);
+    };
+    step();
+  }
   $effect(() => {
-    const last = g.last, seq = g.seq;
-    if (!last?.path?.length || seq === seenSeq) return;
-    seenSeq = seq;
-    const path: number[] = last.path;
-    const dt = Math.max(22, Math.min(110, 2400 / path.length));
-    let k = 0;
-    const t = setInterval(() => {
-      if (k >= path.length) { clearInterval(t); mark = null; return; }
-      mark = posOf(path[k]); k++;
-      if (k % 2) sfx.tap();
-    }, dt);
-    return () => clearInterval(t);
+    const last = g.last, target: number[] = g.board?.length ? g.board : Array(16).fill(0);
+    untrack(() => {
+      if (!last || last.at === lastAt) { if (!playing) shown = target.slice(); return; }
+      lastAt = last.at;
+      if (playing) finish();
+      const by = g.players.findIndex((x: any) => x.id === last.by) as 0 | 1;
+      const frames = by >= 0 && last.hole != null ? congklakFrames(shown, by, last.hole) : null;
+      const late = serverNow() - (last.at ?? 0);
+      const ok = frames && JSON.stringify(frames[frames.length - 1].board) === JSON.stringify(target);
+      if (!ok || late > (last.anim ?? 0) + 800) { shown = target.slice(); return; }
+      play(frames!, target, Math.max(0, late - 300));
+    });
   });
+  $effect(() => () => clearTimeout(timer));
+  const board = $derived(shown);
+  const myTurn = $derived(player && g.phase === 'main' && g.turn === me && !playing);
   let tick = $state(0);
   $effect(() => { const t = setInterval(() => (tick = serverNow()), 500); return () => clearInterval(t); });
   const left = $derived((void tick, Math.max(0, Math.ceil((g.turnUntil - serverNow()) / 1000))));
@@ -80,17 +106,24 @@
       </g>
       <text x={cx} y="138" class="n me">{board[myIdx(k)]}</text>
     {/each}
-    {#if mark}<circle cx={mark[0]} cy={mark[1]} r="10" fill="#F7C548" fill-opacity=".55" stroke="#F2B632" stroke-width="2" />{/if}
+    {#if pulse}{#key pulse.k}{@const q = posOf(pulse.at)}<circle class="ripple" cx={q[0]} cy={q[1]} r="14" fill="none" stroke="#FFE08A" stroke-width="3" />{/key}{/if}
+    {#if hand}
+      {@const q = posOf(hand.at)}
+      <g class="hand" style="transform:translate({q[0]}px,{q[1] - 30}px)">
+        <path d="M-15 -2q0 -14 15 -14t15 14l-3 10h-24Z" fill="#F6C9A8" stroke="#2B2F4A" stroke-width="2.4" stroke-linejoin="round" />
+        {#if hand.n > 0}<g transform="translate(0 -24)"><rect x="-15" y="-11" width="30" height="20" rx="10" fill="#2B2F4A" /><text y="4" class="hn">{hand.n}</text></g>{/if}
+      </g>
+    {/if}
   </svg>
   <div class="who"><span class="ava">{@html ava(self)}</span><b>{self?.name}{player ? ' (kamu)' : ''}</b>
     {#if g.phase === 'main'}<span class="ring" class:hot={myTurn}>{left}</span>{/if}</div>
-  <p class="msg">{g.phase === 'main' ? (myTurn ? 'Giliranmu! Ketuk lubang di barismu.' : player ? `Menunggu ${opp?.name ?? 'lawan'}…` : 'Kamu menonton.') : g.log?.at(-1) ?? ''}</p>
-  {#if g.log?.length && g.phase === 'main'}<p class="log">{g.log.at(-1)}</p>{/if}
+  <p class="msg">{playing ? (hand?.kind === 'capture' ? 'Tembak! Biji lawan diambil…' : hand?.kind === 'pick' ? `Ambil ${hand.n} biji…` : 'Membagi biji…') : g.phase === 'main' ? (myTurn ? 'Giliranmu! Ketuk lubang di barismu.' : player ? `Menunggu ${opp?.name ?? 'lawan'}…` : 'Kamu menonton.') : g.log?.at(-1) ?? ''}</p>
+  {#if g.log?.length && g.phase === 'main' && !playing}<p class="log">{g.log.at(-1)}</p>{/if}
   <p class="note">Biji jatuh terakhir di lumbungmu = jalan lagi. Di lubang berisi = ambil dan bagi lagi. Di lubang kosongmu = tembak biji lawan di seberangnya.</p>
 </div>
 
 <style>
-  .sheet { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 10px); width: min(420px, calc(100% - 16px)); display: flex; flex-direction: column; gap: 4px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 10px 12px; }
+  .sheet { position: fixed; z-index: 60; left: 50%; top: 50%; transform: translate(-50%, -50%); max-height: calc(100dvh - var(--safe-t) - var(--safe-b) - 24px); overflow-y: auto; width: min(420px, calc(100% - 16px)); display: flex; flex-direction: column; gap: 4px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 10px 12px; }
   .who { display: flex; align-items: center; gap: 8px; font-size: 15px; }
   .ava { width: 34px; height: 36px; display: inline-block; }
   .ava :global(svg) { width: 100%; height: 100%; }
@@ -106,4 +139,8 @@
   .msg { margin: 0; text-align: center; font-weight: 800; font-size: 14.5px; }
   .log { margin: 0; text-align: center; font-size: 12.5px; font-weight: 700; color: var(--muted); }
   .note { margin: 0; font-size: 11.5px; font-weight: 600; color: var(--muted); line-height: 1.25; }
+  .hand { transition: transform .16s ease-out; pointer-events: none; }
+  .hn { font-size: 12px; font-weight: 800; fill: #FFE08A; text-anchor: middle; font-family: var(--font); }
+  .ripple { pointer-events: none; transform-box: fill-box; transform-origin: center; animation: ripple .35s ease-out forwards; }
+  @keyframes ripple { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.35); } }
 </style>

@@ -4,7 +4,7 @@
 import type { FastifyInstance } from 'fastify';
 import { randomInt, randomUUID } from 'node:crypto';
 import {
-  BARENG_GAMES, congklakStart, congklakPlay, congklakMoves, ularMove, ULAR_RANK, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC,
+  BARENG_GAMES, congklakStart, congklakPlay, congklakFrames, framesMs, ularFrames, congklakMoves, ularMove, ULAR_RANK, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC,
   applyNeedDelta, type BarengGame,
 } from '@kb/shared';
 import type { Db } from '../db/index';
@@ -112,8 +112,10 @@ function congklakMove(s: Session, hole: number, auto = false) {
   const p = s.turn as 0 | 1;
   const r = congklakPlay(s.board, p, hole);
   if (!r) throw bad('invalid_move', 'Lubang itu kosong. Pilih lubang lain di barismu.');
+  // lama animasi biji dibagi satu per satu: ditambahkan ke batas giliran berikutnya
+  const anim = framesMs(congklakFrames(s.board, p, hole));
   s.board = r.board; s.moves++;
-  s.last = { by: s.players[p].id, hole, path: r.path.slice(0, 400), capture: r.capture, again: r.again, auto };
+  s.last = { by: s.players[p].id, hole, path: r.path.slice(0, 400), capture: r.capture, again: r.again, auto, at: clock(), anim };
   if (r.capture !== null) note(s, `${s.players[p].name} menembak biji lawan!`);
   if (r.over) {
     const [a, b] = [s.board[7], s.board[15]];
@@ -123,14 +125,16 @@ function congklakMove(s: Session, hole: number, auto = false) {
   }
   if (r.again) { s.turnUntil = clock() + BARENG_GAMES.congklak.turnMs; note(s, `${s.players[p].name} jalan lagi.`); }
   else nextTurn(s);
+  s.turnUntil += anim;
   bump(s);
 }
 function ularRoll(s: Session, auto = false) {
   const me = s.players[s.turn];
   const roll = randomInt(1, 7);
   const st = ularMove(s.pos[me.id] ?? 0, roll);
+  const anim = framesMs(ularFrames(st));
   s.pos[me.id] = st.to; s.moves++;
-  s.last = { by: me.id, ...st, auto };
+  s.last = { by: me.id, ...st, auto, at: clock(), anim };
   const say: Record<string, string> = { tangga: `naik tangga bambu! ${st.from + st.roll} → ${st.to}`, ular: `digigit ular sawah, turun ${st.from + st.roll} → ${st.to}`, warung: 'mampir warung, maju 2 kotak', becek: 'masuk becek, diam sekali' };
   note(s, `${me.name} dapat ${roll}${st.via ? `, ${say[st.via]}` : ''}.`);
   if (st.via === 'becek') s.skip[me.id] = true;
@@ -145,6 +149,8 @@ function ularRoll(s: Session, auto = false) {
     s.skip[p.id] = false;
     note(s, `${p.name} masih membersihkan becek, giliran dilewati.`);
   }
+  // pemain berikutnya tidak kehilangan waktu selama bidak sebelumnya berjalan
+  s.turnUntil += anim;
   bump(s);
 }
 

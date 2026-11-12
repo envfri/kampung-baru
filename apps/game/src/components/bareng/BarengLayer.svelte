@@ -20,6 +20,8 @@
   const ava = (p: any) => (p.pet ? petSVG({ color: p.pet.color ?? '#F2EEE3', ear: p.pet.ear ?? 'tunas', pattern: p.pet.pattern, eyes: p.pet.eyes, tail: p.pet.tail }, wearItems(p.pet.wear ?? [])) : '');
   const starterName = (g: any) => g.players.find((p: any) => p.id === g.starter)?.name ?? 'Teman';
   const resultOf = (g: any) => g.results?.find((r: any) => r.id === me);
+  /** kartu hasil muncul setelah langkah terakhir selesai dimainkan di papan */
+  const resultsReady = (g: any) => !g.last?.anim || serverNow() >= (g.last.at ?? 0) + g.last.anim + 600;
 </script>
 
 {#if mine}
@@ -44,7 +46,7 @@
   {:else if mine.game === 'ular'}<UlarBoard g={mine} me={me} />
   {:else}<KarungLive g={mine} me={me} />{/if}
 
-  {#if mine.phase === 'selesai' && mine.results?.length}
+  {#if mine.phase === 'selesai' && mine.results?.length && (void tick, resultsReady(mine))}
     {@const r = resultOf(mine)}
     <div class="card res" role="dialog" aria-label="Hasil {GAME_NAMES[mine.game]}">
       <h2>{r?.rank === 1 ? (mine.game === 'congklak' && mine.results.every((x: any) => x.rank === 1) ? 'Seri!' : 'Kamu menang!') : r ? `Juara ${r.rank}` : 'Selesai'}</h2>

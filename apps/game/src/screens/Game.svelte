@@ -43,6 +43,7 @@
   import SquareBar from '../components/SquareBar.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
   import BarengLayer from '../components/bareng/BarengLayer.svelte';
+  import { inGameNow } from '../lib/bareng.svelte';
   import PersonCard from '../components/PersonCard.svelte';
   import FriendPrompt from '../components/FriendPrompt.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
@@ -198,6 +199,8 @@
     if (lv > lastLevel && lv >= at && lastLevel < at) setTimeout(() => maybeNudge('level'), 1500);
     lastLevel = lv;
   });
+  // sedang main bareng: kartu Sapa/Ngobrol disembunyikan supaya papan lebih luas, muncul lagi setelah selesai
+  const playingGame = $derived(inGameNow());
 </script>
 
 {#snippet camBtn()}
@@ -313,12 +316,12 @@
     </div>
   {/if}
 
-  {#if G.view === 'home' && !G.edit && !G.bath && !G.plan && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
-  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false}<HouseBar mode="visit" />{/if}
+  {#if G.view === 'home' && !G.edit && !G.bath && !G.plan && !playingGame && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
+  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame}<HouseBar mode="visit" />{/if}
   {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
   {#if G.view === 'alun'}
     <div class="roombar">{@render camBtn()}</div>
-    <SquareBar /><PhotoPreview />
+    {#if !playingGame}<SquareBar />{/if}<PhotoPreview />
   {/if}
   <FriendAskCard />
   {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && H.live}<BarengLayer />{/if}
@@ -366,7 +369,8 @@
 </div>
 
 <style>
-  .game { position: fixed; inset: 0; overflow: hidden; background: linear-gradient(180deg, var(--bg1), var(--bg2)); }
+  /* latar: motif kawung, daun, melati & titik tipis (satu SVG kecil diulang, ringan) di atas gradasi + cahaya lembut di tengah */
+  .game { position: fixed; inset: 0; overflow: hidden; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E %3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.5' stroke-width='2'%3E %3Cg transform='translate(40 40)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3Cg transform='translate(120 120)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3C/g%3E %3Cg fill='%238FBFAD' fill-opacity='.42'%3E %3Cpath d='M118 30c10-12 26-12 30-8-4 4-6 20-22 22-6 0-9-6-8-14z'/%3E%3Cpath d='M38 112c-12-6-16-20-12-26 4 4 20 4 22 18 1 6-4 10-10 8z'/%3E %3C/g%3E %3Cg fill='%23FFFFFF' fill-opacity='.55'%3E %3Cg transform='translate(82 76)'%3E%3Ccircle cx='0' cy='-5' r='3.4'/%3E%3Ccircle cx='4.8' cy='-1.5' r='3.4'/%3E%3Ccircle cx='3' cy='4' r='3.4'/%3E%3Ccircle cx='-3' cy='4' r='3.4'/%3E%3Ccircle cx='-4.8' cy='-1.5' r='3.4'/%3E%3Ccircle r='2' fill='%23F2C94C' fill-opacity='.55'/%3E%3C/g%3E %3Ccircle cx='14' cy='72' r='2'/%3E%3Ccircle cx='150' cy='78' r='2.4'/%3E%3Ccircle cx='70' cy='146' r='2'/%3E%3Ccircle cx='96' cy='14' r='1.8'/%3E%3Ccircle cx='58' cy='96' r='1.5'/%3E%3Ccircle cx='138' cy='150' r='1.6'/%3E %3Cpath d='M150 14l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z'/%3E%3Cpath d='M12 148l1.3 3.2 3.2 1.3-3.2 1.3-1.3 3.2-1.3-3.2-3.2-1.3 3.2-1.3z'/%3E %3C/g%3E%3C/svg%3E") 0 0 / 160px 160px repeat, radial-gradient(ellipse 70% 45% at 50% 55%, rgba(255,255,255,.35), rgba(255,255,255,0) 70%), linear-gradient(180deg, var(--bg1), var(--bg2)); }
   .game[data-view='map'] { background: #A9D18A; }
   .scene { position: absolute; inset: 0; }
   .night { position: absolute; inset: 0; background: #1B2340; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 2; }

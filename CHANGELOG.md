@@ -4,6 +4,17 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.28.0 · 2026-11-12 · Main bareng langkah demi langkah & latar bermotif
+
+### Perubahan
+
+- Congklak: biji diambil lalu dijatuhkan satu per satu ke tiap lubang (angkanya ikut berubah), ada tangan yang membawa sisa biji, jeda saat mengambil lagi, dan efek saat menembak biji lawan. _(pemain)_
+- Ular Tangga Kampung: dadu berputar dulu, lalu bidak melompat kotak demi kotak, memanjat tangga bambu, meluncur mengikuti lengkung ular, maju dua langkah di Warung, dan bergoyang di Becek. _(pemain)_
+- Waktu giliran berikutnya ditambah selama langkah sebelumnya dimainkan, dan kartu hasil baru muncul setelah langkah terakhir selesai. _(pemain)_
+- Selama main bareng, kartu Sapa/Ngobrol di rumah dan bar Alun-alun disembunyikan supaya papan lebih lega; muncul lagi setelah permainan selesai. Papan Ular Tangga dan Congklak sekarang di tengah layar. _(pemain)_
+- Latar di rumah dan alun-alun tidak lagi polos: motif kawung, daun, dan bunga melati yang tipis (satu gambar kecil, tetap ringan). _(pemain)_
+- Teknis: congklakFrames, ularFrames, dan framesMs di @kb/shared dipakai server (tambahan waktu giliran) dan game (animasi); langkah terakhir membawa at & anim. Uji bareng & e2e disesuaikan.
+
 ## 0.27.0 · 2026-11-12 · Aksesori baru: jubah, sayap, topi, topeng & slot Dibawa
 
 _36 aksesori baru dan slot kelima untuk barang yang dibawa di samping pet._
@@ -20,6 +31,8 @@ _36 aksesori baru dan slot kelima untuk barang yang dibawa di samping pet._
 - Kebanyakan dijual di Butik Benang (25–110 koin); Jubah Malam Berbintang, Jubah Kerah Tinggi, Sayap Merpati, Sayap Capung, Topi Penyihir, dan Monokel Emas di Toko Mutiara (3–8 Mutiara). _(pemain)_
 - Lawan "Tempe" di Lomba Karung berganti nama jadi "Lupis". _(pemain)_
 - Teknis: paket konten 10 (36 item), WEAR_SLOTS di @kb/shared (head, face, neck, back, hand) dipakai server, admin, dan Lemari; pilihan slot "Dibawa" di admin Item & harga. Uji baru: wear.test.ts.
+
+Commit: [`d1c7930`](https://github.com/envfri/kampung-baru/commit/d1c7930)
 
 ## 0.26.2 · 2026-11-12 · Saran nama pet baru
 

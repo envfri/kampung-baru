@@ -77,9 +77,12 @@ test('congklak di rumah: ajak → ikut → giliran bergantian, langkah otomatis 
   g = r.body.game;
   assert.equal(g.board.reduce((a: number, b: number) => a + b, 0), 98, 'jumlah biji tetap');
   assert.ok(g.last.path.length >= 7);
+  // giliran berikutnya mendapat tambahan waktu selama biji dibagi satu per satu (animasi)
+  assert.ok(g.last.anim > 0 && g.last.at > 0, 'lama animasi dikirim');
+  assert.ok(g.turnUntil - g.last.at >= 15_000 + g.last.anim - 5, 'batas giliran ditambah lama animasi');
   // waktu giliran habis: server memilih lubang otomatis
   const seq0 = g.seq;
-  later(16_000);
+  later(16_000 + g.last.anim);
   await sync(host); await sync(guest);
   g = (await sync(host)).body.games.find((x: any) => x.id === id);
   assert.ok(g.seq > seq0 && g.last.auto, 'langkah otomatis');

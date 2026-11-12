@@ -65,3 +65,8 @@ export function toastResult(g: any, me: string) {
   if (!r) return;
   if (r.capped) toast('Jatah main bareng hari ini sudah habis, jadi tanpa koin.');
 }
+
+/** Sedang bermain (bukan menonton): kartu Sapa/Ngobrol di rumah & alun-alun disembunyikan supaya papan lebih luas. */
+export function inGameNow() {
+  return H.games.some((g: any) => (g.phase === 'main' || g.phase === 'siap') && !BG.closed.includes(g.id) && g.players?.some((p: any) => p.id === H.me && !p.left));
+}

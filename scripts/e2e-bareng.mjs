@@ -52,7 +52,8 @@ check((await A.p.locator('.sheet[aria-label="Papan congklak"] text.n').allTextCo
 await W(600); await shot(A, '03-congklak-hp');
 await shot(B, '04-congklak-desktop');
 let moves = 0, gotRes = false;
-for (let n = 0; n < 200 && !gotRes; n++) {
+// biji dibagi satu per satu (beberapa detik per giliran): batas berdasarkan waktu, bukan jumlah putaran
+for (const until = Date.now() + 480_000; !gotRes && Date.now() < until;) {
   for (const pl of [A, B]) {
     if (await pl.p.locator('.card.res').count()) { gotRes = true; break; }
     const can = pl.p.locator('.sheet .hole.can');
@@ -85,7 +86,7 @@ await B.p.click('.card .btn:has-text("Mulai sekarang")');
 await A.p.waitForSelector('[aria-label="Papan Ular Tangga"]', { timeout: 8000 }).catch(() => {});
 check(await A.p.locator('[aria-label="Papan Ular Tangga"]').count() === 1, 'papan ular tangga terbuka');
 let rolls = 0; gotRes = false;
-for (let n = 0; n < 300 && !gotRes; n++) {
+for (const until = Date.now() + 300_000; !gotRes && Date.now() < until;) {
   for (const pl of [A, B, C]) {
     if (await pl.p.locator('.card.res').count()) { gotRes = true; break; }
     const btn = pl.p.locator('.btn:has-text("Lempar dadu"):not([disabled])');

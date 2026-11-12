@@ -92,3 +92,72 @@ export function ularCell(n: number): [number, number] {
 /* ---------------- Hadiah ---------------- */
 /** pengali hadiah Ular Tangga menurut peringkat (× koin main bareng) */
 export const ULAR_RANK = [1, 0.6, 0.4, 0.2];
+
+/* ---------------- animasi langkah demi langkah ---------------- */
+// Server menambahkan lama animasi ke batas giliran berikutnya, client memutar langkahnya satu per satu.
+
+export const CONGKLAK_ANIM_MAX = 9000;
+export interface CongklakFrame { board: number[]; at: number; hand: number; kind: 'pick' | 'drop' | 'capture' | 'store' | 'sweep'; ms: number }
+/** Urutan bingkai satu giliran congklak (ambil biji, jatuhkan satu per satu, ambil lagi, tembak, sapu akhir). */
+export function congklakFrames(board0: number[], p: 0 | 1, hole: number): CongklakFrame[] | null {
+  if (!Number.isInteger(hole) || hole < 0 || hole > 6) return null;
+  const board = board0.slice();
+  let i = p === 0 ? hole : 8 + hole;
+  if (!board[i]) return null;
+  const mine = congklakStore(p), theirs = congklakStore(p === 0 ? 1 : 0);
+  const out: CongklakFrame[] = [];
+  const push = (at: number, hand: number, kind: CongklakFrame['kind']) => out.push({ board: board.slice(), at, hand, kind, ms: 0 });
+  let seeds = board[i];
+  board[i] = 0;
+  push(i, seeds, 'pick');
+  let laps = 0;
+  for (;;) {
+    while (seeds > 0) {
+      i = (i + 1) % 16;
+      if (i === theirs) continue;
+      board[i]++; seeds--;
+      push(i, seeds, 'drop');
+    }
+    if (i === mine) break;
+    if (board[i] > 1 && laps < 40) { seeds = board[i]; board[i] = 0; laps++; push(i, seeds, 'pick'); continue; }
+    if (board[i] === 1 && congklakSide(p, i)) {
+      const o = 14 - i;
+      if (board[o] > 0) {
+        const got = board[o] + 1;
+        board[o] = 0; board[i] = 0;
+        push(o, got, 'capture');
+        board[mine] += got;
+        push(mine, 0, 'store');
+      }
+    }
+    break;
+  }
+  const sideA = board.slice(0, 7).reduce((a, b) => a + b, 0), sideB = board.slice(8, 15).reduce((a, b) => a + b, 0);
+  if (sideA === 0 || sideB === 0) {
+    for (let k = 0; k < 7; k++) { board[7] += board[k]; board[k] = 0; board[15] += board[8 + k]; board[8 + k] = 0; }
+    push(mine, 0, 'sweep');
+  }
+  // tempo: makin banyak biji makin cepat, total tetap wajar
+  const drops = out.filter((f) => f.kind === 'drop').length || 1;
+  const dropMs = Math.round(Math.max(75, Math.min(230, 6500 / drops)));
+  for (const f of out) f.ms = f.kind === 'drop' ? dropMs : f.kind === 'pick' ? dropMs + 260 : f.kind === 'capture' ? 650 : f.kind === 'store' ? 550 : 800;
+  // giliran yang sangat panjang (banyak ambil-lagi) dipercepat supaya tidak lebih dari ±9 detik
+  const total = out.reduce((a, f) => a + f.ms, 0);
+  if (total > CONGKLAK_ANIM_MAX) { const k = CONGKLAK_ANIM_MAX / total; for (const f of out) f.ms = Math.max(35, Math.round(f.ms * k)); }
+  return out;
+}
+
+export interface UlarFrame { cell: number; kind: 'roll' | 'step' | 'climb' | 'slide' | 'warung' | 'becek' | 'finish'; ms: number }
+/** Urutan bingkai satu lemparan: dadu berputar, maju kotak demi kotak, lalu tangga / ular / warung / becek. */
+export function ularFrames(st: UlarStep): UlarFrame[] {
+  const out: UlarFrame[] = [{ cell: st.from, kind: 'roll', ms: 700 }];
+  const end = Math.min(st.from + st.roll, ULAR_SIZE);
+  for (let c = st.from + 1; c <= end; c++) out.push({ cell: c, kind: 'step', ms: 300 });
+  if (st.via === 'tangga') out.push({ cell: st.to, kind: 'climb', ms: 950 });
+  else if (st.via === 'ular') out.push({ cell: st.to, kind: 'slide', ms: 1200 });
+  else if (st.via === 'warung') { out.push({ cell: end + 1, kind: 'warung', ms: 320 }); out.push({ cell: end + 2, kind: 'warung', ms: 320 }); }
+  else if (st.via === 'becek') out.push({ cell: end, kind: 'becek', ms: 600 });
+  if (st.finish) out.push({ cell: ULAR_SIZE, kind: 'finish', ms: 600 });
+  return out;
+}
+export const framesMs = (frames: { ms: number }[] | null) => (frames ?? []).reduce((a, f) => a + f.ms, 0);
