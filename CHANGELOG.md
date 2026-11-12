@@ -4,6 +4,15 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.31.0 · 2026-11-12 · Halaman depan baru: rumah, pekarangan & langit
+
+### Perubahan
+
+- Halaman depan dirombak. Di desktop jadi dua kolom: judul, tombol Main sekarang / Masuk dengan email di kiri, dan adegan besar rumah dua ruangan di atas pekarangan (pohon, pagar bambu, bunga, jalan batu, lampu taman) di kanan. _(pemain)_
+- Tiga pet di halaman depan diacak setiap kali dibuka (warna, telinga, motif & aksesori) dan bergerak pelan. Langit ikut jam pengunjung (pagi, siang, sore, malam berbintang dengan lampu taman menyala), lengkap dengan bukit & awan. _(pemain)_
+- Kartu fitur bergambar (pet, miniatur ruangan, main bareng, gasing & layangan) dan tautan Instagram di pojok atas. Di HP adegan rumah tampil di atas, lalu judul, tombol & kartu fitur. _(pemain)_
+- Teknis: lib/heroScene.ts menggambar adegan dari fungsi rumah & pekarangan yang sudah ada (tanpa unduhan gambar); ?langit= & ?pets= untuk pratinjau; layar ≥1600 px ikut membesar; diuji 7 ukuran layar tanpa geser samping & tanpa teks keluar dari latar.
+
 ## 0.30.0 · 2026-11-12 · Admin → Server: pemantauan CPU, memori, penyimpanan & database
 
 ### Baru
@@ -18,6 +27,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 - Pusat notifikasi: jenis baru "Peringatan server (ke owner)" untuk mengatur teks email/WhatsApp dan template WhatsApp Official.
 - Teknis: migrasi 023_monitor (server_metrics, server_alerts), lib/monitor.ts (cgroup v1/v2, statfs, monitorEventLoopDelay, hook permintaan /api/), routes/server-monitor.ts, angka menu "server", uji server-monitor.test.ts & e2e admin.
+
+Commit: [`a1b8f5c`](https://github.com/envfri/kampung-baru/commit/a1b8f5c)
 
 ## 0.29.1 · 2026-11-12 · Teks tidak lagi keluar dari tombol & kartu
 

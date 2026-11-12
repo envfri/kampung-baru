@@ -39,9 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.31.0',
+    date: '2026-11-12',
+    title: 'Halaman depan baru: rumah, pekarangan & langit',
+    items: [
+      { kind: 'ubah', text: 'Halaman depan dirombak. Di desktop jadi dua kolom: judul, tombol Main sekarang / Masuk dengan email di kiri, dan adegan besar rumah dua ruangan di atas pekarangan (pohon, pagar bambu, bunga, jalan batu, lampu taman) di kanan.', player: true },
+      { kind: 'ubah', text: 'Tiga pet di halaman depan diacak setiap kali dibuka (warna, telinga, motif & aksesori) dan bergerak pelan. Langit ikut jam pengunjung (pagi, siang, sore, malam berbintang dengan lampu taman menyala), lengkap dengan bukit & awan.', player: true },
+      { kind: 'ubah', text: 'Kartu fitur bergambar (pet, miniatur ruangan, main bareng, gasing & layangan) dan tautan Instagram di pojok atas. Di HP adegan rumah tampil di atas, lalu judul, tombol & kartu fitur.', player: true },
+      { kind: 'ubah', text: 'Teknis: lib/heroScene.ts menggambar adegan dari fungsi rumah & pekarangan yang sudah ada (tanpa unduhan gambar); ?langit= & ?pets= untuk pratinjau; layar ≥1600 px ikut membesar; diuji 7 ukuran layar tanpa geser samping & tanpa teks keluar dari latar.' },
+    ],
+  },
+  {
     version: '0.30.0',
     date: '2026-11-12',
     title: 'Admin → Server: pemantauan CPU, memori, penyimpanan & database',
+    commits: ['a1b8f5c'],
     items: [
       { kind: 'baru', text: 'Halaman Server (owner & admin): CPU, memori, penyimpanan, dan database (ukuran, koneksi, kecepatan kueri, cache), lengkap dengan grafik 1 jam. Bila server berjalan di container, yang dipakai batas container-nya. Diperbarui tiap 10 atau 30 detik.' },
       { kind: 'baru', text: 'Aplikasi & pemain: jeda event loop, permintaan per menit, waktu respons, persentase error 5xx, pemain online beserta sebarannya (rumah, berkunjung, alun-alun, peta, mini-game), sesi main bareng, dan antrean email/WhatsApp.' },
