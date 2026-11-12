@@ -4,6 +4,14 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.29.1 · 2026-11-12 · Teks tidak lagi keluar dari tombol & kartu
+
+### Perbaikan
+
+- Tulisan panjang di tombol sekarang turun ke baris baru dan tetap di dalam tombol, misalnya "Buka Lemari: ubah warna, telinga, motif, mata, ekor" di Tas. _(pemain)_
+- Menu aktivitas benda (misalnya Air Mancur → Foto bareng): keterangan di kanan tidak lagi keluar dari tombol. _(pemain)_
+- Deret kategori di Tas, Lemari & Toko tidak lagi terpotong di tepi layar HP: kategori yang tidak muat pindah ke baris kedua. _(pemain)_
+
 ## 0.29.0 · 2026-11-12 · Pekarangan, langit ikut jam & kamera desktop
 
 ### Baru
@@ -17,6 +25,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 - Tata letak dirapikan supaya menu & kartu tidak saling menutupi (diuji di 10 ukuran layar, dari HP 360 px sampai layar 2560 px): kartu main bareng kini di atas menu bawah, dan selama kartu itu tampil kartu tugas, tombol aksi & panel tamu disembunyikan dulu; di HP kartu tugas tidak lagi menimpa panel tamu; kartu ajakan berteman, ajakan notifikasi & tombol Tonton pindah ke bawah bar atas; menu aktivitas mebel tidak menutupi tombol aksi. _(pemain)_
 - Teknis: houseYardSVG, houseYardBounds & skyTime di @kb/shared (pekarangan dibuat ulang hanya saat denah berubah); kamera near/yard, G.mirror & G.santai disimpan per perangkat; BG.card & --prompt-top untuk tata letak; uji yard.test.ts; e2e rumah/alun-alun/main bareng disesuaikan.
+
+Commit: [`dfd6762`](https://github.com/envfri/kampung-baru/commit/dfd6762)
 
 ## 0.28.2 · 2026-11-12 · Permainan lebih besar di layar desktop
 

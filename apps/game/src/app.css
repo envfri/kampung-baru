@@ -37,7 +37,9 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   font-weight: 700; font-size: 16px; line-height: 1.1;
   background: var(--paper); border: 2.5px solid var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink);
-  padding: 8px 14px; min-height: 44px; cursor: pointer; white-space: nowrap;
+  padding: 8px 14px; min-height: 44px; cursor: pointer;
+  /* teks panjang turun ke baris baru di dalam tombol (tidak keluar dari latarnya) */
+  white-space: normal; overflow-wrap: break-word; text-align: center; min-width: 0;
 }
 .btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 .btn.hot, .btn.on { background: var(--coin); }
@@ -54,12 +56,10 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .muted { color: var(--muted); }
 .coin-ic, .pearl-ic { width: 20px; height: 20px; flex: none; display: inline-block; vertical-align: -4px; }
 
-/* deret kategori (Tas, Toko, Lemari): di HP digeser, di layar dengan mouse dibungkus ke baris baru supaya semua terlihat */
-.tabbar { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px; flex-shrink: 0; }
-.tabbar::-webkit-scrollbar { display: none; }
+/* deret kategori (Tas, Toko, Lemari): dibungkus ke baris baru supaya semua terlihat utuh (tidak terpotong di tepi layar) */
+.tabbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px; flex-shrink: 0; }
 .tabbar > button { flex: none; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); border-radius: 12px; padding: 5px 12px; font-weight: 700; font-size: 14.5px; cursor: pointer; min-height: 38px; }
 .tabbar > button.on { background: var(--ink); color: var(--paper); }
-@media (hover: hover) and (pointer: fine) { .tabbar { flex-wrap: wrap; overflow: visible; } }
 
 /* hewan & efek di dalam SVG */
 .pet { cursor: pointer; }

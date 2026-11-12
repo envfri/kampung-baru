@@ -1794,8 +1794,8 @@
   @keyframes talk { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 2px)) scale(.8); } 8%, 88% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 14px)); } }
   .menu { position: absolute; z-index: 20; width: 240px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; animation: pop .18s ease-out; }
   .menu b { font-size: 15px; padding: 0 4px; }
-  .menu .btn { justify-content: space-between; width: 100%; gap: 8px; }
-  .menu .nm { font-weight: 800; }
-  .menu .ef { font-size: 12px; font-weight: 700; color: var(--muted); white-space: normal; text-align: right; }
+  .menu .btn { justify-content: space-between; width: 100%; gap: 8px; text-align: left; }
+  .menu .nm { font-weight: 800; flex: 1 1 auto; min-width: 0; }
+  .menu .ef { flex: 0 1 44%; min-width: 0; font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; line-height: 1.15; }
   @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob) { animation: none; } .bubble { animation: none; } }
 </style>

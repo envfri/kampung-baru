@@ -39,9 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.29.1',
+    date: '2026-11-12',
+    title: 'Teks tidak lagi keluar dari tombol & kartu',
+    items: [
+      { kind: 'perbaikan', text: 'Tulisan panjang di tombol sekarang turun ke baris baru dan tetap di dalam tombol, misalnya "Buka Lemari: ubah warna, telinga, motif, mata, ekor" di Tas.', player: true },
+      { kind: 'perbaikan', text: 'Menu aktivitas benda (misalnya Air Mancur → Foto bareng): keterangan di kanan tidak lagi keluar dari tombol.', player: true },
+      { kind: 'perbaikan', text: 'Deret kategori di Tas, Lemari & Toko tidak lagi terpotong di tepi layar HP: kategori yang tidak muat pindah ke baris kedua.', player: true },
+    ],
+  },
+  {
     version: '0.29.0',
     date: '2026-11-12',
     title: 'Pekarangan, langit ikut jam & kamera desktop',
+    commits: ['dfd6762'],
     items: [
       { kind: 'baru', text: 'Pekarangan: rumah sekarang berdiri di pulau rumput dengan pohon, beringin yang mengintip di belakang, semak, bunga, jalan batu, lampu taman, kotak surat, dan pagar bambu. Ukurannya ikut membesar saat rumah bertambah ruangan, juga di rumah teman.', player: true },
       { kind: 'baru', text: 'Langit ikut jam: pagi, siang, sore, dan malam (bintang, bulan, lampu taman menyala), dengan awan yang bergerak pelan. Cukup gradasi warna & satu gambar kecil, tetap ringan.', player: true },
