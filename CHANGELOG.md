@@ -6,11 +6,16 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 ## 0.29.1 · 2026-11-12 · Teks tidak lagi keluar dari tombol & kartu
 
+### Perubahan
+
+- Teknis: pemeriksaan otomatis teks-keluar-dari-latar di semua panel, tab, toko, mini-game, menu benda rumah & alun-alun pada lebar 320, 360, 390 & 1366 px (0 temuan); gaya titik online di panel Teman dibatasi ke <i> supaya tidak mengenai tab.
+
 ### Perbaikan
 
 - Tulisan panjang di tombol sekarang turun ke baris baru dan tetap di dalam tombol, misalnya "Buka Lemari: ubah warna, telinga, motif, mata, ekor" di Tas. _(pemain)_
 - Menu aktivitas benda (misalnya Air Mancur → Foto bareng): keterangan di kanan tidak lagi keluar dari tombol. _(pemain)_
 - Deret kategori di Tas, Lemari & Toko tidak lagi terpotong di tepi layar HP: kategori yang tidak muat pindah ke baris kedua. _(pemain)_
+- Panel Teman: tab yang sedang dipilih (Buku tamu, Album, Favorit) tidak lagi menyempit sampai tulisannya keluar; tab yang tidak muat pindah ke baris kedua. _(pemain)_
 
 ## 0.29.0 · 2026-11-12 · Pekarangan, langit ikut jam & kamera desktop
 

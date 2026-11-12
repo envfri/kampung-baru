@@ -251,9 +251,11 @@
   .duelbar .t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
   .duelbar b { font-size: 16px; } .duelbar small { font-size: 13px; font-weight: 600; color: var(--muted); }
   .duelbar i { font-style: normal; background: var(--low); color: #fff; border-radius: 10px; padding: 0 7px; font-weight: 800; font-size: 13px; border: 2px solid var(--ink); }
-  .seg { display: flex; border: 2.5px solid var(--ink); border-radius: 12px; overflow-x: auto; scrollbar-width: none; }
-  .seg button { flex: 1 1 auto; min-width: max-content; border: 0; background: var(--paper); font-weight: 800; font-size: 13.5px; min-height: 40px; cursor: pointer; padding: 0 9px; white-space: nowrap; }
-  .on { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #3FA06A; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 2px #CDEBD8; }
+  /* tab tidak muat (HP kecil) → pindah ke baris kedua, bukan terpotong di tepi */
+  .seg { display: flex; flex-wrap: wrap; border: 2.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
+  .seg button { flex: 1 0 auto; border: 0; background: var(--paper); font-weight: 800; font-size: 13.5px; min-height: 40px; cursor: pointer; padding: 0 9px; white-space: nowrap; }
+  /* titik hijau teman yang online (khusus <i>, supaya tidak mengenai tab yang dipilih) */
+  i.on { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #3FA06A; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 2px #CDEBD8; }
   .album { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
   .pol { position: relative; border: 0; background: none; padding: 0; cursor: pointer; transform: rotate(-1.5deg); }
   .pol:nth-child(even) { transform: rotate(1.5deg); }
