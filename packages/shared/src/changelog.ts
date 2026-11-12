@@ -39,9 +39,18 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.26.2',
+    date: '2026-11-12',
+    title: 'Saran nama pet baru',
+    items: [
+      { kind: 'ubah', text: 'Saran nama saat membuat pet tidak lagi memuat "Tempe"; diganti "Klepon".', player: true },
+    ],
+  },
+  {
     version: '0.26.1',
     date: '2026-11-12',
     title: 'Daftar teman rapi di HP & pet berjalan halus',
+    commits: ['5b5b0b9'],
     items: [
       { kind: 'perbaikan', text: 'Daftar teman di HP tidak lagi berantakan saat ada teman di Alun-alun: nama terbaca utuh, tombol pindah ke baris bawah, dan "Susul ke Alun-alun" jadi tombol lebar tersendiri.', player: true },
       { kind: 'perbaikan', text: 'Pet tidak lagi seperti berpindah tempat tiba-tiba di komputer/HP yang memakai setelan "kurangi animasi": pet tetap berjalan halus di rumah, alun-alun, dan peta kampung (hanya goyangan langkah yang dimatikan).', player: true },

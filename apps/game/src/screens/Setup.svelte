@@ -10,7 +10,7 @@
   let color = $state(PET_COLORS[0]);
   let ear = $state('tunas');
   let busy = $state(false);
-  const SUGGEST = ['Mochi', 'Onde', 'Cilok', 'Serabi', 'Kopi', 'Tempe', 'Gendhis', 'Getuk'];
+  const SUGGEST = ['Mochi', 'Onde', 'Cilok', 'Serabi', 'Kopi', 'Klepon', 'Gendhis', 'Getuk'];
   const A1 = ['Si', 'Mbak', 'Mas', 'Dek', 'Kak', 'Bang', 'Neng', 'Om'];
   const A2 = ['Bulbul', 'Gembul', 'Pentol', 'Cimol', 'Rengginang', 'Kerupuk', 'Mendoan', 'Wedang', 'Bakpia', 'Lemper', 'Dodol', 'Putu'];
   const roll = () => { name = `${A1[Math.floor(Math.random() * A1.length)]} ${A2[Math.floor(Math.random() * A2.length)]}`.slice(0, 16); sfx.tap(); };
