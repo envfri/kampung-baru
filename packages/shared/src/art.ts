@@ -2347,3 +2347,93 @@ Object.assign(FLOORS, {
   pasir: { label: 'Pasir pantai', colors: { main: '#F0D9A8', accent: '#E2C48C' } },
   batutaman: { label: 'Batu taman', colors: { main: '#8CC56E', accent: '#B9B3A4' } },
 });
+
+/* ------------------------------------------------------------------ */
+/* Pekarangan: rumah berdiri di atas pulau rumput (diorama)             */
+/* ------------------------------------------------------------------ */
+
+/** batas petak pekarangan di sekeliling denah (belakang sempit, depan lebih lebar untuk jalan & gerbang) */
+function yardBox(plan: HousePlan) {
+  let X0 = Infinity, X1 = -Infinity, Y0 = Infinity, Y1 = -Infinity;
+  for (const r of plan.rooms) { X0 = Math.min(X0, r.gx); Y0 = Math.min(Y0, r.gy); X1 = Math.max(X1, r.gx + r.size); Y1 = Math.max(Y1, r.gy + r.size); }
+  return { X0, X1, Y0, Y1, a: X0 - 2.5, b: Y0 - 2.5, c: X1 + 4, d: Y1 + 4 };
+}
+const YARD_DEPTH = 40;
+/** Kotak pembatas (koordinat SVG) pekarangan, termasuk pohon di belakang & tebal tanah. */
+export function houseYardBounds(plan: HousePlan) {
+  if (!plan.rooms.length) return houseBounds(plan);
+  const { a, b, c, d } = yardBox(plan);
+  const L = houseIso(a, d), R = houseIso(c, b), T = houseIso(a, b), F = houseIso(c, d);
+  const y0 = Math.min(T[1] - 165, houseBounds(plan).y);
+  return { x: L[0], y: y0, w: R[0] - L[0], h: F[1] + YARD_DEPTH + 30 - y0 };
+}
+/**
+ * Pekarangan di sekeliling rumah: pulau rumput bertepi tanah, semak di belakang, pohon, bunga di depan rumah,
+ * jalan batu ke gerbang, lampu taman & kotak surat, pagar bambu. Semua di luar tapak rumah (tidak menutupi ruangan),
+ * digambar sebelum rumah. Satu string SVG tanpa animasi: cukup dibuat ulang bila denah berubah.
+ */
+export function houseYardSVG(plan: HousePlan, night = false): string {
+  if (!plan.rooms.length) return '';
+  const { X0, X1, Y0, Y1, a, b, c, d } = yardBox(plan);
+  const g = HG, I = (x: number, y: number) => houseIso(x, y);
+  const L = I(a, d), F = I(c, d), R = I(c, b), T = I(a, b);
+  const dn = (p: number[], k: number) => [p[0], p[1] + k];
+  const sw = `stroke="${INK}" stroke-linejoin="round"`;
+  let o = `<g class="yard" pointer-events="none">`;
+  // bayangan pulau, sisi tanah, bibir rumput, batu kecil di tanah
+  o += `<ellipse cx="${f1((L[0] + R[0]) / 2)}" cy="${f1(F[1] + YARD_DEPTH + 22)}" rx="${f1((R[0] - L[0]) * 0.45)}" ry="30" fill="${INK}" opacity=".09"/>`;
+  o += `<polygon points="${P([L, F, dn(F, YARD_DEPTH), dn(L, YARD_DEPTH)])}" fill="#B07A44" ${sw} stroke-width="2.6"/>`;
+  o += `<polygon points="${P([F, R, dn(R, YARD_DEPTH), dn(F, YARD_DEPTH)])}" fill="#8F6034" ${sw} stroke-width="2.6"/>`;
+  o += `<polygon points="${P([L, F, dn(F, 10), dn(L, 10)])}" fill="#6FAE58"/><polygon points="${P([F, R, dn(R, 10), dn(F, 10)])}" fill="#5E9A4A"/>`;
+  for (let k = 0; k < 14; k++) {
+    const t = (k * 0.137 + 0.05) % 1, left = k % 2 === 0;
+    const p = left ? [L[0] + (F[0] - L[0]) * t, L[1] + (F[1] - L[1]) * t] : [F[0] + (R[0] - F[0]) * t, F[1] + (R[1] - F[1]) * t];
+    o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] + 19 + (k % 3) * 6)}" rx="${3 + (k % 3)}" ry="2.4" fill="${left ? '#946233' : '#76502A'}"/>`;
+  }
+  // rumput + jalur potong rumput
+  o += `<polygon points="${P([T, R, F, L])}" fill="#A2D47E" ${sw} stroke-width="2.6"/>`;
+  for (let x = Math.ceil(a); x < c; x += 2) o += `<polygon points="${P([I(x, b), I(Math.min(c, x + 1), b), I(Math.min(c, x + 1), d), I(x, d)])}" fill="#AEDB8A" opacity=".55"/>`;
+  // semak rendah di dua tepi belakang
+  const bush = (p: number[], k: number) => `<ellipse cx="${f1(p[0])}" cy="${f1(p[1] - 14)}" rx="22" ry="15" fill="${k % 2 ? '#5DA05A' : '#6DB068'}" stroke="${INK}" stroke-width="1.6"/>`;
+  for (let x = a + 0.5, k = 0; x < c; x += 1, k++) o += bush(I(x, b + 0.35), k);
+  for (let y = b + 1.5, k = 0; y < d; y += 1, k++) o += bush(I(a + 0.35, y), k + 1);
+  // jumput rumput (tidak di tapak rumah)
+  const inHouse = (x: number, y: number) => x > X0 - 0.6 && x < X1 + 0.6 && y > Y0 - 0.6 && y < Y1 + 1.2;
+  for (let k = 0; k < 26; k++) {
+    const x = a + 0.8 + ((k * 7.31) % (c - a - 1.6)), y = b + 1 + ((k * 4.77) % (d - b - 2));
+    if (inHouse(x, y)) continue;
+    const p = I(x, y);
+    o += `<path d="M${f1(p[0] - 6)} ${f1(p[1])}l2 -9l2 7l2 -11l2 11l2 -7l2 9" fill="none" stroke="#4F8F45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  // jalan batu dari sudut depan rumah ke gerbang
+  for (let t = 0.35; t < 3.6; t += 0.75) { const p = I(X1 + t, Y1 + t); o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="15" ry="7.5" fill="#D9D2C3" stroke="${INK}" stroke-width="1.6"/><ellipse cx="${f1(p[0] - 3)}" cy="${f1(p[1] - 2)}" rx="6" ry="2.6" fill="#EEE8DA"/>`; }
+  // bunga di sepanjang depan rumah (agak menjauh dari lantai supaya tidak tertutup)
+  const cols = ['#FF8FA3', '#F7C548', '#FFFDF7', '#E0583F', '#B48CE0'];
+  const flower = (p: number[], k: number) => `<path d="M${f1(p[0])} ${f1(p[1])}v-8" stroke="#4F8F45" stroke-width="2"/><circle cx="${f1(p[0])}" cy="${f1(p[1] - 10)}" r="4" fill="${cols[k % 5]}" stroke="${INK}" stroke-width="1.3"/>`;
+  for (let x = X0 + 0.4, k = 0; x < X1 - 0.3; x += 0.8, k++) o += flower(I(x, Y1 + 1), k);
+  for (let y = Y0 + 0.4, k = 2; y < Y1 - 0.9; y += 0.8, k++) o += flower(I(X1 + 1, y), k);
+  // pohon: kiri & kanan rumah, beringin di belakang (mengintip di atas dinding)
+  o += FURN.pohon.draw(g, X0 - 2.1, Y1 + 1.4, 1, 1, FURN.pohon.colors, {});
+  o += FURN.pohon.draw(g, X1 + 1.6, Y0 - 2.2, 1, 1, { main: '#4F9A57', accent: '#8A5A36' }, {});
+  o += FURN.beringin.draw(g, X0 - 2.3, Y0 - 2.3, 1, 1, FURN.beringin.colors, {});
+  // lampu taman (menyala malam hari) & kotak surat di dekat gerbang
+  { const p = I(c - 1.2, d - 2.4);
+    o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="9" ry="4" fill="${INK}" opacity=".15"/><rect x="${f1(p[0] - 2.5)}" y="${f1(p[1] - 60)}" width="5" height="60" fill="#3B3F55" stroke="${INK}" stroke-width="1.4"/>`;
+    if (night) o += glowC(p[0], p[1] - 66, 36, '#FFE7A0', 0.5, '');
+    o += `<path d="M${f1(p[0] - 10)} ${f1(p[1] - 58)}h20l-4 -16h-12Z" fill="${night ? '#FFE27A' : '#FFF4D6'}" ${sw} stroke-width="1.8"/><path d="M${f1(p[0] - 12)} ${f1(p[1] - 74)}h24" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`; }
+  { const p = I(c - 2.4, d - 1.1);
+    o += `<rect x="${f1(p[0] - 2)}" y="${f1(p[1] - 30)}" width="4" height="30" fill="#8A5A36" stroke="${INK}" stroke-width="1.2"/><path d="M${f1(p[0] - 13)} ${f1(p[1] - 30)}v-12a8 8 0 0 1 8 -8h10a8 8 0 0 1 8 8v12Z" fill="#E0583F" ${sw} stroke-width="1.8"/><path d="M${f1(p[0] + 9)} ${f1(p[1] - 46)}v-12h8v5h-8" fill="#F7C548" stroke="${INK}" stroke-width="1.4"/>`; }
+  // pagar bambu di dua tepi depan, celah gerbang di sudut depan
+  const FC = '#D9B26A';
+  o += g.quadY(d - 0.15, a + 0.2, c - 2.2, 12, 17, shade(FC, -0.05)) + g.quadY(d - 0.15, a + 0.2, c - 2.2, 25, 30, shade(FC, -0.05));
+  o += g.quadX(c - 0.15, b + 0.2, d - 2.2, 12, 17, shade(FC, -0.2)) + g.quadX(c - 0.15, b + 0.2, d - 2.2, 25, 30, shade(FC, -0.2));
+  for (let u = a + 0.2; u <= c - 2.2 + 0.001; u += 0.5) o += g.quadY(d - 0.15, u - 0.06, u + 0.06, 0, 36, shade(FC, 0.12), 1.2);
+  for (let u = b + 0.2; u <= d - 2.2 + 0.001; u += 0.5) o += g.quadX(c - 0.15, u - 0.06, u + 0.06, 0, 36, shade(FC, -0.1), 1.2);
+  return o + `</g>`;
+}
+
+/** waktu langit menurut jam pemain */
+export type SkyTime = 'pagi' | 'siang' | 'sore' | 'malam';
+export function skyTime(hour: number): SkyTime {
+  return hour >= 5 && hour < 10 ? 'pagi' : hour >= 10 && hour < 15 ? 'siang' : hour >= 15 && hour < 18 ? 'sore' : 'malam';
+}

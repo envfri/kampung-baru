@@ -31,8 +31,11 @@ export const G = $state({
   bagTab: 'food',
   /** ruangan aktif di rumah (id): mengikuti ruangan tempat pet berada; dipakai tombol Atur, wallpaper & lantai */
   roomId: '' as string,
-  /** kamera rumah: fokus ke ruangan, seluruh rumah, atau bebas (digeser/dicubit pemain) */
-  cam: 'room' as 'room' | 'house' | 'free',
+  /** kamera rumah: dekat (ikuti pet), ruangan, seluruh rumah, pekarangan, atau bebas (digeser/dicubit pemain) */
+  cam: 'room' as 'near' | 'room' | 'house' | 'yard' | 'free',
+  /** desktop: lihat rumah dari sisi seberang (cermin) & kamera santai saat lama tidak disentuh; disimpan per perangkat */
+  mirror: (() => { try { return localStorage.getItem('kb-mirror') === '1'; } catch { return false; } })(),
+  santai: (() => { try { return localStorage.getItem('kb-santai') !== '0'; } catch { return true; } })(),
   /** mode Atur denah: letak ruangan (petak) yang sedang diatur & ruangan terpilih; auto = susunan otomatis */
   plan: null as null | { pos: Record<string, { gx: number; gy: number }>; sel: string | null; auto: boolean; start: string },
   /** posisi pet di peta kampung (id lokasi) dan tujuan jalan berikutnya */
@@ -352,3 +355,8 @@ export function draftAvail(id: string) {
   const placedSaved = (curRoom()?.layout ?? []).filter((p: any) => p.i === id).length;
   return owned(id) - (placedNow - placedSaved);
 }
+
+/** desktop: lihat rumah dari sisi seberang (cermin) */
+export function setMirror(on: boolean) { G.mirror = on; try { localStorage.setItem('kb-mirror', on ? '1' : '0'); } catch { /* abaikan */ } }
+/** desktop: kamera santai saat lama tidak disentuh */
+export function setSantai(on: boolean) { G.santai = on; try { localStorage.setItem('kb-santai', on ? '1' : '0'); } catch { /* abaikan */ } }

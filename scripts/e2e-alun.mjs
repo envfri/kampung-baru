@@ -26,7 +26,7 @@ const shot = (pl, n) => pl.p.screenshot({ path: `${OUT}/${n}.png` });
 async function closeSheets(pl) { for (let i = 0; i < 3; i++) { const x = pl.p.locator('.sheet .x'); if (await x.count()) { await x.first().click(); await W(300); } } }
 async function enter(pl) {
   await pl.p.goto(BASE + '/'); await W(1500); await closeSheets(pl);
-  await pl.p.goto(BASE + '/?r=1#alun'); await pl.p.waitForSelector('.sbar', { timeout: 20000 }); await W(800);
+  await pl.p.goto(BASE + '/?r=1#alun'); await pl.p.waitForSelector('.sbar, .fp', { timeout: 20000 }); await W(800);
 }
 /** ketuk benda di alun-alun berdasarkan urutan di ALUN_LAYOUT (10 potong jalan batu dulu) */
 const PROP = { panggung: 10, airmancur: 11, komidi: 14, ayunan: 15, dawet: 16, bakso: 17 };

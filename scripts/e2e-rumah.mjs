@@ -140,7 +140,10 @@ const hostTag = async () => B.p.locator('.tag:text-is("Mochi")').count();
 let seen = 0;
 for (let i = 0; i < 16 && !seen; i++) { await W(300); seen = await hostTag(); }
 check(seen === 1, 'pet tuan rumah terlihat walau di ruangan lain');
-await B.p.click('.whorow .cambtn'); await W(1000);
+// desktop: panel kamera (Dekat / Ruangan / Pekarangan) menggantikan tombol "Seluruh rumah"
+check(await B.p.locator('.whorow .cambtn').count() === 0 && await B.p.locator('.cam [aria-label="Pekarangan"]').count() === 1, 'desktop: panel kamera tampil (tombol lama disembunyikan)');
+await B.p.click('.cam [aria-label="Pekarangan"]'); await W(1000);
+check(await B.p.locator('svg.room .yard').count() === 1, 'pekarangan tampil di rumah teman');
 await shot(B, '07-desktop-tamu-seluruh-rumah');
 // tamu berjalan ke halaman
 const hal = R['halaman'].id;

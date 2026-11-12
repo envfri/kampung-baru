@@ -28,7 +28,7 @@
 </div>
 
 <style>
-  .fp { position: fixed; z-index: 58; left: 50%; top: calc(var(--safe-t) + 74px); transform: translateX(-50%); width: min(380px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 10px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 12px 14px 10px; animation: pop .3s ease-out; }
+  .fp { position: fixed; z-index: 58; left: 50%; top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 330px)); transform: translateX(-50%); width: min(380px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 10px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 12px 14px 10px; animation: pop .3s ease-out; }
   .top { display: flex; gap: 12px; align-items: center; }
   .ava { flex: none; width: 64px; height: 68px; background: #FFF4D6; border: 2.5px solid var(--ink); border-radius: 16px; display: grid; place-items: center; }
   .ava :global(svg) { width: 56px; height: 60px; }

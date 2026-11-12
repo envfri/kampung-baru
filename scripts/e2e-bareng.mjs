@@ -101,7 +101,7 @@ for (const pl of [A, B, C]) { const t = pl.p.locator('.card.res .btn:has-text("T
 
 /* ---------- Alun-alun: pohon & Balap Karung Live ---------- */
 async function enterAlun(pl) {
-  await pl.p.goto(BASE + '/?r=1#alun'); await pl.p.waitForSelector('.sbar', { timeout: 20000 }); await W(800);
+  await pl.p.goto(BASE + '/?r=1#alun'); await pl.p.waitForSelector('.sbar, .fp', { timeout: 20000 }); await W(800);
   const n = pl.p.locator('.fp .btn:has-text("Nanti")'); if (await n.count()) await n.click();
 }
 for (const pl of [A, B, C]) await enterAlun(pl);

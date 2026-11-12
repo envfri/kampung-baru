@@ -39,9 +39,23 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.29.0',
+    date: '2026-11-12',
+    title: 'Pekarangan, langit ikut jam & kamera desktop',
+    items: [
+      { kind: 'baru', text: 'Pekarangan: rumah sekarang berdiri di pulau rumput dengan pohon, beringin yang mengintip di belakang, semak, bunga, jalan batu, lampu taman, kotak surat, dan pagar bambu. Ukurannya ikut membesar saat rumah bertambah ruangan, juga di rumah teman.', player: true },
+      { kind: 'baru', text: 'Langit ikut jam: pagi, siang, sore, dan malam (bintang, bulan, lampu taman menyala), dengan awan yang bergerak pelan. Cukup gradasi warna & satu gambar kecil, tetap ringan.', player: true },
+      { kind: 'baru', text: 'Desktop: panel kamera di kiri bawah. Dekat (zoom ke pet, kamera ikut saat berjalan), Ruangan, Pekarangan, plus tombol −/+. Bisa juga gulir untuk zoom, seret untuk geser, dan tombol 1/2/3, +/−, R.', player: true },
+      { kind: 'baru', text: 'Desktop: Putar sudut (lihat rumah dari sisi seberang) dan Mode santai (setelah 30 detik tidak disentuh, kamera bergerak pelan di sekitar pet; berhenti begitu mouse bergerak dan paling lama 3 menit).', player: true },
+      { kind: 'ubah', text: 'Tata letak dirapikan supaya menu & kartu tidak saling menutupi (diuji di 10 ukuran layar, dari HP 360 px sampai layar 2560 px): kartu main bareng kini di atas menu bawah, dan selama kartu itu tampil kartu tugas, tombol aksi & panel tamu disembunyikan dulu; di HP kartu tugas tidak lagi menimpa panel tamu; kartu ajakan berteman, ajakan notifikasi & tombol Tonton pindah ke bawah bar atas; menu aktivitas mebel tidak menutupi tombol aksi.', player: true },
+      { kind: 'ubah', text: 'Teknis: houseYardSVG, houseYardBounds & skyTime di @kb/shared (pekarangan dibuat ulang hanya saat denah berubah); kamera near/yard, G.mirror & G.santai disimpan per perangkat; BG.card & --prompt-top untuk tata letak; uji yard.test.ts; e2e rumah/alun-alun/main bareng disesuaikan.' },
+    ],
+  },
+  {
     version: '0.28.2',
     date: '2026-11-12',
     title: 'Permainan lebih besar di layar desktop',
+    commits: ['973652d'],
     items: [
       { kind: 'ubah', text: 'Desktop: papan Congklak sekarang hampir dua kali lebih lebar, dengan nama, sisa waktu, dan petunjuk yang ikut membesar.', player: true },
       { kind: 'ubah', text: 'Desktop: papan Ular Tangga setinggi layar di sebelah kiri, sedangkan daftar pemain, catatan langkah, dadu, dan tombol lempar ada di panel kanan.', player: true },

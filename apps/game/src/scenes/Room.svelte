@@ -2,12 +2,12 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
-  import { startGame } from '../lib/bareng.svelte';
+  import { startGame, inGameNow } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
-  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom } from '../lib/game.svelte';
+  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
@@ -228,6 +228,21 @@
   });
   // lapisan bawah dipotong per ruangan (hanya ruangan yang berubah digambar ulang); remah di lapisan sendiri
   const layers = $derived(houseLayers(plan, art, itemMap, activeDecor()));
+  /* ---------------- pekarangan & langit (ikut jam pemain) ---------------- */
+  let sky = $state(skyTime(new Date().getHours()));
+  onMount(() => { const t = setInterval(() => { sky = skyTime(new Date().getHours()); }, 60_000); return () => clearInterval(t); });
+  /** pekarangan tampil di rumah sendiri & rumah teman (tidak saat mengatur denah: ruangan bisa terpisah-pisah) */
+  const showYard = $derived(!square && !planning);
+  // satu string SVG: dibuat ulang hanya bila letak ruangan berubah atau siang ↔ malam
+  let yardKey = '', yardStr = '';
+  const yardHtml = $derived.by(() => {
+    if (!showYard) return '';
+    const k = `${plan.sig}|${sky === 'malam'}`;
+    if (k !== yardKey) { yardKey = k; yardStr = houseYardSVG(plan, sky === 'malam'); }
+    return yardStr;
+  });
+  /** batas pandang kamera: pekarangan (bila tampil) atau rumah saja */
+  const viewBounds = () => (showYard ? houseYardBounds(plan) : houseBounds(plan));
   const crumbsHtml = $derived(G.edit ? '' : houseCrumbs(plan, crumbRoom, crumbs));
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
   type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string } };
@@ -329,6 +344,7 @@
     else live = [live[0] + (dx / d) * step, live[1] + (dy / d) * step];
     if (tileOf(live) !== before || !path.length) pos = [...live];
     place();
+    if (mode === 'home') follow(dt);
     if (path.length) raf = requestAnimationFrame(tick);
     else stopWalk();
   }
@@ -347,6 +363,7 @@
   function stopWalk() {
     halt();
     if (live) pos = [...live];
+    if (G.cam === 'near' && mode === 'home' && !santaiOn) { const t = nearCam(); if (t) aim(t, false, 400); }
   }
   function scheduleIdle() {
     clearTimeout(idleTimer);
@@ -417,7 +434,8 @@
   function insets() {
     if (square) return wide ? { t: 92, b: 110, l: 24, r: 340 } : vw > vh ? { t: 64, b: 120, l: 16, r: 16 } : { t: Math.min(vh * 0.2, 175), b: Math.min(vh * 0.34, 310), l: 8, r: 8 };
     if (planning) return wide ? { t: 92, b: 230, l: 24, r: 24 } : vw > vh ? { t: 64, b: 150, l: 16, r: 16 } : { t: Math.min(vh * 0.17, 140), b: Math.min(vh * 0.36, 320), l: 8, r: 8 };
-    if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 110, l: 24, r: guestBar ? 520 : 170 };
+    // desktop: bawah = dock + kartu tugas, kanan = tombol aksi (+ panel tamu), supaya rumah tidak tertutup menu
+    if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 150, l: 24, r: guestBar ? 520 : 170 };
     if (vw > vh) return { t: 64, b: 84, l: 16, r: 16 };
     if (mode === 'visit') return { t: Math.min(vh * 0.3, 270), b: Math.min(vh * 0.27, 250), l: 8, r: 8 };
     return { t: Math.min(vh * 0.26, 225), b: guestBar ? Math.min(vh * 0.42, 390) : G.edit ? Math.min(vh * 0.27, 240) : Math.min(vh * 0.25, 230), l: 8, r: 8 };
@@ -427,7 +445,7 @@
     const k = Math.min(Math.max(60, vw - i.l - i.r) / b.w, Math.max(60, vh - i.t - i.b) / b.h);
     return { k, x: b.x + b.w / 2 - (i.l - i.r) / 2 / k, y: b.y + b.h / 2 - (i.t - i.b) / 2 / k };
   }
-  const kRange = () => [Math.min(fitRaw(houseBounds(plan)).k, 0.5) * 0.85, wide ? 2.4 : 2.1];
+  const kRange = () => [Math.min(fitRaw(viewBounds()).k, 0.5) * 0.85, wide ? 4.4 : 2.6];
   /** skala ruangan 6×6 (408 × 354): ruangan yang lebih kecil tidak diperbesar lagi, jadi ukuran pet tetap saat pindah ruangan */
   const kRoom = () => fitRaw({ x: 0, y: 0, w: 408, h: 354 }).k;
   function fit(b: { x: number; y: number; w: number; h: number }, cap = false) {
@@ -439,16 +457,20 @@
     return { k, x: b.x + b.w / 2 - (i.l - i.r) / 2 / k, y: b.y + b.h / 2 - (i.t - i.b) / 2 / k };
   }
   function clampCam(c = cam) {
-    const b = houseBounds(plan), [lo, hi] = kRange();
+    const b = viewBounds(), [lo, hi] = kRange();
     const k = Math.max(lo, Math.min(hi, c.k));
     return { k, x: Math.max(b.x - b.w * 0.1, Math.min(b.x + b.w * 1.1, c.x)), y: Math.max(b.y - 40, Math.min(b.y + b.h + 40, c.y)) };
   }
-  function aim(t: { x: number; y: number; k: number }, instant = false) {
+  /** gerak kamera halus; lite = ±30 fps (mode santai, supaya ringan) */
+  function aim(t: { x: number; y: number; k: number }, instant = false, dur = 520, lite = false) {
     cancelAnimationFrame(camRaf);
     if (instant || reduced || !camReady) { cam = t; camReady = true; return; }
-    const from = { ...cam }, t0 = performance.now(), dur = 520;
+    const from = { ...cam }, t0 = performance.now();
+    let lastF = 0;
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / dur), e = 1 - (1 - p) ** 3;
+      if (lite && now - lastF < 32 && now - t0 < dur) { camRaf = requestAnimationFrame(step); return; }
+      lastF = now;
+      const p = Math.min(1, (now - t0) / dur), e = lite ? 0.5 - Math.cos(p * Math.PI) / 2 : 1 - (1 - p) ** 3;
       cam = { x: from.x + (t.x - from.x) * e, y: from.y + (t.y - from.y) * e, k: from.k * Math.pow(t.k / from.k, e) };
       if (p < 1) camRaf = requestAnimationFrame(step);
     };
@@ -465,6 +487,8 @@
       if (!plan.rooms.length) return;
       if (m === 'free') { cam = clampCam(); return; }
       if (square && m === 'room') { const t = petCam(); if (t) aim(t); return; }
+      if (m === 'near' && !square) { const t = nearCam(); if (t) aim(t); return; }
+      if (m === 'yard' && !square) { aim(fit(viewBounds())); return; }
       if (m === 'house') {
         const b = houseBounds(plan);
         // ruang kosong di sekeliling rumah untuk memindah ruangan
@@ -472,6 +496,45 @@
       } else aim(fit(houseBounds(plan, f), true));
     });
   });
+  /* ---------------- kamera Dekat: zoom ke pet & ikut saat berjalan ---------------- */
+  /** pembesaran tambahan mode Dekat (tombol −/+ saat Dekat tidak keluar dari mode ini) */
+  let nearMul = 1;
+  function nearPos(): [number, number] | null {
+    if (mode === 'visit') { const c = comps.get(SELF); return c ? c.live : null; }
+    return live ?? pos;
+  }
+  function nearCam() {
+    const p = nearPos();
+    if (!p || !vw) return null;
+    const [x, y] = houseIso(p[0], p[1]);
+    const [lo, hi] = kRange(), i = insets();
+    const k = Math.max(lo, Math.min(hi, kRoom() * 1.7 * nearMul));
+    return { k, x: x - (i.l - i.r) / 2 / k, y: y - 44 - (i.t - i.b) / 2 / k };
+  }
+  /** dipanggil setiap frame saat pet berjalan: kamera menyusul pelan (tanpa animasi terpisah) */
+  function follow(dt: number) {
+    if (G.cam !== 'near' || santaiOn) return;
+    const t = nearCam();
+    if (!t) return;
+    cancelAnimationFrame(camRaf);
+    const e = 1 - Math.exp(-dt * 4.5);
+    cam = { k: cam.k + (t.k - cam.k) * e, x: cam.x + (t.x - cam.x) * e, y: cam.y + (t.y - cam.y) * e };
+  }
+  /** tombol −/+ dan pintasan keyboard: zoom di tengah layar */
+  function zoomBy(f: number) {
+    if (G.cam === 'near') { nearMul = Math.max(0.6, Math.min(1.6, nearMul * f)); const t = nearCam(); if (t) aim(t, false, 260); return; }
+    const [lo, hi] = kRange();
+    aim(clampCam({ ...cam, k: Math.max(lo, Math.min(hi, cam.k * f)) }), false, 260);
+    if (G.cam !== 'free') G.cam = 'free';
+  }
+  $effect(() => {
+    if (square) return;
+    const onCmd = (e: Event) => { const d = (e as CustomEvent).detail ?? {}; wake(); if (d.zoom) zoomBy(d.zoom); };
+    addEventListener('kb-cam', onCmd);
+    return () => removeEventListener('kb-cam', onCmd);
+  });
+  $effect(() => { if (G.cam !== 'near') nearMul = 1; });
+
   /** alun-alun: kamera mengikuti pet sendiri dengan zoom senyaman ruangan 9×9 */
   function petCam() {
     const p = live ?? pos;
@@ -495,9 +558,13 @@
   let drag: null | { x: number; y: number; lx: number; ly: number; moved: boolean; id: number } = null;
   let pinch: null | { d: number; k: number; wx: number; wy: number } = null;
   let suppressAt = 0;
+  /** lihat dari sisi seberang (cermin, lewat CSS): hanya desktop (tombolnya ada di panel kamera), tidak saat mengatur ruangan / denah */
+  const mirrored = $derived(!square && G.mirror && wide && !G.edit && !G.plan);
+  /** jarak mendatar dari tengah layar (px), dibalik saat cermin */
+  const offX = (sx: number, r: DOMRect) => (mirrored ? -1 : 1) * (sx - r.left - vw / 2);
   const world = (sx: number, sy: number, c = cam) => {
     const r = wrapEl!.getBoundingClientRect();
-    return [c.x + (sx - r.left - vw / 2) / c.k, c.y + (sy - r.top - vh / 2) / c.k];
+    return [c.x + offX(sx, r) / c.k, c.y + (sy - r.top - vh / 2) / c.k];
   };
   /** mode Atur denah: ruangan yang sedang digeser */
   let roomDrag: null | { id: string; pid: number; x0: number; y0: number; lx: number; ly: number; gx0: number; gy0: number; moved: boolean } = null;
@@ -549,7 +616,7 @@
       const [lo, hi] = kRange();
       const k = Math.max(lo, Math.min(hi, (pinch.k * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.d));
       const r = wrapEl!.getBoundingClientRect();
-      const mx = (a.x + b.x) / 2 - r.left - vw / 2, my = (a.y + b.y) / 2 - r.top - vh / 2;
+      const mx = offX((a.x + b.x) / 2, r), my = (a.y + b.y) / 2 - r.top - vh / 2;
       cancelAnimationFrame(camRaf);
       cam = clampCam({ k, x: pinch.wx - mx / k, y: pinch.wy - my / k });
       if (G.cam !== 'free') G.cam = 'free';
@@ -563,7 +630,7 @@
       try { svgEl?.setPointerCapture(e.pointerId); } catch { /* sudah dilepas */ }
     }
     if (drag.moved) {
-      cam = clampCam({ ...cam, x: cam.x - (e.clientX - drag.lx) / cam.k, y: cam.y - (e.clientY - drag.ly) / cam.k });
+      cam = clampCam({ ...cam, x: cam.x - ((mirrored ? -1 : 1) * (e.clientX - drag.lx)) / cam.k, y: cam.y - (e.clientY - drag.ly) / cam.k });
       if (G.cam !== 'free') G.cam = 'free';
     }
     drag.lx = e.clientX; drag.ly = e.clientY;
@@ -582,12 +649,13 @@
     const wheel = (e: WheelEvent) => {
       if (G.bath && mode === 'home') return;
       e.preventDefault();
+      wake();
       const [lo, hi] = kRange();
       const k = Math.max(lo, Math.min(hi, cam.k * Math.exp(-e.deltaY * 0.0015)));
       const [wx, wy] = world(e.clientX, e.clientY);
       const r = wrapEl!.getBoundingClientRect();
       cancelAnimationFrame(camRaf);
-      cam = clampCam({ k, x: wx - (e.clientX - r.left - vw / 2) / k, y: wy - (e.clientY - r.top - vh / 2) / k });
+      cam = clampCam({ k, x: wx - offX(e.clientX, r) / k, y: wy - (e.clientY - r.top - vh / 2) / k });
       menu = null;
       if (G.cam !== 'free') G.cam = 'free';
     };
@@ -630,6 +698,7 @@
         if (c.self) { const r = roomAt(c.live); if (r && r.id !== visitFocus) visitFocus = r.id; }
       }
       placeComp(c);
+      if (c.self && mode === 'visit') follow(dt);
     }
     if (retile) compVer++;
     compRaf = moving ? requestAnimationFrame(compTick) : 0;
@@ -1163,13 +1232,10 @@
   /* ---------------- mandi: gosok sabun lalu bilas ---------------- */
 
   let scrubbing = false, lastPt: [number, number] | null = null, foamN = 0;
+  // titik layar → koordinat SVG (lewat kamera, jadi cermin ikut terhitung)
   function toSvg(cx: number, cy: number) {
-    const ctm = svgEl?.getScreenCTM();
-    if (!svgEl || !ctm) return null;
-    const pt = svgEl.createSVGPoint();
-    pt.x = cx; pt.y = cy;
-    const q = pt.matrixTransform(ctm.inverse());
-    return [q.x, q.y] as [number, number];
+    if (!svgEl || !wrapEl || !vw) return null;
+    return world(cx, cy) as [number, number];
   }
   function overPet(cx: number, cy: number, pad = 14) {
     const r = petEl()?.getBoundingClientRect();
@@ -1317,7 +1383,60 @@
   // tombol Kirim hati di kartu profil: efek hati di pet pemain itu
   $effect(() => { const r = H.fxReq; if (r) untrack(() => { fxAtComp(r.id, r.kind); sfx.pop(); }); });
 
-  function key(e: KeyboardEvent) { if (e.key === 'Escape') { if (menu) menu = null; else if (G.bath) G.bath = null; } }
+  function key(e: KeyboardEvent) {
+    wake();
+    if (e.key === 'Escape') { if (menu) menu = null; else if (G.bath) G.bath = null; return; }
+    // pintasan kamera (bukan saat mengetik, membuka panel, mengatur, mandi, atau main bareng)
+    const t = e.target as HTMLElement | null;
+    if (square || e.ctrlKey || e.metaKey || e.altKey || (t && (t.closest('input, textarea, select, [contenteditable]')))) return;
+    if (G.sheet || G.edit || G.plan || G.bath || inGameNow()) return;
+    const k = e.key.toLowerCase();
+    if (k === '1') G.cam = 'near';
+    else if (k === '2') G.cam = 'room';
+    else if (k === '3') G.cam = 'yard';
+    else if (k === '+' || k === '=') zoomBy(1.25);
+    else if (k === '-' || k === '_') zoomBy(0.8);
+    else if (k === 'r') setMirror(!G.mirror);
+    else return;
+    e.preventDefault();
+  }
+
+  /* ---------------- mode santai: lama tidak disentuh → kamera bergerak pelan di sekitar pet ---------------- */
+  // ringan: hanya desktop, mulai setelah 30 detik diam, satu gerakan pelan (±30 fps) tiap 12 detik, berhenti sendiri setelah 3 menit
+  let idleSince = performance.now();
+  let santaiOn = false, santaiStep = 0;
+  function wake() {
+    idleSince = performance.now();
+    if (santaiOn) { santaiOn = false; recam(); }
+  }
+  /** kembalikan kamera ke mode yang dipilih */
+  function recam() {
+    const m = G.cam;
+    if (m === 'near') { const t = nearCam(); if (t) aim(t, false, 700); }
+    else if (m === 'yard') aim(fit(viewBounds()), false, 700);
+    else if (m === 'house') aim(fit(houseBounds(plan)), false, 700);
+    else if (m === 'room') aim(fit(houseBounds(plan, focusId), true), false, 700);
+  }
+  $effect(() => {
+    if (square || reduced) return;
+    const t = setInterval(() => {
+      const idle = performance.now() - idleSince;
+      const ok = G.santai && wide && !document.hidden && !G.sheet && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free';
+      if (!ok || idle < 30_000) { if (santaiOn && !ok) { santaiOn = false; recam(); } return; }
+      if (idle > 180_000) { if (santaiOn) { santaiOn = false; recam(); } return; }
+      santaiOn = true;
+      const p = nearPos();
+      if (!p) return;
+      const [x, y] = houseIso(p[0], p[1]), i = insets(), [lo, hi] = kRange();
+      // bergantian: dekat ke pet (agak dari kiri / kanan), lalu ruangan agak lebar
+      const shots = [
+        { k: kRoom() * 1.9, dx: -40 }, { k: kRoom() * 1.05, dx: 0 }, { k: kRoom() * 1.6, dx: 46 }, { k: kRoom() * 0.8, dx: 0 },
+      ];
+      const sh = shots[santaiStep++ % shots.length], k = Math.max(lo, Math.min(hi, sh.k));
+      aim({ k, x: x + sh.dx - (i.l - i.r) / 2 / k, y: y - 40 - (i.t - i.b) / 2 / k }, false, 4000, true);
+    }, 12_000);
+    return () => clearInterval(t);
+  });
 
   /* ---------------- mata mengikuti jari / mouse ---------------- */
   function lookAt(cx: number, cy: number) {
@@ -1325,10 +1444,11 @@
     if (!r || !svgEl || asleep) return;
     const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height * 0.4);
     const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 160);
-    svgEl.style.setProperty('--lx', `${((dx / d) * 4.5 * k * (flip ? -1 : 1)).toFixed(2)}px`);
+    svgEl.style.setProperty('--lx', `${((dx / d) * 4.5 * k * (flip ? -1 : 1) * (mirrored ? -1 : 1)).toFixed(2)}px`);
     svgEl.style.setProperty('--ly', `${((dy / d) * 3 * k).toFixed(2)}px`);
   }
   function onPointer(e: PointerEvent) {
+    wake();
     lookAt(e.clientX, e.clientY);
     bathMove(e);
     panMove(e);
@@ -1428,11 +1548,12 @@
   const menuStyle = $derived.by(() => {
     if (!menu || !wrapEl) return '';
     const w = wrapEl.clientWidth, h = wrapEl.clientHeight;
-    const left = Math.max(8, Math.min(w - 248, menu.x - 120));
-    // jangan sampai tertutup bar bawah (aksi / alun-alun / tamu): buka ke atas bila tidak muat
-    const tall = 64 * menu.acts.length + 40, bottom = h - Math.max(90, insets().b);
+    // tidak menimpa HUD atas, tombol aksi kanan (desktop) & bar bawah (aksi / alun-alun / tamu)
+    const i = insets(), minTop = wide ? 92 : 100;
+    const left = Math.max(8, Math.min(w - (wide ? i.r : 8) - 240, menu.x - 120));
+    const tall = 64 * menu.acts.length + 40, bottom = h - Math.max(90, i.b);
     const down = menu.y + 18;
-    const top = menu.y > h * 0.55 || down + tall > bottom ? Math.max(8, menu.y - 18 - tall) : down;
+    const top = menu.y > h * 0.55 || down + tall > bottom ? Math.max(minTop, menu.y - 18 - tall) : Math.max(minTop, down);
     return `left:${left}px;top:${top}px`;
   });
   /* ---------------- mode Atur denah: garis ruangan terpilih, ruangan terpisah, nama ruangan ---------------- */
@@ -1532,10 +1653,12 @@
 </script>
 
 <svelte:window onkeydown={key} onpointermove={onPointer} onpointerup={onUp} onpointercancel={onUp} />
-<div class="roomwrap" bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh}>
-  <svg bind:this={svgEl} class="room" class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
+<div class="roomwrap" class:sky={!square} data-sky={sky} bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh}>
+  {#if !square}<div class="hills" aria-hidden="true"></div><div class="orb" aria-hidden="true"></div><div class="cloud c1" aria-hidden="true"></div><div class="cloud c2" aria-hidden="true"></div>{/if}
+  <svg bind:this={svgEl} class="room" class:mirror={mirrored} class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
     class:mangap={mouthOpen || chewing} class:chew={chewing} class:asleep class:editing={mode === 'home' && G.edit}
     {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} onclick={click} onpointerdown={down}>
+    {@html yardHtml}
     {@html layers.shadow}
     {#each layers.back as l (l.key)}<g>{@html l.h}</g>{/each}
     {#each layers.floor as l (l.key)}<g>{@html l.h}</g>{/each}
@@ -1588,6 +1711,30 @@
 
 <style>
   .roomwrap { position: absolute; inset: 0; overflow: hidden; }
+  /* langit di belakang pekarangan: gradasi + bukit + matahari/bulan + 2 awan (CSS saja, tanpa gambar) */
+  .roomwrap.sky { --s1: #A9DDF5; --s2: #CDEBF6; --s3: #E4F4EA; --h1: #B9DDB0; --h2: #A6D29B; --orb: #FFF1C2; --glow: rgba(255, 236, 170, .5); --cl: .9;
+    background: linear-gradient(180deg, var(--s1) 0%, var(--s2) 58%, var(--s3) 100%); }
+  .roomwrap.sky[data-sky='pagi'] { --s1: #F9D6B5; --s2: #F6E7CF; --s3: #E6F2E4; --h1: #BFDDB4; --h2: #AACFA0; --orb: #FFE3A3; --glow: rgba(255, 210, 150, .5); }
+  .roomwrap.sky[data-sky='sore'] { --s1: #F3A77E; --s2: #F8CFA0; --s3: #F1E3C4; --h1: #A9C99A; --h2: #93B98A; --orb: #FFC27A; --glow: rgba(255, 170, 100, .45); }
+  .roomwrap.sky[data-sky='malam'] { --s1: #1F2D4F; --s2: #33507A; --s3: #46648A; --h1: #324866; --h2: #283B57; --orb: #FFF4C8; --glow: rgba(255, 244, 200, .18); --cl: .22;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='160'%3E%3Cg fill='%23FFF6D8'%3E%3Ccircle cx='20' cy='30' r='1.6'/%3E%3Ccircle cx='90' cy='12' r='1.2'/%3E%3Ccircle cx='150' cy='60' r='1.8'/%3E%3Ccircle cx='200' cy='22' r='1.1'/%3E%3Ccircle cx='60' cy='100' r='1.3'/%3E%3Ccircle cx='180' cy='120' r='1.5'/%3E%3Ccircle cx='120' cy='140' r='1'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 220px 160px repeat, linear-gradient(180deg, var(--s1) 0%, var(--s2) 58%, var(--s3) 100%); }
+  .sky .hills { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; pointer-events: none; background: linear-gradient(180deg, var(--h1), var(--h2));
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 300' preserveAspectRatio='none'%3E%3Cpath d='M0 120 C200 40 380 70 560 100 S900 20 1100 70 S1450 50 1600 90 V300 H0Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 300' preserveAspectRatio='none'%3E%3Cpath d='M0 120 C200 40 380 70 560 100 S900 20 1100 70 S1450 50 1600 90 V300 H0Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+  .sky .orb { position: absolute; top: 11%; right: 13%; width: 84px; height: 84px; border-radius: 50%; background: var(--orb); box-shadow: 0 0 0 22px var(--glow), 0 0 90px 46px var(--glow); pointer-events: none; }
+  .roomwrap.sky[data-sky='pagi'] .orb { top: 20%; right: auto; left: 12%; }
+  .roomwrap.sky[data-sky='sore'] .orb { top: 26%; right: 9%; }
+  .roomwrap.sky[data-sky='malam'] .orb { width: 62px; height: 62px; top: 10%; }
+  .sky .cloud { position: absolute; left: -230px; width: 190px; height: 60px; opacity: var(--cl); pointer-events: none; will-change: transform; animation: cloud 90s linear infinite;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 60'%3E%3Cpath d='M20 52a18 18 0 0 1 6-34a26 26 0 0 1 48-8a22 22 0 0 1 38 4a20 20 0 0 1 34 10a17 17 0 0 1 22 28Z' fill='%23FFFFFF'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .sky .cloud.c1 { top: 8%; animation-delay: -30s; }
+  .sky .cloud.c2 { top: 19%; width: 130px; height: 42px; animation-duration: 120s; animation-delay: -80s; }
+  @keyframes cloud { to { transform: translateX(calc(100vw + 460px)); } }
+  @media (max-width: 700px) { .sky .orb { width: 56px; height: 56px; top: 16%; } .sky .hills { height: 30%; } }
+  @media (prefers-reduced-motion: reduce) { .sky .cloud { animation: none; left: 24%; } .sky .cloud.c2 { left: 64%; } }
+  /* lihat dari sisi seberang: seluruh gambar dicermin, tulisan dibalik lagi supaya tetap terbaca */
+  .room.mirror { transform: scaleX(-1); }
+  .room.mirror :global(text) { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
   /* geser & cubit untuk menggerakkan kamera, jadi gerakan bawaan browser dimatikan */
   .room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
   .room.soap { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Crect x='3' y='6' width='34' height='20' rx='9' fill='%23F7A8C4' stroke='%232B2F4A' stroke-width='2.5'/%3E%3Ccircle cx='30' cy='8' r='4' fill='%23DDF3FF' stroke='%232B2F4A' stroke-width='1.5'/%3E%3C/svg%3E") 20 16, pointer; }

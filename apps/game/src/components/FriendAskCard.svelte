@@ -25,7 +25,7 @@
 {/if}
 
 <style>
-  .ask { position: fixed; z-index: 60; left: 50%; top: calc(var(--safe-t) + 74px); transform: translateX(-50%); width: min(380px, calc(100% - 20px)); display: flex; gap: 10px; align-items: flex-start; background: var(--paper); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); padding: 10px 12px; animation: pop .3s ease-out; }
+  .ask { position: fixed; z-index: 60; left: 50%; top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 330px)); transform: translateX(-50%); width: min(380px, calc(100% - 20px)); display: flex; gap: 10px; align-items: flex-start; background: var(--paper); border: 3px solid var(--ink); border-radius: 18px; box-shadow: 0 5px 0 var(--ink); padding: 10px 12px; animation: pop .3s ease-out; }
   .ava { flex: none; width: 54px; height: 58px; }
   .ava :global(svg) { width: 100%; height: 100%; }
   .txt { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }

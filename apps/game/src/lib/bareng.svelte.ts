@@ -10,6 +10,8 @@ export const BG = $state({
   dismissed: [] as string[],
   /** hasil yang sudah ditutup */
   closed: [] as string[],
+  /** kartu main bareng (ajakan / ruang tunggu / hasil) sedang tampil di atas dock: bar & kartu bawah lain disembunyikan dulu */
+  card: false,
   /** sesi yang sedang ditonton (bukan pemain) */
   watching: null as string | null,
   /** selisih jam server - jam perangkat (ms) */

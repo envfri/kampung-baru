@@ -40,7 +40,7 @@
 {/if}
 
 <style>
-  .pp { position: absolute; z-index: 25; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 176px); width: min(420px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; animation: pop .3s; }
+  .pp { position: absolute; z-index: 25; left: 50%; transform: translateX(-50%); top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 330px)); width: min(420px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; animation: pop .3s; }
   p { margin: 0; font-weight: 600; font-size: 14.5px; }
   .row { display: flex; gap: 6px; justify-content: flex-end; }
 </style>

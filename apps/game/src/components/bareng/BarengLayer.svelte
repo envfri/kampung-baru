@@ -21,6 +21,9 @@
   const starterName = (g: any) => g.players.find((p: any) => p.id === g.starter)?.name ?? 'Teman';
   const resultOf = (g: any) => g.results?.find((r: any) => r.id === me);
   /** kartu hasil muncul setelah langkah terakhir selesai dimainkan di papan */
+  // kartu di atas dock: selama tampil, panel tamu/alun-alun, tombol aksi & kartu tugas disembunyikan (tidak saling menutupi)
+  const showCard = $derived(mine ? mine.phase === 'ajak' || mine.phase === 'siap' || mine.phase === 'selesai' : !!watch || !!invite);
+  $effect(() => { BG.card = showCard; return () => { BG.card = false; }; });
   const resultsReady = (g: any) => !g.last?.anim || serverNow() >= (g.last.at ?? 0) + g.last.anim + 600;
 </script>
 
@@ -82,7 +85,7 @@
 {/if}
 
 <style>
-  .card { position: fixed; z-index: 62; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(400px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 12px 14px; animation: pop .25s ease-out; }
+  .card { position: fixed; z-index: 62; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 92px); width: min(400px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 12px 14px; animation: pop .25s ease-out; }
   .card h3 { margin: 0; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .chip { font-size: 11.5px; font-weight: 800; padding: 1px 8px 0; border-radius: 999px; background: var(--ink); color: #F7C548; }
   .who { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -101,6 +104,6 @@
   .rk em { margin-left: auto; font-style: normal; font-weight: 800; }
   .rk.me { color: #2A6FB0; }
   .gain { margin: 0; font-weight: 800; font-size: 16px; }
-  .watch { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); top: calc(var(--safe-t) + 120px); border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--ink); padding: 4px 14px; font: inherit; font-weight: 700; font-size: 13.5px; color: var(--ink); cursor: pointer; }
-  .stopwatch { position: fixed; z-index: 66; right: 12px; top: calc(var(--safe-t) + 120px); }
+  .watch { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 200px)); border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--ink); padding: 4px 14px; font: inherit; font-weight: 700; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+  .stopwatch { position: fixed; z-index: 66; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); }
 </style>

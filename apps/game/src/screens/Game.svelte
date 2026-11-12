@@ -43,11 +43,12 @@
   import SquareBar from '../components/SquareBar.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
   import BarengLayer from '../components/bareng/BarengLayer.svelte';
-  import { inGameNow } from '../lib/bareng.svelte';
+  import { inGameNow, BG } from '../lib/bareng.svelte';
   import PersonCard from '../components/PersonCard.svelte';
   import FriendPrompt from '../components/FriendPrompt.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
   import PhotoPreview from '../components/PhotoPreview.svelte';
+  import CamPanel from '../components/CamPanel.svelte';
   import { H } from '../lib/house.svelte';
   import { maybeNudge } from '../lib/account.svelte';
   import QuestChip from '../components/QuestChip.svelte';
@@ -201,6 +202,13 @@
   });
   // sedang main bareng: kartu Sapa/Ngobrol disembunyikan supaya papan lebih luas, muncul lagi setelah selesai
   const playingGame = $derived(inGameNow());
+  // desktop (layar lebar): panel kamera menggantikan tombol "Seluruh rumah"
+  let winW = $state(typeof window === 'undefined' ? 0 : window.innerWidth), winH = $state(typeof window === 'undefined' ? 0 : window.innerHeight);
+  const wideDesk = $derived(winW >= 900 && winW >= winH);
+  /** sekali saja di alun-alun: mau menerima ajakan berteman? (di HP bar alun-alun disembunyikan dulu supaya tidak tertutup) */
+  const friendPrompt = $derived(G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests);
+  /** panel tamu di rumah sendiri tampil (di HP menempati bagian bawah layar) */
+  const guestBar = $derived(G.view === 'home' && !G.edit && !G.bath && !G.plan && !playingGame && !BG.card && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
 </script>
 
 {#snippet camBtn()}
@@ -211,6 +219,7 @@
 {/snippet}
 
 
+<svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
 <div class="game" data-view={G.view}>
   <div class="scene">
     {#if G.view === 'home'}<Room mode="home" />
@@ -240,7 +249,7 @@
       <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk melihat semua ruangan">
         {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
-      {#if (G.me.rooms?.length ?? 1) > 1 || G.cam !== 'room'}{@render camBtn()}{/if}
+      {#if !wideDesk && ((G.me.rooms?.length ?? 1) > 1 || G.cam !== 'room')}{@render camBtn()}{/if}
     </div>{/if}
     <Needs />
     {#if event}
@@ -248,7 +257,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    {#if !G.feeding && !G.bath && !sleeping}<QuestChip />{/if}
+    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk)}<QuestChip />{/if}
     {#if sleeping}
       <div class="sleepbar">
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
@@ -266,7 +275,7 @@
       </div>
     {:else}
       {#if G.feeding}<FoodTray />{/if}
-      <div class="acts">
+      <div class="acts" class:hide={BG.card && !wideDesk}>
         {#each ACTS as a}
           {@const cd = G.now && cdLeft(a.k)}
           <button class="btn act" class:on={a.k === 'makan' && G.feeding} disabled={G.busy} onclick={() => act(a.k)}>
@@ -316,23 +325,24 @@
     </div>
   {/if}
 
-  {#if G.view === 'home' && !G.edit && !G.bath && !G.plan && !playingGame && (H.members.length > 0 || H.elsewhere.some((e) => !e.host))}<HouseBar mode="home" />{/if}
-  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame}<HouseBar mode="visit" />{/if}
+  {#if guestBar}<HouseBar mode="home" />{/if}
+  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card}<HouseBar mode="visit" />{/if}
   {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
+  {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive}<CamPanel />{/if}
   {#if G.view === 'alun'}
     <div class="roombar">{@render camBtn()}</div>
-    {#if !playingGame}<SquareBar />{/if}<PhotoPreview />
+    {#if !playingGame && !BG.card && !(friendPrompt && !wideDesk)}<SquareBar />{/if}<PhotoPreview />
   {/if}
   <FriendAskCard />
   {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && H.live}<BarengLayer />{/if}
   {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
-  {#if G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests}<FriendPrompt />{/if}
+  {#if friendPrompt}<FriendPrompt />{/if}
 
   {#if G.view === 'visit' && G.visit && !playingGame}
     <div class="visit">
       <div class="whorow">
         <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
-        {#if visitRooms.length > 1 || G.cam !== 'room'}{@render camBtn()}{/if}
+        {#if !wideDesk && (visitRooms.length > 1 || G.cam !== 'room')}{@render camBtn()}{/if}
       </div>
       <div class="row">
         <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
@@ -372,10 +382,15 @@
   /* latar: motif kawung, daun, melati & titik tipis (satu SVG kecil diulang, ringan) di atas gradasi + cahaya lembut di tengah */
   .game { position: fixed; inset: 0; overflow: hidden; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E %3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.5' stroke-width='2'%3E %3Cg transform='translate(40 40)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3Cg transform='translate(120 120)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3C/g%3E %3Cg fill='%238FBFAD' fill-opacity='.42'%3E %3Cpath d='M118 30c10-12 26-12 30-8-4 4-6 20-22 22-6 0-9-6-8-14z'/%3E%3Cpath d='M38 112c-12-6-16-20-12-26 4 4 20 4 22 18 1 6-4 10-10 8z'/%3E %3C/g%3E %3Cg fill='%23FFFFFF' fill-opacity='.55'%3E %3Cg transform='translate(82 76)'%3E%3Ccircle cx='0' cy='-5' r='3.4'/%3E%3Ccircle cx='4.8' cy='-1.5' r='3.4'/%3E%3Ccircle cx='3' cy='4' r='3.4'/%3E%3Ccircle cx='-3' cy='4' r='3.4'/%3E%3Ccircle cx='-4.8' cy='-1.5' r='3.4'/%3E%3Ccircle r='2' fill='%23F2C94C' fill-opacity='.55'/%3E%3C/g%3E %3Ccircle cx='14' cy='72' r='2'/%3E%3Ccircle cx='150' cy='78' r='2.4'/%3E%3Ccircle cx='70' cy='146' r='2'/%3E%3Ccircle cx='96' cy='14' r='1.8'/%3E%3Ccircle cx='58' cy='96' r='1.5'/%3E%3Ccircle cx='138' cy='150' r='1.6'/%3E %3Cpath d='M150 14l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z'/%3E%3Cpath d='M12 148l1.3 3.2 3.2 1.3-3.2 1.3-1.3 3.2-1.3-3.2-3.2-1.3 3.2-1.3z'/%3E %3C/g%3E%3C/svg%3E") 0 0 / 160px 160px repeat, radial-gradient(ellipse 70% 45% at 50% 55%, rgba(255,255,255,.35), rgba(255,255,255,0) 70%), linear-gradient(180deg, var(--bg1), var(--bg2)); }
   .game[data-view='map'] { background: #A9D18A; }
+  /* kartu ajakan / tombol Tonton: di bawah bar atas; saat berkunjung di bawah kartu rumah teman (HP) */
+  .game { --prompt-top: 226px; }
+  .game[data-view='visit'] { --prompt-top: 276px; }
+  @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .game, .game[data-view='visit'] { --prompt-top: 214px; } }
   .scene { position: absolute; inset: 0; }
   .night { position: absolute; inset: 0; background: #1B2340; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 2; }
   .night.on { opacity: .5; }
   .acts { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); display: flex; gap: 6px; }
+  .acts.hide { display: none; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
   .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }
