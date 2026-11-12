@@ -39,9 +39,18 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.25.1',
+    date: '2026-11-12',
+    title: 'Halaman masuk admin lebih bersih',
+    items: [
+      { kind: 'keamanan', text: 'Halaman masuk panel admin tidak lagi menampilkan petunjuk tentang file konfigurasi server (.env, ADMIN_EMAIL, ADMIN_PASSWORD). Halaman ini terbuka untuk umum, jadi info teknis server tidak perlu terlihat.' },
+    ],
+  },
+  {
     version: '0.25.0',
     date: '2026-11-12',
     title: 'Main bareng: Congklak, Ular Tangga Kampung, Balap Karung Live + set premium',
+    commits: ['467f77e'],
     summary: 'Tiga permainan baru untuk dimainkan bareng teman, lima set hiasan premium, dan pohon alun-alun yang tidak lagi menutupi pet.',
     items: [
       { kind: 'baru', text: 'Congklak (2 pemain) di rumah: Main bareng › Congklak. Tiap lubang berisi 7 biji. Biji terakhir jatuh di lumbungmu = jalan lagi, di lubang berisi = ambil dan bagi lagi, di lubang kosongmu = tembak biji lawan di seberangnya. Giliran 15 detik.', player: true },

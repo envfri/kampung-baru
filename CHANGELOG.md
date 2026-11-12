@@ -4,6 +4,12 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.25.1 · 2026-11-12 · Halaman masuk admin lebih bersih
+
+### Keamanan
+
+- Halaman masuk panel admin tidak lagi menampilkan petunjuk tentang file konfigurasi server (.env, ADMIN_EMAIL, ADMIN_PASSWORD). Halaman ini terbuka untuk umum, jadi info teknis server tidak perlu terlihat.
+
 ## 0.25.0 · 2026-11-12 · Main bareng: Congklak, Ular Tangga Kampung, Balap Karung Live + set premium
 
 _Tiga permainan baru untuk dimainkan bareng teman, lima set hiasan premium, dan pohon alun-alun yang tidak lagi menutupi pet._
@@ -22,6 +28,8 @@ _Tiga permainan baru untuk dimainkan bareng teman, lima set hiasan premium, dan 
 - Pohon di alun-alun dan halaman lebih kecil. Daun pohon jadi tembus pandang saat ada pet di belakangnya, jadi pet tidak lagi tertutup. _(pemain)_
 - Hadiah: Congklak & Ular Tangga memakai jatah dan hadiah Main bareng (Congklak menang 25 / kalah 10 / seri 15 koin; Ular Tangga 25/15/10/5 menurut peringkat). Balap Karung Live = hadiah Lomba Karung + 5 koin per peringkat. Semua mengikuti pengali event. _(pemain)_
 - Teknis: sesi permainan di memori server (routes/bareng.ts, aturan di shared/bareng.ts) dengan giliran otomatis saat waktu habis dan pemain hilang 15 detik dianggap keluar; data permainan ikut sinkron rumah/alun-alun. Paket konten 9 (30 item premium, 12 aktivitas), POST /api/shop/bundle, pengaturan premium (bundleDiscount, bonusMin). Uji server bareng.test.ts dan npm run test:e2e:bareng.
+
+Commit: [`467f77e`](https://github.com/envfri/kampung-baru/commit/467f77e)
 
 ## 0.24.0 · 2026-11-11 · Kartu profil & ajakan berteman
 
