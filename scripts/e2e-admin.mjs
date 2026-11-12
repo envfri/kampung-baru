@@ -37,7 +37,7 @@ async function open(opts, tag) {
   return { ctx, p };
 }
 const PAGES = ['dashboard', 'items', 'events', 'quests', 'activities', 'locations', 'settings', 'media', 'notifcenter', 'broadcasts', 'email', 'whatsapp', 'announcements',
-  'players', 'moderation', 'payments', 'packages', 'launch', 'audit', 'site', 'integrations', 'versions', 'admins', 'account'];
+  'players', 'moderation', 'payments', 'packages', 'launch', 'server', 'audit', 'site', 'integrations', 'versions', 'admins', 'account'];
 
 const D = await open({ viewport: { width: 1440, height: 900 } }, 'desktop');
 for (const k of PAGES) {
@@ -79,8 +79,17 @@ await D.p.goto(`${BASE}/admin/#/moderation`); await W(800);
 await D.p.click('button[role=tab]:has-text("Kata terlarang")'); await W(600);
 check(await D.p.locator('.w').count() > 0, 'tab kata terlarang menampilkan daftar');
 
+// Server: 4 kartu pemakaian, riwayat, aturan peringatan bisa disimpan
+await D.p.goto(`${BASE}/admin/#/server`); await W(1500);
+check(await D.p.locator('.gauge').count() === 4, 'Server: kartu CPU, memori, penyimpanan, database tampil');
+check(await D.p.locator('.gauge:has-text("CPU") b').first().textContent().then((t) => /%/.test(t ?? '')), 'Server: angka CPU terisi');
+await D.p.fill('input[aria-label="Batas CPU (%)"]', '80'); await W(300);
+await D.p.click('.sec button:has-text("Simpan"), button:has-text("Simpan")'); await W(800);
+check(await D.p.locator('text=Pengaturan peringatan disimpan').count() > 0, 'Server: aturan peringatan tersimpan');
+await D.p.fill('input[aria-label="Batas CPU (%)"]', '85'); await D.p.click('button:has-text("Simpan")'); await W(600);
+await D.p.screenshot({ path: `${OUT}/d-server-cek.png` });
 const M = await open({ ...devices['Pixel 7'] }, 'hp');
-for (const k of ['dashboard', 'players', 'payments', 'moderation', 'settings', 'items', 'audit']) {
+for (const k of ['dashboard', 'players', 'payments', 'moderation', 'settings', 'items', 'audit', 'server']) {
   const before = errors.length;
   await M.p.goto(`${BASE}/admin/#/${k}`); await W(900);
   const over = await M.p.evaluate(() => document.documentElement.scrollWidth - innerWidth);

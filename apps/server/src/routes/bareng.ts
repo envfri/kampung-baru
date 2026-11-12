@@ -33,6 +33,12 @@ type Session = {
 };
 
 const SESSIONS = new Map<string, Session>();
+/** admin → Server: sesi main bareng yang masih berjalan (ajakan / siap / main) */
+export function barengStats() {
+  let open = 0, playing = 0;
+  for (const s of SESSIONS.values()) { if (s.phase !== 'selesai') open++; if (s.phase === 'main') playing++; }
+  return { open, playing };
+}
 const UUID = /^[0-9a-f-]{36}$/i;
 /** pemain yang menghilang (tidak sinkron) lebih lama dari ini dianggap keluar */
 const ABSENT_MS = 15_000;

@@ -219,6 +219,12 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     vars: {},
     defaults: { enabled: true, channels: ch('whatsapp'), title: 'WhatsApp dinyalakan', body: '', wa: 'Notifikasi WhatsApp BUPI untuk {pet} menyala lagi. Balas *STOP* kapan saja untuk berhenti.' },
   },
+  {
+    key: 'server_alert', group: 'Admin', label: 'Peringatan server (ke owner)', kind: 'system', critical: true, allowed: ['email', 'whatsapp'], url: '/admin/#/server',
+    desc: 'Dikirim ke owner saat CPU, memori, penyimpanan, database, atau error melewati ambang di admin → Server (jeda 30 menit per jenis). Penerima diatur di halaman Server.',
+    vars: { judul: 'Judul peringatan, mis. CPU tinggi', isi: 'Rincian, mis. CPU 91% selama 5 menit (batas 85%)', host: 'Nama server' },
+    defaults: { enabled: true, channels: ch('email', 'whatsapp'), title: 'Peringatan server: {judul}', body: '{isi}\nServer: {host}', wa: '*Peringatan server BUPI* ⚠️\n{judul}\n{isi}\nServer: {host}\n\n{link}' },
+  },
 ];
 
 /** Jenis yang tidak bisa dimatikan (dibutuhkan untuk login/verifikasi); teksnya tetap bisa diubah. */

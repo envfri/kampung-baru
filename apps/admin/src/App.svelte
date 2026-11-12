@@ -29,6 +29,7 @@
   import NotifyCenter from './pages/NotifyCenter.svelte';
   import WhatsApp from './pages/WhatsApp.svelte';
   import Versions from './pages/Versions.svelte';
+  import Server from './pages/Server.svelte';
   import Integrations from './pages/Integrations.svelte';
   import Launch from './pages/Launch.svelte';
   import Site from './pages/Site.svelte';
@@ -60,6 +61,7 @@
       { k: 'launch', label: 'Peluncuran', icon: 'rocket', min: 'admin', C: Launch },
     ] },
     { group: 'Sistem', items: [
+      { k: 'server', label: 'Server', icon: 'server', min: 'admin', C: Server, badge: 'server' },
       { k: 'audit', label: 'Log audit', icon: 'list', min: 'admin', C: Audit },
       { k: 'site', label: 'Situs & SEO', icon: 'globe', min: 'moderator', C: Site },
       { k: 'integrations', label: 'Integrasi & URL', icon: 'plug', min: 'admin', C: Integrations },

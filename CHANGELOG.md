@@ -4,6 +4,21 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.30.0 · 2026-11-12 · Admin → Server: pemantauan CPU, memori, penyimpanan & database
+
+### Baru
+
+- Halaman Server (owner & admin): CPU, memori, penyimpanan, dan database (ukuran, koneksi, kecepatan kueri, cache), lengkap dengan grafik 1 jam. Bila server berjalan di container, yang dipakai batas container-nya. Diperbarui tiap 10 atau 30 detik.
+- Aplikasi & pemain: jeda event loop, permintaan per menit, waktu respons, persentase error 5xx, pemain online beserta sebarannya (rumah, berkunjung, alun-alun, peta, mini-game), sesi main bareng, dan antrean email/WhatsApp.
+- Riwayat CPU, memori & pemain online: 1 jam & 24 jam dari memori, 7 & 30 hari dari database (rata-rata 5 menit, disimpan 30 hari, tetap ada setelah restart).
+- Peringatan ke owner lewat email, WhatsApp & lonceng admin (angka merah di menu Server) dengan jeda 30 menit per jenis: CPU di atas 85% selama 5 menit, memori di atas 90%, penyimpanan di atas 85%, kueri database di atas 200 ms, error di atas 2% dalam 5 menit, dan (opsional) server menyala ulang. Ambang, saluran & penerima bisa diubah, ada tombol Kirim tes dan riwayat peringatan.
+- Endpoint paling lambat (p95, 1 jam), error terakhir, tabel database terbesar, info sistem, dan Unduh laporan (JSON).
+
+### Perubahan
+
+- Pusat notifikasi: jenis baru "Peringatan server (ke owner)" untuk mengatur teks email/WhatsApp dan template WhatsApp Official.
+- Teknis: migrasi 023_monitor (server_metrics, server_alerts), lib/monitor.ts (cgroup v1/v2, statfs, monitorEventLoopDelay, hook permintaan /api/), routes/server-monitor.ts, angka menu "server", uji server-monitor.test.ts & e2e admin.
+
 ## 0.29.1 · 2026-11-12 · Teks tidak lagi keluar dari tombol & kartu
 
 ### Perubahan
@@ -16,6 +31,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 - Menu aktivitas benda (misalnya Air Mancur → Foto bareng): keterangan di kanan tidak lagi keluar dari tombol. _(pemain)_
 - Deret kategori di Tas, Lemari & Toko tidak lagi terpotong di tepi layar HP: kategori yang tidak muat pindah ke baris kedua. _(pemain)_
 - Panel Teman: tab yang sedang dipilih (Buku tamu, Album, Favorit) tidak lagi menyempit sampai tulisannya keluar; tab yang tidak muat pindah ke baris kedua. _(pemain)_
+
+Commit: [`b2e0979`](https://github.com/envfri/kampung-baru/commit/b2e0979), [`7ec0630`](https://github.com/envfri/kampung-baru/commit/7ec0630)
 
 ## 0.29.0 · 2026-11-12 · Pekarangan, langit ikut jam & kamera desktop
 

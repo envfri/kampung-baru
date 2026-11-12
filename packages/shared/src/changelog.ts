@@ -39,9 +39,24 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.30.0',
+    date: '2026-11-12',
+    title: 'Admin → Server: pemantauan CPU, memori, penyimpanan & database',
+    items: [
+      { kind: 'baru', text: 'Halaman Server (owner & admin): CPU, memori, penyimpanan, dan database (ukuran, koneksi, kecepatan kueri, cache), lengkap dengan grafik 1 jam. Bila server berjalan di container, yang dipakai batas container-nya. Diperbarui tiap 10 atau 30 detik.' },
+      { kind: 'baru', text: 'Aplikasi & pemain: jeda event loop, permintaan per menit, waktu respons, persentase error 5xx, pemain online beserta sebarannya (rumah, berkunjung, alun-alun, peta, mini-game), sesi main bareng, dan antrean email/WhatsApp.' },
+      { kind: 'baru', text: 'Riwayat CPU, memori & pemain online: 1 jam & 24 jam dari memori, 7 & 30 hari dari database (rata-rata 5 menit, disimpan 30 hari, tetap ada setelah restart).' },
+      { kind: 'baru', text: 'Peringatan ke owner lewat email, WhatsApp & lonceng admin (angka merah di menu Server) dengan jeda 30 menit per jenis: CPU di atas 85% selama 5 menit, memori di atas 90%, penyimpanan di atas 85%, kueri database di atas 200 ms, error di atas 2% dalam 5 menit, dan (opsional) server menyala ulang. Ambang, saluran & penerima bisa diubah, ada tombol Kirim tes dan riwayat peringatan.' },
+      { kind: 'baru', text: 'Endpoint paling lambat (p95, 1 jam), error terakhir, tabel database terbesar, info sistem, dan Unduh laporan (JSON).' },
+      { kind: 'ubah', text: 'Pusat notifikasi: jenis baru "Peringatan server (ke owner)" untuk mengatur teks email/WhatsApp dan template WhatsApp Official.' },
+      { kind: 'ubah', text: 'Teknis: migrasi 023_monitor (server_metrics, server_alerts), lib/monitor.ts (cgroup v1/v2, statfs, monitorEventLoopDelay, hook permintaan /api/), routes/server-monitor.ts, angka menu "server", uji server-monitor.test.ts & e2e admin.' },
+    ],
+  },
+  {
     version: '0.29.1',
     date: '2026-11-12',
     title: 'Teks tidak lagi keluar dari tombol & kartu',
+    commits: ['b2e0979', '7ec0630'],
     items: [
       { kind: 'perbaikan', text: 'Tulisan panjang di tombol sekarang turun ke baris baru dan tetap di dalam tombol, misalnya "Buka Lemari: ubah warna, telinga, motif, mata, ekor" di Tas.', player: true },
       { kind: 'perbaikan', text: 'Menu aktivitas benda (misalnya Air Mancur → Foto bareng): keterangan di kanan tidak lagi keluar dari tombol.', player: true },

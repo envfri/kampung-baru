@@ -1,6 +1,7 @@
 // Panel admin v0.26: daftar dengan filter/urut/total/ekspor CSV (pemain, pembayaran, log audit, obrolan, laporan),
 // angka menu samping, aksi massal pemain, bisukan obrolan, dan data dasbor tambahan.
 import type { FastifyInstance, FastifyReply } from 'fastify';
+import { activeAlerts, getMonitor } from '../lib/monitor';
 import type { Db } from '../db/index';
 import { APP_VERSION, AUDIT_CATS, xpToNext } from '@kb/shared';
 import { activeEvents, addItem, bad, credit, getCatalog, getSettings, notFound, today } from '../lib/core';
@@ -137,6 +138,8 @@ export default async function adminExtraRoutes(app: FastifyInstance, { db }: { d
     const out: Record<string, number> = { reports };
     if (RANK[req.admin!.role] >= RANK.admin) {
       out.payments = (await db.one<{ c: number }>(`select count(*)::int c from payments where status = 'pending' and (expires_at is null or expires_at > now()) and created_at > now() - interval '1 day'`))?.c ?? 0;
+      // lonceng admin: peringatan server yang sedang menyala
+      if ((await getMonitor(db)).send.bell) out.server = activeAlerts().length;
     }
     return { badges: out };
   });

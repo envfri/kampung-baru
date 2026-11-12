@@ -47,6 +47,14 @@ type House = { members: Map<string, Member>; events: Ev[]; seq: number; coop: Co
 
 const HOUSES = new Map<string, House>();
 const PRESENCE = new Map<string, { at: number; where: string; host?: string }>();
+/** admin → Server: pemain yang sedang live di rumah (sinkron) & sebaran kehadiran (rumah, berkunjung, peta, main) */
+export function houseStats(now = Date.now()) {
+  let houses = 0, people = 0;
+  for (const h of HOUSES.values()) { const n = [...h.members.values()].filter((m) => now - m.seenAt < LIVE_MS).length; if (n) { houses++; people += n; } }
+  const where: Record<string, number> = { home: 0, visit: 0, map: 0, game: 0 };
+  for (const p of PRESENCE.values()) if (now - p.at < PRESENCE_MS) where[p.where] = (where[p.where] ?? 0) + 1;
+  return { houses, people, where };
+}
 const FRIENDS = new Map<string, number>();
 const HOSTPREF = new Map<string, { at: number; live: boolean }>();
 const SAID = new Map<string, number>();

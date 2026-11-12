@@ -37,6 +37,8 @@ import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
 import { initPush } from './lib/push';
 import { startWorker } from './lib/worker';
+import { installMonitor, startMonitor } from './lib/monitor';
+import serverMonitorRoutes from './routes/server-monitor';
 
 export interface AppOpts {
   db?: Db;
@@ -139,6 +141,8 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
     return { ok: true };
   });
 
+  // admin → Server: catat permintaan /api/ (jumlah, lama, error) untuk pemantauan
+  installMonitor(app);
   await app.register(authRoutes, { db });
   await app.register(gameRoutes, { db });
   await app.register(socialRoutes, { db });
@@ -160,6 +164,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(squareRoutes, { db });
   await app.register(siteRoutes, { db });
   await app.register(barengRoutes, { db });
+  await app.register(serverMonitorRoutes, { db });
 
   // gambar upload dari admin
   app.get('/media/:id', async (req: any, reply) => {
@@ -242,8 +247,10 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   });
 
   const stopWorker = opts.worker === false ? () => {} : startWorker(db, app.log);
+  const stopMonitor = opts.worker === false ? () => {} : startMonitor(db, app.log);
   app.addHook('onClose', async () => {
     stopWorker();
+    stopMonitor();
     if (!opts.db) await db.close();
   });
   return { app, db };
