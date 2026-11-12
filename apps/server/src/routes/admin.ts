@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
+import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -410,13 +410,15 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   app.get('/api/admin/settings', mod, async () => ({ value: await getSettings(db), defaults: DEFAULT_SETTINGS, help: SETTINGS_HELP }));
   app.put('/api/admin/settings', adm, async (req: any) => {
+    const before = await getSettings(db);
     const value = sanitizeSettings(DEFAULT_SETTINGS, mergeSettings(DEFAULT_SETTINGS, obj(req.body?.value, 'Pengaturan')));
     if (value.room.size < 4 || value.room.size > 10) throw bad('invalid_settings', 'Ukuran ruangan harus 4–10.');
     if (value.garden.slots < 1 || value.garden.slots > 12) throw bad('invalid_settings', 'Jumlah petak kebun harus 1–12.');
     if (value.fishing.biteMaxMs < value.fishing.biteMinMs) throw bad('invalid_settings', 'Jeda gigitan maksimum harus ≥ minimum.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
-    await audit(db, req, 'settings_update', 'game', value);
+    const changes = diffPaths(before, value);
+    await audit(db, req, 'settings_update', changes.map((c) => c.path.split('.')[0]).filter((x, i, a) => a.indexOf(x) === i).join(', ') || 'game', { changes });
     return { ok: true, value };
   });
 
@@ -468,32 +470,6 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
   });
 
   /* ---------------- pemain ---------------- */
-
-  app.get('/api/admin/players', mod, async (req: any) => {
-    const q = String(req.query?.q ?? '').trim();
-    const page = Math.max(0, Number(req.query?.page ?? 0) | 0);
-    const filter = String(req.query?.filter ?? '');
-    const where: string[] = [];
-    const params: unknown[] = [];
-    if (q) {
-      params.push(`%${q.toLowerCase()}%`);
-      where.push(`(lower(u.display_name) like $${params.length} or lower(p.name) like $${params.length} or lower(u.friend_code) like $${params.length} or u.id::text = $${params.length + 1}
-               or exists(select 1 from auth_identities ai where ai.user_id = u.id and lower(ai.email) like $${params.length}))`);
-      params.push(q);
-    }
-    if (filter === 'banned') where.push('u.banned_at is not null');
-    if (filter === 'guest') where.push('u.is_guest');
-    if (filter === 'payer') where.push(`exists(select 1 from payments py where py.user_id = u.id and py.status = 'paid')`);
-    params.push(page * 50);
-    const rows = await db.query(
-      `select u.id, u.display_name, u.friend_code, u.is_guest, u.banned_at, u.created_at, u.last_seen_at, p.name as pet_name, p.level, w.coin, w.pearl
-         from users u left join pets p on p.user_id = u.id left join wallets w on w.user_id = u.id
-        ${where.length ? 'where ' + where.join(' and ') : ''}
-        order by u.last_seen_at desc limit 50 offset $${params.length}`,
-      params,
-    );
-    return { players: rows, page };
-  });
 
   app.get('/api/admin/players/:id', mod, async (req: any) => {
     const id = String(req.params.id);
@@ -568,16 +544,6 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   /* ---------------- pembayaran ---------------- */
 
-  app.get('/api/admin/payments', adm, async (req: any) => {
-    const status = String(req.query?.status ?? '');
-    const rows = await db.query(
-      `select p.*, u.display_name from payments p join users u on u.id = p.user_id
-        ${['pending', 'paid', 'failed', 'expired'].includes(status) ? 'where p.status = $1' : ''}
-        order by p.created_at desc limit 200`,
-      ['pending', 'paid', 'failed', 'expired'].includes(status) ? [status] : [],
-    );
-    return { payments: rows.map((r: any) => ({ ...r, raw: undefined, qr_string: undefined })) };
-  });
   app.post('/api/admin/payments/:id/mark-paid', own, async (req: any) => {
     const id = String(req.params.id);
     const reason = str(req.body?.reason, 'Alasan', { min: 3, max: 200 })!;
@@ -696,27 +662,6 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   /* ---------------- moderasi kata ---------------- */
 
-  // obrolan di rumah (kunjungan bareng) untuk dipantau moderator
-  app.get('/api/admin/house-chat', mod, async () => ({
-    chats: await db.query(
-      `select c.id, c.text, c.created_at, u.id as user_id, u.display_name as user_name, h.display_name as host_name
-         from house_chat c join users u on u.id = c.user_id join users h on h.id = c.host_id order by c.created_at desc limit 150`),
-  }));
-  // alun-alun: obrolan terbaru & laporan pemain
-  app.get('/api/admin/square-chat', mod, async () => ({
-    chats: await db.query(
-      `select c.id, c.inst, c.text, c.created_at, u.id as user_id, u.display_name as user_name
-         from square_chat c join users u on u.id = c.user_id order by c.created_at desc limit 200`),
-  }));
-  app.get('/api/admin/reports', mod, async (req: any) => ({
-    reports: await db.query(
-      `select r.id, r.place, r.reason, r.evidence, r.created_at, r.handled_at, r.handled_by,
-              t.id as target_id, t.display_name as target_name, t.banned_at, rp.display_name as reporter_name,
-              t.chat_muted_until as muted_until,
-              (select count(distinct x.reporter_id)::int from reports x where x.target_id = r.target_id and x.created_at > now() - interval '7 days') as week
-         from reports r join users t on t.id = r.target_id left join users rp on rp.id = r.reporter_id
-        where ($1::boolean or r.handled_at is null) order by r.created_at desc limit 200`, [req.query?.all === '1']),
-  }));
   app.post('/api/admin/players/:id/unmute', mod, async (req: any) => {
     const id = String(req.params.id);
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
@@ -750,10 +695,6 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
 
   /* ---------------- audit & admin ---------------- */
 
-  app.get('/api/admin/audit', adm, async (req: any) => {
-    const page = Math.max(0, Number(req.query?.page ?? 0) | 0);
-    return { audit: await db.query(`select * from admin_audit order by id desc limit 100 offset $1`, [page * 100]), page };
-  });
 
   app.get('/api/admin/admins', own, async () => ({ admins: await db.query(`select id, email, name, role, created_at, last_login_at from admins order by created_at`) }));
   app.post('/api/admin/admins', own, async (req: any) => {

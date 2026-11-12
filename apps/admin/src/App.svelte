@@ -1,8 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { A, can, err } from './lib/store.svelte';
+  import { A, can, err, parseHash, pref, savePref } from './lib/store.svelte';
   import { api } from './lib/api';
-  import Toast from './components/Toast.svelte';
+  import { I } from './lib/icons';
+  import TopProgress from './components/ui/TopProgress.svelte';
+  import Toasts from './components/ui/Toasts.svelte';
+  import AskHost from './components/ui/AskHost.svelte';
+  import CommandPalette from './components/ui/CommandPalette.svelte';
   import Login from './pages/Login.svelte';
   import Dashboard from './pages/Dashboard.svelte';
   import Items from './pages/Items.svelte';
@@ -31,119 +35,166 @@
   import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
-    { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', min: 'moderator', C: Dashboard }] },
+    { group: 'Ringkasan', items: [{ k: 'dashboard', label: 'Dasbor', icon: 'dash', min: 'moderator', C: Dashboard }] },
     { group: 'Konten game', items: [
-      { k: 'items', label: 'Item & harga', min: 'moderator', C: Items },
-      { k: 'events', label: 'Event', min: 'moderator', C: Events },
-      { k: 'quests', label: 'Tugas', min: 'moderator', C: Quests },
-      { k: 'activities', label: 'Aktivitas di rumah', min: 'moderator', C: Activities },
-      { k: 'locations', label: 'Peta & toko', min: 'moderator', C: Locations },
-      { k: 'settings', label: 'Ekonomi & fitur', min: 'moderator', C: Settings },
-      { k: 'media', label: 'Media', min: 'moderator', C: Media },
+      { k: 'items', label: 'Item & harga', icon: 'box', min: 'moderator', C: Items },
+      { k: 'events', label: 'Event', icon: 'cal', min: 'moderator', C: Events },
+      { k: 'quests', label: 'Tugas', icon: 'quest', min: 'moderator', C: Quests },
+      { k: 'activities', label: 'Aktivitas di rumah', icon: 'spark', min: 'moderator', C: Activities },
+      { k: 'locations', label: 'Peta & toko', icon: 'map', min: 'moderator', C: Locations },
+      { k: 'settings', label: 'Ekonomi & fitur', icon: 'sliders', min: 'moderator', C: Settings },
+      { k: 'media', label: 'Media', icon: 'image', min: 'moderator', C: Media },
     ] },
     { group: 'Komunikasi', items: [
-      { k: 'notifcenter', label: 'Pusat notifikasi', min: 'moderator', C: NotifyCenter },
-      { k: 'broadcasts', label: 'Broadcast', min: 'admin', C: Broadcasts },
-      { k: 'email', label: 'Email', min: 'admin', C: Email },
-      { k: 'whatsapp', label: 'WhatsApp', min: 'admin', C: WhatsApp },
-      { k: 'announcements', label: 'Pengumuman', min: 'moderator', C: Announcements },
+      { k: 'notifcenter', label: 'Pusat notifikasi', icon: 'bell', min: 'moderator', C: NotifyCenter },
+      { k: 'broadcasts', label: 'Broadcast', icon: 'mega', min: 'admin', C: Broadcasts },
+      { k: 'email', label: 'Email', icon: 'mail', min: 'admin', C: Email },
+      { k: 'whatsapp', label: 'WhatsApp', icon: 'chat', min: 'admin', C: WhatsApp },
+      { k: 'announcements', label: 'Pengumuman', icon: 'pin', min: 'moderator', C: Announcements },
     ] },
     { group: 'Pemain & uang', items: [
-      { k: 'players', label: 'Pemain', min: 'moderator', C: Players },
-      { k: 'moderation', label: 'Moderasi kata', min: 'moderator', C: Moderation },
-      { k: 'payments', label: 'Pembayaran', min: 'admin', C: Payments },
-      { k: 'packages', label: 'Paket Mutiara', min: 'moderator', C: Packages },
-      { k: 'launch', label: 'Peluncuran', min: 'admin', C: Launch },
+      { k: 'players', label: 'Pemain', icon: 'users', min: 'moderator', C: Players },
+      { k: 'moderation', label: 'Moderasi', icon: 'shield', min: 'moderator', C: Moderation, badge: 'reports' },
+      { k: 'payments', label: 'Pembayaran', icon: 'card', min: 'admin', C: Payments, badge: 'payments', amber: true },
+      { k: 'packages', label: 'Paket Mutiara', icon: 'gem', min: 'moderator', C: Packages },
+      { k: 'launch', label: 'Peluncuran', icon: 'rocket', min: 'admin', C: Launch },
     ] },
     { group: 'Sistem', items: [
-      { k: 'audit', label: 'Log audit', min: 'admin', C: Audit },
-      { k: 'site', label: 'Situs & SEO', min: 'moderator', C: Site },
-      { k: 'integrations', label: 'Integrasi & URL', min: 'admin', C: Integrations },
-      { k: 'versions', label: 'Versi & changelog', min: 'moderator', C: Versions },
-      { k: 'admins', label: 'Admin', min: 'owner', C: Admins },
-      { k: 'account', label: 'Akun saya', min: 'moderator', C: Account },
+      { k: 'audit', label: 'Log audit', icon: 'list', min: 'admin', C: Audit },
+      { k: 'site', label: 'Situs & SEO', icon: 'globe', min: 'moderator', C: Site },
+      { k: 'integrations', label: 'Integrasi & URL', icon: 'plug', min: 'admin', C: Integrations },
+      { k: 'versions', label: 'Versi & changelog', icon: 'tag', min: 'moderator', C: Versions },
+      { k: 'admins', label: 'Admin', icon: 'key', min: 'owner', C: Admins },
+      { k: 'account', label: 'Akun saya', icon: 'user', min: 'moderator', C: Account },
     ] },
   ] as const;
-  const flat = NAV.flatMap((g) => g.items);
+  const flat = NAV.flatMap((g) => g.items.map((i) => ({ ...i, group: g.group })));
+  const visible = $derived(flat.filter((p) => can(p.min as any)));
   let loading = $state(true);
   let menu = $state(false);
-  const page = $derived(flat.find((p) => p.k === A.route && can(p.min as any)) ?? flat[0]);
+  let folded = $state<string[]>([]);
+  const page = $derived(visible.find((p) => p.k === A.route) ?? visible[0] ?? flat[0]);
 
-  // tautan langsung: #/players/<id> membuka detail pemain
-  function route() { const [r, ...rest] = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('/'); A.route = r; A.arg = rest.join('/'); menu = false; }
+  function route() { const h = parseHash(); A.route = h.route; A.arg = h.arg; A.query = h.query; menu = false; }
   // penanda merah di semua halaman admin selama mode perawatan aktif (supaya tidak lupa dimatikan)
-  async function checkMaint() { try { A.maint = !!(await api.get('/api/site')).maintenance?.on; } catch { /* abaikan */ } }
+  async function checkMaint() { try { A.maint = !!(await api.quiet('/api/site')).maintenance?.on; } catch { /* abaikan */ } }
+  async function badges() { try { A.badges = (await api.quiet('/api/admin/badges')).badges ?? {}; } catch { /* abaikan */ } }
   async function load() {
     try { A.me = await api.get('/api/admin/me'); } catch { A.me = null; }
     loading = false;
-    checkMaint();
+    if (A.me) { folded = pref('nav:folded', []); checkMaint(); badges(); }
   }
   async function logout() { await api.post('/api/admin/logout').catch(err); A.me = null; }
+  function fold(g: string) { folded = folded.includes(g) ? folded.filter((x) => x !== g) : [...folded, g]; savePref('nav:folded', folded); }
   onMount(() => {
     route(); load(); addEventListener('hashchange', route);
-    const t = setInterval(checkMaint, 30_000);
+    const t = setInterval(() => { if (A.me && !document.hidden) { checkMaint(); badges(); } }, 45_000);
     return () => { removeEventListener('hashchange', route); clearInterval(t); };
   });
-  $effect(() => { void A.route; checkMaint(); });
+  $effect(() => { void A.route; if (A.me) { checkMaint(); badges(); } });
+  $effect(() => { document.title = A.me ? `${page.label} · Admin BUPI` : 'Admin BUPI'; });
+  function keys(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && A.me) { e.preventDefault(); A.palette = !A.palette; }
+  }
 </script>
 
+<svelte:window onkeydown={keys} />
+<TopProgress />
 {#if loading}
-  <p class="loading">Memuat…</p>
+  <div class="loading"><span class="skel" style="width:180px;height:14px"></span></div>
 {:else if !A.me}
   <Login onlogin={load} />
 {:else}
   <div class="shell">
     <aside class:open={menu}>
-      <div class="brand"><img src="/icons/favicon.svg" alt="" /><div><b>BUPI</b><span>Admin</span></div></div>
-      <nav>
+      <div class="brand"><img src="/icons/favicon.svg" alt="" /><div><b>BUPI</b><span>Admin · v{APP_VERSION}</span></div></div>
+      <button class="msearch" onclick={() => (A.palette = true)}><span class="ic">{@html I.search}</span>Cari menu / pemain<kbd>Ctrl K</kbd></button>
+      <nav aria-label="Menu admin">
         {#each NAV as g}
           {@const vis = g.items.filter((i) => can(i.min as any))}
           {#if vis.length}
-            <p class="grp">{g.group}</p>
-            {#each vis as it}<a href="#/{it.k}" class:on={page.k === it.k}>{it.label}</a>{/each}
+            {@const sum = vis.reduce((a, i: any) => a + (i.badge ? A.badges[i.badge] ?? 0 : 0), 0)}
+            <button class="grp" aria-expanded={!folded.includes(g.group)} onclick={() => fold(g.group)}>
+              {g.group}{#if folded.includes(g.group) && sum}<span class="badge sm">{sum}</span>{/if}<span class="ic" class:shut={folded.includes(g.group)}>{@html I.down}</span>
+            </button>
+            {#if !folded.includes(g.group) || vis.some((i) => i.k === page.k)}
+              {#each vis.filter((i) => !folded.includes(g.group) || i.k === page.k) as it (it.k)}
+                {@const b = 'badge' in it ? A.badges[it.badge] ?? 0 : 0}
+                <a href="#/{it.k}" class:on={page.k === it.k} aria-current={page.k === it.k ? 'page' : undefined}>
+                  <span class="ic">{@html I[it.icon]}</span>{it.label}{#if b}<span class="badge" class:amber={'amber' in it}>{b > 99 ? '99+' : b}</span>{/if}
+                </a>
+              {/each}
+            {/if}
           {/if}
         {/each}
       </nav>
       <div class="me">
-        <span>{A.me.admin.email}</span>
-        <span class="chip mute">{A.me.admin.role}</span>
-        <a class="ver" href="#versions" title="Versi & changelog">v{APP_VERSION}</a>
-        <button class="btn sm" onclick={logout}>Keluar</button>
+        <span class="av">{(A.me.admin.name || A.me.admin.email).slice(0, 2).toUpperCase()}</span>
+        <div class="who"><b>{A.me.admin.name || A.me.admin.email.split('@')[0]}</b><small>{A.me.admin.role} · <a href="#/versions">v{APP_VERSION}</a></small></div>
+        <button class="btn sm icon out" title="Keluar" aria-label="Keluar" onclick={logout}>{@html I.logout}</button>
       </div>
     </aside>
+    {#if menu}<div class="scrim" onclick={() => (menu = false)} role="presentation"></div>{/if}
     <main>
-      <header class="mobile"><button class="btn sm" onclick={() => (menu = !menu)} aria-expanded={menu}>Menu</button><b>{page.label}</b><a class="btn sm" href="/" target="_blank" rel="noopener">Buka game</a></header>
-      {#if A.maint}<a class="maintbar" href="#/site">Mode perawatan AKTIF: pemain sedang tidak bisa main. Buka Situs &amp; SEO untuk mematikan.</a>{/if}
-      {#key page.k}<page.C />{/key}
+      <header class="mobile">
+        <button class="btn sm icon" onclick={() => (menu = !menu)} aria-expanded={menu} aria-label="Menu">{@html I.menu}</button>
+        <b>{page.label}</b>
+        <button class="btn sm icon" onclick={() => (A.palette = true)} aria-label="Cari">{@html I.search}</button>
+        <a class="btn sm icon" href="/" target="_blank" rel="noopener" aria-label="Buka game">{@html I.ext}</a>
+      </header>
+      {#if A.maint}<a class="maintbar" href="#/site"><span class="ic">{@html I.warn}</span>Mode perawatan AKTIF: pemain sedang tidak bisa main. Buka Situs &amp; SEO untuk mematikan.</a>{/if}
+      {#key page.k}<div class="page fade"><page.C /></div>{/key}
     </main>
   </div>
+  <CommandPalette pages={visible.map((p) => ({ k: p.k, label: p.label, icon: p.icon, group: p.group }))} />
 {/if}
-<Toast />
+<Toasts />
+<AskHost />
 
 <style>
-  .loading { padding: 40px; text-align: center; }
-  .maintbar { display: block; margin: 0 0 14px; background: var(--danger); color: #fff; font-weight: 700; text-decoration: none; padding: 9px 14px; border-radius: 10px; }
-  .shell { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
-  aside { background: var(--ink); color: #E9ECF5; display: flex; flex-direction: column; gap: 10px; padding: 16px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-  .brand { display: flex; gap: 10px; align-items: center; padding: 4px 6px 10px; }
-  .brand img { width: 38px; height: 38px; border-radius: 10px; }
-  .brand div { display: flex; flex-direction: column; } .brand b { font-family: var(--display); font-size: 18px; } .brand span { font-size: 12px; opacity: .7; }
-  nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-  .grp { margin: 10px 8px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; opacity: .55; }
-  nav a { color: #E9ECF5; text-decoration: none; padding: 7px 10px; border-radius: 8px; font-weight: 500; }
+  .loading { min-height: 100vh; display: grid; place-items: center; }
+  .maintbar { display: flex; gap: 8px; align-items: center; background: var(--danger); color: #fff; font-weight: 700; text-decoration: none; padding: 9px 14px; border-radius: 10px; animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--danger-soft); } }
+  .shell { display: grid; grid-template-columns: 244px 1fr; min-height: 100vh; }
+  aside { background: var(--ink); color: #E9ECF5; display: flex; flex-direction: column; gap: 8px; padding: 14px 10px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent; }
+  .brand { display: flex; gap: 10px; align-items: center; padding: 2px 6px 4px; }
+  .brand img { width: 36px; height: 36px; border-radius: 10px; }
+  .brand div { display: flex; flex-direction: column; } .brand b { font-family: var(--display); font-size: 18px; line-height: 1.1; } .brand span { font-size: 11.5px; opacity: .7; }
+  .msearch { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 9px; padding: 7px 9px; color: #B9C0D6; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .msearch:hover { background: rgba(255,255,255,.12); }
+  .msearch:focus-visible { outline: 3px solid #7DB2E8; }
+  .msearch kbd { margin-left: auto; font: 10.5px var(--mono); border: 1px solid rgba(255,255,255,.25); border-radius: 5px; padding: 0 5px; }
+  nav { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+  .grp { all: unset; display: flex; align-items: center; gap: 6px; margin: 8px 8px 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: rgba(233,236,245,.55); font-weight: 700; cursor: pointer; }
+  .grp:hover { color: #fff; } .grp:focus-visible { outline: 2px solid #7DB2E8; }
+  .grp .ic { margin-left: auto; width: 12px; height: 12px; transition: transform .2s; } .grp .ic.shut { transform: rotate(-90deg); }
+  nav a { display: flex; align-items: center; gap: 10px; color: #E9ECF5; text-decoration: none; padding: 6px 10px; border-radius: 8px; font-weight: 500; font-size: 13.5px; transition: background .12s; }
+  nav a .ic { opacity: .75; }
   nav a:hover { background: rgba(255,255,255,.08); }
-  nav a.on { background: #F2B632; color: var(--ink); font-weight: 700; }
-  .me { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; border-top: 1px solid rgba(255,255,255,.15); padding-top: 10px; word-break: break-all; }
-  .me .btn { background: transparent; color: #E9ECF5; border-color: rgba(255,255,255,.4); }
-  main { padding: 24px 28px 60px; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+  nav a.on { background: #F2B632; color: var(--ink); font-weight: 700; } nav a.on .ic { opacity: 1; }
+  .badge { margin-left: auto; min-width: 20px; height: 20px; border-radius: 999px; background: #E0583F; color: #fff; font: 700 11.5px var(--body); display: grid; place-items: center; padding: 0 6px; }
+  .badge.amber { background: #F2B632; color: var(--ink); }
+  nav a.on .badge { background: var(--ink); color: #fff; }
+  .badge.sm { min-width: 16px; height: 16px; font-size: 10px; margin-left: 4px; }
+  .me { display: flex; align-items: center; gap: 9px; border-top: 1px solid rgba(255,255,255,.15); padding: 10px 4px 0; font-size: 12.5px; }
+  .av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent-2); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 12px; flex: none; }
+  .who { flex: 1; min-width: 0; display: flex; flex-direction: column; } .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who small { opacity: .7; } .who a { color: #B9C0D6; font-family: var(--mono); }
+  .out { background: transparent; color: #E9ECF5; border-color: rgba(255,255,255,.3); }
+  .out:hover:not(:disabled) { background: rgba(255,255,255,.1) !important; }
+  .out :global(svg) { width: 15px; height: 15px; }
+  main { padding: 22px 28px 70px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .page { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .mobile { display: none; }
+  .scrim { display: none; }
   @media (max-width: 860px) {
     .shell { grid-template-columns: 1fr; }
-    aside { position: fixed; z-index: 30; left: 0; top: 0; width: 260px; transform: translateX(-100%); transition: transform .2s; }
-    aside.open { transform: none; box-shadow: 10px 0 30px rgba(0,0,0,.2); }
-    main { padding: 12px 14px 60px; }
-    .mobile { display: flex; justify-content: space-between; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 6px 0; }
+    aside { position: fixed; z-index: 70; left: 0; top: 0; width: 264px; transform: translateX(-100%); transition: transform .22s ease-out; }
+    aside.open { transform: none; box-shadow: 10px 0 30px rgba(0,0,0,.25); }
+    .scrim { display: block; position: fixed; inset: 0; z-index: 69; background: rgba(43,47,74,.4); animation: fadein .15s; }
+    main { padding: 10px 14px 70px; gap: 14px; }
+    .mobile { display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 30; background: var(--bg); padding: 6px 0; }
+    .mobile b { flex: 1; font-family: var(--display); font-size: 18px; }
+    .mobile :global(svg) { width: 17px; height: 17px; }
   }
-  .me .ver { color: #B9C0D6; font: 600 12px var(--mono); text-decoration: none; }
-  .me .ver:hover { color: #fff; text-decoration: underline; }
 </style>
