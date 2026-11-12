@@ -39,9 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.26.1',
+    date: '2026-11-12',
+    title: 'Daftar teman rapi di HP & pet berjalan halus',
+    items: [
+      { kind: 'perbaikan', text: 'Daftar teman di HP tidak lagi berantakan saat ada teman di Alun-alun: nama terbaca utuh, tombol pindah ke baris bawah, dan "Susul ke Alun-alun" jadi tombol lebar tersendiri.', player: true },
+      { kind: 'perbaikan', text: 'Pet tidak lagi seperti berpindah tempat tiba-tiba di komputer/HP yang memakai setelan "kurangi animasi": pet tetap berjalan halus di rumah, alun-alun, dan peta kampung (hanya goyangan langkah yang dimatikan).', player: true },
+      { kind: 'perbaikan', text: 'Pet pemain lain yang berpindah jauh di alun-alun atau rumah teman sekarang berjalan menyusuri jalan, bukan langsung muncul di tempat baru.', player: true },
+      { kind: 'ubah', text: 'Uji e2e alun-alun menunggu syarat 1 menit sebelum melapor, supaya tidak gagal di mesin yang cepat.' },
+    ],
+  },
+  {
     version: '0.26.0',
     date: '2026-11-12',
     title: 'Panel admin baru: filter, modal konfirmasi, progres, dan tampilan HP',
+    commits: ['d0d23d2'],
     items: [
       { kind: 'baru', text: 'Semua tabel admin punya kotak cari, filter dropdown (pilihan yang aktif tampil sebagai chip yang bisa dihapus satu per satu), urutkan per kolom, jumlah baris per halaman, kolom yang bisa disembunyikan/diurutkan ulang (diingat per admin), dan ekspor CSV. Filter tersimpan di tautan, jadi bisa dibagikan ke admin lain.' },
       { kind: 'baru', text: 'Menu samping baru: ikon, angka laporan & pembayaran yang perlu dicek, grup bisa dilipat, dan Ctrl K untuk mencari halaman atau pemain. Bar progres tipis saat memuat, notifikasi bertumpuk dengan tombol aksi, kerangka saat memuat, dan tampilan kosong yang jelas.' },

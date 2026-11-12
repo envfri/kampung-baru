@@ -4,6 +4,18 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.26.1 · 2026-11-12 · Daftar teman rapi di HP & pet berjalan halus
+
+### Perubahan
+
+- Uji e2e alun-alun menunggu syarat 1 menit sebelum melapor, supaya tidak gagal di mesin yang cepat.
+
+### Perbaikan
+
+- Daftar teman di HP tidak lagi berantakan saat ada teman di Alun-alun: nama terbaca utuh, tombol pindah ke baris bawah, dan "Susul ke Alun-alun" jadi tombol lebar tersendiri. _(pemain)_
+- Pet tidak lagi seperti berpindah tempat tiba-tiba di komputer/HP yang memakai setelan "kurangi animasi": pet tetap berjalan halus di rumah, alun-alun, dan peta kampung (hanya goyangan langkah yang dimatikan). _(pemain)_
+- Pet pemain lain yang berpindah jauh di alun-alun atau rumah teman sekarang berjalan menyusuri jalan, bukan langsung muncul di tempat baru. _(pemain)_
+
 ## 0.26.0 · 2026-11-12 · Panel admin baru: filter, modal konfirmasi, progres, dan tampilan HP
 
 ### Baru
@@ -24,6 +36,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 ### Perbaikan
 
 - Menyimpan item premium dari admin tidak lagi menghapus kaitan set-nya, jadi efek suasana set di rumah pemain tetap jalan.
+
+Commit: [`d0d23d2`](https://github.com/envfri/kampung-baru/commit/d0d23d2)
 
 ## 0.25.1 · 2026-11-12 · Halaman masuk admin lebih bersih
 

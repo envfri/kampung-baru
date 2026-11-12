@@ -51,6 +51,7 @@ await A.p.evaluate(() => { const w = document.querySelector('.wrap'); if (w) w.s
 await W(300); await shot(A, '01-peta-alun-alun');
 
 for (const pl of [A, B, C]) await enter(pl);
+const enteredAt = Date.now();
 await W(4000);
 // sekali saja: "Mau punya teman baru?" (terima ajakan berteman bawaannya mati). Klepon menyalakannya.
 check(await A.p.locator('.fp:has-text("Mau punya teman baru?")').count() === 1, 'kartu sekali "Mau punya teman baru?" muncul');
@@ -166,6 +167,8 @@ await shot(B, '09-desktop-foto');
 await B.p.locator('.ph .btn:has-text("Tutup")').click().catch(() => {});
 
 // laporkan & blokir lewat kartu profil
+// server baru menerima laporan setelah pelapor 1 menit di alun-alun
+await W(Math.max(0, 62_000 - (Date.now() - enteredAt)));
 await tapPet(C, B.id); await C.p.waitForSelector('.pcard[role="dialog"]');
 await C.p.click('.pcard .foot button:has-text("Laporkan")');
 await C.p.fill('.pcard .input', 'uji laporan');

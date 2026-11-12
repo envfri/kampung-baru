@@ -293,12 +293,8 @@
     return new Promise<void>((resolve) => {
       clearTimeout(idleTimer);
       if (!p.length) return resolve();
-      if (reduced) {
-        live = [...p[p.length - 1]];
-        pos = [...live];
-        queueMicrotask(place);
-        return resolve();
-      }
+      // tetap berjalan walau sistem meminta animasi dikurangi (jalan = gerak permainan, bukan hiasan);
+      // yang dimatikan hanya goyangan langkah (CSS prefers-reduced-motion)
       arrived?.();
       arrived = resolve;
       path = p;
@@ -354,8 +350,8 @@
   }
   function scheduleIdle() {
     clearTimeout(idleTimer);
-    if (reduced) return;
-    idleTimer = setTimeout(wander, 2500 + Math.random() * 5000);
+    // animasi dikurangi: pet tetap jalan-jalan sendiri, tapi lebih jarang
+    idleTimer = setTimeout(wander, (reduced ? 2.5 : 1) * (2500 + Math.random() * 5000));
   }
   function wander() {
     if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
@@ -715,7 +711,15 @@
         if (tk !== c.target) {
           c.target = tk;
           const d = Math.hypot(tgt[0] - c.live[0], tgt[1] - c.live[1]);
-          if (d > 5) { c.live = [...tgt]; c.path = []; c.tile = tileOf(tgt); changed = true; }
+          if (d > 16) { c.live = [...tgt]; c.path = []; c.tile = tileOf(tgt); changed = true; }
+          else if (d > 1.5) {
+            // jauh: jalan menyusuri jalur (tidak menembus benda), cukup cepat supaya sampai sebelum sinkron berikutnya
+            const route = routeFrom(c.live, [[Math.floor(tgt[0]), Math.floor(tgt[1])]]);
+            c.path = route && route.length ? [...route.slice(0, -1), tgt] : [tgt];
+            const len = c.path.reduce((acc, q, i) => acc + Math.hypot(q[0] - (i ? c.path[i - 1][0] : c.live[0]), q[1] - (i ? c.path[i - 1][1] : c.live[1])), 0);
+            c.speed = Math.max(1.7, len / 1.1);
+            compGo();
+          }
           else if (d > 0.05) { c.path = [tgt]; c.speed = Math.max(1.7, d / 0.9); compGo(); }
           else if (!c.path.length) c.flip = m.flip;
         }

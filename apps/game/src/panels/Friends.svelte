@@ -157,11 +157,11 @@
             {:else}<em class:hot={!f.visited_today}>{f.visited_today ? 'Sudah dikunjungi hari ini' : 'Hadiah kunjungan tersedia'}</em>{/if}
           </div>
           <div class="btns">
-            {#if f.online && f.where === 'alun'}<button class="btn sm hot" onclick={() => joinSquare(f)}>Susul ke Alun-alun</button>{/if}
             <button class="btn sm" class:hot={f.online && f.where === 'home'} onclick={() => visit(f)}>{f.online && (f.where === 'home' || f.guests) ? 'Main bareng' : 'Kunjungi'}</button>
             <button class="btn sm" aria-label="Tantang {f.display_name} duel" onclick={() => { sfx.tap(); G.sheetArg = { friendId: f.id }; G.sheet = 'duels'; }}>Duel</button>
             <button class="btn sm" aria-label="Kirim hadiah ke {f.display_name}" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: f.id, name: f.display_name }; }}>{@html I.gift}</button>
           </div>
+          {#if f.online && f.where === 'alun'}<button class="btn sm hot go" onclick={() => joinSquare(f)}>Susul ke Alun-alun{f.alun > 1 ? ` ${f.alun}` : ''}</button>{/if}
         </div>
       {/each}
     </div>
@@ -263,20 +263,19 @@
   .seg button.on { background: var(--coin); }
   .seg i { font-style: normal; background: var(--low); color: #fff; border-radius: 9px; padding: 0 6px; font-size: 12px; }
   .list { display: flex; flex-direction: column; gap: 8px; }
-  .friend { display: flex; align-items: center; gap: 10px; border: 2px solid var(--ink); border-radius: 14px; padding: 8px; background: var(--card); }
+  .friend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; border: 2px solid var(--ink); border-radius: 14px; padding: 8px; background: var(--card); min-width: 0; }
   .ava { width: 54px; height: 54px; flex: none; background: var(--tint); border-radius: 12px; display: grid; place-items: center; overflow: hidden; }
   .ava :global(svg) { width: 100%; height: 100%; }
   .ava.gift :global(svg) { width: 30px; height: 30px; }
-  .info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .info { display: flex; flex-direction: column; flex: 1 1 140px; min-width: 0; }
   .info b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .info span { font-size: 13px; color: var(--muted); font-weight: 600; }
   .info em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--muted); }
   .info em.hot { color: #1E7A4C; }
-  .btns { display: flex; gap: 4px; }
-  @media (max-width: 359px) {
-    .friend { flex-wrap: wrap; }
-    .btns { flex: 1 1 100%; justify-content: flex-end; }
-  }
+  /* tombol pindah ke baris bawah bila tidak muat di samping nama (HP) */
+  .btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; }
+  .info em { overflow-wrap: anywhere; }
+  .go { flex: 1 1 100%; min-height: 40px; }
   .rank { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2px solid var(--ink); display: grid; place-items: center; font-weight: 800; background: var(--paper); }
   .rank.gold { background: var(--coin); }
   .friend.me { background: #FFF8E2; }

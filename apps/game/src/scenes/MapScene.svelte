@@ -59,7 +59,6 @@
     walking = false;
     G.mapAt = l.id;
     sfx.pop();
-    if (reduced) return open(l);
     entering = true;
     timer = setTimeout(() => { entering = false; open(l); }, 280);
   }
@@ -78,7 +77,7 @@
     if (Math.abs(at[1] - ROAD) > 1 && Math.abs(at[0] - d[0]) > 1) p.push([at[0], ROAD]);
     if (Math.abs(at[0] - d[0]) > 1 && Math.abs(d[1] - ROAD) > 1) p.push([d[0], ROAD]);
     p.push(d);
-    if (reduced || Math.hypot(at[0] - d[0], at[1] - d[1]) < 4) { at = d; return arrive(l); }
+    if (Math.hypot(at[0] - d[0], at[1] - d[1]) < 4) { at = d; return arrive(l); }
     pts = p;
     walking = true;
     cancelAnimationFrame(raf);
