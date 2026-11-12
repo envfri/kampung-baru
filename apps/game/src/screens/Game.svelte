@@ -328,7 +328,7 @@
   {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
   {#if G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests}<FriendPrompt />{/if}
 
-  {#if G.view === 'visit' && G.visit}
+  {#if G.view === 'visit' && G.visit && !playingGame}
     <div class="visit">
       <div class="whorow">
         <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>

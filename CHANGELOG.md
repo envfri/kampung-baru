@@ -4,6 +4,12 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.28.1 · 2026-11-12 · Kartu rumah teman ikut disembunyikan saat main bareng
+
+### Perbaikan
+
+- Saat main bareng di rumah teman, kartu "Rumah …" (Ambil koin, Suka, Hadiah, Pulang) ikut disembunyikan supaya tidak mengintip di belakang papan di HP. Kartunya kembali setelah permainan selesai. _(pemain)_
+
 ## 0.28.0 · 2026-11-12 · Main bareng langkah demi langkah & latar bermotif
 
 ### Perubahan
@@ -14,6 +20,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 - Selama main bareng, kartu Sapa/Ngobrol di rumah dan bar Alun-alun disembunyikan supaya papan lebih lega; muncul lagi setelah permainan selesai. Papan Ular Tangga dan Congklak sekarang di tengah layar. _(pemain)_
 - Latar di rumah dan alun-alun tidak lagi polos: motif kawung, daun, dan bunga melati yang tipis (satu gambar kecil, tetap ringan). _(pemain)_
 - Teknis: congklakFrames, ularFrames, dan framesMs di @kb/shared dipakai server (tambahan waktu giliran) dan game (animasi); langkah terakhir membawa at & anim. Uji bareng & e2e disesuaikan.
+
+Commit: [`e0d69c6`](https://github.com/envfri/kampung-baru/commit/e0d69c6)
 
 ## 0.27.0 · 2026-11-12 · Aksesori baru: jubah, sayap, topi, topeng & slot Dibawa
 

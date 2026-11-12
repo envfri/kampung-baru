@@ -39,9 +39,18 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.28.1',
+    date: '2026-11-12',
+    title: 'Kartu rumah teman ikut disembunyikan saat main bareng',
+    items: [
+      { kind: 'perbaikan', text: 'Saat main bareng di rumah teman, kartu "Rumah …" (Ambil koin, Suka, Hadiah, Pulang) ikut disembunyikan supaya tidak mengintip di belakang papan di HP. Kartunya kembali setelah permainan selesai.', player: true },
+    ],
+  },
+  {
     version: '0.28.0',
     date: '2026-11-12',
     title: 'Main bareng langkah demi langkah & latar bermotif',
+    commits: ['e0d69c6'],
     items: [
       { kind: 'ubah', text: 'Congklak: biji diambil lalu dijatuhkan satu per satu ke tiap lubang (angkanya ikut berubah), ada tangan yang membawa sisa biji, jeda saat mengambil lagi, dan efek saat menembak biji lawan.', player: true },
       { kind: 'ubah', text: 'Ular Tangga Kampung: dadu berputar dulu, lalu bidak melompat kotak demi kotak, memanjat tangga bambu, meluncur mengikuti lengkung ular, maju dua langkah di Warung, dan bergoyang di Becek.', player: true },
