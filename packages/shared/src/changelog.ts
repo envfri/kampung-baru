@@ -39,9 +39,27 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.26.0',
+    date: '2026-11-12',
+    title: 'Panel admin baru: filter, modal konfirmasi, progres, dan tampilan HP',
+    items: [
+      { kind: 'baru', text: 'Semua tabel admin punya kotak cari, filter dropdown (pilihan yang aktif tampil sebagai chip yang bisa dihapus satu per satu), urutkan per kolom, jumlah baris per halaman, kolom yang bisa disembunyikan/diurutkan ulang (diingat per admin), dan ekspor CSV. Filter tersimpan di tautan, jadi bisa dibagikan ke admin lain.' },
+      { kind: 'baru', text: 'Menu samping baru: ikon, angka laporan & pembayaran yang perlu dicek, grup bisa dilipat, dan Ctrl K untuk mencari halaman atau pemain. Bar progres tipis saat memuat, notifikasi bertumpuk dengan tombol aksi, kerangka saat memuat, dan tampilan kosong yang jelas.' },
+      { kind: 'baru', text: 'Pemain: kartu ringkasan yang bisa diklik jadi filter, filter status/aktif/login/level/tanggal daftar/pembayaran, detail bertab (Ringkasan, Dompet, Tas, Pembayaran, Moderasi) dengan bar level, kebutuhan pet, dan jatah harian. Baru: bisukan obrolan dari admin, kirim notifikasi ke banyak pemain (admin), dan beri hadiah massal (owner saja).' },
+      { kind: 'baru', text: 'Dasbor: pilihan rentang (hari ini sampai 90 hari), tren dibanding kemarin, grafik dengan angka per hari saat kursor diarahkan, daftar "Perlu perhatian" (laporan, pembayaran macet, email gagal, event berjalan), paling dimainkan hari ini, dan status server. Diperbarui sendiri tiap 60 detik.' },
+      { kind: 'baru', text: 'Pembayaran: ringkasan hari ini, filter status/waktu/paket/mode, hitung mundur QR untuk yang menunggu, alur Dibuat → Dibayar → Mutiara terkirim di detail. Moderasi dipecah jadi tab Laporan / Obrolan alun-alun / Obrolan di rumah / Kata terlarang dengan aksi cepat dan tandai selesai massal. Log audit: filter admin, jenis aksi, waktu, dan detail Sebelum → Sesudah.' },
+      { kind: 'baru', text: 'Ekonomi & fitur: cari pengaturan, saringan "hanya yang beda dari bawaan", tombol kembalikan per nilai, bagian bisa dilipat, bar simpan yang muncul saat ada perubahan, dan modal Tinjau perubahan sebelum menyimpan.' },
+      { kind: 'ubah', text: 'Aksi berbahaya memakai modal konfirmasi. Blokir pemain, hapus data, ubah saldo besar (lebih dari 1.000 koin atau 100 Mutiara), menyalakan mode perawatan (ketik PERAWATAN), tarik Mutiara demo, dan cut-off peluncuran harus diketik dulu. Menutup form dengan perubahan belum disimpan juga ditanya dulu.' },
+      { kind: 'ubah', text: 'Halaman lain ikut dirapikan: Item (filter set premium, aktif/nonaktif massal dengan Urungkan), Event (status & progres waktu), Aktivitas, Tugas, Peta & toko, Paket, Pengumuman, Media (unggah banyak + seret, filter), Broadcast (pratinjau layar kunci, ketik KIRIM untuk semua pemain), Email, WhatsApp (daftar nomor tersambung), Pusat notifikasi, Admin, Akun saya (indikator kekuatan password), Situs & SEO, Peluncuran (daftar langkah), Integrasi, dan Versi. Di HP tabel tampil sebagai kartu dan filter terbuka dari bawah.' },
+      { kind: 'perbaikan', text: 'Menyimpan item premium dari admin tidak lagi menghapus kaitan set-nya, jadi efek suasana set di rumah pemain tetap jalan.' },
+      { kind: 'ubah', text: 'Teknis: endpoint daftar admin baru dengan filter, urut, total, dan ekspor CSV (routes/admin-extra.ts); /api/admin/dashboard, /api/admin/badges, mute, bulk-notify, bulk-gift (owner), dan reports/handle massal. Aktif/nonaktif item massal (admin-content.ts), daftar nomor WhatsApp (admin-comms.ts). Log audit pengaturan menyimpan perubahan Sebelum → Sesudah. Uji baru: admin-panel.test.ts, admin-content.test.ts, dan npm run test:e2e:admin.' },
+    ],
+  },
+  {
     version: '0.25.1',
     date: '2026-11-12',
     title: 'Halaman masuk admin lebih bersih',
+    commits: ['53cf001'],
     items: [
       { kind: 'keamanan', text: 'Halaman masuk panel admin tidak lagi menampilkan petunjuk tentang file konfigurasi server (.env, ADMIN_EMAIL, ADMIN_PASSWORD). Halaman ini terbuka untuk umum, jadi info teknis server tidak perlu terlihat.' },
     ],

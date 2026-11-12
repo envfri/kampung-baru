@@ -1,136 +1,228 @@
 <script lang="ts">
-  // Persiapan peluncuran: status pembayaran, tarik Mutiara uji, dan cut-off (semua pemain mulai dari 0).
+  // Persiapan peluncuran: ringkasan & daftar langkah dengan bar progres, tarik Mutiara uji (ketik TARIK),
+  // dan cut-off supaya semua pemain mulai dari 0 (ketik RESET BUPI, dengan ringkasan Sebelum → Sesudah).
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
-  import { A, can, err, toast, num, rp, dt } from '../lib/store.svelte';
+  import { can, err, toast, ask, num, rp, dt } from '../lib/store.svelte';
+  import { I } from '../lib/icons';
+  import PageHead from '../components/ui/PageHead.svelte';
+  import Stat from '../components/ui/Stat.svelte';
+  import Section from '../components/ui/Section.svelte';
+  import Switch from '../components/ui/Switch.svelte';
+  import Bar from '../components/ui/Bar.svelte';
+  import Ago from '../components/ui/Ago.svelte';
 
-  let s = $state<any>(null);
-  let busy = $state(false);
+  let s = $state<any>(null), updated = $state(0);
+  let revokeBusy = $state(false), resetBusy = $state(false);
   let mode = $state<'progress' | 'all'>('progress');
   let keepFriends = $state(true), analytics = $state(true), includeReal = $state(false), backup = $state(false);
-  let confirm = $state('');
   const PHRASE = 'RESET BUPI';
   const owner = $derived(can('owner'));
 
-  async function load() { try { s = await api.get('/api/admin/launch'); } catch (e) { err(e); } }
+  async function load() { try { s = await api.get('/api/admin/launch'); updated = Date.now(); } catch (e) { err(e); } }
   onMount(load);
 
+  const pay = $derived(s?.payment);
+  const payLabel = $derived(!pay ? '' : pay.provider === 'mock' ? 'Simulasi' : pay.provider === 'zepay' ? `ZePay ${pay.mode === 'live' ? 'live' : pay.mode === 'test' ? 'uji' : ''}` : pay.provider);
+  const realBlocked = $derived(!!s?.real?.payments && mode === 'all');
+  const ready = $derived(backup && !realBlocked && (!s?.real?.payments || includeReal));
+
+  // daftar langkah peluncuran (yang bisa dicek otomatis)
+  const steps = $derived(!s ? [] : [
+    { done: !s.demo.payments, t: 'Tarik Mutiara uji', d: s.demo.payments ? `${num(s.demo.pearls)} Mutiara dari ${s.demo.payments} pembayaran uji masih beredar` : 'Tidak ada Mutiara uji yang beredar', href: '#demo' },
+    { done: !!s.cutoff, t: 'Cut-off peluncuran', d: s.cutoff ? `Selesai ${dt(s.cutoff.at)}` : 'Semua pemain mulai dari 0', href: '#cut' },
+    { done: !!pay.production, t: 'Server mode produksi', d: pay.production ? 'NODE_ENV=production' : 'Jalankan dengan NODE_ENV=production', href: '' },
+    { done: pay.provider === 'zepay' && pay.mode === 'live', t: 'Pembayaran live', d: pay.provider === 'zepay' && pay.mode === 'live' ? 'ZePay kunci live aktif' : 'Ganti ke kunci live ZePay, lalu daftarkan webhook di Pembayaran', href: '#/payments' },
+  ]);
+  const doneN = $derived(steps.filter((x) => x.done).length);
+  function jump(href: string) {
+    if (href.startsWith('#/')) { location.hash = href; return; }
+    document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function revoke() {
-    if (!window.confirm(`Tarik ${num(s.demo.pearls)} Mutiara dari ${s.demo.payments} pembayaran uji milik ${s.demo.users} pemain?`)) return;
-    busy = true;
+    const ok = await ask({
+      title: 'Tarik Mutiara uji?', tone: 'danger', icon: 'gem',
+      body: `Mutiara dari ${s.demo.payments} pembayaran uji milik ${s.demo.users} pemain ditarik kembali. Yang sudah terlanjur dibelanjakan tidak bisa ditarik (saldo tidak dibuat minus). Tercatat di log audit.`,
+      diff: [
+        { label: 'Mutiara uji beredar', before: num(s.demo.pearls), after: '0' },
+        { label: 'Pembayaran uji aktif', before: String(s.demo.payments), after: '0 (ditandai ditarik)' },
+        { label: 'Total Mutiara beredar', before: num(s.pearls), after: `± ${num(Math.max(0, s.pearls - s.demo.pearls))}` },
+      ],
+      typeToConfirm: 'TARIK', confirm: 'Tarik Mutiara',
+    });
+    if (!ok) return;
+    revokeBusy = true;
     try {
       const r = await api.post('/api/admin/launch/revoke-demo');
-      s = r.stats;
+      s = r.stats; updated = Date.now();
       toast(`${num(r.revoked)} Mutiara ditarik dari ${r.users} pemain${r.spent ? `; ${num(r.spent)} sudah terlanjur dipakai` : ''}.`);
-    } catch (e) { err(e); } finally { busy = false; }
+    } catch (e) { err(e); } finally { revokeBusy = false; }
   }
+
   async function reset() {
-    busy = true;
+    const all = mode === 'all';
+    const diff = [
+      { label: 'Akun pemain', before: `${num(s.players)} akun`, after: all ? '0 (semua dihapus)' : `${num(s.players)} akun, mulai dari 0` },
+      { label: 'Pet', before: num(s.pets), after: '0 (dibuat ulang oleh pemain)' },
+      { label: 'Koin beredar', before: num(s.coins), after: all ? '0' : 'modal awal per pemain' },
+      { label: 'Mutiara beredar', before: num(s.pearls), after: all ? '0' : 'modal awal per pemain' },
+      ...(all ? [] : [{ label: 'Daftar teman', before: 'ada', after: keepFriends ? 'tetap' : 'dihapus' }]),
+      { label: 'Data analitik', before: 'ada', after: analytics ? 'dihapus (dasbor dari 0)' : 'tetap' },
+      ...(s.real.payments ? [{ label: 'Pembayaran sungguhan', before: `${s.real.payments} (${rp(s.real.amount)})`, after: 'catatan tetap, Mutiara direset' }] : []),
+    ];
+    const ok = await ask({
+      title: all ? 'Hapus semua pemain?' : 'Jalankan cut-off peluncuran?', tone: 'danger', icon: 'rocket',
+      body: all ? 'Semua akun pemain dihapus; semua orang perlu daftar ulang. Konten & pengaturan admin tidak tersentuh.' : 'Semua pemain mulai dari 0: akun & cara masuk tetap, pet dibuat ulang, dompet & barang kembali ke modal awal. Konten & pengaturan admin tidak tersentuh.',
+      diff, note: 'Tidak bisa dibatalkan. Pastikan cadangan database sudah dibuat.',
+      typeToConfirm: PHRASE, confirm: all ? 'Hapus semua pemain' : 'Jalankan cut-off',
+    });
+    if (!ok) return;
+    resetBusy = true;
     try {
-      const r = await api.post('/api/admin/launch/reset', { mode, keepFriends, analytics, includeReal, confirm });
-      s = r.stats; confirm = ''; backup = false;
-      toast(`Cut-off selesai: ${num(r.cutoff.players)} pemain ${mode === 'all' ? 'dihapus' : 'mulai dari 0'}.`);
-    } catch (e) { err(e); } finally { busy = false; }
+      const r = await api.post('/api/admin/launch/reset', { mode, keepFriends, analytics, includeReal, confirm: PHRASE });
+      s = r.stats; backup = false; includeReal = false; updated = Date.now();
+      toast(`Cut-off selesai: ${num(r.cutoff.players)} pemain ${all ? 'dihapus' : 'mulai dari 0'}.`);
+    } catch (e) { err(e); } finally { resetBusy = false; }
   }
-  const pay = $derived(s?.payment);
-  const payLabel = $derived(!pay ? '' : pay.provider === 'mock' ? 'Simulasi (mock)' : pay.provider === 'zepay' ? `ZePay ${pay.mode === 'live' ? 'live' : pay.mode === 'test' ? 'mode uji' : ''}` : pay.provider);
-  const ready = $derived(confirm.trim() === PHRASE && backup && (!s?.real?.payments || (mode === 'progress' && includeReal)));
 </script>
 
-<h1>Peluncuran</h1>
-<p class="muted">Persiapan sebelum game dibuka untuk umum. Selama masa uji, Mutiara dari pembelian simulasi tidak boleh terbawa ke produksi. Saat peluncuran, lakukan <b>cut-off</b> supaya semua pemain mulai dari 0 dan setara.</p>
+<PageHead title="Peluncuran" updated={updated} onrefresh={load}>
+  <span>Persiapan sebelum game dibuka untuk umum: Mutiara uji tidak boleh terbawa ke produksi, dan <b>cut-off</b> membuat semua pemain mulai dari 0</span>
+</PageHead>
 
 {#if !s}
-  <p class="muted">Memuat…</p>
+  <div class="stats">{#each Array(4) as _}<div class="card sk"><span class="skel" style="width:40%"></span><span class="skel" style="width:70%"></span></div>{/each}</div>
+  <div class="card sk tall"><span class="skel" style="width:30%"></span><span class="skel"></span></div>
 {:else}
-  <section class="card" aria-labelledby="st-h">
-    <h2 id="st-h">Status</h2>
-    <div class="grid">
-      <div><span class="lbl">Pembayaran</span><b>{payLabel}</b>
-        {#if pay.provider === 'mock' && pay.locked}<span class="chip">terkunci untuk pemain</span>
-        {:else if pay.provider === 'mock'}<span class="chip warn">pemain bisa beli gratis</span>
-        {:else if pay.mode === 'test'}<span class="chip warn">QR uji, tidak bisa dibayar sungguhan</span>{/if}
-      </div>
-      <div><span class="lbl">Pemain</span><b>{num(s.players)}</b><small>{num(s.guests)} tamu · {num(s.pets)} pet</small></div>
-      <div><span class="lbl">Beredar</span><b>{num(s.pearls)} Mutiara</b><small>{num(s.coins)} koin</small></div>
-      <div><span class="lbl">Pembayaran sungguhan</span><b>{num(s.real.payments)}</b><small>{rp(s.real.amount)}</small></div>
-    </div>
-    {#if pay.provider === 'mock' && !pay.production}
-      <p class="warnbox">Server ini bukan mode produksi (NODE_ENV bukan production): pembelian simulasi terbuka untuk semua pemain, Mutiara gratis. Di server publik, jalankan dengan NODE_ENV=production supaya simulasi hanya bisa dipakai admin yang sedang login.</p>
-    {:else if pay.provider === 'mock'}
-      <p class="okbox">Pemain melihat "Pembelian Mutiara belum dibuka". Kamu (admin yang login di browser ini) tetap bisa mencoba alur beli di game; Mutiara-nya ditandai uji.</p>
-    {/if}
+  <div class="stats">
+    <Stat icon="card" value={payLabel} label={pay.provider === 'mock' ? (pay.locked ? 'Pembayaran · terkunci untuk pemain' : 'Pembayaran · pemain bisa beli gratis') : pay.mode === 'test' ? 'Pembayaran · QR uji' : 'Pembayaran'} tone={pay.provider === 'zepay' && pay.mode === 'live' ? 'ok' : 'warn'} />
+    <Stat icon="users" value={num(s.players)} label={`Pemain · ${num(s.guests)} tamu · ${num(s.pets)} pet`} tone="blue" />
+    <Stat icon="gem" value={num(s.pearls)} label={`Mutiara beredar · ${num(s.coins)} koin`} tone="blue" />
+    <Stat icon="coin" value={rp(s.real.amount)} label={`${num(s.real.payments)} pembayaran sungguhan`} />
+  </div>
+
+  {#if pay.provider === 'mock' && !pay.production}
+    <p class="alert warn"><span class="ic">{@html I.warn}</span><span>Server ini bukan mode produksi (NODE_ENV bukan production): pembelian simulasi terbuka untuk semua pemain, Mutiara gratis. Di server publik, jalankan dengan NODE_ENV=production supaya simulasi hanya bisa dipakai admin yang sedang login.</span></p>
+  {:else if pay.provider === 'mock'}
+    <p class="alert ok"><span class="ic">{@html I.info}</span><span>Pemain melihat "Pembelian Mutiara belum dibuka". Kamu (admin yang login di browser ini) tetap bisa mencoba alur beli di game; Mutiara-nya ditandai uji.</span></p>
+  {/if}
+
+  <section class="card prog">
+    <div class="ph"><h2>Langkah peluncuran</h2><b>{doneN}/{steps.length} siap</b></div>
+    <Bar value={doneN} max={steps.length} h={8} tone={doneN === steps.length ? 'ok' : 'blue'} label="Kesiapan peluncuran" />
+    <ol class="steps">
+      {#each steps as x}
+        <li class:done={x.done}>
+          <span class="ck">{@html x.done ? I.check : ''}</span>
+          <span class="tx"><b>{x.t}</b><small>{x.d}</small></span>
+          {#if !x.done && x.href}<button class="btn sm" onclick={() => jump(x.href)}>Buka{@html I.right}</button>{/if}
+        </li>
+      {/each}
+    </ol>
+    <p class="muted small">Urutan yang disarankan: cadangkan database → tarik Mutiara uji → cut-off → kunci live ZePay & restart → daftarkan webhook di Pembayaran → umumkan lewat <a href="#/announcements">Pengumuman</a> / <a href="#/broadcasts">Broadcast</a>.</p>
     {#if s.cutoff}
-      <p class="okbox">Cut-off terakhir: <b>{dt(s.cutoff.at)}</b> oleh {s.cutoff.by} · {s.cutoff.mode === 'all' ? 'semua pemain dihapus' : 'progres direset, akun tetap'} · {num(s.cutoff.players)} pemain{s.cutoff.version ? ` · v${s.cutoff.version}` : ''}</p>
+      <p class="alert ok"><span class="ic">{@html I.check}</span><span>Cut-off terakhir <b>{dt(s.cutoff.at)}</b> (<Ago t={s.cutoff.at} />) oleh {s.cutoff.by} · {s.cutoff.mode === 'all' ? 'semua pemain dihapus' : 'progres direset, akun tetap'} · {num(s.cutoff.players)} pemain{s.cutoff.version ? ` · v${s.cutoff.version}` : ''}</span></p>
     {/if}
   </section>
 
-  <section class="card" aria-labelledby="demo-h">
-    <h2 id="demo-h">Mutiara dari pembayaran uji</h2>
-    <p class="muted">Pembelian lewat halaman simulasi atau kunci uji ZePay (zpk_test_…) ditandai "uji". Tarik kembali Mutiara-nya tanpa mereset yang lain. Mutiara yang sudah terlanjur dibelanjakan tidak bisa ditarik (saldo tidak dibuat minus); cut-off di bawah membersihkan semuanya.</p>
-    <p><b>{num(s.demo.pearls)}</b> Mutiara dari <b>{s.demo.payments}</b> pembayaran uji, milik <b>{s.demo.users}</b> pemain.</p>
-    {#if owner}
-      <div><button class="btn" disabled={busy || !s.demo.payments} onclick={revoke}>Tarik Mutiara uji</button></div>
-    {:else}<p class="muted">Hanya pemilik (owner) yang bisa menarik Mutiara.</p>{/if}
-  </section>
-
-  <section class="card danger" aria-labelledby="cut-h">
-    <h2 id="cut-h">Cut-off peluncuran</h2>
-    <p>Semua pemain mulai dari nol supaya setara saat produksi dibuka. <b>Tidak bisa dibatalkan.</b></p>
-    <div class="cols">
-      <div>
-        <b>Yang direset</b>
-        <ul><li>Pet (pemain membuat pet baru)</li><li>Koin & Mutiara (kembali ke modal awal)</li><li>Tas, rumah & ruangan, kebun, ikan, koleksi</li><li>Tugas, lencana, hadiah harian, event, duel, kunjungan, hadiah teman, suka rumah</li><li>Notifikasi di game & pesan yang belum terkirim</li><li>Pembayaran uji</li></ul>
-      </div>
-      <div>
-        <b>Yang tetap</b>
-        <ul><li>Item, harga, event, tugas, peta, pengaturan, paket Mutiara, pengumuman, media</li><li>Akun admin, log audit, riwayat email/WA</li><li>Catatan pembayaran sungguhan (laporan keuangan)</li></ul>
-      </div>
+  <Section title="Mutiara dari pembayaran uji" id="demo" prefKey="launch:demo">
+    {#snippet badge()}{#if s.demo.payments}<span class="chip warn">{num(s.demo.pearls)} Mutiara beredar</span>{:else}<span class="chip">bersih</span>{/if}{/snippet}
+    <p class="muted small">Pembelian lewat halaman simulasi atau kunci uji ZePay (zpk_test_…) ditandai "uji". Tarik kembali Mutiara-nya tanpa mereset yang lain. Yang sudah dibelanjakan tidak bisa ditarik; cut-off di bawah membersihkan semuanya.</p>
+    <div class="mini">
+      <div><b>{num(s.demo.pearls)}</b><span>Mutiara uji</span></div>
+      <div><b>{num(s.demo.payments)}</b><span>Pembayaran uji</span></div>
+      <div><b>{num(s.demo.users)}</b><span>Pemain</span></div>
     </div>
     {#if owner}
-      <fieldset>
-        <legend>Pilihan</legend>
-        <label class="opt"><input type="radio" bind:group={mode} value="progress" /> <span><b>Reset progres, akun tetap</b> (disarankan). Pemain uji tetap bisa masuk dengan Google/email/akun tamunya, lalu membuat pet baru dari awal.</span></label>
-        <label class="opt"><input type="radio" bind:group={mode} value="all" /> <span><b>Hapus semua pemain.</b> Semua akun hilang; semua orang daftar ulang.</span></label>
-        {#if mode === 'progress'}<label class="opt"><input type="checkbox" bind:checked={keepFriends} /> <span>Pertahankan daftar teman</span></label>{/if}
-        <label class="opt"><input type="checkbox" bind:checked={analytics} /> <span>Hapus juga data analitik masa uji (dasbor mulai dari 0)</span></label>
-        {#if s.real.payments}
-          <p class="warnbox">Sudah ada {s.real.payments} pembayaran sungguhan ({rp(s.real.amount)}, {num(s.real.pearls)} Mutiara). Catatannya tetap disimpan, tetapi Mutiara-nya ikut direset.{mode === 'all' ? ' "Hapus semua pemain" tidak bisa dipakai.' : ''}</p>
-          {#if mode === 'progress'}<label class="opt"><input type="checkbox" bind:checked={includeReal} /> <span>Saya paham, Mutiara dari pembayaran sungguhan ikut direset</span></label>{/if}
-        {/if}
-        <label class="opt"><input type="checkbox" bind:checked={backup} /> <span>Saya sudah membuat cadangan database (<span class="mono">./deploy/backup.sh</span> di server)</span></label>
-        <label class="cflbl" for="cf">Ketik <b class="mono">{PHRASE}</b> untuk konfirmasi</label>
-        <div class="row">
-          <input id="cf" class="mono" bind:value={confirm} autocomplete="off" placeholder={PHRASE} />
-          <button class="btn danger" disabled={busy || !ready} onclick={reset}>Jalankan cut-off</button>
+      <div class="row"><button class="btn danger" disabled={!s.demo.payments} aria-busy={revokeBusy ? 'true' : undefined} onclick={revoke}>{@html I.gem}Tarik Mutiara uji…</button>
+        {#if !s.demo.payments}<span class="muted small">Tidak ada yang perlu ditarik.</span>{/if}</div>
+    {:else}<p class="muted small">Hanya pemilik yang bisa menarik Mutiara.</p>{/if}
+  </Section>
+
+  <div class="danger-wrap">
+    <Section title="Cut-off peluncuran" id="cut" prefKey="launch:cut">
+      {#snippet badge()}<span class="chip no">tidak bisa dibatalkan</span>{/snippet}
+      <p>Semua pemain mulai dari nol supaya setara saat produksi dibuka.</p>
+      <div class="lists">
+        <div class="lst reset"><b>{@html I.undo}Yang direset</b>
+          <ul><li>Pet (pemain membuat pet baru)</li><li>Koin & Mutiara (kembali ke modal awal)</li><li>Tas, rumah & ruangan, kebun, ikan, koleksi</li><li>Tugas, lencana, hadiah harian, event, duel, kunjungan, hadiah teman, suka rumah</li><li>Notifikasi di game & pesan yang belum terkirim</li><li>Pembayaran uji</li></ul>
         </div>
-      </fieldset>
-      <p class="muted small">Urutan yang disarankan saat peluncuran: cadangkan database → cut-off → ganti ke kunci live ZePay & restart → daftarkan webhook di Pembayaran → umumkan peluncuran (Pengumuman/Broadcast).</p>
-    {:else}<p class="muted">Hanya pemilik (owner) yang bisa menjalankan cut-off.</p>{/if}
-  </section>
+        <div class="lst keep"><b>{@html I.check}Yang tetap</b>
+          <ul><li>Item, harga, event, tugas, peta, pengaturan, paket Mutiara, pengumuman, media</li><li>Akun admin, log audit, riwayat email/WA</li><li>Catatan pembayaran sungguhan (laporan keuangan)</li></ul>
+        </div>
+      </div>
+      {#if owner}
+        <fieldset class="modes">
+          <legend>Cara cut-off</legend>
+          <label class="ro" class:on={mode === 'progress'}><input type="radio" bind:group={mode} value="progress" /><span><b>Reset progres, akun tetap <em class="chip">disarankan</em></b><small>Pemain uji tetap bisa masuk dengan Google/email/akun tamunya, lalu membuat pet baru dari awal.</small></span></label>
+          <label class="ro" class:on={mode === 'all'} class:blocked={!!s.real.payments}><input type="radio" bind:group={mode} value="all" /><span><b>Hapus semua pemain</b><small>Semua akun hilang; semua orang daftar ulang.{#if s.real.payments} Tidak bisa dipakai karena sudah ada pembayaran sungguhan.{/if}</small></span></label>
+        </fieldset>
+        <div class="sws">
+          {#if mode === 'progress'}<Switch bind:checked={keepFriends} label="Pertahankan daftar teman" />{/if}
+          <Switch bind:checked={analytics} label="Hapus data analitik masa uji" help="Dasbor mulai dari 0." />
+        </div>
+        {#if s.real.payments}
+          <p class="alert warn"><span class="ic">{@html I.warn}</span><span>Sudah ada {s.real.payments} pembayaran sungguhan ({rp(s.real.amount)}, {num(s.real.pearls)} Mutiara). Catatannya tetap disimpan, tetapi Mutiara-nya ikut direset.</span></p>
+          {#if mode === 'progress'}<label class="inline cb"><input type="checkbox" bind:checked={includeReal} /><span>Saya paham, Mutiara dari pembayaran sungguhan ikut direset</span></label>{/if}
+        {/if}
+        <label class="inline cb"><input type="checkbox" bind:checked={backup} /><span>Saya sudah membuat cadangan database (<span class="mono">./deploy/backup.sh</span> di server)</span></label>
+        <div class="row">
+          <button class="btn danger solid" disabled={!ready} aria-busy={resetBusy ? 'true' : undefined} onclick={reset}>{@html I.rocket}{mode === 'all' ? 'Hapus semua pemain…' : 'Jalankan cut-off…'}</button>
+          {#if !ready}<span class="muted small">{realBlocked ? 'Pilih "Reset progres, akun tetap".' : !backup ? 'Centang konfirmasi cadangan dulu.' : 'Centang konfirmasi pembayaran sungguhan.'}</span>{:else}<span class="muted small">Ringkasan perubahan muncul dulu; ketik {PHRASE} untuk menjalankan.</span>{/if}
+        </div>
+      {:else}<p class="muted small">Hanya pemilik yang bisa menjalankan cut-off.</p>{/if}
+    </Section>
+  </div>
 {/if}
 
 <style>
-  h2 { margin: 0 0 8px; font-size: 18px; }
-  .card { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-  .card p { margin: 0; }
-  .card.danger { border-color: var(--danger); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .grid > div { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
-  .lbl { font-size: 12.5px; color: var(--muted); font-weight: 600; }
-  .grid b { font-size: 18px; }
-  .grid small { color: var(--muted); }
-  .warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-weight: 600; }
-  .okbox { background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; font-weight: 600; }
-  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-  ul { margin: 4px 0 0; padding-left: 18px; }
-  fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-  legend { font-weight: 700; padding: 0 4px; }
-  .opt { flex-direction: row; gap: 8px; align-items: flex-start; font-weight: 500; font-size: 14px; }
-  .opt input { flex: none; width: 18px; height: 18px; min-height: 0; padding: 0; margin: 2px 0 0; accent-color: var(--accent); }
-  .opt span { flex: 1; }
-  .cflbl { display: block; font-size: 14px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .row input { flex: 1; min-width: 180px; width: auto; }
-  .small { font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .sk { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+  .sk.tall { min-height: 140px; }
+  .small { font-size: 13px; margin: 0; }
+  p { margin: 0; }
+  .alert { display: flex; gap: 8px; align-items: flex-start; border-radius: 10px; padding: 9px 12px; font-weight: 600; font-size: 13.5px; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .alert.ok { background: var(--accent-soft); color: #1C5E4D; }
+  .alert .ic { width: 17px; height: 17px; margin-top: 1px; }
+  .prog { display: flex; flex-direction: column; gap: 12px; }
+  .ph { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ph h2 { font-size: 18px; }
+  .ph b { font: 800 18px var(--display); color: var(--accent); }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px; }
+  .steps li { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; background: #FBFCFB; }
+  .steps li.done { background: #F3FAF7; border-color: #C9E6DA; }
+  .ck { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #C5CDC8; display: grid; place-items: center; flex: none; padding: 3px; color: #fff; }
+  .done .ck { background: var(--accent); border-color: var(--accent); }
+  .ck :global(svg) { width: 100%; height: 100%; }
+  .tx { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .tx small { color: var(--muted); font-size: 12.5px; }
+  .steps .btn :global(svg) { width: 14px; height: 14px; }
+  .mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 520px; }
+  .mini div { background: #F6F8F6; border-radius: 10px; padding: 8px 12px; }
+  .mini b { font: 800 22px var(--display); display: block; } .mini span { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .danger-wrap :global(.sec) { border-color: #E2A99C; }
+  .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+  .lst { border-radius: 12px; padding: 10px 12px; }
+  .lst b { display: flex; gap: 6px; align-items: center; }
+  .lst b :global(svg) { width: 15px; height: 15px; }
+  .lst.reset { background: var(--danger-soft); } .lst.reset b { color: var(--danger); }
+  .lst.keep { background: var(--accent-soft); } .lst.keep b { color: var(--accent); }
+  ul { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; display: flex; flex-direction: column; gap: 2px; }
+  .modes { gap: 6px; }
+  .ro { flex-direction: row; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 10px; cursor: pointer; font-weight: 500; }
+  .ro.on { border-color: var(--accent); background: #F3FAF7; }
+  .ro.on.blocked { border-color: var(--danger); background: var(--danger-soft); }
+  .ro input { width: 18px; height: 18px; min-height: 0; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .ro span { display: flex; flex-direction: column; } .ro small { color: var(--muted); font-size: 12.5px; }
+  .ro em { font-style: normal; margin-left: 4px; vertical-align: 1px; }
+  .sws { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+  .cb { font-weight: 500; font-size: 14px; align-items: flex-start; }
+  .cb input { margin-top: 1px; }
+  .btn :global(svg) { width: 15px; height: 15px; }
+  @media (max-width: 760px) {
+    .stats { display: flex; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; padding: 0 14px; }
+    .stats > :global(.stat) { flex: none; min-width: 180px; }
+  }
 </style>

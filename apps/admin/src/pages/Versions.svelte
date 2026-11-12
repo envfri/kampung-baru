@@ -1,32 +1,62 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
-  import { err, dt, num } from '../lib/store.svelte';
+  import { A, err, dt, num } from '../lib/store.svelte';
+  import { type FDef, readFilters } from '../lib/filters';
   import { APP_VERSION, CHANGELOG, CHANGE_KIND_LABEL, REPO_URL, type ChangeKind } from '@kb/shared';
+  import PageHead from '../components/ui/PageHead.svelte';
+  import FilterBar from '../components/ui/FilterBar.svelte';
+  import DataTable, { type Col, type TState } from '../components/ui/DataTable.svelte';
+  import Section from '../components/ui/Section.svelte';
+  import Copy from '../components/ui/Copy.svelte';
+  import Ago from '../components/ui/Ago.svelte';
+  import Empty from '../components/ui/Empty.svelte';
 
-  let sys = $state<any>(null);
-  let q = $state(''), only = $state<'all' | 'player'>('all'), kind = $state<ChangeKind | ''>('');
-  onMount(async () => { try { sys = await api.get('/api/admin/system'); } catch (e) { err(e); } });
+  let sys = $state<any>(null), updated = $state(0);
+  async function load() { try { sys = await api.get('/api/admin/system'); updated = Date.now(); } catch (e) { err(e); } }
+  onMount(load);
 
   const KINDS: ChangeKind[] = ['baru', 'ubah', 'perbaikan', 'keamanan'];
+  const counts = Object.fromEntries(KINDS.map((k) => [k, CHANGELOG.reduce((n, r) => n + r.items.filter((i) => i.kind === k).length, 0)]));
+  const FILTERS: FDef[] = [
+    { key: 'for', label: 'Untuk', all: 'Semua perubahan', options: [['player', 'Pemain saja']] },
+    { key: 'kind', label: 'Jenis', all: 'Semua jenis', options: KINDS.map((k): [string, string] => [k, `${CHANGE_KIND_LABEL[k]} (${counts[k]})`]) },
+  ];
+  let q = $state(A.query.q ?? '');
+  let vals = $state<Record<string, any>>(readFilters(FILTERS, A.query));
   const running = $derived(sys?.build?.version ?? null);
   const releases = $derived.by(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = q.trim().toLowerCase(), only = vals.for, kind = vals.kind as ChangeKind | '';
     return CHANGELOG.map((r) => ({
       ...r,
-      items: r.items.filter((i) => (only === 'all' || i.player) && (!kind || i.kind === kind) && (!needle || `${r.version} ${r.title} ${i.text}`.toLowerCase().includes(needle))),
-    })).filter((r) => r.items.length > 0 || (!kind && only === 'all' && needle && `${r.version} ${r.title}`.toLowerCase().includes(needle)));
+      items: r.items.filter((i) => (!only || i.player) && (!kind || i.kind === kind) && (!needle || `${r.version} ${r.title} ${i.text}`.toLowerCase().includes(needle))),
+    })).filter((r) => r.items.length > 0 || (!kind && !only && needle && `${r.version} ${r.title}`.toLowerCase().includes(needle)));
   });
-  const counts = $derived(Object.fromEntries(KINDS.map((k) => [k, CHANGELOG.reduce((n, r) => n + r.items.filter((i) => i.kind === k).length, 0)])));
   function uptime(s: number) {
     const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
     return d ? `${d} hari ${h} jam` : h ? `${h} jam ${m} menit` : `${m} menit`;
   }
   const commitUrl = (c: string) => (c && c !== 'dev' ? `${REPO_URL}/commit/${c}` : null);
+
+  /* ---------- riwayat deploy ---------- */
+  let ts = $state<TState>({ page: 0, size: 25, sort: '', dir: 'desc' });
+  // lama berjalan = sampai deploy berikutnya dimulai (yang terbaru: sampai sekarang)
+  const deploys = $derived((sys?.deploys ?? []).map((d: any, i: number, all: any[]) => {
+    const end = i === 0 ? Date.now() : new Date(all[i - 1].started_at).getTime();
+    return { ...d, cur: i === 0, ran: Math.max(0, Math.round((end - new Date(d.started_at).getTime()) / 1000)) };
+  }));
+  const DCOLS: Col[] = [
+    { key: 'version', label: 'Versi', req: true, snip: true, card: 'title', sort: true, text: (d) => d.version },
+    { key: 'commit', label: 'Commit', snip: true, text: (d) => d.commit },
+    { key: 'built_at', label: 'Dibuild', sort: true, text: (d) => d.built_at ?? '', html: (d) => (d.built_at ? dt(d.built_at) : '<span class="muted">—</span>') },
+    { key: 'started_at', label: 'Mulai berjalan', sort: true, snip: true, text: (d) => d.started_at },
+    { key: 'ran', label: 'Lama berjalan', num: true, sort: true, text: (d) => d.ran, html: (d) => uptime(d.ran) + (d.cur ? ' <span class="muted">(masih)</span>' : '') },
+  ];
 </script>
 
-<h1>Versi & changelog</h1>
-<p class="muted">Versi yang sedang berjalan di server, riwayat deploy, dan semua perubahan per versi. Changelog yang sama ada di <a href={`${REPO_URL}/blob/main/CHANGELOG.md`} target="_blank" rel="noopener">CHANGELOG.md</a>; item bertanda <span class="chip pl">pemain</span> juga tampil di menu "Apa yang baru" di game.</p>
+<PageHead title="Versi & changelog" updated={updated} onrefresh={load}>
+  {#if running}Server menjalankan v{running} · {CHANGELOG.length} versi di changelog{:else}Versi yang berjalan, riwayat deploy, dan semua perubahan per versi{/if}
+</PageHead>
 
 {#if sys}
   {#if running && running !== APP_VERSION}
@@ -65,38 +95,43 @@
       </dl>
     </section>
   </div>
-
-  <h2>Riwayat deploy</h2>
-  <div class="tbl"><table>
-    <thead><tr><th>Versi</th><th>Commit</th><th>Dibuild</th><th>Mulai berjalan</th></tr></thead>
-    <tbody>{#each sys.deploys as d, i (d.id)}<tr>
-      <td><b>v{d.version}</b>{#if i === 0} <span class="chip">sekarang</span>{/if}</td>
-      <td class="mono">{#if commitUrl(d.commit)}<a href={commitUrl(d.commit)} target="_blank" rel="noopener">{d.commit}</a>{:else}{d.commit}{/if}</td>
-      <td>{d.built_at ? dt(d.built_at) : '—'}</td><td>{dt(d.started_at)}</td>
-    </tr>{/each}</tbody>
-  </table></div>
-  <details class="mig"><summary>Migrasi database ({sys.migrations.length})</summary>
-    <ul>{#each sys.migrations as m}<li><span class="mono">{m.name}</span> <span class="muted">· {dt(m.applied_at)}</span></li>{/each}</ul>
-  </details>
 {:else}
-  <p class="muted">Memuat…</p>
+  <div class="top">{#each Array(3) as _}<div class="card sk"><span class="skel" style="width:40%"></span><span class="skel" style="width:70%;height:26px"></span><span class="skel" style="width:85%"></span><span class="skel" style="width:60%"></span></div>{/each}</div>
 {/if}
 
-<div class="row between clh">
+<Section title="Riwayat deploy" prefKey="versions-deploys">
+  {#snippet badge()}{#if sys}<span class="chip mute">{sys.deploys.length}</span>{/if}{/snippet}
+  <DataTable cols={DCOLS} rows={deploys} bind:state={ts} loading={!sys} prefKey="deploys" csv="local" csvName="deploy" sizes={[10, 25, 50]}
+    empty="Belum ada riwayat deploy" emptyIcon="rocket" rowClass={(d) => (d.cur ? 'cur' : '')}>
+    {#snippet cell(d, k)}
+      {#if k === 'version'}<span class="vv"><b>v{d.version}</b>{#if d.cur}<span class="chip">sekarang</span>{/if}</span>
+      {:else if k === 'commit'}
+        {#if commitUrl(d.commit)}<span class="cm"><a class="mono" href={commitUrl(d.commit)} target="_blank" rel="noopener">{d.commit}</a><Copy text={d.commit} label="Commit disalin" /></span>{:else}<span class="mono muted">{d.commit}</span>{/if}
+      {:else if k === 'started_at'}<span title={dt(d.started_at)}>{dt(d.started_at)} <small class="muted">· <Ago t={d.started_at} /></small></span>
+      {/if}
+    {/snippet}
+  </DataTable>
+</Section>
+
+{#if sys}
+  <Section title="Migrasi database" open={false} prefKey="versions-mig">
+    {#snippet badge()}<span class="chip mute">{sys.migrations.length}</span>{/snippet}
+    <ul class="mig">{#each sys.migrations as m}<li><span class="mono">{m.name}</span> <span class="muted">· {dt(m.applied_at)}</span></li>{/each}</ul>
+  </Section>
+{/if}
+
+<div class="clh">
   <h2>Changelog</h2>
-  <div class="row filters">
-    <input type="search" placeholder="Cari perubahan…" bind:value={q} aria-label="Cari perubahan" />
-    <select bind:value={only} aria-label="Untuk siapa"><option value="all">Semua perubahan</option><option value="player">Untuk pemain saja</option></select>
-    <select bind:value={kind} aria-label="Jenis perubahan"><option value="">Semua jenis</option>{#each KINDS as k}<option value={k}>{CHANGE_KIND_LABEL[k]} ({counts[k]})</option>{/each}</select>
-  </div>
+  <p class="muted">Sama dengan <a href={`${REPO_URL}/blob/main/CHANGELOG.md`} target="_blank" rel="noopener">CHANGELOG.md</a>. Item bertanda <span class="chip pl">pemain</span> juga tampil di menu "Apa yang baru" di game.</p>
 </div>
+<FilterBar bind:q bind:values={vals} filters={FILTERS} placeholder="Cari perubahan…" count={releases.reduce((n, r) => n + r.items.length, 0)} />
 
 <div class="rels">
   {#each releases as r (r.version)}
     <article class="card rel" class:cur={r.version === running}>
       <header>
         <span class="v">v{r.version}</span>
-        <div class="tt"><h3>{r.title}</h3><span class="muted small">{r.date}{#if r.version === running} · <b class="ok">terpasang di server</b>{/if}</span></div>
+        <div class="tt"><h3>{r.title}</h3><span class="muted small">{r.date}{#if r.version === running}{' · '}<b class="ok">terpasang di server</b>{/if}</span></div>
       </header>
       {#if r.summary}<p class="sum">{r.summary}</p>{/if}
       {#each KINDS as k}
@@ -110,24 +145,26 @@
       {#if r.commits?.length}<p class="muted small">Commit: {#each r.commits as c, j}{j ? ', ' : ''}<a class="mono" href={`${REPO_URL}/commit/${c}`} target="_blank" rel="noopener">{c}</a>{/each}</p>{/if}
     </article>
   {:else}
-    <p class="muted">Tidak ada perubahan yang cocok.</p>
+    <div class="card"><Empty icon="search" title="Tidak ada perubahan yang cocok" text="Coba kata kunci lain atau hapus filter." /></div>
   {/each}
 </div>
 <p class="muted small">Total {CHANGELOG.length} versi · {num(CHANGELOG.reduce((n, r) => n + r.items.length, 0))} perubahan.</p>
 
 <style>
-  .top { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin: 14px 0 6px; }
+  .top { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+  .sk { display: flex; flex-direction: column; gap: 10px; }
   .lbl { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .now .ver { font-family: var(--display); font-size: 40px; font-weight: 800; line-height: 1.1; margin: 4px 0 8px; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 10px 0 0; font-size: 14px; }
   dt { color: var(--muted); font-weight: 600; } dd { margin: 0; word-break: break-word; }
-  h2 { font-size: 19px; margin: 22px 0 8px; }
-  .warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-weight: 600; margin: 12px 0 0; }
-  .mig { margin-top: 10px; } .mig summary { cursor: pointer; font-weight: 600; } .mig ul { margin: 8px 0 0; padding-left: 20px; }
-  .between { justify-content: space-between; align-items: flex-end; }
-  .clh { margin-top: 10px; } .clh h2 { margin-bottom: 0; }
-  .filters input { width: 220px; } .filters select { width: auto; }
-  .rels { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  .warnbox { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-weight: 600; margin: 0; }
+  .vv { display: inline-flex; gap: 8px; align-items: center; }
+  .cm { display: inline-flex; gap: 6px; align-items: center; }
+  :global(.dt tr.cur td) { background: #F3FAF7; }
+  .mig { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+  .clh { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .clh h2 { font-size: 21px; } .clh p { margin: 0; font-size: 13.5px; }
+  .rels { display: flex; flex-direction: column; gap: 12px; }
   .rel { display: flex; flex-direction: column; gap: 10px; }
   .rel.cur { border: 2px solid var(--accent); }
   .rel header { display: flex; gap: 12px; align-items: center; }
@@ -144,5 +181,5 @@
   .chip.pl { background: #F1E6FA; color: #6B3D93; }
   .ok { color: var(--accent); }
   .small { font-size: 12.5px; }
-  @media (max-width: 600px) { .grp { grid-template-columns: 1fr; } .filters input { width: 100%; } }
+  @media (max-width: 600px) { .grp { grid-template-columns: 1fr; } .grp .kind { justify-self: start; } }
 </style>

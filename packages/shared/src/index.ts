@@ -12,3 +12,4 @@ export * from './changelog';
 export * from './site';
 export * from './premium';
 export * from './bareng';
+export * from './admin';

@@ -106,6 +106,13 @@ export function squareLiveOf(uid: string) {
   if (!q || !q.members.get(uid) || !fresh(q.members.get(uid)!, now)) return null;
   return { inst: q.id, members: [...q.members.values()].filter((m) => fresh(m, now)).map((m) => ({ id: m.id, name: m.name, pet: m.pet })) };
 }
+/** Ringkasan alun-alun live untuk dasbor admin. */
+export function squareStats() {
+  const now = Date.now();
+  let instances = 0, people = 0;
+  for (const q of SQUARES.values()) { const n = [...q.members.values()].filter((m) => fresh(m, now)).length; if (n) { instances++; people += n; } }
+  return { instances, people };
+}
 export function resetSquares() { SQUARES.clear(); WHERE.clear(); SEEN.clear(); SAID.clear(); LAST_ACT.clear(); JOINED.clear(); MUTE_CACHE.clear(); BLOCKS.clear(); }
 
 export default async function squareRoutes(app: FastifyInstance, { db }: { db: Db }) {

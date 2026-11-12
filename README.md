@@ -266,6 +266,12 @@ Uji game main bareng (Congklak & Ular Tangga di rumah, Balap Karung Live di alun
 npm run test:e2e:bareng
 ```
 
+Uji panel admin (semua halaman di desktop & HP, Ctrl K, filter, laci detail, modal konfirmasi, bar simpan; server dijalankan dengan `ADMIN_EMAIL`/`ADMIN_PASSWORD`):
+
+```bash
+npm run test:e2e:admin
+```
+
 ## Keamanan & anti-curang
 
 - Server memegang saldo dan inventori. Client hanya mengirim niat (mis. "beri makan item X").

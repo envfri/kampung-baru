@@ -66,8 +66,12 @@ check(await a.locator('.phone .mt-scene').count() === 1, 'admin: pratinjau halam
 check(await a.locator('.g-title').count() === 1 && await a.locator('.share img').count() >= 1, 'admin: pratinjau Google & kartu tautan');
 await a.fill('input[type="datetime-local"]', '');
 await a.click('button:has-text("+1 jam")');
-a.once('dialog', (d) => d.accept());
 await a.click('button:has-text("Aktifkan mode perawatan")');
+// konfirmasi berbahaya: ketik PERAWATAN di modal
+await a.waitForSelector('.modal');
+check(await a.locator('.modal footer .btn.danger').isDisabled(), 'admin: tombol aktifkan terkunci sebelum mengetik PERAWATAN');
+await a.fill('.modal input', 'PERAWATAN');
+await a.click('.modal footer .btn.danger');
 await W(800);
 check(await a.locator('.chip:has-text("AKTIF")').count() === 1, 'admin: mode perawatan aktif');
 check(await a.locator('.maintbar').count() === 1, 'admin: penanda merah perawatan di semua halaman');
@@ -96,7 +100,8 @@ await g.goto(BASE + '/'); await W(1500);
 check(await g.locator('.mt').count() === 0 && await g.locator('.mbar').count() === 1, 'admin tetap bisa membuka game (dengan penanda perawatan)');
 
 // matikan: pemain kembali ke game sendiri (tombol Cek lagi)
-await a.click('button:has-text("Matikan mode perawatan")'); await W(800);
+await a.click('button:has-text("Matikan mode perawatan")');
+await a.waitForSelector('.modal'); await a.click('.modal footer .btn.primary'); await W(800);
 check(await a.locator('.maintbar').count() === 0, 'admin: penanda perawatan hilang');
 await W(5200);
 await p.click('.maint [data-mt-check]').catch(() => {});
