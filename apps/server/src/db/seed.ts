@@ -428,6 +428,66 @@ export const SEED_ACTIVITIES_V9 = [
   { id: 'baca-pelangi', name: 'Baca buku', targets: ['art:rakpelangi'], anim: 'baca', effects: { ceria: 8 }, xp: 3, cooldown_sec: 300, message: '{pet} membaca buku cerita angkasa.' },
 ];
 
+/** Paket konten 10: aksesori baru (jubah, sayap, topi, topeng, ...), warna baru aksesori lama, dan slot "Dibawa". */
+export const SEED_ITEMS_V10: SeedItem[] = [
+  // punggung
+  { id: 'jubah-bintang', kind: 'wear', name: 'Jubah Malam Berbintang', description: 'Jubah biru malam bertabur bintang emas.', price_pearl: 7, shop: 'mutiara', art: b('jubahbintang'), data: { slot: 'back' } },
+  { id: 'jubah-batik', kind: 'wear', name: 'Jubah Batik Parang', description: 'Jubah cokelat bermotif parang.', price_coin: 110, sell_coin: 44, shop: 'butik', art: b('jubahbatik'), data: { slot: 'back' } },
+  { id: 'jas-hujan', kind: 'wear', name: 'Jas Hujan Bertudung', description: 'Siap main walau gerimis.', price_coin: 70, sell_coin: 28, shop: 'butik', art: b('jashujan'), data: { slot: 'back' } },
+  { id: 'jubah-kerah', kind: 'wear', name: 'Jubah Kerah Tinggi', description: 'Jubah ungu berkerah runcing.', price_pearl: 6, shop: 'mutiara', art: b('jubahkerah'), data: { slot: 'back' } },
+  { id: 'selendang-penari', kind: 'wear', name: 'Selendang Penari', description: 'Selendang merah muda yang melambai.', price_coin: 80, sell_coin: 32, shop: 'butik', art: b('selendang'), data: { slot: 'back' } },
+  { id: 'sayap-merpati', kind: 'wear', name: 'Sayap Merpati', description: 'Sayap putih yang lembut.', price_pearl: 8, shop: 'mutiara', art: b('sayapmerpati'), data: { slot: 'back' } },
+  { id: 'sayap-capung', kind: 'wear', name: 'Sayap Capung', description: 'Dua pasang sayap bening.', price_pearl: 5, shop: 'mutiara', art: b('sayapcapung'), data: { slot: 'back' } },
+  { id: 'bakul-gendong', kind: 'wear', name: 'Bakul Gendong', description: 'Bakul anyaman berisi sayur dari pasar.', price_coin: 60, sell_coin: 24, shop: 'butik', art: b('bakul'), data: { slot: 'back' } },
+  { id: 'tempurung', kind: 'wear', name: 'Tempurung Kura-kura', description: 'Pelan-pelan asal sampai.', price_coin: 75, sell_coin: 30, shop: 'butik', art: b('tempurung'), data: { slot: 'back' } },
+  // kepala
+  { id: 'udeng', kind: 'wear', name: 'Udeng', description: 'Ikat kepala bermotif dengan simpul di depan.', price_coin: 45, sell_coin: 18, shop: 'butik', art: b('udeng'), data: { slot: 'head' } },
+  { id: 'topi-penyihir', kind: 'wear', name: 'Topi Penyihir', description: 'Topi ungu runcing berbintang.', price_pearl: 4, shop: 'mutiara', art: b('topipenyihir'), data: { slot: 'head' } },
+  { id: 'bando-matahari', kind: 'wear', name: 'Bando Bunga Matahari', price_coin: 35, sell_coin: 14, shop: 'butik', art: b('bandomatahari'), data: { slot: 'head' } },
+  { id: 'helm-proyek', kind: 'wear', name: 'Helm Proyek', description: 'Untuk pet yang rajin membangun rumah.', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('helm'), data: { slot: 'head' } },
+  { id: 'topi-ember', kind: 'wear', name: 'Topi Ember', price_coin: 35, sell_coin: 14, shop: 'butik', art: b('topiember'), data: { slot: 'head' } },
+  { id: 'mahkota-daun', kind: 'wear', name: 'Mahkota Daun', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('mahkotadaun'), data: { slot: 'head' } },
+  { id: 'topi-wisuda', kind: 'wear', name: 'Topi Wisuda', price_coin: 60, sell_coin: 24, shop: 'butik', art: b('toga'), data: { slot: 'head' } },
+  // wajah
+  { id: 'topeng-kayu', kind: 'wear', name: 'Topeng Kayu', description: 'Topeng putih berhias merah untuk pentas.', price_coin: 55, sell_coin: 22, shop: 'butik', art: b('topeng'), data: { slot: 'face' } },
+  { id: 'kacamata-hati', kind: 'wear', name: 'Kacamata Hati', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('kacamatahati'), data: { slot: 'face' } },
+  { id: 'monokel', kind: 'wear', name: 'Monokel Emas', price_pearl: 3, shop: 'mutiara', art: b('monokel'), data: { slot: 'face' } },
+  { id: 'masker-batik', kind: 'wear', name: 'Masker Batik', price_coin: 25, sell_coin: 10, shop: 'butik', art: b('masker'), data: { slot: 'face' } },
+  // leher
+  { id: 'kalung-kerang', kind: 'wear', name: 'Kalung Kerang', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('kalungkerang'), data: { slot: 'neck' } },
+  { id: 'medali-juara', kind: 'wear', name: 'Medali Juara', price_coin: 50, sell_coin: 20, shop: 'butik', art: b('medali'), data: { slot: 'neck' } },
+  { id: 'syal-rajut', kind: 'wear', name: 'Syal Rajut Belang', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('syalrajut'), data: { slot: 'neck' } },
+  // warna baru dari aksesori lama
+  { id: 'jubah-biru', kind: 'wear', name: 'Jubah Pahlawan Biru', price_coin: 90, sell_coin: 36, shop: 'butik', art: b('jubah', { main: '#3F7FBF', accent: '#F2C94C' }), data: { slot: 'back' } },
+  { id: 'jubah-hijau', kind: 'wear', name: 'Jubah Pahlawan Hijau', price_coin: 90, sell_coin: 36, shop: 'butik', art: b('jubah', { main: '#2F7F55', accent: '#F2C94C' }), data: { slot: 'back' } },
+  { id: 'jubah-hitam', kind: 'wear', name: 'Jubah Pahlawan Hitam', price_coin: 90, sell_coin: 36, shop: 'butik', art: b('jubah', { main: '#2B2F4A', accent: '#D7263D' }), data: { slot: 'back' } },
+  { id: 'sayap-kupu-pink', kind: 'wear', name: 'Sayap Kupu Merah Muda', price_pearl: 6, shop: 'mutiara', art: b('sayapkupu', { main: '#FF9EBB', accent: '#FFFFFF' }), data: { slot: 'back' } },
+  { id: 'kupluk-biru', kind: 'wear', name: 'Kupluk Biru', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('kupluk', { main: '#3F7FBF', accent: '#FFFFFF' }), data: { slot: 'head' } },
+  { id: 'baret-hitam', kind: 'wear', name: 'Baret Hitam', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('baret', { main: '#2B2F4A' }), data: { slot: 'head' } },
+  { id: 'syal-hijau', kind: 'wear', name: 'Syal Motif Hijau', price_coin: 40, sell_coin: 16, shop: 'butik', art: b('syal', { main: '#2F7F55', accent: '#F3E3B5' }), data: { slot: 'neck' } },
+  { id: 'caping-merah', kind: 'wear', name: 'Caping Merah Bata', price_coin: 35, sell_coin: 14, shop: 'butik', art: b('caping', { main: '#E07A5F' }), data: { slot: 'head' } },
+  // dibawa (slot baru)
+  { id: 'balon-merah', kind: 'wear', name: 'Balon Merah', price_coin: 25, sell_coin: 10, shop: 'butik', art: b('balon'), data: { slot: 'hand' } },
+  { id: 'balon-kuning', kind: 'wear', name: 'Balon Kuning', price_coin: 25, sell_coin: 10, shop: 'butik', art: b('balon', { main: '#F2C230', accent: '#FFFFFF' }), data: { slot: 'hand' } },
+  { id: 'balon-biru', kind: 'wear', name: 'Balon Biru', price_coin: 25, sell_coin: 10, shop: 'butik', art: b('balon', { main: '#3F7FBF', accent: '#FFFFFF' }), data: { slot: 'hand' } },
+  { id: 'lampion', kind: 'wear', name: 'Lampion', description: 'Lampion merah yang menyala lembut.', price_coin: 45, sell_coin: 18, shop: 'butik', art: b('lampion'), data: { slot: 'hand' } },
+  { id: 'kincir-kertas', kind: 'wear', name: 'Kincir Kertas', price_coin: 30, sell_coin: 12, shop: 'butik', art: b('kincir'), data: { slot: 'hand' } },
+];
+export async function seedPackV10(db: Db) {
+  const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
+  if (Number(row?.value ?? 1) >= 10) return false;
+  let sort = (await db.one<{ m: number }>('select coalesce(max(sort), 0)::int m from items'))!.m;
+  for (const it of SEED_ITEMS_V10) {
+    await db.query(
+      `insert into items (id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, sort)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9::text::jsonb,$10::text::jsonb,$11) on conflict (id) do nothing`,
+      [it.id, it.kind, it.name, it.description ?? '', it.price_coin ?? 0, it.price_pearl ?? 0, it.sell_coin ?? 0, it.shop ?? null, JSON.stringify(it.art), JSON.stringify(it.data ?? {}), (sort += 10)],
+    );
+  }
+  await db.query(`insert into settings (key, value) values ('content_pack', '10'::jsonb) on conflict (key) do update set value = excluded.value`);
+  return true;
+}
+
 export async function seedPackV9(db: Db) {
   const row = await db.one<{ value: any }>(`select value from settings where key = 'content_pack'`);
   if (Number(row?.value ?? 1) >= 9) return false;

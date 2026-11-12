@@ -577,9 +577,9 @@ export function partLevel(kind: keyof typeof PET_PARTS, key: string) {
   return PET_PARTS[kind].find((p) => p[0] === key)?.[2] ?? Infinity;
 }
 
-type WearSlot = 'head' | 'face' | 'neck' | 'back';
+type WearSlot = 'head' | 'face' | 'neck' | 'back' | 'hand';
 type WearFn = (c: Record<string, string>) => string;
-// draw: digambar di depan tubuh; back: di belakang tubuh (sayap, ransel, jubah)
+// draw: digambar di depan tubuh; back: di belakang tubuh (sayap, ransel, jubah); slot hand = dibawa di samping kanan
 const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<string, string>; draw: WearFn; back?: WearFn }> = {
   caping: { label: 'Topi caping', slot: 'head', colors: { main: '#E3C16F' }, draw: (c) => `<path d="M-50 -64L0 -102 50 -64Q0 -55 -50 -64Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-27 -76Q0 -72 27 -76M-14 -88Q0 -86 14 -88" stroke="${shade(c.main, -0.3)}" stroke-width="2" fill="none"/>` },
   peci: { label: 'Peci', slot: 'head', colors: { main: '#2B2F4A' }, draw: (c) => `<path d="M-26 -70L-23 -92Q0 -97 23 -92L26 -70Q0 -75 -26 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-24 -84Q0 -89 24 -84" stroke="${shade(c.main, 0.25)}" stroke-width="1.6" fill="none"/>` },
@@ -606,6 +606,92 @@ const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<strin
   sayapkupu: { label: 'Sayap kupu-kupu', slot: 'back', colors: { main: '#9FD0E8', accent: '#F2B632' }, draw: () => '', back: (c) => [-1, 1].map((s) => `<g transform="scale(${s} 1)"><path d="M20 -50C40 -96 84 -80 70 -54C62 -40 40 -42 26 -44Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M24 -40C46 -40 66 -30 56 -16C48 -6 34 -18 24 -30Z" fill="${shade(c.main, -0.12)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="54" cy="-66" r="6" fill="${c.accent}" stroke="${INK}" stroke-width="2"/></g>`).join('') },
   ransel: { label: 'Ransel', slot: 'back', colors: { main: '#E9A23B', accent: '#8A5A36' }, draw: (c) => `<path d="M-30 -62Q-36 -40 -32 -18M30 -62Q36 -40 32 -18" fill="none" stroke="${c.accent}" stroke-width="5" stroke-linecap="round"/>`, back: (c) => `<rect x="26" y="-70" width="34" height="50" rx="10" fill="${c.main}" stroke="${INK}" stroke-width="3"/><rect x="34" y="-52" width="22" height="18" rx="5" fill="${shade(c.main, -0.15)}" stroke="${INK}" stroke-width="2.4"/><rect x="-60" y="-70" width="34" height="50" rx="10" fill="${c.main}" stroke="${INK}" stroke-width="3"/>` },
   jubah: { label: 'Jubah', slot: 'back', colors: { main: '#C0392B', accent: '#F2B632' }, draw: (c) => `<circle cx="0" cy="-26" r="5" fill="${c.accent}" stroke="${INK}" stroke-width="2.2"/>`, back: (c) => `<path d="M-38 -44Q-60 -10 -54 0L54 0Q60 -10 38 -44Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` },
+  // ---------- aksesori v0.27 ----------
+  jubahbintang: { label: 'Jubah malam berbintang', slot: 'back', colors: { main: '#2B3A6B', accent: '#F2C94C' },
+    draw: (c) => `<path d="M-30 -31Q0 -19 30 -31" fill="none" stroke="${c.accent}" stroke-width="3" stroke-linecap="round"/><path d="M0 -33l3 6.2 6.8.9-5 4.7 1.3 6.7L0 -17.7l-6.1 3.2 1.3-6.7-5-4.7 6.8-.9Z" fill="${c.accent}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`,
+    back: (c) => `<path d="M-40 -48Q-70 -8 -62 3L62 3Q70 -8 40 -48Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-62 3Q0 12 62 3" fill="none" stroke="${shade(c.main, 0.25)}" stroke-width="3"/>` +
+      [[-56, -6, 4], [55, -12, 3.5], [-50, -26, 3], [52, -32, 4.2], [-60, -14, 2], [60, -2, 2.4]].map(([x, y, r]) => `<path d="M${x} ${y - r}L${x + r * 0.35} ${y - r * 0.35}L${x + r} ${y}L${x + r * 0.35} ${y + r * 0.35}L${x} ${y + r}L${x - r * 0.35} ${y + r * 0.35}L${x - r} ${y}L${x - r * 0.35} ${y - r * 0.35}Z" fill="${c.accent}"/>`).join('') },
+  jubahbatik: { label: 'Jubah batik parang', slot: 'back', colors: { main: '#7A4A26', accent: '#E9C46A' },
+    draw: (c) => `<path d="M-30 -31Q0 -19 30 -31" fill="none" stroke="${c.accent}" stroke-width="3.5" stroke-linecap="round"/><circle cx="0" cy="-24" r="5.5" fill="${c.accent}" stroke="${INK}" stroke-width="2.2"/><circle cx="0" cy="-24" r="2" fill="${c.main}"/>`,
+    back: (c) => `<clipPath id="kb-cape-b"><path d="M-40 -48Q-70 -8 -62 3L62 3Q70 -8 40 -48Z"/></clipPath><path d="M-40 -48Q-70 -8 -62 3L62 3Q70 -8 40 -48Z" fill="${c.main}"/>` +
+      `<g clip-path="url(#kb-cape-b)" fill="none" stroke="${c.accent}" stroke-width="3" stroke-linecap="round">${[-90, -74, -58, -42, -26, -10, 6, 22, 38, 54, 70].map((x) => `<path d="M${x} 8q6 -8 2 -14t6 -14q6 -8 2 -14t6 -14q6 -8 2 -14"/>`).join('')}</g>` +
+      `<path d="M-40 -48Q-70 -8 -62 3L62 3Q70 -8 40 -48Z" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` },
+  jashujan: { label: 'Jas hujan bertudung', slot: 'back', colors: { main: '#F2C230', accent: '#2B2F4A' },
+    draw: (c) => `<path d="M-30 -31Q0 -21 30 -31" fill="none" stroke="${shade(c.main, -0.2)}" stroke-width="4" stroke-linecap="round"/>` + [-8, 8].map((x) => `<rect x="${x - 3}" y="-29" width="6" height="9" rx="2" fill="${c.accent}"/>`).join(''),
+    back: (c) => `<path d="M-44 -54Q-50 -112 0 -114Q50 -112 44 -54Q0 -66 -44 -54Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-36 -60Q-40 -104 0 -106Q40 -104 36 -60" fill="none" stroke="${shade(c.main, -0.18)}" stroke-width="2.4"/>` +
+      `<path d="M-40 -46Q-66 -8 -60 3L60 3Q66 -8 40 -46Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-56 -8L-48 -30M56 -8L48 -30" stroke="${shade(c.main, -0.18)}" stroke-width="2.4" stroke-linecap="round"/>` },
+  jubahkerah: { label: 'Jubah kerah tinggi', slot: 'back', colors: { main: '#6A3FA0', accent: '#D7263D' },
+    draw: (c) => `<path d="M-30 -31Q0 -20 30 -31" fill="none" stroke="${INK}" stroke-width="2.4"/><circle cx="-6" cy="-25" r="3.6" fill="#F2C94C" stroke="${INK}" stroke-width="1.8"/><circle cx="6" cy="-25" r="3.6" fill="#F2C94C" stroke="${INK}" stroke-width="1.8"/><path d="M-6 -25H6" stroke="#F2C94C" stroke-width="2"/>`,
+    back: (c) => `<path d="M-40 -48Q-70 -8 -62 3L62 3Q70 -8 40 -48Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-60 -2Q-58 -20 -46 -40M60 -2Q58 -20 46 -40" fill="none" stroke="${c.accent}" stroke-width="5" stroke-linecap="round"/>` +
+      [-1, 1].map((s) => `<path d="M${s * 34} -44L${s * 60} -96L${s * 46} -64L${s * 40} -88L${s * 22} -56Z" fill="${shade(c.main, -0.15)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M${s * 40} -50L${s * 54} -84" stroke="${c.accent}" stroke-width="2.4" stroke-linecap="round"/>`).join('') },
+  selendang: { label: 'Selendang penari', slot: 'back', colors: { main: '#E8578E', accent: '#F2C94C' },
+    draw: (c) => `<path d="M-40 -32Q0 -14 40 -32L38 -22Q0 -6 -38 -22Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-36 -26Q0 -11 36 -26" fill="none" stroke="${c.accent}" stroke-width="2" stroke-dasharray="3 4"/>`,
+    back: (c) => [-1, 1].map((s) => `<path d="M${s * 36} -30C${s * 70} -30 ${s * 54} -8 ${s * 74} 4L${s * 64} 10C${s * 46} -2 ${s * 58} -20 ${s * 34} -20Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M${s * 64} 10l${s * 2} 6M${s * 69} 7l${s * 3} 6M${s * 74} 4l${s * 4} 5" stroke="${c.accent}" stroke-width="2.6" stroke-linecap="round"/>`).join('') },
+  sayapmerpati: { label: 'Sayap merpati', slot: 'back', colors: { main: '#FFFFFF', accent: '#C9D9EA' }, draw: () => '',
+    back: (c) => [-1, 1].map((s) => `<g transform="scale(${s} 1)"><path d="M28 -56C46 -96 88 -110 100 -92C92 -88 100 -78 88 -72C94 -64 84 -56 74 -58C76 -48 62 -44 54 -48C52 -38 40 -36 32 -40Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M40 -62C56 -82 76 -94 94 -92M44 -54C60 -66 74 -72 86 -72M44 -46C56 -52 66 -56 74 -58" fill="none" stroke="${c.accent}" stroke-width="3" stroke-linecap="round"/></g>`).join('') },
+  sayapcapung: { label: 'Sayap capung', slot: 'back', colors: { main: '#BFE9F2', accent: '#3F7FBF' }, draw: () => '',
+    back: (c) => [-1, 1].map((s) => `<g transform="scale(${s} 1)"><path d="M28 -56C52 -84 96 -96 98 -84C98 -72 60 -58 30 -50Z" fill="${c.main}" fill-opacity=".8" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M30 -44C58 -50 96 -44 94 -32C90 -22 56 -32 30 -38Z" fill="${c.main}" fill-opacity=".8" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M34 -54C56 -70 78 -80 92 -84M34 -42C56 -42 76 -40 90 -36" fill="none" stroke="${c.accent}" stroke-width="1.6"/></g>`).join('') },
+  bakul: { label: 'Bakul gendong', slot: 'back', colors: { main: '#D9A55B', accent: '#5FB36A' },
+    draw: (c) => `<path d="M-32 -60Q-38 -40 -34 -20M32 -60Q38 -40 34 -20" fill="none" stroke="${shade(c.main, -0.35)}" stroke-width="5" stroke-linecap="round"/>`,
+    back: (c) => `<path d="M30 -96c-4 -10 2 -16 8 -10M44 -98c2 -12 12 -10 10 0M54 -94c8 -8 14 0 6 6" fill="${c.accent}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M38 -100l4 -8" stroke="#E0583F" stroke-width="5" stroke-linecap="round"/>` +
+      `<path d="M22 -92H68L62 -26Q45 -18 28 -26Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      [-80, -66, -52, -38].map((y) => `<path d="M${26 + (y + 92) * 0.05} ${y}H${66 - (y + 92) * 0.06}" stroke="${shade(c.main, -0.25)}" stroke-width="2"/>`).join('') +
+      [32, 42, 52, 60].map((x) => `<path d="M${x} -90L${x - 1} -28" stroke="${shade(c.main, -0.25)}" stroke-width="1.6"/>`).join('') +
+      `<rect x="20" y="-96" width="50" height="8" rx="4" fill="${shade(c.main, -0.12)}" stroke="${INK}" stroke-width="2.6"/>` },
+  tempurung: { label: 'Tempurung kura-kura', slot: 'back', colors: { main: '#5E9E54', accent: '#C9E3A6' }, draw: () => '',
+    back: (c) => `<path d="M-60 -10Q-66 -72 0 -80Q66 -72 60 -10Q0 4 -60 -10Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<g fill="none" stroke="${c.accent}" stroke-width="3" stroke-linejoin="round"><path d="M-60 -36L-50 -46L-50 -60M60 -36L50 -46L50 -60M-56 -16L-48 -28M56 -16L48 -28M-24 -74L-16 -80M24 -74L16 -80"/></g>` +
+      `<path d="M-60 -10Q0 4 60 -10" fill="none" stroke="${shade(c.main, -0.25)}" stroke-width="5"/>` },
+  udeng: { label: 'Udeng', slot: 'head', colors: { main: '#2B2F4A', accent: '#E9C46A' },
+    draw: (c) => `<path d="M-38 -66Q0 -80 38 -66L36 -56Q0 -70 -36 -56Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      [-26, -13, 0, 13, 26].map((x) => `<circle cx="${x}" cy="${-62 - (26 - Math.abs(x)) * 0.12}" r="1.8" fill="${c.accent}"/>`).join('') +
+      `<path d="M-4 -72L-18 -98Q-4 -92 -2 -78Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-12 -92l4 6" stroke="${c.accent}" stroke-width="2"/>` },
+  topipenyihir: { label: 'Topi penyihir', slot: 'head', colors: { main: '#5B3E96', accent: '#F2C94C' },
+    draw: (c) => `<ellipse cx="0" cy="-70" rx="46" ry="9" fill="${c.main}" stroke="${INK}" stroke-width="3"/><path d="M-26 -72L-4 -118Q4 -128 18 -122Q8 -118 10 -110L26 -72Q0 -64 -26 -72Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path d="M-25 -78Q0 -71 25 -78" fill="none" stroke="${c.accent}" stroke-width="5"/><path d="M4 -100l2.2 4.6 5 .7-3.6 3.4 .9 5-4.5-2.4-4.5 2.4 .9-5-3.6-3.4 5-.7Z" fill="${c.accent}" stroke="${INK}" stroke-width="1.6"/>` },
+  bandomatahari: { label: 'Bando bunga matahari', slot: 'head', colors: { main: '#F2C230', accent: '#6B4A2B' },
+    draw: (c) => `<path d="M-40 -60Q-38 -92 0 -94Q38 -92 40 -60" fill="none" stroke="#5FB36A" stroke-width="5" stroke-linecap="round"/>` +
+      `<g transform="translate(24 -88)">${Array.from({ length: 10 }, (_, i) => `<ellipse cx="0" cy="-10" rx="4.5" ry="8" transform="rotate(${i * 36})" fill="${c.main}" stroke="${INK}" stroke-width="1.8"/>`).join('')}<circle r="7" fill="${c.accent}" stroke="${INK}" stroke-width="2"/></g>` },
+  helm: { label: 'Helm proyek', slot: 'head', colors: { main: '#F2C230', accent: '#FFFFFF' },
+    draw: (c) => `<path d="M-36 -70Q-36 -106 0 -106Q36 -106 36 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-46 -68Q0 -76 46 -68L44 -62Q0 -70 -44 -62Z" fill="${shade(c.main, -0.12)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path d="M-6 -105H6V-72H-6Z" fill="${shade(c.main, 0.15)}" stroke="${INK}" stroke-width="2.2"/><path d="M-22 -96Q-26 -84 -24 -76" stroke="${c.accent}" stroke-width="3" stroke-linecap="round" opacity=".7"/>` },
+  topiember: { label: 'Topi ember', slot: 'head', colors: { main: '#7FB3D5', accent: '#F2EEE3' },
+    draw: (c) => `<path d="M-30 -74Q-30 -102 0 -102Q30 -102 30 -74Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-30 -76Q0 -82 30 -76L46 -62Q0 -74 -46 -62Z" fill="${shade(c.main, -0.1)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path d="M-29 -82Q0 -88 29 -82" fill="none" stroke="${c.accent}" stroke-width="4"/>` },
+  mahkotadaun: { label: 'Mahkota daun', slot: 'head', colors: { main: '#5FB36A', accent: '#E0583F' },
+    draw: (c) => `<path d="M-36 -68Q0 -80 36 -68" fill="none" stroke="${shade(c.main, -0.3)}" stroke-width="3"/>` +
+      [-34, -24, -12, 0, 12, 24, 34].map((x, i) => { const y = -70 - (34 - Math.abs(x)) * 0.18; const r = (x < 0 ? -1 : 1) * (20 + i * 3); return `<path d="M${x} ${y}q-5 -10 0 -16q5 6 0 16Z" transform="rotate(${x === 0 ? 0 : r} ${x} ${y})" fill="${i % 2 ? c.main : shade(c.main, -0.15)}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>`; }).join('') +
+      [-18, 18].map((x) => `<circle cx="${x}" cy="-76" r="3.4" fill="${c.accent}" stroke="${INK}" stroke-width="1.6"/>`).join('') },
+  toga: { label: 'Topi wisuda', slot: 'head', colors: { main: '#2B2F4A', accent: '#F2C94C' },
+    draw: (c) => `<path d="M-24 -70Q0 -64 24 -70L24 -86Q0 -80 -24 -86Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-46 -92L0 -104L46 -92L0 -80Z" fill="${shade(c.main, 0.15)}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path d="M0 -92L34 -86V-66" fill="none" stroke="${c.accent}" stroke-width="2.4"/><path d="M30 -68h8l-1 10h-6Z" fill="${c.accent}" stroke="${INK}" stroke-width="1.6"/><circle cx="0" cy="-92" r="3" fill="${c.accent}"/>` },
+  topeng: { label: 'Topeng kayu', slot: 'face', colors: { main: '#FFF8EC', accent: '#D7263D' },
+    draw: (c) => `<path fill-rule="evenodd" d="M-36 -48Q-36 -64 -18 -62Q0 -60 18 -62Q36 -64 36 -48Q36 -36 20 -36Q8 -36 0 -42Q-8 -36 -20 -36Q-36 -36 -36 -48ZM-23 -52a8 6 0 1 0 16 0a8 6 0 1 0 -16 0ZM7 -52a8 6 0 1 0 16 0a8 6 0 1 0 -16 0Z" fill="${c.main}" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      `<path d="M-30 -58q8 -5 16 -2M30 -58q-8 -5 -16 -2" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/><path d="M-34 -44l6 2M34 -44l-6 2M0 -60v5" stroke="${c.accent}" stroke-width="3" stroke-linecap="round"/>` },
+  kacamatahati: { label: 'Kacamata hati', slot: 'face', colors: { main: '#FF6B8A' },
+    draw: (c) => { const h = (x: number) => `<path d="M${x} -38C${x - 14} -46 ${x - 14} -58 ${x - 6} -58C${x - 2} -58 ${x} -55 ${x} -52C${x} -55 ${x + 2} -58 ${x + 6} -58C${x + 14} -58 ${x + 14} -46 ${x} -38Z" fill="${c.main}" fill-opacity=".85" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`; return h(-15) + h(15) + `<path d="M-5 -51H5" stroke="${INK}" stroke-width="2.4"/>`; } },
+  monokel: { label: 'Monokel', slot: 'face', colors: { main: '#F2C94C' },
+    draw: (c) => `<circle cx="15" cy="-47" r="11" fill="rgba(255,255,255,.3)" stroke="${c.main}" stroke-width="3"/><circle cx="15" cy="-47" r="11" fill="none" stroke="${INK}" stroke-width="1.2"/><path d="M25 -42Q34 -30 30 -14" fill="none" stroke="${c.main}" stroke-width="1.8" stroke-dasharray="2.5 2"/>` },
+  masker: { label: 'Masker batik', slot: 'face', colors: { main: '#3F7FBF', accent: '#F3E3B5' },
+    draw: (c) => `<path d="M-38 -44L-22 -44Q0 -48 22 -44L38 -44M-38 -30L-22 -30M38 -30L22 -30" fill="none" stroke="${INK}" stroke-width="1.6"/><path d="M-22 -44Q0 -48 22 -44L22 -28Q0 -20 -22 -28Z" fill="${c.main}" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>` +
+      [[-12, -38], [0, -36], [12, -38], [-6, -30], [6, -30]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.2" fill="none" stroke="${c.accent}" stroke-width="1.6"/>`).join('') },
+  kalungkerang: { label: 'Kalung kerang', slot: 'neck', colors: { main: '#F6D6C2', accent: '#E8A87C' },
+    draw: (c) => `<path d="M-30 -27Q0 -12 30 -27" fill="none" stroke="${INK}" stroke-width="1.5"/>` +
+      [-22, -8, 8, 22].map((x) => { const y = -19 - Math.abs(x) * 0.22; return `<g transform="translate(${x} ${y})"><path d="M0 -4L-6 4Q0 8 6 4Z" fill="${c.main}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><path d="M0 -4V5M-3 0L-2 5M3 0L2 5" stroke="${c.accent}" stroke-width="1"/></g>`; }).join('') },
+  medali: { label: 'Medali juara', slot: 'neck', colors: { main: '#F2C94C', accent: '#D7263D' },
+    draw: (c) => `<path d="M-22 -30L-6 -12M22 -30L6 -12" stroke="${c.accent}" stroke-width="6" stroke-linecap="round"/><path d="M-22 -30L-6 -12M22 -30L6 -12" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1 4"/>` +
+      `<circle cx="0" cy="-6" r="10" fill="${c.main}" stroke="${INK}" stroke-width="2.6"/><path d="M0 -12l1.8 3.8 4.2.6-3 2.9.7 4.1L0 -2.6l-3.7 2 .7-4.1-3-2.9 4.2-.6Z" fill="${shade(c.main, -0.2)}"/>` },
+  syalrajut: { label: 'Syal rajut belang', slot: 'neck', colors: { main: '#E0583F', accent: '#FFFFFF' },
+    draw: (c) => `<path d="M-40 -32Q0 -16 40 -32L39 -21Q0 -5 -39 -21Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>` +
+      [-28, -14, 0, 14, 28].map((x) => `<path d="M${x} ${-28 + Math.abs(x) * 0.04}v${10 - Math.abs(x) * 0.08}" stroke="${c.accent}" stroke-width="4"/>`).join('') +
+      `<path d="M22 -20L30 4L18 6L14 -16Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M17 -8L27 -10M15 -2L28 -4" stroke="${c.accent}" stroke-width="3.5"/><path d="M19 6v5M24 5v5M29 4v5" stroke="${c.main}" stroke-width="2.4" stroke-linecap="round"/>` },
+  // ---------- slot "dibawa": dipegang di samping pet ----------
+  balon: { label: 'Balon', slot: 'hand', colors: { main: '#E0583F', accent: '#FFFFFF' },
+    draw: (c) => `<path d="M40 -24Q48 -46 44 -72" fill="none" stroke="${INK}" stroke-width="1.6"/><ellipse cx="45" cy="-92" rx="14" ry="17" fill="${c.main}" stroke="${INK}" stroke-width="2.8"/><path d="M41 -75l4 3 4 -3Z" fill="${c.main}" stroke="${INK}" stroke-width="1.6"/><ellipse cx="40" cy="-98" rx="3.2" ry="5.5" fill="${c.accent}" opacity=".6"/>` },
+  lampion: { label: 'Lampion', slot: 'hand', colors: { main: '#D7263D', accent: '#F2C94C' },
+    draw: (c) => `<path d="M40 -22Q50 -30 50 -46" fill="none" stroke="${shade(c.accent, -0.4)}" stroke-width="3" stroke-linecap="round"/><path d="M50 -46V-52" stroke="${INK}" stroke-width="1.6"/><rect x="42" y="-56" width="16" height="4" rx="2" fill="${c.accent}" stroke="${INK}" stroke-width="1.6"/><ellipse cx="50" cy="-70" rx="13" ry="15" fill="${c.main}" stroke="${INK}" stroke-width="2.6"/><path d="M50 -85V-55M42 -82Q38 -70 42 -58M58 -82Q62 -70 58 -58" fill="none" stroke="${shade(c.main, -0.25)}" stroke-width="1.6"/><rect x="42" y="-88" width="16" height="4" rx="2" fill="${c.accent}" stroke="${INK}" stroke-width="1.6"/><path d="M50 -55v8" stroke="${c.accent}" stroke-width="2.4"/><ellipse cx="50" cy="-70" rx="7" ry="9" fill="#FFE08A" opacity=".45"/>` },
+  kincir: { label: 'Kincir kertas', slot: 'hand', colors: { main: '#3F7FBF', accent: '#F2C230' },
+    draw: (c) => `<path d="M40 -20L46 -60" stroke="#8A5A36" stroke-width="3" stroke-linecap="round"/><g transform="translate(46 -64)">${[0, 90, 180, 270].map((r, i) => `<path d="M0 0L0 -16Q8 -14 10 -6Z" transform="rotate(${r})" fill="${i % 2 ? c.accent : c.main}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>`).join('')}<circle r="2.6" fill="${INK}"/></g>` },
 };
 
 const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
@@ -613,6 +699,7 @@ const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
   face: [-34, -60, 68, 30],
   neck: [-44, -36, 88, 40],
   back: [-66, -100, 132, 100],
+  hand: [30, -112, 36, 92],
 };
 
 export interface PetLook {
@@ -745,7 +832,7 @@ export function renderPet(look: PetLook, wear: ItemLike[] = [], st: PetStateLook
   const color = col(look.color, '#F6B7A8');
   const dk = shade(color, -0.22), lt = shade(color, 0.5);
   const ears = earsSVG(look.ear, color, dk);
-  const order: Record<string, number> = { back: 0, neck: 1, face: 2, head: 3 };
+  const order: Record<string, number> = { back: 0, neck: 1, face: 2, head: 3, hand: 4 };
   const parts = [...wear].sort((a, b) => (order[a.data?.slot] ?? 1) - (order[b.data?.slot] ?? 1)).map(wearParts);
   const mood = st.mood ?? 'biasa';
   const lid = look.pattern === 'topeng' || look.pattern === 'ujung' ? shade(color, -0.2) : color;
@@ -1509,7 +1596,7 @@ export function itemIcon(item: ItemLike) {
   }
   if (item.kind === 'wear') {
     const slot = item.data?.slot ?? (a.type === 'builtin' ? WEAR[a.key]?.slot : 'head') ?? 'head';
-    const vb = { head: '-56 -124 112 64', face: '-46 -64 92 42', neck: '-46 -40 92 50', back: '-80 -112 160 116' }[slot as 'head'] ?? '-56 -124 112 64';
+    const vb = { head: '-56 -130 112 78', face: '-46 -64 92 50', neck: '-46 -40 92 54', back: '-80 -118 160 136', hand: '22 -114 46 98' }[slot as 'head'] ?? '-56 -130 112 70';
     const p = wearParts(item);
     return `<svg viewBox="${vb}" aria-hidden="true">${p.behind}${p.front}</svg>`;
   }

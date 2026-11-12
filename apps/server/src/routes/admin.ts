@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -72,7 +72,7 @@ function cleanKindData(kind: string, v: any) {
     case 'furniture':
       return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}) };
     case 'wear':
-      return { slot: oneOf(d.slot ?? 'head', 'Bagian', ['head', 'face', 'neck', 'back'] as const) };
+      return { slot: oneOf(d.slot ?? 'head', 'Bagian', WEAR_SLOTS) };
     case 'room': {
       const out: any = { size: num(d.size, 'Ukuran ruangan', 4, 10, 6), theme: oneOf(d.theme ?? 'dalam', 'Tema', ['dalam', 'luar'] as const) };
       if (d.wall) out.wall = slug(d.wall, 'Dinding awal');

@@ -51,7 +51,7 @@
   const shown = $derived(run.st.phase === 'play' ? Math.max(0, h - (PINANG.slipPerSec * grease * Math.max(0, now - prev)) / 1000) : h);
   const TOP = 90, BOT = 500;
   const y = $derived(BOT - (shown / PINANG.top) * (BOT - TOP - 40));
-  const pet = $derived(renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((w) => w.data?.slot !== 'back')));
+  const pet = $derived(renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand')));
   const timeLeft = $derived(Math.max(0, Math.ceil((duration - now) / 1000)));
 </script>
 

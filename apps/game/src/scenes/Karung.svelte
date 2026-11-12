@@ -54,7 +54,7 @@
     });
     const me = G.me.pet;
     const meHop = phase === 'finale' && playerX < END - 1 ? Math.floor(t / 150) % 2 === 0 : hopAnim;
-    s += sackPet(me, wearItems(me.wear).filter((w) => w.data?.slot !== 'back'), playerX, laneY(3), meHop);
+    s += sackPet(me, wearItems(me.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand'), playerX, laneY(3), meHop);
     s += `<text x="${Math.min(playerX, 352).toFixed(1)}" y="${laneY(3) - 52}" text-anchor="middle" class="nm me">${me.name}</text>`;
     return s;
   });

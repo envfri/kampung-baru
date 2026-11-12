@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -151,7 +151,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       const wear: Record<string, string> = { ...(pet.wear ?? {}) };
       if (body.wear !== undefined) {
         const w = obj(body.wear, 'wear');
-        for (const slot of ['head', 'face', 'neck', 'back']) {
+        for (const slot of WEAR_SLOTS) {
           if (!(slot in w)) continue;
           const id = w[slot];
           if (id === null) { delete wear[slot]; continue; }

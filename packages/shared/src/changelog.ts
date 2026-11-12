@@ -39,9 +39,25 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.27.0',
+    date: '2026-11-12',
+    title: 'Aksesori baru: jubah, sayap, topi, topeng & slot Dibawa',
+    summary: '36 aksesori baru dan slot kelima untuk barang yang dibawa di samping pet.',
+    items: [
+      { kind: 'baru', text: 'Punggung: Jubah Malam Berbintang, Jubah Batik Parang, Jas Hujan Bertudung, Jubah Kerah Tinggi, Selendang Penari, Sayap Merpati, Sayap Capung, Bakul Gendong, dan Tempurung Kura-kura.', player: true },
+      { kind: 'baru', text: 'Kepala: Udeng, Topi Penyihir, Bando Bunga Matahari, Helm Proyek, Topi Ember, Mahkota Daun, dan Topi Wisuda. Wajah & leher: Topeng Kayu, Kacamata Hati, Monokel Emas, Masker Batik, Kalung Kerang, Medali Juara, dan Syal Rajut Belang.', player: true },
+      { kind: 'baru', text: 'Warna baru dari aksesori lama: Jubah Pahlawan Biru, Hijau, dan Hitam; Sayap Kupu Merah Muda; Kupluk Biru; Baret Hitam; Syal Motif Hijau; dan Caping Merah Bata.', player: true },
+      { kind: 'baru', text: 'Slot baru "Dibawa": pet bisa membawa Balon (merah, kuning, biru), Lampion, atau Kincir Kertas di samping, bersamaan dengan aksesori kepala, wajah, leher, dan punggung. Atur di Lemari › Aksesori. Di mini-game, aksesori punggung dan yang dibawa tetap disembunyikan supaya tidak menghalangi.', player: true },
+      { kind: 'ubah', text: 'Kebanyakan dijual di Butik Benang (25–110 koin); Jubah Malam Berbintang, Jubah Kerah Tinggi, Sayap Merpati, Sayap Capung, Topi Penyihir, dan Monokel Emas di Toko Mutiara (3–8 Mutiara).', player: true },
+      { kind: 'ubah', text: 'Lawan "Tempe" di Lomba Karung berganti nama jadi "Lupis".', player: true },
+      { kind: 'ubah', text: 'Teknis: paket konten 10 (36 item), WEAR_SLOTS di @kb/shared (head, face, neck, back, hand) dipakai server, admin, dan Lemari; pilihan slot "Dibawa" di admin Item & harga. Uji baru: wear.test.ts.' },
+    ],
+  },
+  {
     version: '0.26.2',
     date: '2026-11-12',
     title: 'Saran nama pet baru',
+    commits: ['1797346'],
     items: [
       { kind: 'ubah', text: 'Saran nama saat membuat pet tidak lagi memuat "Tempe"; diganti "Klepon".', player: true },
     ],

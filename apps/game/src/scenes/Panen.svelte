@@ -120,7 +120,7 @@
       <g transform="translate({laneX(d.lane)} {y.toFixed(1)})">{@html dropArt(d)}</g>
     {/each}
     <g transform="translate({basket.toFixed(1)} {CATCH + 26})">
-      <g transform="translate(0 -18) scale(.5)">{@html renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((w) => w.data?.slot !== 'back'))}</g>
+      <g transform="translate(0 -18) scale(.5)">{@html renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand'))}</g>
       <path d="M-34 -24h68l-8 26h-52Z" fill="#C8955A" stroke="#2B2F4A" stroke-width="3" stroke-linejoin="round"/>
       <path d="M-30 -14h60M-28 -5h56" stroke="#8A5A36" stroke-width="2"/>
     </g>

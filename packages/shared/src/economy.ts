@@ -128,10 +128,13 @@ export function mulberry32(seed: number) {
   };
 }
 
+/** Bagian tubuh tempat aksesori dipakai (hand = dibawa di samping). */
+export const WEAR_SLOTS = ['head', 'face', 'neck', 'back', 'hand'] as const;
+
 export const KARUNG_RIVALS = [
   { name: 'Kopi', color: '#B98A64', ear: 'anjing', pattern: 'totol', eyes: 'senyum' },
   { name: 'Gendhis', color: '#C9B6E8', ear: 'kelinci', pattern: 'bintang', eyes: 'berbinar' },
-  { name: 'Tempe', color: '#A8D8A0', ear: 'tunas', pattern: 'belang', eyes: 'bulat' },
+  { name: 'Lupis', color: '#A8D8A0', ear: 'tunas', pattern: 'belang', eyes: 'bulat' },
   { name: 'Onde', color: '#F4D58D', ear: 'kucing', pattern: 'topeng', eyes: 'sayu' },
   { name: 'Serabi', color: '#F2EEE3', ear: 'rubah', pattern: 'ujung', eyes: 'bulat' },
   { name: 'Cilok', color: '#9FD0E8', ear: 'antena', pattern: 'polos', eyes: 'bintang' },

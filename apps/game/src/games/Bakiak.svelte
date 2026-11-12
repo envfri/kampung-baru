@@ -67,10 +67,10 @@
   onDestroy(() => { cancelAnimationFrame(raf); run.stop(); });
 
   // pet sendiri di depan (paling kanan), dua teman setim di belakangnya
-  const team = $derived([renderPet(KARUNG_RIVALS[1] as any), renderPet(KARUNG_RIVALS[0] as any), renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((w) => w.data?.slot !== 'back'))]);
+  const team = $derived([renderPet(KARUNG_RIVALS[1] as any), renderPet(KARUNG_RIVALS[0] as any), renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand'))]);
   // duel: tim lawan di lajur belakang (bayangan = transparan)
   const duel = $derived(run.st.duel);
-  const rivalTeam = $derived(duel?.them?.pet ? [renderPet(KARUNG_RIVALS[3] as any), renderPet(KARUNG_RIVALS[2] as any), renderPet(duel.them.pet, wearItems(duel.them.pet.wear).filter((w) => w.data?.slot !== 'back'))] : []);
+  const rivalTeam = $derived(duel?.them?.pet ? [renderPet(KARUNG_RIVALS[3] as any), renderPet(KARUNG_RIVALS[2] as any), renderPet(duel.them.pet, wearItems(duel.them.pet.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand'))] : []);
   const timeLeft = $derived(Math.max(0, Math.ceil((duration - now) / 1000)));
   const label = (f?: Foot) => (f === 'L' ? 'KIRI' : f === 'R' ? 'KANAN' : '');
 </script>

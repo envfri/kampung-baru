@@ -7,7 +7,7 @@
 
   type Tab = 'color' | 'ear' | 'pattern' | 'eyes' | 'tail' | 'wear';
   const TABS: [Tab, string][] = [['color', 'Warna'], ['ear', 'Telinga'], ['pattern', 'Motif'], ['eyes', 'Mata'], ['tail', 'Ekor'], ['wear', 'Aksesori']];
-  const SLOTS: [string, string][] = [['head', 'Kepala'], ['face', 'Wajah'], ['neck', 'Leher'], ['back', 'Punggung']];
+  const SLOTS: [string, string][] = [['head', 'Kepala'], ['face', 'Wajah'], ['neck', 'Leher'], ['back', 'Punggung'], ['hand', 'Dibawa']];
   let tab = $state<Tab>('color');
   const pet = $derived(G.me.pet);
   const look = $derived({ color: pet.color, ear: pet.ear, pattern: pet.pattern, eyes: pet.eyes, tail: pet.tail });

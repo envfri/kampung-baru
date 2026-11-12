@@ -54,7 +54,7 @@
     if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}${setName ? ` · ${setName}` : ''}`; }
     if ((it.kind === 'wallpaper' || it.kind === 'floor') && setName) return `${it.kind === 'floor' ? 'Lantai' : 'Dinding'} · ${setName}`;
     if (it.kind === 'seed') return `Panen dalam ${it.data?.growMinutes} mnt`;
-    if (it.kind === 'wear') return { head: 'Kepala', face: 'Wajah', neck: 'Leher', back: 'Punggung' }[it.data?.slot as 'head'] ?? '';
+    if (it.kind === 'wear') return { head: 'Kepala', face: 'Wajah', neck: 'Leher', back: 'Punggung', hand: 'Dibawa' }[it.data?.slot as 'head'] ?? '';
     if (it.kind === 'wallpaper') return 'Dinding';
     if (it.kind === 'floor') return 'Lantai';
     if (it.kind === 'room') return `${it.data?.theme === 'luar' ? 'Halaman' : 'Ruangan'} ${it.data?.size ?? 6}×${it.data?.size ?? 6}`;

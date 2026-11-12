@@ -282,7 +282,7 @@
             </div>
             <label class="inline"><input type="checkbox" bind:checked={form.data.flat} />Barang datar (karpet): bisa dilewati & ditumpuki</label>
           {:else if form.kind === 'wear'}
-            <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option><option value="back">Punggung (di belakang badan)</option></select></label>
+            <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option><option value="back">Punggung (di belakang badan)</option><option value="hand">Dibawa (di samping pet)</option></select></label>
           {:else if form.kind === 'seed'}
             <div class="grid2">
               <label>Lama tumbuh (menit)<input type="number" min="1" bind:value={form.data.growMinutes} /></label>
