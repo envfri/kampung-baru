@@ -6,6 +6,8 @@
   import { EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { squareShow, PHOTO_POSES, ALUN_LAYOUT, SQUARE_SNACKS, paradeAt, lombaAt, LOMBA_SIAP, fmtGrams } from '@kb/shared';
   import { ALUN, PREVIEW, nightNow } from '../lib/alun.svelte';
+  import { BG } from '../lib/bareng.svelte';
+  import { barengTiles, playersOf, tileIndex } from '../lib/barengTiles';
   import { sfx } from '../lib/sfx';
 
   let pop = $state<null | 'emote' | 'photo' | 'play'>(null);
@@ -64,8 +66,6 @@
     { k: `teduh@${at('alun-beringin')}`, l: 'Berteduh di bawah beringin' },
     { k: `duduk@${at('alun-bangku')}`, l: 'Duduk santai di bangku' },
     ...['alun-dawet', 'alun-bakso', 'alun-arummanis'].map((id) => ({ k: `jajan@${at(id)}`, l: `Jajan ${SQUARE_SNACKS[id].name} (${SQUARE_SNACKS[id].coins} koin)` })),
-    { k: `ular@${at('alun-tikarular')}`, l: 'Ular Tangga bareng (2–4 orang)' },
-    { k: `karung@${at('alun-garisstart')}`, l: 'Balap Karung Live (2–5 orang)' },
     // Pojok Wahana
     { k: `bianglala@${at('alun-bianglala')}`, l: 'Naik bianglala' },
     { k: `kereta@${at('alun-halte')}`, l: 'Naik Kereta Kelinci' },
@@ -75,6 +75,26 @@
     { k: `layar@${at('alun-layar')}`, l: 'Nonton layar tancap', night: true },
   ] as { k: string; l: string; show?: boolean; arak?: boolean; night?: boolean }[];
   function play(k: string) { pop = null; sfx.tap(); H.actReq = { kind: k }; }
+  /* main bareng: ubin dari BARENG_GAMES (benda tempat mainnya harus ada di alun-alun) */
+  const tiles = $derived(barengTiles('alun', settings().features));
+  /** permainan yang sedang berjalan di benda itu (bisa ditonton) */
+  const runningOf = (key: string) => (key === 'karung' ? null : H.games.find((g: any) => g.game === key && g.phase === 'main') ?? null);
+  const vsText = (g: any) => (g.players.length === 2 ? `${g.players[0].name} vs ${g.players[1].name} · Tonton` : 'Sedang main · Tonton');
+  function tile(t: (typeof tiles)[number]) {
+    const g = runningOf(t.key);
+    if (g) { pop = null; sfx.tap(); BG.watching = g.id; return; }
+    play(`${t.key}@${tileIndex(t)}`);
+  }
+  /** tinggi maksimal menu: ruang antara HUD dan bar ini */
+  let barEl = $state<HTMLElement | null>(null);
+  let popMax = $state(0);
+  $effect(() => {
+    if (pop !== 'play' || !barEl) return;
+    const fit = () => { const hud = document.querySelector('.hud')?.getBoundingClientRect().bottom ?? 88; popMax = Math.max(160, barEl!.getBoundingClientRect().top - hud - 16); };
+    fit();
+    addEventListener('resize', fit);
+    return () => removeEventListener('resize', fit);
+  });
   function onWinKey(e: KeyboardEvent) { if (e.key === 'Escape' && pop) pop = null; }
   function onKey(e: KeyboardEvent) { if (e.key === 'Enter') { e.preventDefault(); send(); } if (e.key === 'Escape') chatting = false; }
   const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; };
@@ -84,7 +104,7 @@
 </script>
 
 <svelte:window onkeydown={onWinKey} />
-<div class="sbar">
+<div class="sbar" bind:this={barEl}>
   <p class="status">
     <b>Alun-alun {H.inst || ''}</b><span>{H.live ? `${H.count}/${H.max} orang` : 'Menyambung…'}</span>
     <span class="show" class:on={show.playing}>{show.playing ? `Panggung: ${show.name}` : `${show.next.name} mulai ${secs} dtk lagi`}</span>
@@ -123,8 +143,16 @@
   {/if}
 
   {#if pop === 'play'}
-    <div class="pop col" role="dialog" aria-label="Main di alun-alun">
+    <div class="pop col" role="dialog" aria-label="Main di alun-alun" style={popMax ? `max-height:${popMax}px` : ''}>
       <b>Main di alun-alun</b>
+      <span class="sec">MAIN BARENG · GANTIAN JALAN</span>
+      <div class="games">
+        {#each tiles as t (t.key)}
+          {@const run = runningOf(t.key)}
+          <button class="btn g" class:busy={!!run} disabled={!H.live || (!run && !!ALUN.ride)} onclick={() => tile(t)}>{@html t.icon}<span><b>{t.label}</b><small>{run ? vsText(run) : `${playersOf(t.key)} · ${t.where}`}</small></span>{#if t.isNew}<em>BARU</em>{/if}</button>
+        {/each}
+      </div>
+      <span class="sec">JALAN-JALAN & JAJAN</span>
       {#each PLAY.filter((a) => !a.night || night.layar) as a (a.k)}
         {@const off = (a.show && !show.playing) || (a.arak && !parade.joinable) || !!ALUN.ride}
         <button class="btn sm" disabled={off} onclick={() => play(a.k)}>{a.l}{a.show && !show.playing ? ` · mulai ${secs} dtk lagi` : a.arak && !parade.joinable ? ` · mulai ${mins(parade.start - now)} mnt lagi` : ''}</button>
@@ -164,6 +192,16 @@
   .chip { flex: none; border: 2px solid var(--ink); border-radius: 999px; background: #FFF4D6; font-weight: 800; font-size: 13.5px; padding: 4px 10px; cursor: pointer; }
   .pop { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; max-height: 50vh; overflow-y: auto; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; animation: pop .18s ease-out; }
   .pop.col { flex-direction: column; flex-wrap: nowrap; }
+  .sec { font-size: 11.5px; font-weight: 800; color: var(--muted); letter-spacing: .02em; margin-top: 2px; }
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 6px; flex: none; }
+  .g { position: relative; justify-content: flex-start; text-align: left; gap: 7px; padding: 5px 8px 5px 6px; min-height: 52px; border-radius: 12px; font-size: 14px; }
+  .g :global(svg) { width: 30px; height: 30px; flex: none; }
+  .g span { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  .g b { font-size: 14.5px; font-weight: 800; }
+  .g small { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+  .g.busy small { color: #1E7A4C; }
+  .g em { position: absolute; top: -8px; right: 6px; font-style: normal; background: #E0583F; color: #FFFDF7; font-size: 10.5px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 0 6px; line-height: 1.35; }
+  @media (max-width: 359px) { .g { min-height: 46px; } }
   .pop b { font-size: 14.5px; }
   .pop small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }

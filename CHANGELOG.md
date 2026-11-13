@@ -4,6 +4,27 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.37.0 · 2026-11-13 · Catur & Ludo main bareng
+
+_Dua permainan papan baru untuk main bareng teman: Catur berdua dan Ludo untuk 2–4 orang, di rumah atau di pojok permainan alun-alun._
+
+### Baru
+
+- Catur untuk berdua (Catur Kilat 5+3): tiap pemain punya jam 5 menit + 3 detik tiap langkah, warna diundi. Aturan lengkap: rokade, en passant, promosi pion, skak, skakmat, dan remis. Ada tombol Tawar remis & Menyerah. Diam 60 detik dapat peringatan, 90 detik kalah waktu. Teman lain bisa ikut menonton. _(pemain)_
+- Ludo untuk 2–4 orang: angka 6 untuk keluar kandang & lempar lagi, makan bidak lawan = lempar lagi, kotak bintang aman, masuk rumah harus pas, tiga kali 6 berturut-turut hangus. Berdua masing-masing 4 bidak, bertiga/berempat 2 bidak, paling lama 15 menit. Papan diputar supaya kandangmu selalu di kiri bawah. _(pemain)_
+- Pojok permainan di sisi barat alun-alun: Pos Ronda dengan papan catur di bale-bale (pemainnya duduk di sana) dan Tikar Ludo (pemainnya berdiri di pojok warnanya). Ketuk bendanya untuk mengajak main atau menonton. _(pemain)_
+
+### Perubahan
+
+- Menu Main bareng sekarang berupa ubin papan & dadu (Congklak, Ular Tangga, Balap Karung, Catur, Ludo) lengkap dengan jumlah pemain dan tempat mainnya. Saat ada yang main di alun-alun, ubinnya menunjukkan siapa lawan siapa dan bisa langsung ditonton. _(pemain)_
+- Hadiah Catur & Ludo ×1,5 karena permainannya lebih lama. Supaya adil, hadiah baru diberikan kalau sudah benar-benar main: Catur paling tidak 20 langkah (gabungan kedua pemain), Ludo selesai sampai akhir atau sudah 5 menit, Ular Tangga selesai sampai akhir atau sudah melempar 6 kali sendiri. Kalau belum, jatah main bareng harianmu juga tidak terpakai. _(pemain)_
+- Di HP, selama papan Catur atau Ludo terbuka, tombol aksi, lingkaran kebutuhan pet, dan pil ruangan disembunyikan supaya papannya muat penuh. _(pemain)_
+- Teknis: aturan catur di shared/catur.ts (diuji perft posisi awal, Kiwipete & posisi 3–5), Ludo di shared/ludo.ts; sesi di server/lib/catur-game.ts & lib/ludo-game.ts lewat kait kecil di routes/bareng.ts. Pengaturan baru catur, ludo, bareng.longMult, features.catur & features.ludo (divalidasi di admin). BARENG_GAMES.long, REWARD_GATES per game, ubin menu dari barengTiles.ts. Benda alun-alun baru ditambah di akhir ALUN_LAYOUT (Pos Ronda (0,9), Tikar Ludo (2,10)); uji benda tinggi kini berlaku umum untuk semua benda yang bisa dimainkan. Uji e2e baru: e2e-catur & e2e-ludo.
+
+### Perbaikan
+
+- Ajakan main yang tidak jadi (dibatalkan atau tidak ada yang ikut) tidak lagi menampilkan "Kamu menang!". Hitung mundur di kartu ajakan tidak lagi keluar dari pilnya, dan pil "sedang dimainkan · Tonton" tidak lagi menutupi menu Main. _(pemain)_
+
 ## 0.36.1 · 2026-11-13 · Ular Tangga harus pas & Panjat Pinang lebih licin
 
 _Ular Tangga sekarang seperti aslinya: finis harus pas di kotak 36, kelebihan langkah = mundur. Tiang Panjat Pinang punya bagian berminyak yang bikin kepeleset!_
@@ -13,6 +34,8 @@ _Ular Tangga sekarang seperti aslinya: finis harus pas di kotak 36, kelebihan la
 - Ular Tangga: finis harus pas di kotak 36. Kalau angka dadu kelebihan, bidak mundur sebanyak kelebihannya (sisa 1 dapat 3: maju ke 36 lalu mundur ke 34). Kalau mundurnya berhenti di kepala ular, tetap turun! _(pemain)_
 - Panjat Pinang: tiang punya 3 bagian berminyak (lebih gelap). Di situ naiknya lebih berat, diam melorot lebih cepat, dan kadang kepeleset turun. Irama tenang tetap bisa sampai puncak. _(pemain)_
 - Teknis: ularMove mengembalikan land & back, bingkai animasi baru "back"; batas waktu Ular Tangga 10 → 15 menit (simulasi 4 pemain: rata-rata ±5 menit). Panjat Pinang: pinangStart/pinangTap/pinangOil dipakai bersama game & server (hitungan sama persis), parameter PINANG.oil ditakar dengan simulasi.
+
+Commit: [`91a9a57`](https://github.com/envfri/kampung-baru/commit/91a9a57)
 
 ## 0.36.0 · 2026-11-13 · Bonus Ramai-ramai di kolam alun-alun
 

@@ -118,9 +118,9 @@ console.log(`info kanopi tembus pandang saat ini: ${behind ? 'ya' : 'tidak ada p
 
 await A.p.click('.sbar .btn:has-text("Main")');
 await shot(A, '12-menu-main-alun');
-check(await A.p.locator('.pop .btn:has-text("Balap Karung Live")').count() === 1, 'menu Main alun-alun punya Balap Karung Live');
-check(await A.p.locator('.pop .btn:has-text("Ular Tangga bareng")').count() === 1, 'menu Main alun-alun punya Ular Tangga');
-await A.p.click('.pop .btn:has-text("Balap Karung Live")');
+check(await A.p.locator('.pop .btn.g:has-text("Balap Karung")').count() === 1, 'menu Main alun-alun punya ubin Balap Karung');
+check(await A.p.locator('.pop .btn.g:has-text("Ular Tangga")').count() === 1, 'menu Main alun-alun punya ubin Ular Tangga');
+await A.p.click('.pop .btn.g:has-text("Balap Karung")');
 for (const pl of [B, C]) await pl.p.waitForSelector('.card:has-text("mengajak main Balap Karung Live")', { timeout: 15000 }).catch(() => {});
 check(await B.p.locator('.card:has-text("mengajak main Balap Karung Live")').count() === 1, 'orang di alun-alun mendapat ajakan Balap Karung Live');
 await shot(A, '13-pet-di-garis-start');

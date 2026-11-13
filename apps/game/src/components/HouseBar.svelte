@@ -1,9 +1,10 @@
 <script lang="ts">
   // Bar kunjungan bareng: main dengan pet teman (saat berkunjung), obrolan, ekspresi, foto bareng, main bareng.
   // Di rumah sendiri bar ini muncul bila ada tamu yang sedang live.
-  import { G, item, items, toast } from '../lib/game.svelte';
+  import { G, item, items, settings, toast } from '../lib/game.svelte';
   import { H, say, emote, coop, takePhoto } from '../lib/house.svelte';
   import { startGame } from '../lib/bareng.svelte';
+  import { barengTiles, playersOf } from '../lib/barengTiles';
   import { ACT_ICON, EMOTE_ICON, EMOTE_LABEL } from '../lib/houseArt';
   import { itemIcon, PHOTO_POSES } from '@kb/shared';
   import { sfx } from '../lib/sfx';
@@ -58,9 +59,21 @@
     G.sheetArg = { friendId: fid }; G.sheet = 'duels';
   }
   const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; };
+  /** ubin permainan papan & dadu (dari BARENG_GAMES: game yang belum ada tidak tampil) */
+  const tiles = $derived(barengTiles('house', settings().features));
+  /** tinggi maksimal menu: ruang antara HUD dan bar ini (tidak menutupi HUD) */
+  let barEl = $state<HTMLElement | null>(null);
+  let popMax = $state(0);
+  $effect(() => {
+    if (!pop || !barEl) return;
+    const fit = () => { const hud = document.querySelector('.hud')?.getBoundingClientRect().bottom ?? 88; popMax = Math.max(160, barEl!.getBoundingClientRect().top - hud - 16); };
+    fit();
+    addEventListener('resize', fit);
+    return () => removeEventListener('resize', fit);
+  });
 </script>
 
-<div class="hbar" class:home={mode === 'home'}>
+<div class="hbar" class:home={mode === 'home'} bind:this={barEl}>
   <p class="status" class:live={!!host || here.length > 0}>{#if here.length}<i class="dot"></i>{/if}{status}</p>
 
   {#if mode === 'visit' && together.on}
@@ -105,14 +118,20 @@
       <small>Pet yang sedang satu ruangan denganmu ikut berfoto (juga pet tuan rumah). Fotonya masuk album semua yang ada di foto.</small>
     </div>
   {:else if pop === 'play'}
-    <div class="pop col" role="menu">
+    <div class="pop col play" role="menu" style={popMax ? `max-height:${popMax}px` : ''}>
       <b>Main bareng di rumah</b>
-      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
-      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('bola')}>Lempar bola</button>
-      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => { pop = null; startGame('congklak'); }}>Congklak <small>2 pemain</small></button>
-      <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => { pop = null; startGame('ular'); }}>Ular Tangga <small>2–4 pemain</small></button>
-      <button class="btn sm" role="menuitem" onclick={duel}>Tantang duel</button>
-      {#if here.length < 1}<small>Permainan bareng butuh minimal 2 pemain yang sedang di rumah ini.</small>{:else}<small>Yang lain mendapat ajakan dan memilih sendiri mau ikut atau tidak.</small>{/if}
+      <div class="row3">
+        <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
+        <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('bola')}>Lempar bola</button>
+        <button class="btn sm" role="menuitem" onclick={duel}>Tantang duel</button>
+      </div>
+      <span class="sec">PAPAN & DADU · GANTIAN JALAN</span>
+      <div class="games">
+        {#each tiles as t (t.key)}
+          <button class="btn g" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => { pop = null; startGame(t.key); }}>{@html t.icon}<span><b>{t.label}</b><small>{playersOf(t.key)} pemain</small></span>{#if t.isNew}<em>BARU</em>{/if}</button>
+        {/each}
+      </div>
+      {#if here.length < 1}<small>Permainan bareng butuh minimal 2 pemain yang sedang di rumah ini.</small>{:else}<small>Yang lain mendapat ajakan dan bebas memilih ikut.</small>{/if}
     </div>
   {:else if pop === 'snack'}
     <div class="pop" role="menu" aria-label="Pilih camilan">
@@ -142,6 +161,18 @@
   .chip { flex: none; border: 2px solid var(--ink); border-radius: 999px; background: #FFF4D6; font-weight: 800; font-size: 13.5px; padding: 4px 10px; cursor: pointer; }
   .pop { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; animation: pop .18s ease-out; }
   .pop.col { flex-direction: column; }
+  .pop.play { flex-wrap: nowrap; overflow-y: auto; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .row3 .btn { padding: 4px 6px; }
+  .sec { font-size: 11.5px; font-weight: 800; color: var(--muted); letter-spacing: .02em; margin-top: 2px; }
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 6px; }
+  .g { position: relative; justify-content: flex-start; text-align: left; gap: 7px; padding: 5px 8px 5px 6px; min-height: 52px; border-radius: 12px; font-size: 14px; }
+  .g :global(svg) { width: 30px; height: 30px; flex: none; }
+  .g span { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  .g b { font-size: 14.5px; font-weight: 800; }
+  .g small { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+  .g em { position: absolute; top: -8px; right: 6px; font-style: normal; background: #E0583F; color: #FFFDF7; font-size: 10.5px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 0 6px; line-height: 1.35; }
+  @media (max-width: 359px) { .pop.play { gap: 5px; } .g { min-height: 46px; } .row3 .btn { font-size: 13px; min-height: 34px; } }
   .pop b { font-size: 14.5px; }
   .pop small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }

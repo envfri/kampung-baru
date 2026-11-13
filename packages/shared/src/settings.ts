@@ -37,6 +37,16 @@ export const DEFAULT_SETTINGS = {
     xp: 8,
     minTimeMs: 3000,
   },
+  // Ludo main bareng: bidak per jumlah pemain, waktu lempar/pilih (ms), batas permainan, syarat hadiah, tempo langkah
+  ludo: {
+    tokensByPlayers: { 2: 4, 3: 2, 4: 2 } as Record<string, number>,
+    rollMs: 10_000,
+    pickMs: 8000,
+    maxMs: 900_000,
+    captureBonus: true,
+    minMs: 300_000,
+    stepMs: 190,
+  },
   fishing: {
     castsPerDay: 30,
     /** energi per lemparan menurut jarak */
@@ -119,6 +129,10 @@ export const DEFAULT_SETTINGS = {
     coopXp: 6,
     photoPerDay: 6,
   },
+  /** Catur Kilat 5+3 (main bareng, 2 pemain): jam, batas diam, batas langkah pertama, syarat hadiah */
+  catur: { baseMs: 300_000, incMs: 3000, firstMoveMs: 30_000, idleMs: 90_000, idleWarnMs: 60_000, maxMs: 1_500_000, minPlies: 20, drawOfferFromPly: 20, drawOffers: 3, promoAutoMs: 10_000, auto50: 100 },
+  /** main bareng: pengali hadiah game panjang (Catur, Ludo) */
+  bareng: { longMult: 1.5 },
   premium: {
     bundleDiscount: 20,
     bonusMin: 3,
@@ -236,6 +250,8 @@ export const DEFAULT_SETTINGS = {
     karung: true,
     fishing: true,
     gifts: true,
+    catur: true,
+    ludo: true,
   },
 };
 
@@ -249,12 +265,15 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   social: 'Hadiah kunjungan teman dan batas hadiah harian.',
   daily: 'Hadiah login harian hari ke-1 sampai ke-7 (lalu berulang).',
   karung: 'Lomba Karung: jatah main per hari, biaya energi, hadiah per peringkat. Balap Karung Live di alun-alun memakai jatah & energi yang sama, hadiahnya +5 koin per peringkat.',
+  ludo: 'Ludo main bareng (rumah & Tikar Ludo di alun-alun, 2–4 pemain). tokensByPlayers = bidak per pemain menurut jumlah pemain (berdua 4, bertiga/berempat 2; 1–4); rollMs = waktu melempar dadu, pickMs = waktu memilih bidak (habis = server melempar / memilih otomatis); maxMs = batas lama permainan (lalu diurutkan menurut langkah bidak); captureBonus = makan bidak lawan = lempar lagi; minMs = lama main minimal supaya berhadiah bila permainan tidak selesai normal (pemain lain pergi); stepMs = tempo animasi per kotak. Hadiah memakai jatah & koin main bareng (Kunjungan bareng › coop) menurut peringkat 100/60/40/20%.',
   fishing: 'Kolam Pancing: jatah lempar per hari (semua jarak), energi per jarak (dekat/sedang/jauh), lama tunggu sambaran per jarak (ms), pengali peluang per tingkat ikan menurut jarak (tierMult; temuan memakai pengali dekat/jauh di item), ngicip maks & jedanya, jendela tekan TARIK per tingkat (ms), lama tarik-ulur minimal per tingkat (ms; server menolak tangkapan yang lebih cepat), XP per tingkat. Peti harta: koin per pita & peluangnya (%), peluang bonus Mutiara (%) dan jumlahnya; pearlDailyCap = batas Mutiara dari kolam per hari (peti + Ikan Dewa). Botol pesan: koin & pesan acak (petunjuk ikan rahasia diatur di item ikan rahasia › petunjuk). release = berkah untuk ikan yang dilepas (Ikan Dewa). Bobot, tingkat, waktu & jarak tiap ikan diatur di Item & harga.',
   garden: 'Kebun. levels = tingkat kebun: jumlah petak (kelipatan 3, maks 18, makin banyak tiap tingkat), harga perluasan dalam koin, dan level pet minimal; tingkat 1 gratis. Benda & kegunaan tiap tingkat tetap: Lv2 orang-orangan sawah (scarecrowPct = peluang hasil panen +1), Lv3 gentong (Siram semua), Lv4 gubuk (Tanam semua), Lv5 tanah subur (fertileSoilPct = tumbuh lebih cepat). waterPct = siram (gratis, sekali per tanam) memotong sisa waktu sebesar persen ini dari lama tumbuh; fertilizerPct = pupuk (item, sekali per tanam). harvestXp = XP panen untuk bibit yang tidak punya XP sendiri; xpCapPerDay = batas XP panen per hari (0 = tanpa batas); plantsPerDay = batas tanam per pemain per hari.',
   room: 'Ukuran kamar awal (petak) dan batas jumlah barang terpasang per ruangan.',
   premium: 'Set item premium (Mutiara): bundleDiscount = diskon paket set dalam persen (dari jumlah harga item set yang belum dimiliki pemain); bonusMin = jumlah item berbeda dari set yang sama dalam satu ruangan untuk memunculkan efek suasana (hanya tampilan). Harga per item diatur di Item & harga.',
   square: 'Alun-alun: tempat berkumpul semua pemain (bukan hanya teman). enabled = buka/tutup; max = orang per alun-alun (penuh → otomatis Alun-alun 2, 3, ...); freeChat = boleh mengetik bebas (disaring kata terlarang, tautan & nomor ditolak; matikan supaya hanya frasa siap pakai), chatMax = panjang pesan, phrases = frasa siap pakai; dailyCoins = koin kunjungan pertama tiap hari; actsPerDay = jatah main berhadiah per hari (aksi singkat & wahana panjang bersama); actCoins/actXp/ceria = hadiah aksi singkat (nonton, komidi putar, ayunan, berteduh, duduk, joget, lempar gelang, layar tancap); rideCoins/rideXp/rideCeria = hadiah wahana panjang setelah selesai (bianglala, kereta kelinci, ikut arak-arakan); gelangBonus = koin tambahan lempar gelang 3 dari 3 (sekali sehari); fireworkCeria = ceria saat kembang api 20.00 & 21.00 (sekali sehari, tanpa koin). lomba = Lomba Mancing di Kolam Pemancingan Bareng (tiap 20 menit, 3 menit; mancing santai di luar lomba memakai jatah Kolam Pancing): castsPerDay = jatah lempar lomba per hari (terpisah), entryEnergi = energi sekali per lomba, prizes/prizeXp = hadiah juara 1–3 (butuh paling tidak 2 peserta; skor = total berat ikan), joinCoins/joinXp = hadiah peserta lain yang dapat ikan, perDay = lomba berhadiah per hari. Ikan lomba dicatat di Buku Ikan lalu dilepas (tidak masuk Tas). ramai = bonus Ramai-ramai untuk mancing santai di kolam alun-alun: bila paling tidak `anglers` pemancing duduk di dermaga (termasuk dirinya), waktu tunggu ikan dipotong menjadi waitPct % dan tiap tangkapan dapat +xp XP (tanpa koin tambahan). Lewat jatah: tetap boleh main tanpa hadiah; snacksPerDay = jajan per hari (harga & efek jajanan tetap). Obrolan tercatat di Moderasi; 3 laporan dari pemain berbeda dalam 1 jam membisukan obrolan pemain itu 30 menit.',
-  visit: 'Kunjungan bareng: pet ikut berkunjung & bermain dengan pet teman. together = aktifkan; maxLive = tamu yang tampil bersamaan di satu rumah (semua ruangan, selain tuan rumah); actsPerFriend = interaksi berhadiah per teman per hari (coins & xp untuk tamu, ceria untuk pet tamu, hostCeria untuk pet tuan rumah); freeChat = boleh mengetik bebas (disaring daftar kata terlarang, tautan & nomor ditolak), chatMax = panjang pesan, phrases = frasa siap pakai (satu baris satu frasa); coopPerDay/coopCoins/coopXp = hadiah Masak bareng, Lempar bola, Congklak (menang penuh, kalah 40%, seri 60%) & Ular Tangga Kampung (peringkat 100/60/40/20%); photoPerDay = foto bareng per hari.',
+  visit: 'Kunjungan bareng: pet ikut berkunjung & bermain dengan pet teman. together = aktifkan; maxLive = tamu yang tampil bersamaan di satu rumah (semua ruangan, selain tuan rumah); actsPerFriend = interaksi berhadiah per teman per hari (coins & xp untuk tamu, ceria untuk pet tamu, hostCeria untuk pet tuan rumah); freeChat = boleh mengetik bebas (disaring daftar kata terlarang, tautan & nomor ditolak), chatMax = panjang pesan, phrases = frasa siap pakai (satu baris satu frasa); coopPerDay/coopCoins/coopXp = hadiah Masak bareng, Lempar bola, Congklak & Catur (menang penuh, kalah 40%, seri 60%) & Ular Tangga Kampung (peringkat 100/60/40/20%; pemain yang bertahan dapat hadiah bila permainan selesai normal atau ia sudah melempar paling tidak 6 kali); photoPerDay = foto bareng per hari.',
+  catur: 'Catur Kilat (main bareng 2 pemain, rumah & Pos Ronda alun-alun). baseMs = waktu awal tiap pemain (ms, 300000 = 5 menit), incMs = tambahan per langkah (ms), firstMoveMs = batas langkah pertama tiap pihak (lewat = permainan batal tanpa hadiah), idleMs = batas diam satu langkah (lewat = kalah waktu), idleWarnMs = peringatan diam, maxMs = batas lama permainan (lewat = remis), minPlies = paruh langkah minimal supaya ada hadiah (kurang = tanpa hadiah & tanpa jatah), drawOfferFromPly = tawar remis boleh mulai paruh langkah ke-, drawOffers = tawaran remis per pemain, promoAutoMs = pilihan promosi otomatis Menteri (ms), auto50 = remis otomatis setelah sekian paruh langkah tanpa makan / gerak pion (0 = mati).',
+  bareng: 'Main bareng: longMult = pengali koin & XP untuk game panjang (Catur, Ludo) di atas hadiah main bareng biasa (Kunjungan bareng › coopCoins / coopXp). Jatah harian tetap sama.',
   account: 'Akun tamu & pindah perangkat. transferCodes = izinkan kode pindah perangkat (sekali pakai, berlaku transferMinutes menit). Ajakan "Simpan progres" untuk pemain tamu muncul setelah nudgeDays hari, atau saat pet mencapai Lv nudgeLevel, punya teman pertama, atau menang duel; bila ditunda muncul lagi setelah nudgeSnoozeDays hari.',
   duel: 'Duel dengan teman (Balap Bakiak, Gasing, Tangkap Layangan): main bareng langsung bila keduanya online, atau tantangan melawan bayangan. Hadiah koin dari sistem (tanpa taruhan) dibayar setelah kedua pemain main; perDay = batas duel per pemain per hari; tantangan kedaluwarsa setelah expireHours jam.',
   sleep: 'Tidur dengan lampu mati: energi naik per jam, kebutuhan lain turun lebih lambat (pengali), batas energi untuk bisa tidur, dan lama tidur minimal untuk dihitung lencana (menit).',

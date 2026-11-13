@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
+import { checkCaturSettings } from '../lib/catur-game';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS } from '@kb/shared';
@@ -157,6 +158,18 @@ function cleanGardenLevels(v: unknown) {
     prev = slots;
     return i === 0 ? { slots, coins: 0, petLevel: 1 } : { slots, coins, petLevel };
   });
+}
+
+/** Batas wajar pengaturan Ludo (angka dibulatkan). */
+function checkLudo(l: any) {
+  const no = (msg: string) => { throw bad('invalid_settings', `Ludo: ${msg}`); };
+  for (const n of ['2', '3', '4']) { const v = Math.round(l.tokensByPlayers[n]); if (!(v >= 1 && v <= 4)) no(`bidak untuk ${n} pemain harus 1–4.`); l.tokensByPlayers[n] = v; }
+  const r = (k: string, lo: number, hi: number, name: string) => { const v = Math.round(l[k]); if (!(v >= lo && v <= hi)) no(`${name} harus ${lo}–${hi}.`); l[k] = v; };
+  r('rollMs', 3000, 60_000, 'waktu lempar dadu (ms)');
+  r('pickMs', 3000, 60_000, 'waktu pilih bidak (ms)');
+  r('maxMs', 300_000, 3_600_000, 'batas lama permainan (ms)');
+  r('minMs', 0, l.maxMs, 'lama main minimal berhadiah (ms)');
+  r('stepMs', 80, 600, 'tempo langkah (ms)');
 }
 
 /** Batas wajar pengaturan Kolam Pancing (angka sudah dipastikan angka oleh sanitizeSettings). */
@@ -540,6 +553,8 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (!(rm.anglers >= 2 && rm.anglers <= 6)) throw bad('invalid_settings', 'Ramai-ramai: jumlah pemancing harus 2–6.');
     if (!(rm.waitPct >= 30 && rm.waitPct <= 100)) throw bad('invalid_settings', 'Ramai-ramai: waktu tunggu harus 30–100 %.');
     if (!(rm.xp >= 0 && rm.xp <= 20)) throw bad('invalid_settings', 'Ramai-ramai: XP tambahan harus 0–20.');
+    checkCaturSettings(value, (msg) => { throw bad('invalid_settings', msg); });
+    checkLudo(value.ludo);
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
     const changes = diffPaths(before, value);

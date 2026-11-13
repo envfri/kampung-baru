@@ -1,12 +1,21 @@
 <script lang="ts">
   // Lapisan game main bareng di rumah & alun-alun: kartu ajakan, ruang tunggu, papan permainan, hasil.
   import { petSVG } from '@kb/shared';
-  import { G, wearItems } from '../../lib/game.svelte';
+  import { G, wearItems, settings } from '../../lib/game.svelte';
+  import { RULE_CHIPS, CLOCK_ICON } from '../../lib/barengTiles';
   import { H } from '../../lib/house.svelte';
   import { BG, GAME_NAMES, serverNow, joinGame, goGame, leaveGame, startGame, whyText } from '../../lib/bareng.svelte';
   import CongklakBoard from './CongklakBoard.svelte';
   import UlarBoard from './UlarBoard.svelte';
   import KarungLive from './KarungLive.svelte';
+  import CaturBoard from './CaturBoard.svelte';
+  import LudoBoard from './LudoBoard.svelte';
+  /** game dengan kartu hasil sendiri di papannya (kartu hasil umum tidak dipakai) */
+  const OWN_RESULT = new Set(['catur', 'ludo']);
+  /** papan catur sendiri sampai hasil (batal tetap memakai kartu umum) */
+  const ownBoard = (g: any) => g.game === 'catur' && !!g.catur && g.catur.result?.reason !== 'batal';
+  /** papan dengan tombol "Berhenti menonton" sendiri */
+  const ownStop = (g: any) => ownBoard(g) || g.game === 'ludo';
 
   const me = $derived(H.me);
   const isMine = (g: any) => g.players.some((p: any) => p.id === me && !p.left);
@@ -37,6 +46,7 @@
       </div>
       <p class="note">{mine.starter === me ? 'Yang lain di sini mendapat ajakan. Mulai otomatis saat kursi penuh atau hitung mundur habis.' : `Menunggu ${starterName(mine)} memulai.`}</p>
       {#if mine.game === 'ular'}<p class="note">Aturan: finis harus pas di kotak 36. Kelebihan langkah = bidak mundur.</p>{/if}
+      {@render rules(mine.game)}
       <div class="btns">
         <button class="btn" onclick={() => leaveGame(mine.id)}>{mine.starter === me ? 'Batal' : 'Keluar'}</button>
         {#if mine.starter === me}<button class="btn hot" disabled={mine.players.length < mine.min || BG.busy} onclick={() => goGame(mine.id)}>Mulai sekarang</button>{/if}
@@ -44,13 +54,15 @@
     </div>
   {:else if mine.phase === 'siap'}
     <div class="card"><h3>{GAME_NAMES[mine.game]}</h3><p class="note">Menyiapkan lomba…</p></div>
+  {:else if ownBoard(mine)}<CaturBoard g={mine} me={me} />
   {:else if mine.phase === 'selesai' && !mine.results?.length && mine.why}
     <div class="card"><h3>{GAME_NAMES[mine.game]}</h3><p class="note">{whyText(mine)}</p><div class="btns"><button class="btn" onclick={() => (BG.closed = [...BG.closed, mine.id])}>Tutup</button></div></div>
   {:else if mine.game === 'congklak'}<CongklakBoard g={mine} me={me} />
   {:else if mine.game === 'ular'}<UlarBoard g={mine} me={me} />
+  {:else if mine.game === 'ludo'}<LudoBoard g={mine} me={me} />
   {:else}<KarungLive g={mine} me={me} />{/if}
 
-  {#if mine.phase === 'selesai' && mine.results?.length && (void tick, resultsReady(mine))}
+  {#if mine.phase === 'selesai' && mine.results?.length && !OWN_RESULT.has(mine.game) && (void tick, resultsReady(mine))}
     {@const r = resultOf(mine)}
     <div class="card res" role="dialog" aria-label="Hasil {GAME_NAMES[mine.game]}">
       <h2>{r?.rank === 1 ? (mine.game === 'congklak' && mine.results.every((x: any) => x.rank === 1) ? 'Seri!' : 'Kamu menang!') : r ? `Juara ${r.rank}` : 'Selesai'}</h2>
@@ -66,8 +78,8 @@
     </div>
   {/if}
 {:else if watch}
-  {#if watch.game === 'congklak'}<CongklakBoard g={watch} me={me} />{:else if watch.game === 'ular'}<UlarBoard g={watch} me={me} />{/if}
-  <button class="btn sm stopwatch" onclick={() => (BG.watching = null)}>Berhenti menonton</button>
+  {#if watch.game === 'congklak'}<CongklakBoard g={watch} me={me} />{:else if watch.game === 'ular'}<UlarBoard g={watch} me={me} />{:else if watch.game === 'ludo'}<LudoBoard g={watch} me={me} />{:else if ownBoard(watch)}<CaturBoard g={watch} me={me} />{/if}
+  {#if !ownStop(watch)}<button class="btn sm stopwatch" onclick={() => (BG.watching = null)}>Berhenti menonton</button>{/if}
 {:else if invite}
   <div class="card" role="dialog" aria-label="Ajakan main {GAME_NAMES[invite.game]}">
     <h3>{GAME_NAMES[invite.game]} <span class="chip">ajakan · {secs(invite.inviteUntil)} dtk</span></h3>
@@ -76,6 +88,7 @@
       <span class="empty">+{invite.max - invite.players.length} kursi</span>
     </div>
     <p class="note">{starterName(invite)} mengajak main {GAME_NAMES[invite.game]}.{invite.game === 'karung' ? ' Memakai energi & jatah Lomba Karung.' : ''}</p>
+    {@render rules(invite.game)}
     <div class="btns">
       <button class="btn" onclick={() => (BG.dismissed = [...BG.dismissed, invite.id])}>Nanti</button>
       <button class="btn hot" disabled={BG.busy} onclick={() => joinGame(invite.id)}>{invite.game === 'karung' ? 'Ikut lomba' : 'Ikut main'}</button>
@@ -85,10 +98,14 @@
   <button class="watch" onclick={() => (BG.watching = running.id)}>{GAME_NAMES[running.game]} sedang dimainkan · <b>Tonton</b></button>
 {/if}
 
+{#snippet rules(game: string)}
+  {#if RULE_CHIPS[game]}<div class="rules">{#each RULE_CHIPS[game](settings()) as r (r.t)}<span>{#if r.clock}{@html CLOCK_ICON}{/if}{r.t}</span>{/each}</div>{/if}
+{/snippet}
+
 <style>
   .card { position: fixed; z-index: 62; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 92px); width: min(400px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 12px 14px; animation: pop .25s ease-out; }
   .card h3 { margin: 0; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .chip { font-size: 11.5px; font-weight: 800; padding: 1px 8px 0; border-radius: 999px; background: var(--ink); color: #F7C548; }
+  .chip { font-size: 11.5px; font-weight: 800; padding: 2px 8px 1px; line-height: 1.3; border-radius: 999px; background: var(--ink); color: #F7C548; }
   .who { display: flex; gap: 6px; flex-wrap: wrap; }
   .who span { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 0 9px 0 2px; background: #fff; min-height: 30px; }
   .who i { width: 24px; height: 26px; display: inline-block; }
@@ -105,6 +122,10 @@
   .rk em { margin-left: auto; font-style: normal; font-weight: 800; }
   .rk.me { color: #2A6FB0; }
   .gain { margin: 0; font-weight: 800; font-size: 16px; }
-  .watch { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 200px)); border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--ink); padding: 4px 14px; font: inherit; font-weight: 700; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+  /* di bawah bar alun-alun / tamu (z 14) supaya menu Main yang dibuka tidak tertutup */
+  .watch { position: fixed; z-index: 13; left: 50%; transform: translateX(-50%); top: min(calc(var(--safe-t) + var(--prompt-top, 226px)), calc(100dvh - 200px)); border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--ink); padding: 4px 14px; font: inherit; font-weight: 700; font-size: 13.5px; color: var(--ink); cursor: pointer; }
+  .rules { display: flex; flex-wrap: wrap; gap: 5px; }
+  .rules span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; background: #FFF4D6; border: 2px solid #E7D29A; border-radius: 999px; padding: 1px 9px; line-height: 1.3; }
+  .rules :global(svg) { width: 14px; height: 14px; flex: none; }
   .stopwatch { position: fixed; z-index: 66; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); }
 </style>

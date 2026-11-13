@@ -48,7 +48,7 @@
   import { ALUN, lombaCardOpen } from '../lib/alun.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
   import BarengLayer from '../components/bareng/BarengLayer.svelte';
-  import { inGameNow, BG } from '../lib/bareng.svelte';
+  import { inGameNow, longBoardNow, BG } from '../lib/bareng.svelte';
   import PersonCard from '../components/PersonCard.svelte';
   import FriendPrompt from '../components/FriendPrompt.svelte';
   import CoopPanel from '../components/CoopPanel.svelte';
@@ -207,6 +207,8 @@
   });
   // sedang main bareng: kartu Sapa/Ngobrol disembunyikan supaya papan lebih luas, muncul lagi setelah selesai
   const playingGame = $derived(inGameNow());
+  // papan game panjang (Catur, Ludo) tampil: di HP tombol aksi & kartu rumah teman disembunyikan supaya papan muat
+  const longBoard = $derived(longBoardNow());
   // desktop (layar lebar): panel kamera menggantikan tombol "Seluruh rumah"
   let winW = $state(typeof window === 'undefined' ? 0 : window.innerWidth), winH = $state(typeof window === 'undefined' ? 0 : window.innerHeight);
   const wideDesk = $derived(winW >= 900 && winW >= winH);
@@ -225,7 +227,7 @@
 
 
 <svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
-<div class="game" data-view={G.view}>
+<div class="game" data-view={G.view} class:board={longBoard && !wideDesk}>
   <div class="scene">
     {#if G.view === 'home'}<Room mode="home" />
     {:else if G.view === 'visit' && G.visit}<Room mode="visit" />
@@ -262,7 +264,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk)}<QuestChip />{/if}
+    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk)}<QuestChip />{/if}
     {#if sleeping}
       <div class="sleepbar">
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
@@ -280,7 +282,7 @@
       </div>
     {:else}
       {#if G.feeding}<FoodTray />{/if}
-      <div class="acts" class:hide={BG.card && !wideDesk}>
+      <div class="acts" class:hide={(BG.card || longBoard) && !wideDesk}>
         {#each ACTS as a}
           {@const cd = G.now && cdLeft(a.k)}
           <button class="btn act" class:on={a.k === 'makan' && G.feeding} disabled={G.busy} onclick={() => act(a.k)}>
@@ -346,7 +348,7 @@
   {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
   {#if friendPrompt}<FriendPrompt />{/if}
 
-  {#if G.view === 'visit' && G.visit && !playingGame}
+  {#if G.view === 'visit' && G.visit && !playingGame && !longBoard}
     <div class="visit">
       <div class="whorow">
         <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
@@ -401,6 +403,8 @@
   .night.on { opacity: .5; }
   .acts { position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); display: flex; gap: 6px; }
   .acts.hide { display: none; }
+  /* HP: papan Catur / Ludo mengisi ruang antara HUD & dok, isi atas (kebutuhan, ruangan, event) disembunyikan dulu */
+  .game.board :global(.needs), .game.board .roombar, .game.board .event { display: none; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
   .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px + var(--hud-x, 0px)); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }

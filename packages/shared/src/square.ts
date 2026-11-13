@@ -39,6 +39,10 @@ const PROPS: Record<string, PropDef> = {
   'alun-tikarnonton': { key: 'tikarnonton', name: 'Tikar Nonton', w: 3, d: 2, flat: true },
   'alun-ondel': { key: 'ondel', name: 'Ondel-ondel Abang', w: 1, d: 1, params: { v: 0 } },
   'alun-ondelnone': { key: 'ondel', name: 'Ondel-ondel None', w: 1, d: 1, params: { v: 1 } },
+  // v37: Pos Ronda (papan catur di bale-bale), satu papan catur per alun-alun
+  'alun-posronda': { key: 'posronda', name: 'Pos Ronda', w: 2, d: 2 },
+  // v37 Pojok Permainan: Tikar Ludo (art-ludo.ts)
+  'alun-tikarludo': { key: 'tikarludo', name: 'Tikar Ludo', w: 3, d: 3, flat: true },
 };
 function maskAll(w: number, d: number) { const m: [number, number][] = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) m.push([a, b]); return m; }
 // jalan batu: satu item per ukuran (1×1 sampai 4×4) karena ukuran mebel ikut item
@@ -47,7 +51,7 @@ for (let w = 1; w <= 4; w++) for (let d = 1; d <= 4; d++) PROPS[`alun-jalan-${w}
 const toItem = (id: string, p: PropDef, extra: Record<string, number> = {}): ItemLike => ({
   id, kind: 'furniture', name: p.name,
   art: { type: 'builtin', key: p.key, colors: p.colors, params: { ...p.params, ...extra } },
-  data: { w: p.w, d: p.d, flat: !!p.flat, tap: p.key === 'tikarular' || p.key === 'tikarnonton', ...(p.mask ? { mask: p.mask } : {}) },
+  data: { w: p.w, d: p.d, flat: !!p.flat, tap: p.key === 'tikarular' || p.key === 'tikarnonton' || p.key === 'tikarludo', ...(p.mask ? { mask: p.mask } : {}) },
 } as ItemLike);
 /** Benda di alun-alun dalam bentuk item mebel (digambar dengan art builtin). */
 export const ALUN_ITEMS: Record<string, ItemLike> = Object.fromEntries(Object.entries(PROPS).map(([id, p]) => [id, toItem(id, p)]));
@@ -101,6 +105,10 @@ export const ALUN_LAYOUT: Placed[] = [
   { i: 'alun-lampu', x: 21, y: 12 }, { i: 'alun-lampu', x: 25, y: 12 }, { i: 'alun-lampu', x: 24, y: 16 }, { i: 'alun-lampu', x: 6, y: 20 }, { i: 'alun-lampu', x: 12, y: 20 },
   { i: 'alun-pohon', x: 20, y: 0 }, { i: 'alun-pohon', x: 21, y: 20 }, { i: 'alun-pohon', x: 24, y: 20 }, { i: 'alun-pohon', x: 2, y: 21 }, { i: 'alun-pohon', x: 17, y: 21 },
   { i: 'alun-bangku', x: 22, y: 12 }, { i: 'alun-bangku', x: 22, y: 17 }, { i: 'alun-payung', x: 24, y: 18 },
+  // v37 Pojok Permainan (sisi barat): Pos Ronda menempel pagar barat, di depan pohon (0,8)
+  { i: 'alun-posronda', x: 0, y: 9 },
+  // v37 Pojok Permainan (sisi barat): Tikar Ludo 3×3 datar di depan ayunan, di samping Pos Ronda (tidak tertutup kanopi beringin)
+  { i: 'alun-tikarludo', x: 2, y: 10 },
 ];
 
 /** Aksi yang bisa dilakukan di tiap benda (diketuk). anim: pose pet (lihat ACTIVITY_ANIMS); ride: wahana panjang */
@@ -113,6 +121,7 @@ export const SQUARE_ACTS: Record<string, { id: string; name: string; anim: strin
   bangku: [{ id: 'duduk', name: 'Duduk santai', anim: 'duduk' }],
   gerobak: [{ id: 'jajan', name: 'Jajan', anim: 'lihat' }],
   tikarular: [{ id: 'ular', name: 'Main Ular Tangga (2–4 orang)', anim: 'lihat' }],
+  tikarludo: [{ id: 'ludo', name: 'Main Ludo (2–4 orang)', anim: 'lihat', note: '±12 mnt' }, { id: 'duduk', name: 'Duduk di tikar', anim: 'duduk', note: '+ceria' }],
   garisstart: [{ id: 'karung', name: 'Balap Karung Live (2–5 orang)', anim: 'lihat' }],
   bianglala: [{ id: 'bianglala', name: 'Naik bianglala', anim: 'duduk', ride: true }],
   halte: [{ id: 'kereta', name: 'Naik Kereta Kelinci', anim: 'duduk', ride: true }],
@@ -121,6 +130,7 @@ export const SQUARE_ACTS: Record<string, { id: string; name: string; anim: strin
   kolampancing: [{ id: 'mancing', name: 'Mancing bareng', anim: 'duduk' }],
   layartancap: [{ id: 'layar', name: 'Nonton layar tancap', anim: 'lihat', night: true }],
   tikarnonton: [{ id: 'layar', name: 'Nonton layar tancap', anim: 'duduk', night: true }],
+  posronda: [{ id: 'catur', name: 'Main Catur (2 orang)', anim: 'lihat' }, { id: 'tonton', name: 'Tonton catur', anim: 'lihat' }, { id: 'duduk', name: 'Duduk di pos ronda', anim: 'duduk' }],
 };
 /** aksi singkat alun-alun yang memberi hadiah harian (koin, XP, ceria) */
 export const SQUARE_PLAY = ['nonton', 'naik', 'ayun', 'teduh', 'duduk', 'joget', 'gelang', 'layar'] as const;

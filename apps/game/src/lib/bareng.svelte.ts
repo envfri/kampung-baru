@@ -1,5 +1,6 @@
-// Game main bareng (Congklak, Ular Tangga Kampung, Balap Karung Live): keadaan dari server lewat sinkron
+// Game main bareng (Congklak, Ular Tangga Kampung, Balap Karung Live, Catur): keadaan dari server lewat sinkron
 // rumah / alun-alun (H.games) dan aksi pemain. Semua aturan & hadiah dihitung server.
+import { BARENG_GAMES } from '@kb/shared';
 import { api } from './api';
 import { fail, toast } from './game.svelte';
 import { H, SQUARE, poke } from './house.svelte';
@@ -39,7 +40,7 @@ async function act(fn: () => Promise<any>) {
   try { const r = await fn(); if (r?.game) mergeGame(r.game); poke(); return r; }
   catch (e) { fail(e); return null; } finally { BG.busy = false; }
 }
-export const startGame = (game: 'congklak' | 'ular' | 'karung') => {
+export const startGame = (game: string) => {
   sfx.tap();
   return act(() => api.post('/api/bareng/start', { game, hostId: H.hostId && H.hostId !== SQUARE ? H.hostId : undefined }));
 };
@@ -58,14 +59,29 @@ export async function moveGame(id: string, body: Record<string, unknown>) {
 export async function raceGame(id: string, body: Record<string, unknown>) {
   try { const r = await api.post(`/api/bareng/${id}/move`, body); mergeGame(r.game); return r.game; } catch { return null; }
 }
-export const GAME_NAMES: Record<string, string> = { congklak: 'Congklak', ular: 'Ular Tangga Kampung', karung: 'Balap Karung Live' };
+export const GAME_NAMES: Record<string, string> = { congklak: 'Congklak', ular: 'Ular Tangga Kampung', karung: 'Balap Karung Live', catur: 'Catur', ludo: 'Ludo' };
 export function whyText(g: any) {
+  if (g.catur?.result?.reason === 'batal') return 'Langkah pertama tidak dibuat dalam 30 detik. Permainan batal, tanpa hadiah.';
   return ({ batal: 'Ajakan dibatalkan.', sepi: 'Belum ada yang ikut, ajakan ditutup.', pergi: 'Pemain lain pergi.', waktu: 'Waktu habis.' } as Record<string, string>)[g.why] ?? '';
 }
 export function toastResult(g: any, me: string) {
   const r = g.results?.find((x: any) => x.id === me);
   if (!r) return;
   if (r.capped) toast('Jatah main bareng hari ini sudah habis, jadi tanpa koin.');
+}
+
+/** langkah catur, menyerah, tawar remis (tanpa kunci busy; galat tampil sebagai toast) */
+export async function caturAct(id: string, body: Record<string, unknown>) {
+  try { const r = await api.post(`/api/bareng/${id}/move`, body); mergeGame(r.game); return r.game; }
+  catch (e: any) { fail(e); poke(); return null; }
+}
+/**
+ * Papan game panjang (Catur, Ludo: BARENG_GAMES[..].long) sedang tampil, sebagai pemain atau penonton.
+ * Di HP tombol aksi (Makan…Atur) & kartu rumah teman disembunyikan supaya papan muat di antara HUD & dok.
+ */
+export function longBoardNow() {
+  return H.games.some((g: any) => (BARENG_GAMES as Record<string, { long?: boolean }>)[g.game]?.long && !BG.closed.includes(g.id) && (g.phase === 'main' || g.phase === 'selesai')
+    && (g.players?.some((p: any) => p.id === H.me && !p.left) || BG.watching === g.id));
 }
 
 /** Sedang bermain (bukan menonton): kartu Sapa/Ngobrol di rumah & alun-alun disembunyikan supaya papan lebih luas. */

@@ -1,12 +1,17 @@
-// Game main bareng baru (rumah & alun-alun): Congklak, Ular Tangga Kampung, Balap Karung Live.
+// Game main bareng baru (rumah & alun-alun): Congklak, Ular Tangga Kampung, Balap Karung Live, Catur (catur.ts), Ludo (ludo.ts).
 // Aturan dihitung di server; fungsi di sini dipakai server (sumber kebenaran) dan game (gambar papan).
 
-export type BarengGame = 'congklak' | 'ular' | 'karung';
-export const BARENG_GAMES: Record<BarengGame, { name: string; min: number; max: number; places: ('house' | 'alun')[]; inviteMs: number; turnMs: number; maxMs: number }> = {
+export type BarengGame = 'congklak' | 'ular' | 'karung' | 'catur' | 'ludo';
+/** long: game panjang (±10–15 menit): hadiah × bareng.longMult, dan di HP tombol aksi & kartu rumah teman disembunyikan selama main */
+export const BARENG_GAMES: Record<BarengGame, { name: string; min: number; max: number; places: ('house' | 'alun')[]; inviteMs: number; turnMs: number; maxMs: number; long?: boolean }> = {
   congklak: { name: 'Congklak', min: 2, max: 2, places: ['house'], inviteMs: 20_000, turnMs: 15_000, maxMs: 20 * 60_000 },
   // finis harus pas (kelebihan = mundur): 4 pemain rata-rata ±5 menit, sesekali sampai ±15 menit
   ular: { name: 'Ular Tangga Kampung', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 10_000, maxMs: 15 * 60_000 },
   karung: { name: 'Balap Karung Live', min: 2, max: 5, places: ['alun'], inviteMs: 20_000, turnMs: 0, maxMs: 60_000 },
+  // Catur Kilat 5+3: jam catur & batas lama permainan diatur di pengaturan catur (lihat apps/server/src/lib/catur-game.ts)
+  catur: { name: 'Catur', min: 2, max: 2, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 0, maxMs: 25 * 60_000, long: true },
+  // Ludo: berdua 4 bidak, bertiga/berempat 2 bidak (±8–12 menit), batas 15 menit lalu diurutkan menurut langkah (lihat ludo.ts)
+  ludo: { name: 'Ludo', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 10_000, maxMs: 15 * 60_000, long: true },
 };
 
 /* ---------------- Congklak ---------------- */

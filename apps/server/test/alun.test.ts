@@ -157,21 +157,84 @@ test('lapangan 28×22: denah persegi panjang, kolam & gapura menghalangi seperlu
   for (const p of ALUN_LAYOUT) { const f = ALUN_ITEMS[p.i].data; assert.ok(p.x >= 0 && p.y >= 0 && p.x + f.w <= ALUN_W && p.y + f.d <= ALUN_D, `${p.i} di dalam lapangan`); }
 });
 
+test('Tikar Ludo (v37): 3×3 datar di (2,10) di akhir susunan, petaknya kosong, tidak tertutup benda tinggi', () => {
+  const at = ALUN_LAYOUT.findIndex((p) => p.i === 'alun-tikarludo');
+  assert.ok(at > 70, 'ditambah di akhir (indeks benda lama tetap)');
+  const mat = ALUN_LAYOUT[at], f = ALUN_ITEMS[mat.i].data;
+  assert.deepEqual([mat.x, mat.y, f.w, f.d, f.flat, f.tap], [2, 10, 3, 3, true, true]);
+  assert.deepEqual(SQUARE_ACTS.tikarludo.map((a) => a.name), ['Main Ludo (2–4 orang)', 'Duduk di tikar']);
+  // tidak bertumpuk dengan benda lain (termasuk jalan batu)
+  const mine = new Set<string>();
+  for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) mine.add(`${mat.x + a},${mat.y + b}`);
+  for (const p of ALUN_LAYOUT) {
+    if (p === mat) continue;
+    const d = ALUN_ITEMS[p.i].data;
+    for (let a = 0; a < d.w; a++) for (let b = 0; b < d.d; b++) assert.ok(!mine.has(`${p.x + a},${p.y + b}`), `${p.i} menimpa Tikar Ludo`);
+  }
+  // tikar datar digambar paling bawah: benda tinggi di sekitarnya tidak boleh menutupi petaknya.
+  // Ukuran gambar (px dari titik tengah petak benda, diukur dari art): [setengah lebar, tinggi]; 24 px terbawah
+  // (kaki, batang, bayangan) lebih ramping daripada lebar terukur sehingga tidak dihitung.
+  const TALL: Record<string, [number, number]> = {
+    panggung: [106, 225], airmancur: [64, 74], beringin: [73, 179], komidi: [102, 175], ayunan: [35, 120], gerobak: [50, 140], payung: [43, 101],
+    bangku: [46, 70], lampujalan: [17, 124], pohon: [41, 120], garisstart: [63, 128], ondel: [62, 286],
+  };
+  for (const p of ALUN_LAYOUT) {
+    const it: any = ALUN_ITEMS[p.i], tall = TALL[it.art.key];
+    if (!tall || it.data.flat) continue;
+    const [cx, cy] = it.art.key === 'ondel' ? houseIso(p.x + 0.5, p.y + 0.45) : houseIso(p.x + it.data.w / 2, p.y + it.data.d / 2);
+    for (const k of mine) {
+      const [x, y] = k.split(',').map(Number), [sx, sy] = houseIso(x + 0.5, y + 0.5);
+      assert.ok(!(Math.abs(sx - cx) < tall[0] && sy < cy - 24 && sy > cy - tall[1]), `${p.i} (${p.x},${p.y}) menutupi Tikar Ludo petak ${k}`);
+    }
+  }
+});
+
 /* ---------------- server ---------------- */
 
-test('ondel-ondel yang berjaga tidak menutupi benda yang bisa dimainkan (tikar ular tangga, bangku, ...)', () => {
-  // ondel-ondel tinggi (±280 px, lebar ±60 px dengan mahkota bunga): petak benda bermain di belakangnya tidak boleh tertutup
-  for (const o of ALUN_LAYOUT.filter((p) => p.i === 'alun-ondel' || p.i === 'alun-ondelnone')) {
-    const [cx, cy] = houseIso(o.x + 0.5, o.y + 0.45);
+/**
+ * Ukuran gambar benda alun-alun pada skala 1 (px), diukur dengan getBBox: l / r = tepi kiri / kanan dari pusat tapak,
+ * h = tinggi di atas sudut depan tapak. Benda baru yang tidak datar harus diukur dan ditambahkan di sini.
+ */
+const MEASURED: Record<string, { l: number; r: number; h: number }> = {
+  bianglala: { l: -122, r: 122, h: 333 }, ondel: { l: -58, r: 61, h: 303 }, panggung: { l: -102, r: 105, h: 276 }, posronda: { l: -85, r: 85, h: 232 },
+  komidi: { l: -102, r: 102, h: 225 }, layartancap: { l: -88, r: 50, h: 225 }, halte: { l: -65, r: 65, h: 217 }, beringin: { l: -72, r: 72, h: 213 },
+  gapura: { l: -70, r: 69, h: 212 }, lempargelang: { l: -67, r: 66, h: 182 }, gerobak: { l: -50, r: 49, h: 165 }, garisstart: { l: -62, r: 61, h: 161 },
+  ayunan: { l: -34, r: 34, h: 145 }, lampujalan: { l: -17, r: 17, h: 140 }, papanlomba: { l: -27, r: 20, h: 139 }, pohon: { l: -40, r: 39, h: 137 },
+  payung: { l: -42, r: 43, h: 118 }, airmancur: { l: -64, r: 64, h: 108 }, bangku: { l: -43, r: 46, h: 95 }, proyektor: { l: -17, r: 19, h: 81 },
+};
+/** benda tinggi (≥ 200 px, lebih dari dua kali tinggi pet) */
+const TALL_H = 200;
+/** kanopi pohon jadi tembus pandang bila ada benda / pet di belakangnya: boleh menutupi benda tegak, tidak boleh menutupi tikar */
+const CANOPY = new Set(['beringin', 'pohon']);
+/** tumpang-tindih lama sejak v0.32 (gerobak & lempar gelang tetap terlihat sebagian); benda baru tidak boleh menambah daftar ini */
+const KNOWN = new Set(['alun-bianglala>alun-gelang', 'alun-gapura>alun-arummanis']);
+
+test('benda tinggi (ondel-ondel, Pos Ronda, bianglala, panggung, ...) tidak menutupi petak benda yang bisa dimainkan; Pos Ronda tidak tertutup', () => {
+  for (const it of Object.values(ALUN_ITEMS) as any[]) if (!it.data.flat || (it.data.mask && !it.data.mask.length)) assert.ok(MEASURED[it.art.key], `ukuran ${it.id} (${it.art.key}) belum diukur`);
+  const hits: string[] = [];
+  for (const t of ALUN_LAYOUT) {
+    const ti: any = ALUN_ITEMS[t.i], m = MEASURED[ti.art.key];
+    if (!m || ti.data.flat || m.h < TALL_H) continue;
+    const [cx] = houseIso(t.x + ti.data.w / 2, t.y + ti.data.d / 2), [, base] = houseIso(t.x + ti.data.w, t.y + ti.data.d);
+    const depth = t.x + ti.data.w / 2 + t.y + ti.data.d / 2;
     for (const p of ALUN_LAYOUT) {
       const it: any = ALUN_ITEMS[p.i], key = it?.art?.key;
-      if (p === o || !key || !SQUARE_ACTS[key]) continue;
+      if (p === t || !key || !SQUARE_ACTS[key]) continue;
+      if (CANOPY.has(ti.art.key) && !it.data.flat) continue;
       for (let a = 0; a < (it.data.w ?? 1); a++) for (let b = 0; b < (it.data.d ?? 1); b++) {
         const [x, y] = houseIso(p.x + a + 0.5, p.y + b + 0.5);
-        assert.ok(!(Math.abs(x - cx) < 60 && y < cy && y > cy - 280), `${o.i} (${o.x},${o.y}) menutupi ${p.i} petak ${p.x + a},${p.y + b}`);
+        // di dalam kotak gambar benda tinggi & di belakangnya (digambar lebih dulu)
+        const covered = x - cx > m.l && x - cx < m.r && y < base && y > base - m.h && p.x + a + 0.5 + p.y + b + 0.5 < depth;
+        if (covered && !KNOWN.has(`${t.i}>${p.i}`)) hits.push(`${t.i} (${t.x},${t.y}) menutupi ${p.i} petak ${p.x + a},${p.y + b}`);
       }
     }
   }
+  assert.deepEqual(hits, []);
+  // Pos Ronda di petak yang kosong (0,9) 2×2, di depan pohon (0,8), tidak menghalangi jalan melintang & rute arak-arakan
+  const pr = ALUN_LAYOUT.find((p) => p.i === 'alun-posronda')!;
+  assert.deepEqual([pr.x, pr.y], [0, 9]);
+  const others = occupied(ALUN_LAYOUT.filter((p) => p !== pr), ALUN_ITEMS);
+  for (const k of ['0,9', '1,9', '0,10', '1,10']) assert.ok(!others.has(k), `petak ${k} kosong`);
 });
 
 test('wahana: bianglala naik dulu, hadiah wahana panjang setelah satu putaran; pemain lain melihat gondolanya', async () => {

@@ -14,8 +14,8 @@
   let openAll = $state<Record<string, boolean>>({});
   const editable = $derived(can('admin'));
   const TITLE: Record<string, string> = {
-    economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', fishing: 'Kolam Pancing',
-    garden: 'Kebun', room: 'Ruangan', house: 'Rumah', visit: 'Kunjungan bareng', premium: 'Set premium', square: 'Alun-alun', account: 'Akun & pindah perangkat',
+    economy: 'Ekonomi', needs: 'Kebutuhan pet', actions: 'Aksi di rumah', social: 'Sosial', daily: 'Hadiah harian', karung: 'Lomba Karung', ludo: 'Ludo', fishing: 'Kolam Pancing',
+    garden: 'Kebun', room: 'Ruangan', house: 'Rumah', visit: 'Kunjungan bareng', catur: 'Catur', bareng: 'Main bareng', premium: 'Set premium', square: 'Alun-alun', account: 'Akun & pindah perangkat',
     duel: 'Duel teman', sleep: 'Tidur', health: 'Kesehatan (sakit ringan)', weight: 'Berat badan', crumbs: 'Remah & bulu rontok', speech: 'Celetukan pet',
     quests: 'Tugas', games: 'Mini-game Balai Main', starter: 'Barang awal pemain baru', notify: 'Waktu notifikasi otomatis', features: 'Fitur & login',
   };

@@ -1,11 +1,12 @@
 // Game main bareng baru: Congklak (rumah, 2 pemain), Ular Tangga Kampung (rumah & alun-alun, 2–4),
-// Balap Karung Live (alun-alun, 2–5). Sesi disimpan di memori per tempat (rumah / alun-alun); semua langkah,
-// dadu, dan hasil dihitung di server. Keadaan sesi dikirim lewat sinkron rumah & alun-alun (`games`).
+// Balap Karung Live (alun-alun, 2–5), Catur Kilat 5+3 (rumah & Pos Ronda alun-alun, 2; lib/catur-game.ts),
+// Ludo (rumah & Tikar Ludo alun-alun, 2–4; lib/ludo-game.ts). Sesi disimpan di memori per tempat (rumah / alun-alun);
+// semua langkah, dadu, dan hasil dihitung di server. Keadaan sesi dikirim lewat sinkron rumah & alun-alun (`games`).
 import type { FastifyInstance } from 'fastify';
 import { randomInt, randomUUID } from 'node:crypto';
 import {
   BARENG_GAMES, congklakStart, congklakPlay, congklakFrames, framesMs, ularFrames, congklakMoves, ularMove, ULAR_RANK, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC,
-  applyNeedDelta, type BarengGame,
+  applyNeedDelta, LUDO_JOIN_SEAT, type BarengGame,
 } from '@kb/shared';
 import type { Db } from '../db/index';
 import { bad, bumpCounter, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
@@ -14,9 +15,11 @@ import { lockPet, savePet, currentNeeds, isAsleep, isSick } from '../lib/state';
 import { grantXp } from './game';
 import { houseLive } from './house';
 import { squareLiveOf, squareMembers } from './square';
+import { caturBegin, caturCfg, caturGate, caturPlay, caturRank, caturSeat, caturTick, caturView, longMult, type CaturGame } from '../lib/catur-game';
+import { ludoAct, ludoBegin, ludoNew, ludoRanked, ludoTick, ludoView, type LudoIO, type LudoState } from '../lib/ludo-game';
 
 type Player = { id: string; name: string; pet: any };
-type Result = { id: string; name: string; rank: number; score?: number; timeMs?: number | null; coins: number; xp: number; capped: boolean; left?: boolean };
+type Result = { id: string; name: string; rank: number; score?: number; timeMs?: number | null; coins: number; xp: number; capped: boolean; left?: boolean; short?: boolean };
 type Session = {
   id: string; game: BarengGame; place: string; phase: 'ajak' | 'siap' | 'main' | 'selesai';
   starter: string; players: Player[]; inviteUntil: number; createdAt: number;
@@ -30,6 +33,12 @@ type Session = {
   // karung
   race: { startAt: number; endAt: number; prog: Record<string, number>; done: Record<string, number | null>; out: string[] } | null;
   results: Result[] | null; settled: boolean;
+  // catur
+  catur?: CaturGame | null;
+  /** lemparan / langkah yang dibuat pemain sendiri (bukan otomatis), untuk syarat hadiah */
+  throws: Record<string, number>;
+  // ludo (lib/ludo-game.ts)
+  ludo?: LudoState;
 };
 
 const SESSIONS = new Map<string, Session>();
@@ -55,6 +64,34 @@ const live = (place: string) => (place.startsWith('h:') ? houseLive(place.slice(
 const isHere = (place: string, uid: string) => live(place).some((m) => m.id === uid);
 const active = (s: Session) => s.players.filter((p) => !s.left.has(p.id));
 const nameOf = (s: Session, id: string) => s.players.find((p) => p.id === id)?.name ?? 'Teman';
+/**
+ * Syarat main minimal supaya ada hadiah (false = tanpa hadiah & tanpa memakai jatah harian), per game:
+ * Ular: permainan selesai normal, atau pemain melempar paling tidak 6 kali sendiri. Catur: paling tidak 20 paruh langkah.
+ * (Ludo: syaratnya — selesai normal atau ≥ 5 menit — dihitung di ludoRanked, lib/ludo-game.ts.)
+ */
+const REWARD_GATES: Partial<Record<BarengGame, (s: Session, uid: string) => boolean>> = {
+  ular: (s, uid) => s.why === 'selesai' || s.why === 'waktu' || (s.throws[uid] ?? 0) >= 6,
+  catur: (s) => caturGate(s),
+};
+/** alat untuk modul game terpisah (Ludo) */
+const io = (s: Session): LudoIO => ({ now: () => clock(), note: (l) => note(s, l), bump: () => bump(s), end: (w) => end(s, w) });
+/** Kehadiran di alun-alun: pemain Ludo berdiri di pojok Tikar Ludo sesuai warna kursinya (ludo:k). */
+export function barengAct(uid: string) {
+  for (const s of SESSIONS.values()) {
+    if (s.game !== 'ludo' || !s.place.startsWith('a:') || (s.phase !== 'ajak' && s.phase !== 'main') || s.left.has(uid)) continue;
+    const i = s.players.findIndex((p) => p.id === uid);
+    if (i >= 0) return `ludo:${s.ludo?.seat[uid] ?? LUDO_JOIN_SEAT[i]}`;
+  }
+  return null;
+}
+/** Kursi pemain yang sedang main di benda alun-alun (tampil di sinkron pemain lain): catur → "catur:1" / "catur:2". */
+export function barengSeat(place: string, uid: string): string | null {
+  for (const s of SESSIONS.values()) {
+    if (s.place !== place || s.phase !== 'main') continue;
+    if (s.game === 'catur') { const k = caturSeat(s, uid); if (k) return `catur:${k}`; }
+  }
+  return null;
+}
 
 function view(s: Session) {
   const base = {
@@ -65,6 +102,8 @@ function view(s: Session) {
   };
   if (s.game === 'congklak') return { ...base, board: s.board };
   if (s.game === 'ular') return { ...base, pos: s.pos, skip: s.skip, finished: s.finished };
+  if (s.game === 'catur') return { ...base, ...caturView(s, clock()) };
+  if (s.game === 'ludo') return { ...base, ludo: ludoView(s) };
   return { ...base, race: s.race ? { startAt: s.race.startAt, endAt: s.race.endAt, prog: s.race.prog, done: s.race.done, out: s.race.out } : null };
 }
 /** Sesi di satu tempat (untuk respons sinkron rumah / alun-alun). */
@@ -81,6 +120,10 @@ export function barengViews(place: string) {
 
 function bump(s: Session) { s.seq++; }
 function note(s: Session, line: string) { s.log.push(line); if (s.log.length > 12) s.log.shift(); }
+/** sambungan untuk logika game di berkas sendiri (catur) */
+const ops = (s: Session, now = clock()) => ({ now, end: (why: string) => end(s, why), note: (l: string) => note(s, l), bump: () => bump(s) });
+/** pengaturan catur terakhir dari database (diperbarui saat ajakan dibuat / diikuti) */
+let caturConf = caturCfg(null);
 
 function end(s: Session, why: string) {
   if (s.phase === 'selesai') return;
@@ -107,8 +150,9 @@ function begin(s: Session) {
   } else if (s.game === 'ular') {
     for (const p of s.players) s.pos[p.id] = 0;
     note(s, `${s.players[0].name} melempar dadu duluan.`);
-  }
-  s.turnUntil = now + BARENG_GAMES[s.game].turnMs;
+  } else if (s.game === 'ludo') ludoBegin(s, io(s));
+  s.turnUntil = now + (s.ludo?.cfg.rollMs ?? BARENG_GAMES[s.game].turnMs);
+  if (s.game === 'catur') note(s, caturBegin(s, caturConf, now));
   bump(s);
 }
 
@@ -140,6 +184,7 @@ function ularRoll(s: Session, auto = false) {
   const st = ularMove(s.pos[me.id] ?? 0, roll);
   const anim = framesMs(ularFrames(st));
   s.pos[me.id] = st.to; s.moves++;
+  if (!auto) s.throws[me.id] = (s.throws[me.id] ?? 0) + 1;
   s.last = { by: me.id, ...st, auto, at: clock(), anim };
   const say: Record<string, string> = { tangga: `naik tangga bambu! ${st.land} → ${st.to}`, ular: `digigit ular sawah, turun ${st.land} → ${st.to}`, warung: 'mampir warung, maju 2 kotak', becek: 'masuk becek, diam sekali' };
   // finis harus pas: kelebihan langkah dipakai mundur
@@ -184,13 +229,15 @@ function tick(s: Session, now = clock()) {
     return;
   }
   if (s.phase === 'siap') return;
-  if (now - s.startedAt > g.maxMs + (s.game === 'karung' ? KARUNG_COUNTDOWN : 0)) return end(s, 'waktu');
+  if (s.game === 'catur') return caturTick(s, ops(s, now));
+  if (now - s.startedAt > (s.ludo?.cfg.maxMs ?? g.maxMs) + (s.game === 'karung' ? KARUNG_COUNTDOWN : 0)) return end(s, 'waktu');
   if (s.game === 'karung') {
     const r = s.race!;
     const racing = active(s).filter((p) => !r.out.includes(p.id));
     if (now >= r.endAt || racing.every((p) => p.id in r.done)) end(s, 'selesai');
     return;
   }
+  if (s.game === 'ludo') return ludoTick(s, now, io(s));
   if (active(s).length < 2 && s.game === 'congklak') return end(s, 'pergi');
   if (s.game === 'ular' && active(s).filter((p) => !s.finished.includes(p.id)).length <= 1) return end(s, 'pergi');
   const cur = s.players[s.turn];
@@ -227,6 +274,12 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     if (currentNeeds(pet, s).energi < s.karung.energiCost) throw bad('tired', `${pet.name} terlalu capek untuk lomba. Tidur dulu.`);
     if ((await counter(db, uid, 'karung')) >= s.karung.playsPerDay) throw bad('daily_limit', 'Jatah lomba karung hari ini sudah habis.');
   }
+  /** Catur: fitur menyala, pengaturan terbaru dipakai untuk permainan berikutnya */
+  async function caturReady() {
+    const s = await getSettings(db);
+    if ((s.features as any).catur === false) throw forbidden('Catur sedang ditutup.');
+    caturConf = caturCfg((s as any).catur);
+  }
   function placeOf(uid: string, b: any, game: BarengGame) {
     const g = BARENG_GAMES[game];
     if (b.hostId) {
@@ -256,12 +309,15 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
       throw bad('busy', `Masih ada yang main ${BARENG_GAMES[game].name} di sini. Tunggu selesai, ya.`);
     }
     if (game === 'karung') await karungReady(uid);
+    if (game === 'catur') await caturReady();
+    const cfg = game === 'ludo' ? await getSettings(db) : null;
+    if (cfg && (cfg.features as any).ludo === false) throw forbidden('Ludo sedang ditutup.');
     const p = me(place, uid)!;
     const now = clock();
     const s: Session = {
       id: randomUUID(), game, place, phase: 'ajak', starter: uid, players: [p], inviteUntil: now + BARENG_GAMES[game].inviteMs, createdAt: now,
       startedAt: 0, endedAt: 0, seq: 1, moves: 0, why: '', left: new Set(), absentSince: new Map(), turn: 0, turnUntil: 0, last: null, log: [],
-      board: [], pos: {}, skip: {}, finished: [], race: null, results: null, settled: false,
+      board: [], pos: {}, skip: {}, finished: [], race: null, results: null, settled: false, catur: null, throws: {}, ludo: cfg ? ludoNew(cfg) : undefined,
     };
     SESSIONS.set(s.id, s);
     await track(db, uid, 'bareng_start', { game, place: place[0] });
@@ -277,6 +333,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     if (!p) throw bad('not_here', 'Kamu harus ada di sini untuk ikut.');
     if (await blockedAmong(uid, s.players.map((x) => x.id))) throw forbidden('Kamu tidak bisa ikut permainan ini.');
     if (s.game === 'karung') await karungReady(uid);
+    if (s.game === 'catur') await caturReady();
     s.players.push(p);
     note(s, `${p.name} ikut main.`);
     bump(s);
@@ -329,8 +386,11 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     if (i < 0 || s.left.has(uid)) throw bad('not_player', 'Kamu tidak ikut permainan ini.');
     if (s.phase !== 'main') return { ok: true, game: view(s) };
     if (s.game === 'karung') return { ok: true, game: view(karungStep(s, uid, b)) };
+    // catur: langkah, menyerah & tawar remis (bukan giliran / tidak sah = invalid_move)
+    if (s.game === 'catur') { caturPlay(s, uid, b, ops(s)); return { ok: true, game: view(s) }; }
     if (s.turn !== i) throw bad('not_turn', 'Belum giliranmu.');
     if (s.game === 'congklak') congklakMove(s, Number(b.hole));
+    else if (s.game === 'ludo') ludoAct(s, b, io(s));
     else ularRoll(s);
     return { ok: true, game: view(s) };
   });
@@ -387,6 +447,8 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
   async function settle(s: Session) {
     if (s.settled) return;
     s.settled = true;
+    // ajakan yang tidak pernah dimulai (batal / sepi): tanpa peringkat
+    if (!s.startedAt) { s.results = []; bump(s); return; }
     const [cfg, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     const mult = coinMultiplier(cat);
     const ranked: { p: Player; rank: number; score?: number; timeMs?: number | null; factor: number; left: boolean }[] = [];
@@ -403,6 +465,11 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
       const order = [...s.finished, ...s.players.filter((p) => !s.finished.includes(p.id) && !s.left.has(p.id)).sort((x, y) => (s.pos[y.id] ?? 0) - (s.pos[x.id] ?? 0)).map((p) => p.id)];
       order.forEach((id, k) => ranked.push({ p: s.players.find((p) => p.id === id)!, rank: k + 1, score: s.pos[id], factor: ULAR_RANK[k] ?? 0.2, left: false }));
       for (const p of s.players) if (s.left.has(p.id) && !order.includes(p.id)) ranked.push({ p, rank: order.length + 1, factor: 0, left: true });
+    } else if (s.game === 'catur') {
+      for (const r of caturRank(s)) ranked.push({ p: s.players.find((p) => p.id === r.id)!, rank: r.rank, factor: r.factor, left: s.left.has(r.id) });
+    } else if (s.game === 'ludo') {
+      // peringkat menurut urutan pulang lalu langkah bidak; tanpa hadiah bila tidak selesai normal & < 5 menit
+      ranked.push(...ludoRanked(s));
     } else {
       const r = s.race;
       const fin = s.players.filter((p) => r && typeof r.done[p.id] === 'number').sort((x, y) => (r!.done[x.id]! - r!.done[y.id]!));
@@ -410,10 +477,15 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
       for (const p of s.players) if (!fin.includes(p)) ranked.push({ p, rank: fin.length + 1, timeMs: null, factor: 0, left: s.left.has(p.id) });
     }
     const results: Result[] = [];
+    // game panjang (Catur, Ludo): hadiah × longMult
+    const long = BARENG_GAMES[s.game].long ? longMult((cfg as any).bareng?.longMult) : 1;
     for (const x of ranked) {
       const base: Result = { id: x.p.id, name: x.p.name, rank: x.rank, score: x.score, timeMs: x.timeMs, coins: 0, xp: 0, capped: false, left: x.left };
       // tanpa satu langkah pun / keluar / tidak finis: tanpa hadiah dan tidak memakai jatah
       if (!s.moves || x.left || x.factor <= 0) { results.push(base); continue; }
+      // syarat main minimal (mis. catur ≥ 20 paruh langkah): tanpa hadiah dan tidak memakai jatah
+      const gate = REWARD_GATES[s.game];
+      if (gate && !gate(s, x.p.id)) { results.push({ ...base, short: true }); continue; }
       const r = await db.tx(async (t) => {
         let coins: number, xp: number;
         if (s.game === 'karung') {
@@ -422,8 +494,8 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
           xp = cfg.karung.xp ?? 0;
         } else {
           await bumpCounter(t, x.p.id, 'coop', cfg.visit.coopPerDay);
-          coins = Math.round(cfg.visit.coopCoins * x.factor * mult);
-          xp = Math.max(1, Math.round((cfg.visit.coopXp ?? 0) * (0.5 + x.factor / 2)));
+          coins = Math.round(cfg.visit.coopCoins * x.factor * long * mult);
+          xp = Math.max(1, Math.round((cfg.visit.coopXp ?? 0) * (0.5 + x.factor / 2) * long));
         }
         if (coins) await credit(t, x.p.id, 'coin', coins, `bareng:${s.game}`, s.id);
         const pet = await lockPet(t, x.p.id);

@@ -2,9 +2,9 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
-  import { startGame, inGameNow } from '../lib/bareng.svelte';
+  import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
@@ -68,6 +68,14 @@
     if (!r) return [x, y];
     const c = (v: number, n: number) => Math.max(0.5, Math.min(n - 0.5, v));
     return [r.gx + c(x, r.w), r.gy + c(y, r.d)];
+  }
+  /** Tikar Ludo: pemain berdiri di pojok tikar sesuai warna kursinya (kehadiran ludo:k) */
+  const LUDO_MAT = square ? ALUN_LAYOUT.find((p) => p.i === 'alun-tikarludo') : undefined;
+  function ludoSpot(act: string | null | undefined): [number, number] | null {
+    const m = /^ludo:([0-3])$/.exec(act ?? '');
+    if (!m || !LUDO_MAT) return null;
+    const [a, b] = LUDO_MAT_SPOTS[+m[1]];
+    return toHouse(ALUN_ROOM, LUDO_MAT.x + a, LUDO_MAT.y + b);
   }
   /** petak kosong di satu ruangan (koordinat rumah) */
   function freeIn(roomId: string | undefined): [number, number][] {
@@ -391,7 +399,7 @@
     idleTimer = setTimeout(wander, (reduced ? 2.5 : 1) * (2500 + Math.random() * 5000));
   }
   function wander() {
-    if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed') return scheduleIdle();
+    if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed' || myLudoSeat !== null) return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     // jalan-jalan kecil di dalam ruangan yang sama
     const options = freeIn(roomAt(live)?.id).filter(([x, y]) => { const m = Math.abs(x - cx) + Math.abs(y - cy); return m > 0 && m <= 3; });
@@ -693,7 +701,7 @@
   /* ---------------- pet lain di rumah: tamu yang sedang live & pet sendiri saat berkunjung ---------------- */
   type Comp = { id: string; name: string; look: any; wear: any[]; state?: any; live: [number, number]; tile: string; path: [number, number][]; speed: number; flip: boolean; pose?: string; target: string; self?: boolean;
     /** sedang naik wahana alun-alun (dari sinkron): posisi dihitung dari jadwal wahana */
-    ride?: { kind: RideKind | 'kolam'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean };
+    ride?: { kind: RideKind | 'kolam' | 'catur'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean };
   const SELF = '__me';
   const comps = new Map<string, Comp>();
   const missing = new Map<string, number>();
@@ -799,14 +807,14 @@
       for (const m of ms) {
         if (!m.pet) continue;
         keep.add(m.id);
-        const tgt = toHouse((m as any).roomId ?? '', m.x, m.y);
+        const tgt = ludoSpot(m.act) ?? toHouse((m as any).roomId ?? '', m.x, m.y);
         let c = comps.get(m.id);
         if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
         else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
         const rd = rideOf(m.act);
-        const pz = m.act === 'duduk' ? 'duduk' : m.act === 'joget' ? 'joget' : rd ? (rd.kind === 'arak' ? 'arak' : rd.kind === 'kolam' ? 'mancing' : 'wahana') : undefined;
+        const pz = m.act === 'duduk' || rd?.kind === 'catur' ? 'duduk' : m.act === 'joget' ? 'joget' : rd ? (rd.kind === 'arak' ? 'arak' : rd.kind === 'kolam' ? 'mancing' : 'wahana') : undefined;
         if (pz !== c.pose) { c.pose = pz; changed = true; }
-        if ((rd ? `${rd.kind}:${rd.seat}` : '') !== (c.ride ? `${c.ride.kind}:${c.ride.seat}` : '')) { c.ride = rd ?? undefined; c.rideTf = undefined; c.rideD = undefined; c.rideBehind = undefined; c.path = []; if (rd?.kind === 'kolam') c.flip = rd.seat <= 3; changed = true; }
+        if ((rd ? `${rd.kind}:${rd.seat}` : '') !== (c.ride ? `${c.ride.kind}:${c.ride.seat}` : '')) { c.ride = rd ?? undefined; c.rideTf = undefined; c.rideD = undefined; c.rideBehind = undefined; c.path = []; if (rd?.kind === 'kolam') c.flip = rd.seat <= 3; if (rd?.kind === 'catur') c.flip = rd.seat === 2; changed = true; }
         const tk = `${tgt[0].toFixed(2)},${tgt[1].toFixed(2)}`;
         // naik bianglala / kereta: posisinya dari jadwal wahana, bukan dari sinkron (sesudahnya berjalan dari posisi terakhir)
         if (c.ride && c.ride.kind !== 'arak') c.target = '';
@@ -950,6 +958,31 @@
     });
   });
 
+  /** kursi Ludo-ku di alun-alun (ajakan / main): pet berdiri di pojok Tikar Ludo sesuai warnanya */
+  const myLudoSeat = $derived.by((): number | null => {
+    if (!square) return null;
+    const g = H.games.find((x: any) => x.game === 'ludo' && (x.phase === 'ajak' || x.phase === 'main') && x.players?.some((p: any) => p.id === H.me && !p.left));
+    if (!g) return null;
+    const i = g.players.findIndex((p: any) => p.id === H.me);
+    return g.ludo?.seat?.[H.me] ?? LUDO_JOIN_SEAT[i] ?? null;
+  });
+  $effect(() => {
+    const k = myLudoSeat;
+    if (k === null) return;
+    untrack(() => {
+      const at = ludoSpot(`ludo:${k}`);
+      if (!at || !live || acting || ALUN.ride) return;
+      if (Math.hypot(at[0] - live[0], at[1] - live[1]) < 0.15) return;
+      halt();
+      walkPath([...(routeToAny([[Math.floor(at[0]), Math.floor(at[1])]]) ?? []), at]).then(() => {
+        // menghadap ke tengah tikar
+        if (!LUDO_MAT || !live) return;
+        const c = toHouse(ALUN_ROOM, LUDO_MAT.x + 1.5, LUDO_MAT.y + 1.5), sx = (c[0] - live[0]) - (c[1] - live[1]);
+        if (Math.abs(sx) > 0.01) { flip = sx < 0; place(); }
+      });
+    });
+  });
+
   /* ---------------- gelembung obrolan & label nama di atas pet ---------------- */
   let tags = $state<{ id: string; x: number; y: number; name: string; self: boolean }[]>([]);
   let bpos = $state<Record<string, { x: number; y: number }>>({});
@@ -1078,8 +1111,16 @@
         if (a.id === 'arak') { const pa = paradeNow(now); return pa.joinable ? { ...a, note: pa.on ? 'Sedang lewat!' : `Mulai ${mmss(pa.start - now)}` } : { ...a, off: true, note: pa.on ? 'Rombongan sudah jauh' : `Mulai ${Math.ceil((pa.start - now) / 60_000)} mnt lagi` }; }
         if (a.id === 'layar') return layarOn ? { ...a, note: FILMS[film] } : { ...a, off: true, note: 'Diputar 19.00–22.00' };
         if (a.id === 'gelang') return { ...a, note: '3 dari 3 = bonus' };
+        // Pos Ronda: satu papan catur per alun-alun
+        if (a.id === 'catur' || a.id === 'tonton') {
+          const g = rondaGame();
+          const vs = g?.phase === 'main' ? `${g.players[0]?.name} vs ${g.players[1]?.name}` : '';
+          if (a.id === 'catur') return vs ? { ...a, off: true, note: 'Papan dipakai' } : g?.phase === 'ajak' ? { ...a, name: 'Ikut main catur', note: `Ajakan ${g.players[0]?.name ?? ''}` } : { ...a, note: '5+3 · ±10 mnt' };
+          return vs ? { ...a, note: vs } : { ...a, off: true, note: 'Belum ada yang main' };
+        }
+        if (a.id === 'duduk' && it?.art?.key === 'posronda') return rondaGame()?.phase === 'main' ? { ...a, off: true, note: 'Bale-bale dipakai main catur' } : { ...a, note: '+ceria' };
         if (a.id === 'mancing') { const used = new Set([...comps.values()].filter((c) => c.ride?.kind === 'kolam').map((c) => c.ride!.seat)); const free = 6 - used.size; return free <= 0 ? { ...a, off: true, note: 'Dermaga penuh' } : { ...a, name: ALUN.lomba?.phase === 'lomba' ? 'Ikut Lomba Mancing' : a.name, note: `${free} dermaga kosong` }; }
-        return { ...a, note: a.id === 'foto' ? 'Bersama pet di dekatmu' : '' };
+        return { ...a, note: a.id === 'foto' ? 'Bersama pet di dekatmu' : a.note ?? '' };
       });
     }
     const acts = list.filter((a: any) => activityFits(a.targets, it as any));
@@ -1202,10 +1243,16 @@
     if (p) await walkPath(p);
     if (gen !== planGen || !alive) return;
     if (g.faceTo && live) { const sx = (g.faceTo[0] - live[0]) - (g.faceTo[1] - live[1]); if (Math.abs(sx) > 0.01) flip = sx < 0; }
-    if (a.id === 'ular' || a.id === 'karung') {
-      // tikar ular tangga / garis start: ajak main bareng orang di alun-alun
+    if (a.id in BARENG_GAMES) {
+      // tikar ular tangga / garis start / Pos Ronda: ajak main bareng orang di alun-alun
       acting = false; scheduleIdle();
       await startGame(a.id);
+      return;
+    }
+    if (a.id === 'tonton') {
+      acting = false; scheduleIdle();
+      const g = rondaGame();
+      if (g?.phase === 'main') BG.watching = g.id; else toast('Belum ada yang main catur di sini.');
       return;
     }
     if (a.id === 'foto') {
@@ -1221,8 +1268,11 @@
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
     const standAt: [number, number] | null = live ? [...live] : null;
     // naik komidi putar: duduk di pinggir piringan (bukan di tiang tengah); ayunan & bangku: di tengahnya
-    const seat: [number, number] | null = anim.on && g.center ? (a.id === 'naik' ? [g.center[0] + 0.85, g.center[1] + 0.85] : g.center) : null;
+    // Pos Ronda: duduk di pojok bale-bale (skala 0,6 seperti pemain catur, tidak menutupi papan)
+    const atRonda = itemOf(placedAt(t)?.i)?.art?.key === 'posronda';
+    const seat: [number, number] | null = anim.on && g.center ? (atRonda ? rondaSeat(1)?.at ?? null : a.id === 'naik' ? [g.center[0] + 0.85, g.center[1] + 0.85] : g.center) : null;
     if (seat) { live = [...seat]; pos = [...seat]; }
+    if (atRonda && seat) { benchSeat = 1; flip = false; const r = rondaSeat(1); if (r) { rideTf = r.tf; rideD = r.d; } }
     pose = { pose: a.id === 'naik' || a.id === 'ayun' ? a.id : a.anim, lift: anim.on ? anim.lift : 0 };
     queueMicrotask(place);
     if (r.kind === 'jajan') { sfx.eat(); fx('food'); } else sfx.pop();
@@ -1231,6 +1281,7 @@
     if (gen !== planGen || !alive) return;
     pose = null;
     if (seat && standAt) { live = standAt; pos = [...standAt]; }
+    if (benchSeat) { benchSeat = 0; rideTf = null; rideD = null; }
     queueMicrotask(place);
     if (r.kind === 'jajan') toast(`Nyam, ${r.snack}! ${G.me.pet.name} kenyang & ceria.`, 'good');
     else toast(r.rewarded ? `+${r.coins} koin${r.xp ? `, +${r.xp} XP` : ''} · sisa main berhadiah hari ini ${r.left}` : `${G.me.pet.name} senang! (hadiah main hari ini sudah habis)`, 'good');
@@ -1391,9 +1442,10 @@
   let rideTf: string | null = null;
   let rideD = $state<number | null>(null);
   let rideBehind = $state(false);
-  const rideOf = (act: string | null | undefined) => { const m = /^(bianglala|kereta|arak|kolam):(\d)$/.exec(act ?? ''); return m ? { kind: m[1] as RideKind | 'kolam', seat: +m[2] } : null; };
+  const rideOf = (act: string | null | undefined) => { const m = /^(bianglala|kereta|arak|kolam|catur):(\d)$/.exec(act ?? ''); return m ? { kind: m[1] as RideKind | 'kolam' | 'catur', seat: +m[2] } : null; };
   /** transform & kedalaman penumpang (null = tidak sedang di gondola / kereta) */
-  function ridePose(kind: RideKind | 'kolam', seat: number, now: number): { tf: string; d: number; behind: boolean; at: [number, number] } | null {
+  function ridePose(kind: RideKind | 'kolam' | 'catur', seat: number, now: number): { tf: string; d: number; behind: boolean; at: [number, number] } | null {
+    if (kind === 'catur') return rondaSeat(seat);
     if (kind === 'kolam') {
       // duduk di dingklik dermaga (lantai dermaga 4 + dingklik 7)
       const st = PIERS[seat - 1];
@@ -1465,6 +1517,10 @@
         if (rideBehind !== r.behind) rideBehind = r.behind;
         if (live && (Math.floor(live[0]) !== Math.floor(r.at[0]) || Math.floor(live[1]) !== Math.floor(r.at[1]))) { live = [...r.at]; pos = [...r.at]; }
       }
+    } else if (seated || benchSeat) {
+      const r = rondaSeat(seated || benchSeat);
+      if (r && rideTf !== r.tf) { rideTf = r.tf; petEl()?.setAttribute('transform', r.tf); }
+      if (r && rideD !== r.d) rideD = r.d;
     } else if (rideTf) { rideTf = null; rideD = null; rideBehind = false; }
     // ikut arak-arakan: pet sendiri menyusul tempatnya di barisan
     if (marching && live) {
@@ -1515,6 +1571,59 @@
     if (!square || !paradeOn) return;
     const t = setInterval(() => { for (const i of [0, 1]) { const el = svgEl?.querySelector(`[data-o="mv:ondel${i}"]`); const m = el && /translate\(([-\d.]+) ([-\d.]+)\)/.exec(el.getAttribute('transform') ?? ''); if (m) spawn(+m[1], +m[2] - 230, 'notes'); } }, 2200);
     return () => clearInterval(t);
+  });
+
+  /* ---------------- Pos Ronda: pemain catur duduk di bale-bale (kursi 1 = Putih di kiri, 2 = Hitam di kanan) ---------------- */
+  const RONDA = square ? ALUN_LAYOUT.find((p) => p.i === 'alun-posronda') ?? null : null;
+  /** permainan catur di alun-alun ini (paling baru) */
+  const rondaGame = () => (H.games.filter((g: any) => g.game === 'catur' && g.phase !== 'selesai').at(-1) ?? null) as any;
+  /** pet duduk di bale-bale: skala 0,6 seperti kursi kereta supaya papan tidak tertutup */
+  function rondaSeat(seat: number) {
+    const sp = RONDA_SEATS[seat - 1];
+    if (!RONDA || !sp) return null;
+    const x = RONDA.x + sp[0], y = RONDA.y + sp[1], [sx, sy] = houseIso(x, y);
+    return { tf: `translate(${sx.toFixed(1)} ${(sy - RONDA_LIFT * SS).toFixed(1)}) scale(0.6)`, d: RONDA.x + RONDA.y + 2 + 0.05 + seat * 0.001, behind: false, at: [x, y] as [number, number] };
+  }
+  /** kursi pet sendiri selama main catur di sini (0 = tidak) */
+  const mySeat = $derived.by(() => {
+    if (!square || !RONDA) return 0;
+    const g = H.games.find((x: any) => x.game === 'catur' && x.phase === 'main' && !BG.closed.includes(x.id) && x.catur && (x.catur.white === H.me || x.catur.black === H.me) && !x.catur.result);
+    return g ? (g.catur.white === H.me ? 1 : 2) : 0;
+  });
+  let seated = 0;
+  /** duduk santai di bale-bale (aksi "Duduk di pos ronda", saat tidak ada yang main catur) */
+  let benchSeat = 0;
+  let seatGen = 0;
+  $effect(() => {
+    const want = mySeat;
+    untrack(async () => {
+      if (want === seated) return;
+      const my = ++seatGen;
+      if (want && RONDA) {
+        // jalan ke depan Pos Ronda dulu (yang mengajak biasanya sudah di sana), lalu duduk di bale-bale
+        halt(); acting = true; menu = null;
+        const p = routeToAny([[RONDA.x + 2, RONDA.y + 1], [RONDA.x + 2, RONDA.y], [RONDA.x + 1, RONDA.y + 2], [RONDA.x, RONDA.y + 2], [RONDA.x + 2, RONDA.y + 2]]);
+        if (p && p.length) await walkPath(p);
+        if (my !== seatGen || !alive) return;
+        const r = rondaSeat(want);
+        if (!r) return;
+        seated = want;
+        live = [...r.at]; pos = [...r.at];
+        flip = want === 2;
+        pose = { pose: 'duduk', lift: 0 };
+        rideTf = r.tf; rideD = r.d;
+        queueMicrotask(place);
+        sfx.pop();
+      } else if (seated && RONDA) {
+        // selesai: berdiri di depan Pos Ronda
+        seated = 0;
+        rideTf = null; rideD = null;
+        const stand: [number, number] = [RONDA.x + 1.5, RONDA.y + 2.5];
+        live = [...stand]; pos = [...stand];
+        pose = null; acting = false;
+        queueMicrotask(place); scheduleIdle();
+      }
+    });
   });
 
   /** tempat berdiri sebelum naik: gondola di bawah roda, sisi jalan halte, gerbang depan (arak-arakan) */

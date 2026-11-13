@@ -18,7 +18,7 @@ import { bookProgress, castFish, hookFish, kolamReward, landFish, loseFish, type
 import { grantXp, patch } from './game';
 import { EMOTES, markPresence } from './house';
 import { takePings } from '../lib/pings';
-import { barengViews } from './bareng';
+import { barengAct, barengSeat, barengViews } from './bareng';
 
 const LIVE_MS = 10_000;
 /** jeda antaraksi di alun-alun per pemain */
@@ -185,7 +185,8 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     const v = petView({ ...r, user_id: uid }, s);
     return { name: r.display_name, asleep: !!v.sleep, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
   }
-  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: ALUN_ROOM, x: m.x, y: m.y, flip: m.flip, act: rideAct(m.id, clock()) ?? m.act, host: false });
+  // kursi wahana / dermaga / Pos Ronda (catur) / pojok Tikar Ludo dipasang server, selain itu gerak dari HP
+  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: ALUN_ROOM, x: m.x, y: m.y, flip: m.flip, act: rideAct(m.id, clock()) ?? barengSeat(`a:${WHERE.get(m.id)}`, m.id) ?? barengAct(m.id) ?? m.act, host: false });
   /** alun-alun pemain ini sekarang (atau null bila belum masuk) */
   const here = (uid: string) => { const id = WHERE.get(uid); const q = id ? SQUARES.get(id) : undefined; const m = q?.members.get(uid); return q && m && fresh(m) ? { q, m } : null; };
   const closed = () => forbidden('Alun-alun sedang ditutup.');

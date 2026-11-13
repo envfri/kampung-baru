@@ -269,7 +269,8 @@ check(blocks.blocks?.some((x) => x.id === A.id), 'blokir tersimpan');
 check(await sees(C, 'Gethuk') === 0 && await C.p.locator(`svg.room .opet[data-o="${A.id}"]`).count() === 0, 'pemain yang diblokir hilang dari alun-alun');
 await shot(C, '10-hp-setelah-blokir');
 
-// pulang ke peta
+// pulang ke peta (bila lomba yang diikuti A selesai selama menunggu, kartu hasilnya terbuka sendiri: tutup dulu)
+if (await A.p.locator('.lomba .btn:has-text("Tutup")').count()) { await A.p.click('.lomba .btn:has-text("Tutup")'); await W(300); }
 await A.p.click('.sbar .btn:has-text("Pulang")'); await W(1200);
 check(await A.p.locator('svg.map').count() === 1, 'Pulang: kembali ke peta kampung');
 
