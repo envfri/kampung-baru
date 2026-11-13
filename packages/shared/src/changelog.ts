@@ -39,10 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.36.1',
+    date: '2026-11-13',
+    title: 'Ular Tangga harus pas & Panjat Pinang lebih licin',
+    summary: 'Ular Tangga sekarang seperti aslinya: finis harus pas di kotak 36, kelebihan langkah = mundur. Tiang Panjat Pinang punya bagian berminyak yang bikin kepeleset!',
+    items: [
+      { kind: 'ubah', text: 'Ular Tangga: finis harus pas di kotak 36. Kalau angka dadu kelebihan, bidak mundur sebanyak kelebihannya (sisa 1 dapat 3: maju ke 36 lalu mundur ke 34). Kalau mundurnya berhenti di kepala ular, tetap turun!', player: true },
+      { kind: 'ubah', text: 'Panjat Pinang: tiang punya 3 bagian berminyak (lebih gelap). Di situ naiknya lebih berat, diam melorot lebih cepat, dan kadang kepeleset turun. Irama tenang tetap bisa sampai puncak.', player: true },
+      { kind: 'ubah', text: 'Teknis: ularMove mengembalikan land & back, bingkai animasi baru "back"; batas waktu Ular Tangga 10 → 15 menit (simulasi 4 pemain: rata-rata ±5 menit). Panjat Pinang: pinangStart/pinangTap/pinangOil dipakai bersama game & server (hitungan sama persis), parameter PINANG.oil ditakar dengan simulasi.' },
+    ],
+  },
+  {
     version: '0.36.0',
     date: '2026-11-13',
     title: 'Bonus Ramai-ramai di kolam alun-alun',
     summary: 'Mancing bareng makin seru: kalau paling tidak 3 pet duduk di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat XP tambahan.',
+    commits: ['e8e1915'],
     items: [
       { kind: 'baru', text: 'Bonus Ramai-ramai di Kolam Pemancingan Bareng: kalau paling tidak 3 pet memancing di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat +1 XP. Panel mancing menunjukkan berapa pemancing sekarang dan berapa lagi yang perlu diajak.', player: true },
       { kind: 'perbaikan', text: 'Ondel-ondel di alun-alun tidak lagi menutupi tikar Ular Tangga saat diam. Mereka berjaga agak jauh di kiri-kanan gerbang, berjalan ke gerbang sebelum arak-arakan dan pulang lagi sesudahnya, dan jadi tembus pandang kalau ada pet di belakangnya.', player: true },

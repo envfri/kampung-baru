@@ -1,5 +1,6 @@
 <script lang="ts">
   // Papan Ular Tangga Kampung: 36 kotak, tangga bambu naik, ular sawah turun, Warung (+2), Becek (diam sekali).
+  // Finis harus pas di 36: kelebihan langkah = bidak memantul mundur.
   import { untrack } from 'svelte';
   import { petSVG, ularCell, ularFrames, ULAR_LADDERS, ULAR_SNAKES, ULAR_WARUNG, ULAR_BECEK, ULAR_SIZE } from '@kb/shared';
   import { moveGame, serverNow } from '../../lib/bareng.svelte';
@@ -24,6 +25,8 @@
   let rolling = $state(false), playing = $state(false), asking = $state(false);
   let face = $state<number>(g.last?.roll ?? 1);
   let actor = $state('');
+  /** sedang mundur karena kelebihan langkah */
+  let bouncing = $state(false);
   let lastAt = g.last?.at ?? 0, gen = 0;
   const myTurn = $derived(player && g.phase === 'main' && g.turn === me && !playing && !asking);
   const wait = (ms: number, my: number) => new Promise<boolean>((r) => setTimeout(() => r(my === gen), ms));
@@ -49,15 +52,18 @@
   }
   async function animate(last: any, my: number) {
     playing = true; actor = g.players.find((x: any) => x.id === last.by)?.name ?? '';
-    const id = last.by, end = Math.min(last.from + last.roll, ULAR_SIZE);
+    // kotak tempat berhenti sebelum tangga/ular (sesudah mundur bila kelebihan)
+    const id = last.by, end = last.land ?? Math.min(last.from + last.roll, ULAR_SIZE);
+    bouncing = false;
     rolling = true;
     for (let k = 0; k < 8; k++) { face = 1 + ((face + 1 + Math.floor(Math.random() * 4)) % 6); if (!(await wait(85, my))) return; }
     face = last.roll; rolling = false; sfx.pop();
     for (const f of ularFrames(last).slice(1)) {
-      if (f.kind === 'step' || f.kind === 'warung' || f.kind === 'finish') {
+      if (f.kind === 'step' || f.kind === 'back' || f.kind === 'warung' || f.kind === 'finish') {
         if (f.kind !== 'finish') shownPos[id] = f.cell;
         hop[id] = (hop[id] ?? 0) + 1;
-        if (f.kind === 'finish') sfx.level(); else sfx.tap();
+        if (f.kind === 'back' && !bouncing) { bouncing = true; sfx.error(); }
+        else if (f.kind === 'finish') sfx.level(); else sfx.tap();
         if (!(await wait(f.ms, my))) return;
       } else if (f.kind === 'climb') {
         sfx.level();
@@ -74,7 +80,7 @@
         wob = null;
       }
     }
-    if (my === gen) playing = false;
+    if (my === gen) { playing = false; bouncing = false; }
   }
   $effect(() => {
     const last = g.last, pos = g.pos;
@@ -146,7 +152,7 @@
       {/if}
     {/each}
   </svg>
-  <p class="log">{playing ? (rolling ? `${actor} melempar dadu…` : `${actor} dapat ${face}, jalan…`) : g.log?.at(-1) ?? ''}</p>
+  <p class="log">{playing ? (rolling ? `${actor} melempar dadu…` : bouncing ? `${actor} kelebihan ${g.last?.back ?? ''}, mundur…` : `${actor} dapat ${face}, jalan…`) : g.log?.at(-1) ?? ''}</p>
   {#if g.phase === 'main'}
     <div class="ctrl">
       <svg viewBox="-24 -24 48 48" class="die" class:spin={rolling}><rect x="-21" y="-21" width="42" height="42" rx="10" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="3" />{#each PIPS[face] ?? [] as [x, y]}<circle cx={x * 10} cy={y * 10} r="4" fill="#2B2F4A" />{/each}</svg>

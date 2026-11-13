@@ -1,8 +1,9 @@
 <script lang="ts">
   // Panjat Pinang (khusus event Agustusan): ketuk berirama untuk memanjat tiang licin.
-  // Terlalu cepat = melorot; diam = melorot pelan. Hadiah di tiap seperempat tiang.
+  // Terlalu cepat = melorot; diam = melorot pelan; bagian berminyak = naik lebih berat & bisa terpeleset.
+  // Hadiah di tiap seperempat tiang. Hitungan memakai pinangTap yang sama dengan server.
   import { onDestroy } from 'svelte';
-  import { PINANG, pinangGrease, renderPet } from '@kb/shared';
+  import { PINANG, pinangStart, pinangTap, pinangIdle, pinangOil, renderPet, type PinangState } from '@kb/shared';
   import { G, settings, wearItems } from '../lib/game.svelte';
   import { createRun } from '../lib/minigame.svelte';
   import { sfx, buzz } from '../lib/sfx';
@@ -11,13 +12,17 @@
   const cfg = $derived(settings().games?.pinang ?? {});
   const left = $derived(G.me.limits?.games?.pinang ?? cfg.playsPerDay ?? 0);
   let taps: number[] = [];
-  let t0 = 0, duration = 20000, raf = 0, grease = 1, last = -1e9, prev = 0;
-  let h = $state(0), maxH = $state(0), now = $state(0), slip = $state(false);
+  let t0 = 0, duration = 20000, raf = 0, prev = 0;
+  let st: PinangState = pinangStart(1);
+  let h = $state(0), maxH = $state(0), now = $state(0), slip = $state<'' | 'cepat' | 'peleset'>('');
+  /** bagian berminyak (% tiang) — dari seed, sama dengan server */
+  let oil = $state<[number, number][]>(pinangOil(1));
+  let slipTimer: ReturnType<typeof setTimeout> | undefined;
 
   const run = createRun('pinang', (r) => {
     duration = r.durationMs ?? cfg.durationMs ?? 20000;
-    grease = pinangGrease(r.seed);
-    taps = []; h = 0; maxH = 0; last = -1e9; prev = 0;
+    st = pinangStart(r.seed); oil = st.oil;
+    taps = []; h = 0; maxH = 0; prev = 0; slip = '';
     t0 = performance.now();
     loop();
   });
@@ -32,23 +37,27 @@
     const top = maxH >= PINANG.top;
     run.finish({ taps }, top ? { banner: 'Sampai puncak!', hold: 1600 } : { banner: 'Waktu habis!', good: false, hold: 1000 });
   }
-  // sama persis dengan hitungan server (pinangReplay)
+  // sama persis dengan hitungan server (pinangReplay memakai pinangTap yang sama)
   function climb() {
     if (run.st.phase !== 'play') return;
     const t = Math.round(performance.now() - t0);
-    if (t - last < PINANG.minGapMs) return;
+    const before = st.maxH;
+    const r = pinangTap(st, t);
+    if (!r) return;
     taps.push(t);
-    h = Math.max(0, h - (PINANG.slipPerSec * grease * (t - prev)) / 1000);
-    if (t - last < PINANG.rhythmMs) { h = Math.max(0, h - PINANG.slipFast * grease); slip = true; sfx.error(); buzz(40); setTimeout(() => (slip = false), 400); }
-    else { const before = maxH; h = Math.min(PINANG.top, h + PINANG.climb); sfx.tap(); buzz(6); if (PINANG.prizes.some((p) => before < p && h >= p)) sfx.coin(); }
-    prev = t; last = t;
-    maxH = Math.max(maxH, h);
+    h = st.h; prev = t; maxH = st.maxH;
+    if (r === 'naik') { sfx.tap(); buzz(6); if (PINANG.prizes.some((p) => before < p && st.maxH >= p)) sfx.coin(); }
+    else {
+      // terlalu cepat / terpeleset di bagian berminyak: melorot
+      slip = r; sfx.error(); buzz(r === 'peleset' ? 70 : 40);
+      clearTimeout(slipTimer); slipTimer = setTimeout(() => (slip = ''), r === 'peleset' ? 650 : 400);
+    }
   }
   function key(e: KeyboardEvent) { if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); climb(); } }
-  onDestroy(() => { cancelAnimationFrame(raf); run.stop(); });
+  onDestroy(() => { cancelAnimationFrame(raf); clearTimeout(slipTimer); run.stop(); });
 
-  // tinggi yang tampak: melorot pelan sejak ketukan terakhir
-  const shown = $derived(run.st.phase === 'play' ? Math.max(0, h - (PINANG.slipPerSec * grease * Math.max(0, now - prev)) / 1000) : h);
+  // tinggi yang tampak: melorot pelan sejak ketukan terakhir (lebih cepat di bagian berminyak)
+  const shown = $derived(run.st.phase === 'play' ? pinangIdle(st, h, Math.max(0, now - prev)) : h);
   const TOP = 90, BOT = 500;
   const y = $derived(BOT - (shown / PINANG.top) * (BOT - TOP - 40));
   const pet = $derived(renderPet(G.me.pet, wearItems(G.me.pet.wear).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand')));
@@ -68,6 +77,15 @@
     <rect x="186" y={TOP} width="28" height={BOT - TOP} fill="#9C6B45" stroke="#2B2F4A" stroke-width="3" />
     {#each Array(16) as _, i}<path d="M188 {TOP + 20 + i * 26}l24 -10" stroke="#6E4A2E" stroke-width="3" opacity=".5" />{/each}
     <rect x="192" y={TOP} width="5" height={BOT - TOP} fill="#FFFFFF" opacity=".35" />
+    <!-- bagian berminyak: lebih gelap & mengkilap, ada tetesan -->
+    {#each oil as [a, b]}
+      {@const y1 = BOT - (b / PINANG.top) * (BOT - TOP - 40)}
+      {@const y2 = BOT - (a / PINANG.top) * (BOT - TOP - 40)}
+      <rect x="186" y={y1} width="28" height={y2 - y1} fill="#3A2716" opacity=".72" />
+      <path d="M190 {y1 + 4}v{Math.max(0, y2 - y1 - 8)}" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" opacity=".8" />
+      <path d="M199 {y1 + 6}v{Math.max(0, (y2 - y1) / 2 - 6)}" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity=".5" />
+      <path d="M205 {y2}q-3 7 0 10q3-3 0-10Z" fill="#4A3220" stroke="#2B2F4A" stroke-width="1.2" />
+    {/each}
     <!-- roda hadiah di puncak -->
     <ellipse cx="200" cy={TOP} rx="78" ry="14" fill="none" stroke="#2B2F4A" stroke-width="4" />
     {#each [-60, -30, 30, 60] as dx, i}
@@ -80,8 +98,8 @@
       <path d="M214 {py}h26" stroke="#2B2F4A" stroke-width="2" /><rect x="240" y={py - 11} width="54" height="22" rx="11" fill={maxH >= p ? '#8FD3A7' : '#FFFDF7'} stroke="#2B2F4A" stroke-width="2" />
       <text x="267" y={py + 5} text-anchor="middle" font-family="'Baloo 2',sans-serif" font-weight="800" font-size="13" fill="#2B2F4A">{cfg.rewards?.[i] ?? ''} koin</text>
     {/each}
-    <g transform="translate(200 {y.toFixed(1)})" class:slip class:cheer={run.st.phase === 'finale' && maxH >= PINANG.top}><g transform="scale(.4)">{@html pet}</g></g>
-    {#if slip}<text x="120" y={y - 30} text-anchor="middle" class="flash bad">Licin!</text>{/if}
+    <g transform="translate(200 {y.toFixed(1)})" class:slip={!!slip} class:cheer={run.st.phase === 'finale' && maxH >= PINANG.top}><g transform="scale(.4)">{@html pet}</g></g>
+    {#if slip}<text x="120" y={y - 30} text-anchor="middle" class="flash bad">{slip === 'peleset' ? 'Kepeleset!' : 'Licin!'}</text>{/if}
   </svg>
   {#if run.st.phase === 'play' || run.st.phase === 'count' || run.st.phase === 'finale'}
     <div class="top"><span>{Math.round(shown)}% tiang</span><span>{timeLeft} d</span></div>
@@ -90,7 +108,7 @@
     {/if}
   {/if}
   <GameCard {run} title="Panjat Pinang" {left} info="{cfg.energiCost} energi · hadiah {(cfg.rewards ?? []).join(' / ')} koin">
-    {#snippet intro()}<p>Ketuk <b>Panjat!</b> dengan irama tenang. Terlalu cepat malah melorot, diam juga melorot pelan. Ada hadiah di tiap seperempat tiang. Sampai puncak dalam {Math.round((cfg.durationMs ?? 20000) / 1000)} detik!</p>{/snippet}
+    {#snippet intro()}<p>Ketuk <b>Panjat!</b> dengan irama tenang. Terlalu cepat malah melorot, diam juga melorot pelan. Bagian tiang yang gelap berminyak: naiknya lebih berat dan bisa kepeleset! Ada hadiah di tiap seperempat tiang. Sampai puncak dalam {Math.round((cfg.durationMs ?? 20000) / 1000)} detik!</p>{/snippet}
     {#snippet result()}<p>Tertinggi {run.st.result.height}% tiang{run.st.result.tiers >= 4 ? ' — sampai puncak!' : ''}</p>{/snippet}
   </GameCard>
 </div>

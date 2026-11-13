@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config';
-import { congklakMoves, KARUNG_HOPS } from '@kb/shared';
+import { congklakMoves, KARUNG_HOPS, ularMove, ularFrames, ULAR_SIZE } from '@kb/shared';
 
 config.paymentProvider = 'mock';
 const { buildApp } = await import('../src/app');
@@ -106,6 +106,23 @@ test('congklak di rumah: ajak → ikut → giliran bergantian, langkah otomatis 
   assert.ok(c1[0] > c0[0] && c1[1] > c0[1], 'keduanya dapat koin');
   const cnt = await db.one(`select count from daily_counters where user_id = $1 and key = 'coop'`, [host.id]);
   assert.equal(cnt.count, 1, 'memakai jatah main bareng harian');
+});
+
+test('ular tangga: finis harus pas di 36, kelebihan = mundur; ular & tangga di kotak tempat berhenti tetap berlaku', () => {
+  assert.deepEqual(ularMove(33, 3), { from: 33, roll: 3, to: 36, via: null, finish: true, land: 36, back: 0 });
+  // sisa 1, dapat 3: 35 → 36 → mundur 2 → 34
+  const a = ularMove(35, 3);
+  assert.equal(a.finish, false); assert.equal(a.back, 2); assert.equal(a.land, 34); assert.equal(a.to, 34);
+  // mundur ke kepala ular (33 → 21)
+  const b = ularMove(35, 4);
+  assert.equal(b.land, 33); assert.equal(b.via, 'ular'); assert.equal(b.to, 21);
+  const c = ularMove(31, 6);
+  assert.equal(c.land, 35); assert.equal(c.to, 35); assert.equal(c.finish, false);
+  // animasi: maju sampai 36, lalu mundur kotak demi kotak, lalu meluncur di ular
+  const f = ularFrames(b).map((x) => `${x.kind}:${x.cell}`);
+  assert.deepEqual(f, ['roll:35', 'step:36', 'back:35', 'back:34', 'back:33', 'slide:21']);
+  // tidak pernah lewat 36
+  for (let from = 0; from < ULAR_SIZE; from++) for (let r = 1; r <= 6; r++) { const m = ularMove(from, r); assert.ok(m.to >= 1 && m.to <= ULAR_SIZE); assert.equal(m.finish, from + r === ULAR_SIZE); }
 });
 
 test('ular tangga di alun-alun: 3 pemain, dadu dari server, giliran otomatis, peringkat & hadiah 25/15/10', async () => {

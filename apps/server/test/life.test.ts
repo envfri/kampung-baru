@@ -2,7 +2,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config';
-import { bakiakPrompts, gasingRounds, layanganSchedule } from '@kb/shared';
+import { bakiakPrompts, gasingRounds, layanganSchedule, pinangReplay, pinangStart, pinangTap, pinangOil, pinangOily, PINANG } from '@kb/shared';
 
 config.adminEmail = 'owner@test.local';
 config.adminPassword = 'rahasia-sekali-123';
@@ -179,10 +179,16 @@ test('mini-game baru: bakiak, gasing, layangan, panjat pinang + lencana juara', 
   const kf = await c.post('/api/games/layangan/finish', { runId: k.runId, caught });
   assert.equal(kf.status, 200, JSON.stringify(kf.body));
   assert.equal(kf.body.score, sched.filter((x) => x.kind !== 'sobek').reduce((a, x) => a + x.value, 0));
-  // Panjat Pinang: ada event bendera (Pekan Ceria bawaan). Ketuk berirama sampai puncak.
+  // Panjat Pinang: ada event bendera (Pekan Ceria bawaan). Ketuk berirama sampai puncak
+  // (bagian berminyak bisa membuat terpeleset: pilih irama yang sampai puncak untuk seed ini, dihitung dengan aturan yang sama)
   const p = (await c.post('/api/games/pinang/start')).body;
   assert.ok(p.runId, JSON.stringify(p));
-  const ptaps = Array.from({ length: 90 }, (_, i) => 200 + i * 180);
+  let ptaps: number[] = [];
+  for (let gap = 150; gap <= 200 && !ptaps.length; gap += 5) {
+    const tt = Array.from({ length: 120 }, (_, i) => 200 + i * gap).filter((t) => t <= 20_000);
+    if (pinangReplay(p.seed, tt, 20_000)?.tiers === 4) ptaps = tt;
+  }
+  assert.ok(ptaps.length, 'ada irama tenang yang sampai puncak');
   await backdate(p.runId, 25);
   const pf = await c.post('/api/games/pinang/finish', { runId: p.runId, taps: ptaps });
   assert.equal(pf.status, 200, JSON.stringify(pf.body));
@@ -195,6 +201,29 @@ test('mini-game baru: bakiak, gasing, layangan, panjat pinang + lencana juara', 
   const cl = await c.post('/api/quests/b-pinang/claim');
   assert.equal(cl.status, 200, JSON.stringify(cl.body));
   assert.equal(cl.body.wallet.pearl, before + 3);
+});
+
+test('panjat pinang licin: bagian berminyak dari seed, berat & bisa terpeleset, hitungan game = server', () => {
+  const oil = pinangOil(42);
+  assert.equal(oil.length, PINANG.oil.count);
+  for (const [a, b] of oil) { assert.ok(a >= 15 && b <= 96 && b - a <= PINANG.oil.len); }
+  assert.deepEqual(pinangOil(42), oil, 'sama untuk seed yang sama');
+  // terlalu cepat = melorot
+  const s1 = pinangStart(7);
+  assert.equal(pinangTap(s1, 100), 'naik');
+  assert.equal(pinangTap(s1, 200), 'cepat');
+  assert.equal(pinangTap(s1, 230), null, 'ketukan terlalu rapat tidak sah');
+  // irama tenang yang panjang pasti melewati bagian berminyak & sesekali terpeleset
+  let peleset = 0, inOil = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const st = pinangStart(seed);
+    for (let t = 200; t <= 20_000; t += 170) { const before = st.h; const r = pinangTap(st, t); if (pinangOily(st.oil, before)) inOil++; if (r === 'peleset') peleset++; }
+  }
+  assert.ok(inOil > 0 && peleset > 0, `terpeleset ${peleset}× dari ${inOil} ketukan di bagian berminyak`);
+  // putar ulang server = langkah demi langkah di game
+  const taps = Array.from({ length: 100 }, (_, i) => 150 + i * 175);
+  const st = pinangStart(99); for (const t of taps) { pinangTap(st, t); if (st.h >= PINANG.top) break; }
+  assert.equal(pinangReplay(99, taps, 20_000)!.height, Math.round(st.maxH));
 });
 
 test('panjat pinang tertutup tanpa event bendera', async () => {

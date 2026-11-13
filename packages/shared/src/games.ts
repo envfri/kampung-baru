@@ -8,7 +8,7 @@ export const GAMES = {
   bakiak: { name: 'Balap Bakiak', desc: 'Ketuk kaki kiri dan kanan sesuai aba-aba. Salah langkah, timmu tersandung!' },
   gasing: { name: 'Gasing', desc: 'Lepas gasing saat tenaganya pas di zona hijau supaya berputar lama.' },
   layangan: { name: 'Tangkap Layangan', desc: 'Ketuk layangan putus sebelum jatuh. Layangan emas +3, layangan sobek jangan diambil!' },
-  pinang: { name: 'Panjat Pinang', desc: 'Ketuk berirama untuk memanjat tiang licin. Terlalu cepat malah melorot!', event: 'bendera' },
+  pinang: { name: 'Panjat Pinang', desc: 'Ketuk berirama untuk memanjat tiang licin. Terlalu cepat malah melorot, dan di bagian berminyak bisa terpeleset!', event: 'bendera' },
 } as const;
 export type GameId = keyof typeof GAMES;
 
@@ -196,23 +196,59 @@ export function layanganScore(sched: Kite[], caught: [number, number][], duratio
 
 /* ---------------- Panjat Pinang (event Agustusan) ---------------- */
 
-export const PINANG = { top: 100, climb: 3.2, slipFast: 5, rhythmMs: 140, slipPerSec: 6, prizes: [25, 50, 75, 100], minGapMs: 55 };
+export const PINANG = {
+  top: 100, climb: 3.2, slipFast: 5, rhythmMs: 140, slipPerSec: 6, prizes: [25, 50, 75, 100], minGapMs: 55,
+  /** bagian tiang berminyak: naik lebih berat (climbMul), melorot lebih cepat saat diam, dan kadang terpeleset (slipChance × licin) turun slipDrop */
+  // ditakar dengan simulasi: irama 160–180 ms hampir selalu sampai puncak (±11–14 dtk), 200 ms ±60 %, 230 ms ±20 %
+  oil: { count: 3, len: 9, climbMul: 0.8, idleMul: 1.3, slipChance: 0.1, slipDrop: 6 },
+};
 /** Licinnya tiang dari seed (0,85–1,2). */
 export const pinangGrease = (seed: number) => Math.round((0.85 + mulberry32(seed)() * 0.35) * 100) / 100;
-
-/** Putar ulang ketukan (ms). Berirama = naik; terlalu cepat = melorot; diam = melorot pelan. */
-export function pinangReplay(seed: number, taps: number[], durationMs: number) {
-  const grease = pinangGrease(seed);
-  let h = 0, maxH = 0, prev = 0, last = -Infinity;
-  for (const t of taps) {
-    if (!Number.isFinite(t) || t < 0 || t > durationMs + 300 || t - last < PINANG.minGapMs) return null;
-    h = Math.max(0, h - (PINANG.slipPerSec * grease * (t - prev)) / 1000);
-    h = t - last < PINANG.rhythmMs ? Math.max(0, h - PINANG.slipFast * grease) : Math.min(PINANG.top, h + PINANG.climb);
-    prev = t; last = t;
-    maxH = Math.max(maxH, h);
-    if (h >= PINANG.top) break;
+/** Bagian berminyak [dari, sampai] (% tiang) dari seed: satu di tiap pertiga atas tiang 15–97, tidak bertumpuk dengan garis hadiah puncak. */
+export function pinangOil(seed: number): [number, number][] {
+  const r = mulberry32((seed ^ 0x5bd1e995) >>> 0), O = PINANG.oil, out: [number, number][] = [];
+  const lo = 15, hi = 96, band = (hi - lo) / O.count;
+  for (let k = 0; k < O.count; k++) {
+    const a = Math.round(lo + k * band + r() * Math.max(0, band - O.len));
+    out.push([a, Math.min(hi, a + O.len)]);
   }
-  const height = Math.round(maxH);
+  return out;
+}
+export type PinangState = { h: number; maxH: number; prev: number; last: number; grease: number; oil: [number, number][]; rng: () => number };
+export const pinangStart = (seed: number): PinangState => ({ h: 0, maxH: 0, prev: 0, last: -Infinity, grease: pinangGrease(seed), oil: pinangOil(seed), rng: mulberry32((seed * 2654435761) >>> 0) });
+/** apakah ketinggian h ada di bagian berminyak */
+export const pinangOily = (oil: [number, number][], h: number) => oil.some(([a, b]) => h >= a && h < b);
+/** tinggi setelah diam `ms` (melorot pelan; lebih cepat di bagian berminyak) */
+export function pinangIdle(st: PinangState, h: number, ms: number) {
+  const rate = PINANG.slipPerSec * st.grease * (pinangOily(st.oil, h) ? PINANG.oil.idleMul : 1);
+  return Math.max(0, h - (rate * ms) / 1000);
+}
+/**
+ * Satu ketukan pada waktu t (ms). Dipakai game (langsung) & server (putar ulang), jadi hasilnya sama persis.
+ * 'naik' = berirama; 'cepat' = terlalu cepat, melorot; 'peleset' = terpeleset di bagian berminyak; null = ketukan tidak sah.
+ */
+export function pinangTap(st: PinangState, t: number): 'naik' | 'cepat' | 'peleset' | null {
+  if (!Number.isFinite(t) || t < 0 || t - st.last < PINANG.minGapMs) return null;
+  const roll = st.rng();
+  let h = pinangIdle(st, st.h, t - st.prev), r: 'naik' | 'cepat' | 'peleset';
+  if (t - st.last < PINANG.rhythmMs) { h = Math.max(0, h - PINANG.slipFast * st.grease); r = 'cepat'; }
+  else if (pinangOily(st.oil, h)) {
+    if (roll < PINANG.oil.slipChance * st.grease) { h = Math.max(0, h - PINANG.oil.slipDrop * st.grease); r = 'peleset'; }
+    else { h = Math.min(PINANG.top, h + PINANG.climb * PINANG.oil.climbMul); r = 'naik'; }
+  } else { h = Math.min(PINANG.top, h + PINANG.climb); r = 'naik'; }
+  st.h = h; st.prev = t; st.last = t; st.maxH = Math.max(st.maxH, h);
+  return r;
+}
+
+/** Putar ulang ketukan (ms). Berirama = naik; terlalu cepat = melorot; diam = melorot pelan; bagian berminyak = berat & bisa terpeleset. */
+export function pinangReplay(seed: number, taps: number[], durationMs: number) {
+  const st = pinangStart(seed);
+  for (const t of taps) {
+    if (!Number.isFinite(t) || t > durationMs + 300) return null;
+    if (pinangTap(st, t) === null) return null;
+    if (st.h >= PINANG.top) break;
+  }
+  const height = Math.round(st.maxH);
   return { height, tiers: PINANG.prizes.filter((p) => height >= p).length };
 }
 

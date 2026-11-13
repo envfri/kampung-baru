@@ -4,7 +4,8 @@
 export type BarengGame = 'congklak' | 'ular' | 'karung';
 export const BARENG_GAMES: Record<BarengGame, { name: string; min: number; max: number; places: ('house' | 'alun')[]; inviteMs: number; turnMs: number; maxMs: number }> = {
   congklak: { name: 'Congklak', min: 2, max: 2, places: ['house'], inviteMs: 20_000, turnMs: 15_000, maxMs: 20 * 60_000 },
-  ular: { name: 'Ular Tangga Kampung', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 10_000, maxMs: 10 * 60_000 },
+  // finis harus pas (kelebihan = mundur): 4 pemain rata-rata ±5 menit, sesekali sampai ±15 menit
+  ular: { name: 'Ular Tangga Kampung', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 10_000, maxMs: 15 * 60_000 },
   karung: { name: 'Balap Karung Live', min: 2, max: 5, places: ['alun'], inviteMs: 20_000, turnMs: 0, maxMs: 60_000 },
 };
 
@@ -72,16 +73,29 @@ export const ULAR_LADDERS: Record<number, number> = { 4: 16, 7: 20, 23: 34 };
 export const ULAR_SNAKES: Record<number, number> = { 33: 21, 27: 12, 30: 19 };
 /** Warung: maju 2 kotak · Becek: diam sekali */
 export const ULAR_WARUNG = 13, ULAR_BECEK = 26;
-export interface UlarStep { from: number; roll: number; to: number; via: 'tangga' | 'ular' | 'warung' | 'becek' | null; finish: boolean }
+export interface UlarStep {
+  from: number; roll: number; to: number; via: 'tangga' | 'ular' | 'warung' | 'becek' | null; finish: boolean;
+  /** kotak tempat bidak berhenti sebelum tangga/ular (sesudah mundur bila kelebihan) */
+  land: number;
+  /** kelebihan langkah dari kotak 36 (bidak memantul mundur sebanyak ini) */
+  back: number;
+}
+/**
+ * Satu lemparan. Finis harus pas di kotak 36: kelebihannya dipakai mundur (35 + 3 → 36 → 34),
+ * lalu tangga / ular / warung / becek di kotak tempat berhenti tetap berlaku.
+ */
 export function ularMove(from: number, roll: number): UlarStep {
-  let to = from + roll;
-  if (to >= ULAR_SIZE) return { from, roll, to: ULAR_SIZE, via: null, finish: true };
+  const raw = from + roll;
+  if (raw === ULAR_SIZE) return { from, roll, to: ULAR_SIZE, via: null, finish: true, land: ULAR_SIZE, back: 0 };
+  const back = Math.max(0, raw - ULAR_SIZE);
+  const land = back ? ULAR_SIZE - back : raw;
+  let to = land;
   let via: UlarStep['via'] = null;
   if (ULAR_LADDERS[to]) { to = ULAR_LADDERS[to]; via = 'tangga'; }
   else if (ULAR_SNAKES[to]) { to = ULAR_SNAKES[to]; via = 'ular'; }
   else if (to === ULAR_WARUNG) { to += 2; via = 'warung'; }
   else if (to === ULAR_BECEK) via = 'becek';
-  return { from, roll, to, via, finish: false };
+  return { from, roll, to, via, finish: false, land, back };
 }
 /** posisi kotak n (1..36) di papan 6×6 berliku (1 di kiri bawah), dalam satuan kotak: [kolom, baris dari atas] */
 export function ularCell(n: number): [number, number] {
@@ -147,12 +161,15 @@ export function congklakFrames(board0: number[], p: 0 | 1, hole: number): Congkl
   return out;
 }
 
-export interface UlarFrame { cell: number; kind: 'roll' | 'step' | 'climb' | 'slide' | 'warung' | 'becek' | 'finish'; ms: number }
-/** Urutan bingkai satu lemparan: dadu berputar, maju kotak demi kotak, lalu tangga / ular / warung / becek. */
+export interface UlarFrame { cell: number; kind: 'roll' | 'step' | 'back' | 'climb' | 'slide' | 'warung' | 'becek' | 'finish'; ms: number }
+/** Urutan bingkai satu lemparan: dadu berputar, maju kotak demi kotak (mundur bila kelebihan), lalu tangga / ular / warung / becek. */
 export function ularFrames(st: UlarStep): UlarFrame[] {
   const out: UlarFrame[] = [{ cell: st.from, kind: 'roll', ms: 700 }];
-  const end = Math.min(st.from + st.roll, ULAR_SIZE);
-  for (let c = st.from + 1; c <= end; c++) out.push({ cell: c, kind: 'step', ms: 300 });
+  // `land` tidak ada pada langkah lama (sebelum aturan mundur): sama dengan kotak tujuan langsung
+  const end = st.land ?? Math.min(st.from + st.roll, ULAR_SIZE);
+  for (let c = st.from + 1; c <= Math.min(st.from + st.roll, ULAR_SIZE); c++) out.push({ cell: c, kind: 'step', ms: 300 });
+  // kelebihan: memantul mundur dari kotak 36
+  for (let k = 1; k <= (st.back ?? 0); k++) out.push({ cell: ULAR_SIZE - k, kind: 'back', ms: k === 1 ? 420 : 300 });
   if (st.via === 'tangga') out.push({ cell: st.to, kind: 'climb', ms: 950 });
   else if (st.via === 'ular') out.push({ cell: st.to, kind: 'slide', ms: 1200 });
   else if (st.via === 'warung') { out.push({ cell: end + 1, kind: 'warung', ms: 320 }); out.push({ cell: end + 2, kind: 'warung', ms: 320 }); }

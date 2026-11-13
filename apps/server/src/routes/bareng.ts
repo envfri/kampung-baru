@@ -141,8 +141,10 @@ function ularRoll(s: Session, auto = false) {
   const anim = framesMs(ularFrames(st));
   s.pos[me.id] = st.to; s.moves++;
   s.last = { by: me.id, ...st, auto, at: clock(), anim };
-  const say: Record<string, string> = { tangga: `naik tangga bambu! ${st.from + st.roll} → ${st.to}`, ular: `digigit ular sawah, turun ${st.from + st.roll} → ${st.to}`, warung: 'mampir warung, maju 2 kotak', becek: 'masuk becek, diam sekali' };
-  note(s, `${me.name} dapat ${roll}${st.via ? `, ${say[st.via]}` : ''}.`);
+  const say: Record<string, string> = { tangga: `naik tangga bambu! ${st.land} → ${st.to}`, ular: `digigit ular sawah, turun ${st.land} → ${st.to}`, warung: 'mampir warung, maju 2 kotak', becek: 'masuk becek, diam sekali' };
+  // finis harus pas: kelebihan langkah dipakai mundur
+  const bounce = st.back ? `, kelebihan ${st.back}, mundur ke ${st.land}` : '';
+  note(s, `${me.name} dapat ${roll}${bounce}${st.via ? `, ${say[st.via]}` : ''}.`);
   if (st.via === 'becek') s.skip[me.id] = true;
   if (st.finish) { s.finished.push(me.id); note(s, `${me.name} sampai finis! Juara ${s.finished.length}.`); }
   const left = active(s).filter((p) => !s.finished.includes(p.id));

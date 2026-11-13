@@ -36,6 +36,7 @@
         {#each Array(Math.max(0, mine.max - mine.players.length)) as _}<span class="empty">kursi kosong</span>{/each}
       </div>
       <p class="note">{mine.starter === me ? 'Yang lain di sini mendapat ajakan. Mulai otomatis saat kursi penuh atau hitung mundur habis.' : `Menunggu ${starterName(mine)} memulai.`}</p>
+      {#if mine.game === 'ular'}<p class="note">Aturan: finis harus pas di kotak 36. Kelebihan langkah = bidak mundur.</p>{/if}
       <div class="btns">
         <button class="btn" onclick={() => leaveGame(mine.id)}>{mine.starter === me ? 'Batal' : 'Keluar'}</button>
         {#if mine.starter === me}<button class="btn hot" disabled={mine.players.length < mine.min || BG.busy} onclick={() => goGame(mine.id)}>Mulai sekarang</button>{/if}
