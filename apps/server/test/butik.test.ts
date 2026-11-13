@@ -80,7 +80,8 @@ test('paket konten 12: 28 baju + 12 aksesori, gambar & slot sah, harga jual ±40
   assert.equal((await db.one(`select count(*)::int n from items where shop = 'butik' and price_pearl > 0`)).n, 0, 'Butik tidak menjual barang Mutiara');
   // topi lama diberi label set, paket tidak dijalankan dua kali
   assert.equal((await db.one(`select data->>'outfit' o from items where id = 'topi-koki'`)).o, 'Koki Cilik');
-  assert.equal(Number((await db.one(`select value from settings where key = 'content_pack'`)).value), 12);
+  assert.ok(Number((await db.one(`select value from settings where key = 'content_pack'`)).value) >= 12);
+  assert.ok(await db.one(`select 1 from settings where key = 'pack_butik'`), 'penanda paket butik tercatat');
 });
 
 test('slot Baju: pakai bersama punggung & leher, satu per slot, slot salah ditolak, bisa dilepas', async () => {

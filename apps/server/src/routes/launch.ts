@@ -88,6 +88,7 @@ export default async function launchRoutes(app: FastifyInstance, { db }: { db: D
         await t.query(`delete from payments where test`);
         await t.query(`update payments set revoked_at = coalesce(revoked_at, now()) where status = 'paid'`);
         for (const tb of PROGRESS_TABLES) await t.query(`delete from ${tb}`);
+        await t.query(`update users set garden_level = 1`); // tingkat kebun ikut progres
         // pesan email/WA yang belum terkirim (mis. kabar progres lama) dibatalkan; riwayat kiriman tetap
         await t.query(`delete from outbox where status in ('queued','sending')`);
         if (!keepFriends) await t.query(`delete from friendships`);

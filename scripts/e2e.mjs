@@ -68,6 +68,10 @@ try {
   await step('08-kebun', async () => {
     await p.click('.dock button:has-text("Kampung")'); await p.click('[data-loc="kebun"]');
     await p.click('.plot >> nth=0'); await p.click('.sheet .btn:has-text("Tanam")');
+    // tanaman yang sedang tumbuh: ketuk → gelembung Siram / Pupuk
+    await p.waitForSelector('.sheet', { state: 'detached' });
+    await p.click('.plot >> nth=0'); await p.click('.bubble .btn:has-text("Siram")');
+    await p.waitForSelector('.bubble', { state: 'detached' });
   });
   await step('09-lomba', async () => {
     await p.click('.bar .btn:has-text("Kampung")'); await p.click('[data-loc="lapangan"]');

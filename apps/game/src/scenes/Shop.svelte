@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import ItemCard from '../components/ItemCard.svelte';
   import { G, canBuy, effText, fmt, owned, hasItem, run, post, toast, switchRoom, settings, serverNow, fx, item as itemOf } from '../lib/game.svelte';
-  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice } from '@kb/shared';
+  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice, growText } from '@kb/shared';
   import { api } from '../lib/api';
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -79,7 +79,7 @@
     const setName = PREMIUM_SET_BY_KEY[it.data?.set]?.name;
     if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}${setName ? ` · ${setName}` : ''}`; }
     if ((it.kind === 'wallpaper' || it.kind === 'floor') && setName) return `${it.kind === 'floor' ? 'Lantai' : 'Dinding'} · ${setName}`;
-    if (it.kind === 'seed') return `Panen dalam ${it.data?.growMinutes} mnt`;
+    if (it.kind === 'seed') return seedLock(it) ? `Terbuka di Lv ${seedLock(it)}` : `Panen dalam ${growText(Number(it.data?.growMinutes) || 1)}`;
     if (it.kind === 'wear') return [SLOT_LABEL[slotOf(it)] ?? '', it.data?.outfit ? `Set ${it.data.outfit}` : ''].filter(Boolean).join(' · ');
     if (it.kind === 'wallpaper') return 'Dinding';
     if (it.kind === 'floor') return 'Lantai';
@@ -87,6 +87,8 @@
     return it.description ?? '';
   }
   const ownRoom = (id: string) => rooms.find((r) => r.item === id);
+  /** bibit kebun yang belum terbuka untuk level pet sekarang: level yang dibutuhkan, atau 0 */
+  const seedLock = (it: any) => (it.kind === 'seed' && Number(it.data?.minLevel) > (G.me.pet?.level ?? 1) ? Number(it.data.minLevel) : 0);
 
   async function buy(it: any, currency: 'coin' | 'pearl') {
     const price = currency === 'coin' ? it.price_coin : it.price_pearl;
@@ -304,6 +306,8 @@
                 <button class="btn sm" onclick={() => { switchRoom(mine.id); G.view = 'home'; }}>Lihat</button>
               {:else if it.kind === 'room' && rooms.length >= maxRooms}
                 <button class="btn sm" disabled>Rumah penuh</button>
+              {:else if seedLock(it)}
+                <button class="btn sm" disabled>Lv {seedLock(it)}</button>
               {:else}
                 {#if it.price_coin > 0}
                   <button class="btn sm" class:hot={confirm === it.id + 'coin'} disabled={G.busy || G.me.wallet.coin < it.price_coin} onclick={() => buy(it, 'coin')}>

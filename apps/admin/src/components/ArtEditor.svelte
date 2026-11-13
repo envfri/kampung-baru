@@ -1,8 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SEED_PICS, builtinCatalog } from '@kb/shared';
   import { api } from '../lib/api';
   import { A, err, toast } from '../lib/store.svelte';
   import { uploadFile } from '../lib/upload';
+  // nama gambar hasil panen untuk jendela bungkus bibit
+  const PIC_NAME = Object.fromEntries(['food', 'material'].flatMap((k) => (builtinCatalog() as any)[k] as any[]).map((b: any) => [b.key, b.label]));
+  const picLabel = (k: string) => PIC_NAME[k] ?? k;
   let { kind, art = $bindable() }: { kind: string; art: any } = $props();
   const list = $derived((A.me?.builtins?.[kind] ?? []) as { key: string; label: string; colors: Record<string, string> }[]);
   const def = $derived(list.find((b) => b.key === art?.key));
@@ -59,6 +63,9 @@
     </div>
     {#if art?.key === 'kotak'}
       <label>Tinggi kotak<input type="number" min="4" max="120" value={art.params?.height ?? 30} oninput={(e) => (art = { ...art, params: { ...art.params, height: Number((e.target as HTMLInputElement).value) } })} /></label>
+    {/if}
+    {#if art?.key === 'bibit'}
+      <label>Gambar di bungkus<select value={art.params?.pic ?? 0} onchange={(e) => (art = { ...art, params: { ...art.params, pic: Number((e.target as HTMLSelectElement).value) } })}>{#each SEED_PICS as k, i}<option value={i}>{i ? (picLabel(k)) : 'Tunas (lama)'}</option>{/each}</select></label>
     {/if}
     {#if art?.key === 'ikan'}
       <label class="inline"><input type="checkbox" checked={!!art.params?.stripes} onchange={(e) => (art = { ...art, params: { ...art.params, stripes: (e.target as HTMLInputElement).checked ? 1 : 0 } })} />Bergaris</label>

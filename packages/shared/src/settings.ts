@@ -46,8 +46,21 @@ export const DEFAULT_SETTINGS = {
     xp: 3,
   },
   garden: {
-    slots: 6,
+    // tingkat kebun: petak, harga perluasan (koin), syarat level pet. Tingkat 1 gratis.
+    levels: [
+      { slots: 6, coins: 0, petLevel: 1 },
+      { slots: 9, coins: 400, petLevel: 3 },
+      { slots: 12, coins: 1200, petLevel: 6 },
+      { slots: 15, coins: 3000, petLevel: 10 },
+      { slots: 18, coins: 6000, petLevel: 15 },
+    ],
     harvestXp: 3,
+    xpCapPerDay: 150,
+    waterPct: 10,
+    fertilizerPct: 25,
+    scarecrowPct: 10,
+    fertileSoilPct: 10,
+    plantsPerDay: 300,
   },
   room: {
     size: 6,
@@ -197,7 +210,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   daily: 'Hadiah login harian hari ke-1 sampai ke-7 (lalu berulang).',
   karung: 'Lomba Karung: jatah main per hari, biaya energi, hadiah per peringkat. Balap Karung Live di alun-alun memakai jatah & energi yang sama, hadiahnya +5 koin per peringkat.',
   fishing: 'Kolam Pancing: jatah lempar per hari, jeda gigitan, dan lama jendela tarik (ms).',
-  garden: 'Jumlah petak kebun dan XP panen.',
+  garden: 'Kebun. levels = tingkat kebun: jumlah petak (kelipatan 3, maks 18, makin banyak tiap tingkat), harga perluasan dalam koin, dan level pet minimal; tingkat 1 gratis. Benda & kegunaan tiap tingkat tetap: Lv2 orang-orangan sawah (scarecrowPct = peluang hasil panen +1), Lv3 gentong (Siram semua), Lv4 gubuk (Tanam semua), Lv5 tanah subur (fertileSoilPct = tumbuh lebih cepat). waterPct = siram (gratis, sekali per tanam) memotong sisa waktu sebesar persen ini dari lama tumbuh; fertilizerPct = pupuk (item, sekali per tanam). harvestXp = XP panen untuk bibit yang tidak punya XP sendiri; xpCapPerDay = batas XP panen per hari (0 = tanpa batas); plantsPerDay = batas tanam per pemain per hari.',
   room: 'Ukuran kamar awal (petak) dan batas jumlah barang terpasang per ruangan.',
   premium: 'Set item premium (Mutiara): bundleDiscount = diskon paket set dalam persen (dari jumlah harga item set yang belum dimiliki pemain); bonusMin = jumlah item berbeda dari set yang sama dalam satu ruangan untuk memunculkan efek suasana (hanya tampilan). Harga per item diatur di Item & harga.',
   square: 'Alun-alun: tempat berkumpul semua pemain (bukan hanya teman). enabled = buka/tutup; max = orang per alun-alun (penuh → otomatis Alun-alun 2, 3, ...); freeChat = boleh mengetik bebas (disaring kata terlarang, tautan & nomor ditolak; matikan supaya hanya frasa siap pakai), chatMax = panjang pesan, phrases = frasa siap pakai; dailyCoins = koin kunjungan pertama tiap hari; actsPerDay/actCoins/actXp/ceria = hadiah nonton, naik komidi putar, ayunan, berteduh, duduk, joget; snacksPerDay = jajan per hari (harga & efek jajanan tetap). Obrolan tercatat di Moderasi; 3 laporan dari pemain berbeda dalam 1 jam membisukan obrolan pemain itu 30 menit.',

@@ -4,6 +4,26 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.33.0 · 2026-11-13 · Kebun bisa diperluas & 18 bibit
+
+_Kebun sekarang bisa diperluas sampai 18 petak, ada 14 bibit baru, dan tombol Siram semua, Tanam semua & Panen semua._
+
+### Baru
+
+- Perluas kebun dari Lv1 (6 petak) sampai Lv5 (18 petak): 400, 1.200, 3.000 & 6.000 koin, saat pet Lv 3, 6, 10 & 15. Tiap level menambah hiasan: orang-orangan sawah & pagar bambu, gentong air, gubuk, papan nama & bunga. _(pemain)_
+- Bonus tiap level: Lv2 kadang panen +1, Lv3 membuka Siram semua, Lv4 membuka Tanam semua, Lv5 tanaman tumbuh 10% lebih cepat. _(pemain)_
+- 14 bibit baru (total 18): beberapa terbuka di level pet tertentu, dan ada bibit musiman dari acara. _(pemain)_
+- Siram tanaman (waktu tumbuh −10%) dan beri Pupuk (−25%, beli di Pasar Pagi). Tombol Panen semua, Siram semua & Tanam semua, plus "Pilih bibit" yang bisa beli & tanam sekali ketuk. _(pemain)_
+
+### Perubahan
+
+- Di layar lebar, kebun Lv3 ke atas tampil dua bedeng berdampingan supaya tidak kecil. Papan nama kebun memakai nama pet dan selalu muat. _(pemain)_
+- Teknis: migrasi 025 (users.garden_level; garden_plots grow_sec, watered_at, fertilized_at), rute kebun dipindah ke routes/garden.ts (expand, harvest-all, water, fertilize, plant buy/all). Paket konten 13 memakai penanda pack_kebun. Admin Ekonomi & fitur → Kebun: tabel level, persen siram/pupuk/bonus, XP panen, batas XP & tanam harian. Bibit di atas level pet tidak bisa dibeli.
+
+### Keamanan
+
+- Naik level kebun mengunci baris pemain dalam satu transaksi (ketuk dua kali tidak membayar dua kali); semua aksi kebun & aksi "semua" dicek di server; batas XP panen 150/hari & tanam 300/hari.
+
 ## 0.32.0 · 2026-11-13 · Butik Benang: baju untuk pet
 
 _Pet sekarang bisa pakai baju! 28 baju baru dan 12 aksesori di Butik Benang, bisa dicoba dulu sebelum dibeli._
@@ -23,6 +43,8 @@ _Pet sekarang bisa pakai baju! 28 baju baru dan 12 aksesori di Butik Benang, bis
 ### Keamanan
 
 - POST /api/shop/buy-many (Kaca Pas): hanya barang pakai, tanpa dobel, menolak barang yang sudah dimiliki, total koin & Mutiara dicek dalam satu transaksi (kurang = tidak ada yang terbeli), idempoten per requestId.
+
+Commit: [`c8ea922`](https://github.com/envfri/kampung-baru/commit/c8ea922)
 
 ## 0.31.3 · 2026-11-13 · Bagian atas layar HP lebih rapi
 

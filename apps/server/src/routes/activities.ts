@@ -13,51 +13,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export default async function activityRoutes(app: FastifyInstance, { db }: { db: Db }) {
   const auth = { preHandler: requireUser(db) };
 
-  /* ---------------- Kebun ---------------- */
-
-  app.post('/api/garden/plant', auth, async (req: any) => {
-    const u = req.user!;
-    const s = await getSettings(db);
-    if (!s.features.garden) throw forbidden('Kebun sedang ditutup.');
-    const slot = int(req.body?.slot, 'Petak', { min: 0, max: s.garden.slots - 1 });
-    const seedId = str(req.body?.seedId, 'Bibit', { max: 64 })!;
-    const cat = await getCatalog(db);
-    const seed = cat.byId.get(seedId);
-    const grow = Number(seed?.data?.growMinutes);
-    if (!seed || seed.kind !== 'seed' || !(grow > 0) || !cat.byId.get(seed.data?.yieldItem)) throw bad('invalid_seed', 'Bibit tidak valid.');
-    return db.tx(async (t) => {
-      const taken = await t.one(`select 1 from garden_plots where user_id = $1 and slot = $2`, [u.id, slot]);
-      if (taken) throw bad('occupied', 'Petak ini sudah ditanami.');
-      await addItem(t, u.id, seedId, -1);
-      await t.query(`insert into garden_plots (user_id, slot, seed_id, ready_at) values ($1,$2,$3, now() + ($4::int * interval '1 minute'))`, [u.id, slot, seedId, Math.round(grow)]);
-      await track(t, u.id, 'plant', { seedId });
-      return { ok: true, ...(await patch(t, u.id, ['garden', 'inventory'])) };
-    });
-  });
-
-  app.post('/api/garden/harvest', auth, async (req: any) => {
-    const u = req.user!;
-    const s = await getSettings(db);
-    const slot = int(req.body?.slot, 'Petak', { min: 0, max: 99 });
-    const cat = await getCatalog(db);
-    return db.tx(async (t) => {
-      const plot = await t.one<{ seed_id: string; ready_at: Date }>(`select seed_id, ready_at from garden_plots where user_id = $1 and slot = $2 for update`, [u.id, slot]);
-      if (!plot) throw notFound('Petak ini kosong.');
-      if (new Date(plot.ready_at).getTime() > Date.now()) throw bad('not_ready', 'Tanamannya belum siap dipanen.');
-      const seed = cat.byId.get(plot.seed_id);
-      const yieldItem = seed?.data?.yieldItem;
-      const qty = Math.max(1, Number(seed?.data?.yieldQty) || 1);
-      await t.query(`delete from garden_plots where user_id = $1 and slot = $2`, [u.id, slot]);
-      if (yieldItem && cat.byId.get(yieldItem)) await addItem(t, u.id, yieldItem, qty);
-      const pet = await lockPet(t, u.id);
-      if (pet && s.garden.harvestXp) {
-        const lv = await grantXp(t, u.id, pet, s.garden.harvestXp);
-        await savePet(t, u.id, { level: lv.level, xp: lv.xp });
-      }
-      await track(t, u.id, 'harvest', { seedId: plot.seed_id });
-      return { ok: true, harvested: { itemId: yieldItem, qty }, ...(await patch(t, u.id, ['garden', 'inventory', 'pet', 'wallet'])) };
-    });
-  });
+  // Kebun: lihat routes/garden.ts
 
   /* ---------------- Lomba Karung ---------------- */
 

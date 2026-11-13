@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY } from '@kb/shared';
+  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS } from '@kb/shared';
   import { api } from '../lib/api';
   import { A, can, err, toast, ask, num, dt, toLocal, fromLocal, setQuery } from '../lib/store.svelte';
   import { type FDef, readFilters, isActive } from '../lib/filters';
@@ -296,6 +296,12 @@
               <label>Jumlah panen<input type="number" min="1" bind:value={form.data.yieldQty} /></label>
             </div>
             <label>Hasil panen<select bind:value={form.data.yieldItem}>{#each items.filter((i) => i.kind === 'food' || i.kind === 'material') as i}<option value={i.id}>{i.name}</option>{/each}</select></label>
+            <div class="grid2">
+              <label>Gambar tanaman<select bind:value={form.data.crop}><option value={undefined}>Tanaman umum</option>{#each Object.entries(KEBUN_CROPS) as [k, c]}<option value={k}>{c.label}</option>{/each}</select></label>
+              <label>Kelompok di Pilih bibit<select bind:value={form.data.cat}><option value={undefined}>—</option><option value="sayur">Sayur</option><option value="buah">Buah</option><option value="bunga">Bunga</option><option value="event">Event</option></select></label>
+              <label>Level pet minimal<input type="number" min="1" max="100" bind:value={form.data.minLevel} /><span class="help">Kosong/1 = semua level.</span></label>
+              <label>XP panen<input type="number" min="0" max="100" bind:value={form.data.harvestXp} /><span class="help">Kosong = XP panen bawaan (Ekonomi & fitur › Kebun).</span></label>
+            </div>
           {:else if form.kind === 'fish' || form.kind === 'material'}
             <div class="grid2">
               <label>Peluang muncul di kolam<input type="number" min="0" bind:value={form.data.fishWeight} /><span class="help">Bobot relatif. 0/kosong = tidak muncul.</span></label>

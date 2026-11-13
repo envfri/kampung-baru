@@ -151,12 +151,12 @@ export async function loadRooms(db: Db, userId: string, cat: Catalog, s: Setting
 export async function playerState(db: Db, userId: string) {
   const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
   const [user, pet, wallet, inv, rooms, plots, gifts, visitors, daily, friendsCount, identities] = await Promise.all([
-    db.one<any>(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at, show_online, live_visits, friend_requests, friend_prompt_at, featured_photo, guestbook_seen_at from users where id = $1`, [userId]),
+    db.one<any>(`select id, display_name, friend_code, is_guest, created_at, wa_phone, wa_verified_at, show_online, live_visits, friend_requests, friend_prompt_at, featured_photo, guestbook_seen_at, garden_level from users where id = $1`, [userId]),
     db.one<PetRow>(`select * from pets where user_id = $1`, [userId]),
     db.one<{ coin: number; pearl: number }>(`select coin, pearl from wallets where user_id = $1`, [userId]),
     db.query<{ item_id: string; qty: number }>(`select item_id, qty from inventory where user_id = $1 and qty > 0`, [userId]),
     loadRooms(db, userId, cat, s),
-    db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]),
+    db.query(`select slot, seed_id, planted_at, ready_at, watered_at, fertilized_at from garden_plots where user_id = $1 order by slot`, [userId]),
     db.one<{ c: number }>(`select count(*)::int as c from gifts where to_id = $1 and opened_at is null`, [userId]),
     db.query(
       `select u.display_name as name, v.created_at from visits v join users u on u.id = v.visitor_id
@@ -189,7 +189,7 @@ export async function playerState(db: Db, userId: string) {
     serverNow: Date.now(),
     catalogVersion: cat.version,
     user: {
-      ...user, wa_phone: undefined, wa_verified_at: undefined, guestbook_seen_at: undefined, featured_photo: undefined,
+      ...user, wa_phone: undefined, wa_verified_at: undefined, guestbook_seen_at: undefined, featured_photo: undefined, garden_level: undefined,
       wa: user?.wa_verified_at ? { phone: maskPhone(user.wa_phone), verified: true } : null,
       identities: identities.map((i) => ({ provider: i.provider, email: i.email })),
     },
@@ -200,6 +200,8 @@ export async function playerState(db: Db, userId: string) {
     // klien lama (sebelum rumah multi-ruangan) membaca `room`
     room: rooms[0] ?? { layout: [], wall: null, floor: null, version: 1 },
     garden: plots,
+    /** tingkat kebun (jumlah petak & kegunaan dari pengaturan garden.levels) */
+    gardenLevel: user?.garden_level ?? 1,
     giftsUnread: gifts?.c ?? 0,
     visitors,
     friendsCount: friendsCount?.c ?? 0,

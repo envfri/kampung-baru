@@ -23,6 +23,8 @@
   import News from '../panels/News.svelte';
   import Collection from '../panels/Collection.svelte';
   import Picker from '../panels/Picker.svelte';
+  import SeedPicker from '../panels/SeedPicker.svelte';
+  import GardenExpand from '../panels/GardenExpand.svelte';
   import Notifs from '../panels/Notifs.svelte';
   import Quests from '../panels/Quests.svelte';
   import Wardrobe from '../panels/Wardrobe.svelte';
@@ -366,7 +368,9 @@
   {:else if G.sheet === 'daily'}<Daily />
   {:else if G.sheet === 'news'}<News />
   {:else if G.sheet === 'collection'}<Collection />
-  {:else if G.sheet === 'seed' || G.sheet === 'gift'}<Picker />
+  {:else if G.sheet === 'seed'}<SeedPicker />
+  {:else if G.sheet === 'kebun'}<GardenExpand />
+  {:else if G.sheet === 'gift'}<Picker />
   {:else if G.sheet === 'notifs'}<Notifs />
   {:else if G.sheet === 'quests'}<Quests />
   {:else if G.sheet === 'wardrobe'}<Wardrobe />

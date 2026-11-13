@@ -65,7 +65,10 @@ export async function patch(db: Db, userId: string, parts: ('pet' | 'wallet' | '
     out.rooms = rooms;
     out.room = rooms[0];
   }
-  if (parts.includes('garden')) out.garden = await db.query(`select slot, seed_id, planted_at, ready_at from garden_plots where user_id = $1 order by slot`, [userId]);
+  if (parts.includes('garden')) {
+    out.garden = await db.query(`select slot, seed_id, planted_at, ready_at, watered_at, fertilized_at from garden_plots where user_id = $1 order by slot`, [userId]);
+    out.gardenLevel = (await db.one<{ garden_level: number }>(`select garden_level from users where id = $1`, [userId]))?.garden_level ?? 1;
+  }
   if (parts.includes('limits')) {
     const [k, f] = await Promise.all([counter(db, userId, 'karung'), counter(db, userId, 'fishing')]);
     out.limits = { karungLeft: Math.max(0, s.karung.playsPerDay - k), fishingLeft: Math.max(0, s.fishing.castsPerDay - f), games: await gamesLeft(db, userId, s) };
@@ -332,6 +335,9 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     if (!purchasable(cat, item)) throw bad('not_for_sale', 'Barang ini sedang tidak dijual.');
     const price = currency === 'coin' ? item!.price_coin : item!.price_pearl;
     if (!price) throw bad('wrong_currency', currency === 'coin' ? 'Barang ini dibeli dengan Mutiara.' : 'Barang ini dibeli dengan koin.');
+    // bibit kebun yang terkunci level pet (data.minLevel)
+    const minLv = item!.kind === 'seed' ? Number(item!.data?.minLevel) || 1 : 1;
+    if (minLv > 1 && ((await db.one<{ level: number }>(`select level from pets where user_id = $1`, [u.id]))?.level ?? 1) < minLv) throw bad('locked', `${item!.name} terbuka di Lv ${minLv}.`);
     if (item!.kind === 'room') {
       const s = await getSettings(db);
       return once(db, u.id, reqId(req.body?.requestId), async (t) => {

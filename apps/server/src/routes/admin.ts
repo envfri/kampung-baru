@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, KEBUN_CROPS } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -82,8 +82,17 @@ function cleanKindData(kind: string, v: any) {
       if (d.floor) out.floor = slug(d.floor, 'Lantai awal');
       return out;
     }
-    case 'seed':
-      return { growMinutes: num(d.growMinutes, 'Lama tumbuh', 1, 10080, 30), yieldItem: slug(d.yieldItem, 'Hasil panen'), yieldQty: num(d.yieldQty, 'Jumlah panen', 1, 50, 1) };
+    case 'seed': {
+      const out: any = { growMinutes: num(d.growMinutes, 'Lama tumbuh', 1, 10080, 30), yieldItem: slug(d.yieldItem, 'Hasil panen'), yieldQty: num(d.yieldQty, 'Jumlah panen', 1, 50, 1) };
+      // gambar tanaman per jenis (kosong = tanaman umum), syarat level pet, XP panen, kelompok di Pilih bibit
+      if (d.crop) out.crop = oneOf(d.crop, 'Gambar tanaman', Object.keys(KEBUN_CROPS));
+      const lv = num(d.minLevel, 'Level pet minimal', 1, 100);
+      if (lv && lv > 1) out.minLevel = lv;
+      const xp = num(d.harvestXp, 'XP panen', 0, 100);
+      if (xp !== undefined) out.harvestXp = xp;
+      if (d.cat) out.cat = oneOf(d.cat, 'Kelompok bibit', ['sayur', 'buah', 'bunga', 'event'] as const);
+      return out;
+    }
     case 'fish':
     case 'material': {
       const out: any = {};
@@ -97,6 +106,22 @@ function cleanKindData(kind: string, v: any) {
     default:
       return {};
   }
+}
+
+/** Tingkat kebun: 1–6 tingkat, petak kelipatan 3 (maks 18) dan makin banyak; tingkat 1 gratis tanpa syarat. */
+function cleanGardenLevels(v: unknown) {
+  if (!Array.isArray(v) || v.length < 1 || v.length > 6) throw bad('invalid_settings', 'Tingkat kebun harus 1–6 baris.');
+  let prev = 0;
+  return v.map((x: any, i) => {
+    const n = (k: string, def: number) => (x?.[k] === undefined || x?.[k] === '' ? def : Number(x[k]));
+    const slots = n('slots', NaN), coins = n('coins', 0), petLevel = n('petLevel', 1);
+    if (!Number.isInteger(slots) || slots < 3 || slots > 18 || slots % 3) throw bad('invalid_settings', `Kebun Lv ${i + 1}: jumlah petak harus kelipatan 3, antara 3–18.`);
+    if (slots <= prev) throw bad('invalid_settings', `Kebun Lv ${i + 1}: jumlah petak harus lebih banyak dari tingkat sebelumnya.`);
+    if (!Number.isInteger(coins) || coins < 0 || coins > 1_000_000) throw bad('invalid_settings', `Kebun Lv ${i + 1}: harga harus 0–1.000.000 koin.`);
+    if (!Number.isInteger(petLevel) || petLevel < 1 || petLevel > 100) throw bad('invalid_settings', `Kebun Lv ${i + 1}: level pet harus 1–100.`);
+    prev = slots;
+    return i === 0 ? { slots, coins: 0, petLevel: 1 } : { slots, coins, petLevel };
+  });
 }
 
 /** Pastikan nilai pengaturan tetap bertipe sama dengan default (angka tetap angka, dst). */
@@ -426,7 +451,15 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const before = await getSettings(db);
     const value = sanitizeSettings(DEFAULT_SETTINGS, mergeSettings(DEFAULT_SETTINGS, obj(req.body?.value, 'Pengaturan')));
     if (value.room.size < 4 || value.room.size > 10) throw bad('invalid_settings', 'Ukuran ruangan harus 4–10.');
-    if (value.garden.slots < 1 || value.garden.slots > 12) throw bad('invalid_settings', 'Jumlah petak kebun harus 1–12.');
+    value.garden.levels = cleanGardenLevels(value.garden.levels);
+    const gp = (k: string, min: number, max: number, name: string) => { const n = Math.round(Number((value.garden as any)[k])); if (!(n >= min && n <= max)) throw bad('invalid_settings', `${name} harus ${min}–${max}.`); (value.garden as any)[k] = n; };
+    gp('waterPct', 0, 90, 'Kebun: efek siram (%)');
+    gp('fertilizerPct', 0, 90, 'Kebun: efek pupuk (%)');
+    gp('scarecrowPct', 0, 100, 'Kebun: peluang orang-orangan sawah (%)');
+    gp('fertileSoilPct', 0, 50, 'Kebun: tanah subur (%)');
+    gp('harvestXp', 0, 100, 'Kebun: XP panen');
+    gp('xpCapPerDay', 0, 100000, 'Kebun: batas XP panen per hari');
+    gp('plantsPerDay', 1, 100000, 'Kebun: batas tanam per hari');
     if (value.fishing.biteMaxMs < value.fishing.biteMinMs) throw bad('invalid_settings', 'Jeda gigitan maksimum harus ≥ minimum.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);

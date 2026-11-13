@@ -21,6 +21,17 @@
   };
   const isTextList = (v: any) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
   const isNumList = (v: any) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'number');
+  /** daftar baris berisi angka (mis. tingkat kebun): tampil sebagai tabel */
+  const isNumTable = (v: any) => Array.isArray(v) && v.length > 0 && v.every((x) => x && typeof x === 'object' && !Array.isArray(x) && Object.values(x).every((n) => typeof n === 'number'));
+  const tableCols = (v: any[]) => [...new Set(v.flatMap((x) => Object.keys(x)))];
+  const COL_LABEL: Record<string, string> = { slots: 'Petak', coins: 'Harga (koin)', petLevel: 'Level pet' };
+  const rowLabel = (path: string, i: number) => (path.endsWith('levels') ? `Lv ${i + 1}` : `#${i + 1}`);
+  function setCell(sec: string, path: string, i: number, c: string, raw: string) {
+    if (raw === '') return;
+    const rows = clone(get(value[sec], path));
+    rows[i] = { ...rows[i], [c]: Number(raw) };
+    set(value[sec], path, rows);
+  }
   const clone = (x: any) => JSON.parse(JSON.stringify(x));
   async function load() {
     try {
@@ -52,7 +63,7 @@
   }
   /** label manusiawi: energiCost → energi cost, a.b → a › b */
   const label = (p: string) => p.split('.').map((x) => x.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()).join(' › ');
-  const fmt = (v: unknown) => (Array.isArray(v) ? (v.every((x) => typeof x !== 'object') ? v.join(' · ') : JSON.stringify(v)) : typeof v === 'boolean' ? (v ? 'aktif' : 'mati') : v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const fmt = (v: unknown) => (Array.isArray(v) ? (v.every((x) => typeof x !== 'object') ? v.join(' · ') : isNumTable(v) ? v.map((x) => Object.values(x).join('/')).join(' · ') : JSON.stringify(v)) : typeof v === 'boolean' ? (v ? 'aktif' : 'mati') : v === null || v === undefined ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const changed = (sec: string, p: string) => !same(get(value?.[sec], p), get(defaults?.[sec], p));
   const dirtyField = (sec: string, p: string) => !same(get(value?.[sec], p), get(saved?.[sec], p));
@@ -130,6 +141,23 @@
                         {#if v.length > 1}<button class="btn sm ghost" onclick={() => set(value[sec], path, v.slice(0, -1))}>{@html I.x}Buang terakhir</button>{/if}
                       {/if}
                     </div>
+                  {:else if isNumTable(v)}
+                    <div class="tw">
+                      <table class="ntab">
+                        <thead><tr><th></th>{#each tableCols(v) as c}<th>{COL_LABEL[c] ?? label(c)}</th>{/each}</tr></thead>
+                        <tbody>
+                          {#each v as row, i}
+                            <tr><th>{rowLabel(path, i)}</th>{#each tableCols(v) as c}<td><input type="number" step="1" value={row[c]} disabled={!editable || (path.endsWith('levels') && i === 0 && c !== 'slots')} aria-label="{rowLabel(path, i)} {COL_LABEL[c] ?? label(c)}" oninput={(e) => setCell(sec, path, i, c, (e.target as HTMLInputElement).value)} /></td>{/each}</tr>
+                          {/each}
+                        </tbody>
+                      </table>
+                    </div>
+                    {#if editable}
+                      <div class="nl">
+                        <button class="btn sm" onclick={() => set(value[sec], path, [...v, { ...v[v.length - 1] }])}>{@html I.plus}Tambah baris</button>
+                        {#if v.length > 1}<button class="btn sm ghost" onclick={() => set(value[sec], path, v.slice(0, -1))}>{@html I.x}Buang baris terakhir</button>{/if}
+                      </div>
+                    {/if}
                   {:else if isTextList(v)}
                     <textarea rows={Math.min(8, v.length + 1)} disabled={!editable} oninput={(e) => set(value[sec], path, (e.target as HTMLTextAreaElement).value.split('\n').map((x) => x.trim()).filter(Boolean))}>{v.join('\n')}</textarea>
                     <span class="help">satu baris = satu kalimat · {v.length} baris</span>
@@ -187,6 +215,12 @@
   .ni span { position: absolute; left: 9px; color: var(--muted); font-size: 12px; }
   .ni input { padding-left: 30px; }
   .empty { color: var(--muted); }
+  .tw { overflow-x: auto; }
+  .ntab { border-collapse: collapse; font-size: 13.5px; }
+  .ntab th { text-align: left; font-weight: 600; color: var(--muted); padding: 2px 8px 4px 0; white-space: nowrap; }
+  .ntab tbody th { color: inherit; font-weight: 700; }
+  .ntab td { padding: 2px 8px 2px 0; }
+  .ntab input { width: 110px; }
   textarea.bad { border-color: var(--danger); }
   .savebar { position: fixed; z-index: 35; left: calc(244px + 28px); right: 28px; bottom: 16px; display: flex; align-items: center; gap: 10px; background: var(--ink); color: #fff; border-radius: 14px; padding: 10px 12px 10px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: slideup .2s ease-out; }
   .savebar .sp { flex: 1; }
