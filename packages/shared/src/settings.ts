@@ -39,11 +39,42 @@ export const DEFAULT_SETTINGS = {
   },
   fishing: {
     castsPerDay: 30,
-    energiCost: 4,
-    biteMinMs: 1500,
-    biteMaxMs: 5000,
-    windowMs: 1300,
-    xp: 3,
+    /** energi per lemparan menurut jarak */
+    energi: { dekat: 3, sedang: 4, jauh: 5 },
+    /** lama menunggu sambaran (ms, min–maks) setelah pelampung jatuh */
+    waitMs: { dekat: [2000, 4000], sedang: [3000, 6000], jauh: [4000, 8000] },
+    /** pengali peluang ikan per tingkat menurut jarak (temuan memakai pengali dekat/jauh di item) */
+    tierMult: {
+      dekat: { biasa: 1.3, jarang: 0.6, langka: 0.3, legenda: 0 },
+      sedang: { biasa: 1, jarang: 1, langka: 1, legenda: 1 },
+      jauh: { biasa: 0.75, jarang: 1.3, langka: 1.8, legenda: 3 },
+    },
+    nibbleMax: 3,
+    nibbleGapMs: [600, 1400],
+    /** jendela tekan TARIK setelah sambar (ms), toleransi jaringan ditambah di server */
+    windowMs: { biasa: 1200, jarang: 1200, langka: 1000, legenda: 900 },
+    /** lama tarik-ulur minimal (ms, min–maks); server menolak ikan yang "mendarat" lebih cepat */
+    fightMs: { biasa: [3000, 5000], jarang: [5000, 7000], langka: [6000, 9000], legenda: [8000, 12000], sampah: [1500, 2500], harta: [4000, 5000] },
+    xp: { biasa: 3, jarang: 4, langka: 6, legenda: 10, temuan: 1 },
+    /** peti harta: koin acak per pita (coinMin–bandMax[0], bandMax[0]–bandMax[1], ...) dengan peluang bandOdds (%) */
+    treasure: { coinMin: 50, bandMax: [120, 200, 300], bandOdds: [60, 30, 10], pearlChance: 15, pearlMin: 1, pearlMax: 3 },
+    /** batas Mutiara dari kolam (peti + Ikan Dewa) per hari */
+    pearlDailyCap: 3,
+    bottle: {
+      coinMin: 5,
+      coinMax: 20,
+      messages: [
+        'Siapa pun yang menemukan ini: jangan lupa makan ya!',
+        'Hari ini aku dapat ikan mas 29 cm. Kalahkan kalau bisa!',
+        'Kata Mbah: lempar jauh, sabar, nanti yang besar datang.',
+        'Kalau tali terasa berat tapi diam saja… mungkin bukan ikan.',
+        'Belut itu licin. Jangan biarkan talinya kendur!',
+        'Semoga harimu semanis pisang goreng.',
+        'Tolong jaga kolam ini tetap bersih ya. — Pak RT',
+      ],
+    },
+    /** ikan yang dilepas lagi (Ikan Dewa): berkah Mutiara & ceria */
+    release: { pearl: 1, ceria: 20 },
   },
   garden: {
     // tingkat kebun: petak, harga perluasan (koin), syarat level pet. Tingkat 1 gratis.
@@ -209,7 +240,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   social: 'Hadiah kunjungan teman dan batas hadiah harian.',
   daily: 'Hadiah login harian hari ke-1 sampai ke-7 (lalu berulang).',
   karung: 'Lomba Karung: jatah main per hari, biaya energi, hadiah per peringkat. Balap Karung Live di alun-alun memakai jatah & energi yang sama, hadiahnya +5 koin per peringkat.',
-  fishing: 'Kolam Pancing: jatah lempar per hari, jeda gigitan, dan lama jendela tarik (ms).',
+  fishing: 'Kolam Pancing: jatah lempar per hari (semua jarak), energi per jarak (dekat/sedang/jauh), lama tunggu sambaran per jarak (ms), pengali peluang per tingkat ikan menurut jarak (tierMult; temuan memakai pengali dekat/jauh di item), ngicip maks & jedanya, jendela tekan TARIK per tingkat (ms), lama tarik-ulur minimal per tingkat (ms; server menolak tangkapan yang lebih cepat), XP per tingkat. Peti harta: koin per pita & peluangnya (%), peluang bonus Mutiara (%) dan jumlahnya; pearlDailyCap = batas Mutiara dari kolam per hari (peti + Ikan Dewa). Botol pesan: koin & pesan acak (petunjuk ikan rahasia diatur di item ikan rahasia › petunjuk). release = berkah untuk ikan yang dilepas (Ikan Dewa). Bobot, tingkat, waktu & jarak tiap ikan diatur di Item & harga.',
   garden: 'Kebun. levels = tingkat kebun: jumlah petak (kelipatan 3, maks 18, makin banyak tiap tingkat), harga perluasan dalam koin, dan level pet minimal; tingkat 1 gratis. Benda & kegunaan tiap tingkat tetap: Lv2 orang-orangan sawah (scarecrowPct = peluang hasil panen +1), Lv3 gentong (Siram semua), Lv4 gubuk (Tanam semua), Lv5 tanah subur (fertileSoilPct = tumbuh lebih cepat). waterPct = siram (gratis, sekali per tanam) memotong sisa waktu sebesar persen ini dari lama tumbuh; fertilizerPct = pupuk (item, sekali per tanam). harvestXp = XP panen untuk bibit yang tidak punya XP sendiri; xpCapPerDay = batas XP panen per hari (0 = tanpa batas); plantsPerDay = batas tanam per pemain per hari.',
   room: 'Ukuran kamar awal (petak) dan batas jumlah barang terpasang per ruangan.',
   premium: 'Set item premium (Mutiara): bundleDiscount = diskon paket set dalam persen (dari jumlah harga item set yang belum dimiliki pemain); bonusMin = jumlah item berbeda dari set yang sama dalam satu ruangan untuk memunculkan efek suasana (hanya tampilan). Harga per item diatur di Item & harga.',

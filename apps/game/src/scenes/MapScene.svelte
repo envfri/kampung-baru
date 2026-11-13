@@ -4,6 +4,7 @@
   import { renderMap, renderPet, MAP_VIEWBOX } from '@kb/shared';
   import { G, toast, activeDecor, wearItems, isSleeping } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
+  import { api } from '../lib/api';
 
   let wrap: HTMLDivElement | undefined = $state();
   let svgEl: SVGSVGElement | undefined = $state();
@@ -11,6 +12,28 @@
   const html = $derived(renderMap(locs, activeDecor()));
   const f = $derived(G.catalog?.settings?.features ?? {});
   const petHtml = $derived(renderPet(G.me.pet, wearItems(G.me.pet.wear)));
+
+  /* ---------- alun-alun: berapa orang sedang di sana (tampil di peta supaya yang lain tertarik datang) ---------- */
+  let sq = $state<{ max: number; squares: { id: number; count: number }[] } | null>(null);
+  async function loadSquare() { try { const r = await api.get('/api/square'); sq = { max: r.max, squares: r.squares ?? [] }; } catch { /* abaikan */ } }
+  onMount(() => { loadSquare(); const t = setInterval(() => { if (!document.hidden) loadSquare(); }, 30_000); return () => clearInterval(t); });
+  const alunLoc = $derived(locs.find((l) => l.kind === 'square' && l.enabled !== false));
+  const alunPeople = $derived(sq ? sq.squares.reduce((a, x) => a + (x.count ?? 0), 0) : 0);
+  /** alun-alun tersibuk: "12/20" */
+  const alunBusiest = $derived(sq?.squares.length ? sq.squares.reduce((a, x) => (x.count > a.count ? x : a), sq.squares[0]) : null);
+  const alunHot = $derived(!!alunBusiest && !!sq && alunBusiest.count >= Math.max(3, sq.max * 0.6));
+  const alunLabel = $derived(alunPeople ? `${alunPeople} orang di sini` : 'Belum ada orang');
+  const alunSub = $derived(alunBusiest && sq ? `Alun-alun ${alunBusiest.id} · ${alunBusiest.count}/${sq.max}${sq.squares.length > 1 ? ` (+${sq.squares.length - 1} lagi)` : ''}` : 'Ayo jadi yang pertama!');
+  // lebar kartu diukur dari teks sungguhan (font bisa beda tiap perangkat) supaya teks tidak keluar dari kotak
+  let tMain: SVGTextElement | undefined = $state(), tSub: SVGTextElement | undefined = $state();
+  let tw = $state({ main: 0, sub: 0 });
+  $effect(() => {
+    void alunLabel; void alunSub; void alunHot;
+    if (!tMain || !tSub) return;
+    const m = () => { try { tw = { main: tMain!.getComputedTextLength(), sub: tSub!.getComputedTextLength() }; } catch { /* belum tergambar */ } };
+    m(); document.fonts?.ready.then(m);
+  });
+  const alunW = $derived(Math.ceil(Math.max((tw.main || alunLabel.length * 8) + 42 + (alunHot ? 58 : 0), (tw.sub || alunSub.length * 6.8) + 26)));
 
   const ROAD = 240; // jalan utama di peta (lihat renderMap)
   const SPEED = 240; // satuan peta per detik
@@ -139,6 +162,17 @@
 <div class="wrap" bind:this={wrap}>
   <svg bind:this={svgEl} class="map" viewBox={MAP_VIEWBOX} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Peta Kampung" onclick={click} onkeydown={key}>
     {@html html}
+    {#if alunLoc && sq}
+      {@const w = alunW}
+      <g class="sqlive" class:on={alunPeople > 0} pointer-events="none" transform="translate({alunLoc.x - 24} {alunLoc.y - 104})">
+        <rect x={-w / 2} y="-22" width={w} height="44" rx="14" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="2.5" />
+        <path d="M-7 21l7 9 7-9Z" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="2.5" stroke-linejoin="round" /><path d="M-8.5 20h17" stroke="#FFFDF7" stroke-width="4" />
+        <circle class="dot" cx={-w / 2 + 18} cy="-6" r="5" fill={alunPeople ? '#2FA36B' : '#9AA49F'} />
+        <text bind:this={tMain} x={-w / 2 + 29} y="-1.5" class="t">{alunLabel}</text>
+        {#if alunHot}<g transform="translate({w / 2 - 36} -6)"><rect x="-25" y="-10" width="50" height="20" rx="10" fill="#E0583F" /><text x="0" y="4.5" text-anchor="middle" class="hot">Ramai!</text></g>{/if}
+        <text bind:this={tSub} x={-w / 2 + 13} y="15" class="sub">{alunSub}</text>
+      </g>
+    {/if}
     <g class="walker" class:walking class:entering pointer-events="none" transform="translate({at[0].toFixed(1)} {at[1].toFixed(1)})">
       <ellipse cx="0" cy="1" rx="20" ry="6" fill="#2B2F4A" opacity=".18" />
       <g class="body"><g transform="scale(.42)"><g transform={flip ? 'scale(-1 1)' : ''}><g class="pet-bob">{@html petHtml}</g></g></g></g>
@@ -155,6 +189,11 @@
   .walker.entering .body { transform: translateY(-10px) scale(.4); opacity: 0; }
   .walker.walking .pet-bob { animation: mapwaddle .26s ease-in-out infinite alternate; }
   @keyframes mapwaddle { from { transform: rotate(-7deg) translateY(0); } to { transform: rotate(7deg) translateY(-6px); } }
+  .sqlive .t { font: 800 14px var(--font); fill: #2B2F4A; }
+  .sqlive .hot { font: 800 11.5px var(--font); fill: #FFFDF7; }
+  .sqlive .sub { font: 700 11.5px var(--font); fill: #5F6478; }
+  .sqlive.on .dot { animation: livedot 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes livedot { 50% { opacity: .35; } }
   .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); margin: 0; background: rgba(255,253,247,.92); border: 2px solid var(--ink); border-radius: 12px; padding: 3px 10px; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center; width: max-content; max-width: calc(100vw - 24px); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { .map { min-width: 0; } }
   @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob { animation: none; } }

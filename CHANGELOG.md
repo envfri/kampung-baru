@@ -4,6 +4,27 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.34.0 · 2026-11-13 · Kolam Pancing baru: 25 ikan, ikan rahasia & harta karun
+
+_Mancing sekarang ada tahapannya: lempar, tunggu bayangan ikan, sambar, lalu tarik-ulur. Ada 25 ikan, 3 ikan rahasia, dan peti harta karun!_
+
+### Baru
+
+- Mancing bertahap: tahan untuk atur tenaga lempar (Dekat, Sedang, Jauh), tunggu bayangan ikan mendekat, ikan ngicip-ngicip dulu, sambar tepat waktu, lalu tarik-ulur sambil menjaga tali supaya tidak kendur atau putus. _(pemain)_
+- 25 ikan dalam 4 kelas (Biasa, Jarang, Langka, Legenda). Ada ikan yang lebih sering muncul pagi, malam, di tepi atau di tengah kolam. Lempar jauh memakai energi lebih banyak, tapi lebih sering dapat ikan langka. _(pemain)_
+- 3 ikan rahasia tampil sebagai "???" di Buku Ikan sampai tertangkap. Petunjuknya bisa ditemukan di Botol Berisi Pesan. _(pemain)_
+- Temuan dari kolam: sandal, kaleng, botol berisi pesan (koin + pesan), Kendi Antik (hiasan rumah), Kalung Kerang Mutiara, dan Peti Harta Karun berisi 50–300 koin, kadang juga Mutiara (maks. 3 Mutiara per hari dari kolam). _(pemain)_
+- Buku Ikan baru: dikelompokkan per kelas, dengan siluet, kapan & di mana ikan muncul, tab Temuan dan Rekor. Kolam ikut jam: pagi, siang, sore & malam. _(pemain)_
+- Peta Kampung menampilkan berapa orang sedang di Alun-alun ("● 7 orang di sini · Alun-alun 1 · 7/20"), dengan tanda "Ramai!" kalau hampir penuh. _(pemain)_
+
+### Perubahan
+
+- Teknis: migrasi 024, lib/fishing.ts (dipakai ulang untuk alun-alun nanti: place, kuota, hadiah), rute /api/fish/cast·hook·land·lost; /api/fish/reel lama menjawab update_required. Paket konten 11 (penanda pack_ikan): id ikan lama tetap, sandal pindah ke temuan. Admin: pengaturan Kolam Pancing lengkap & isian ikan baru. Komponen FishingFlow & CatchCard. Lebar kartu badge peta diukur dari teks sungguhan.
+
+### Keamanan
+
+- Hasil lemparan ditentukan server saat melempar; nama, gambar & petunjuk ikan rahasia tidak dikirim sebelum tertangkap; waktu sambar & lama tarik-ulur minimum dicek server, jadi skrip tidak bisa langsung menangkap.
+
 ## 0.33.0 · 2026-11-13 · Kebun bisa diperluas & 18 bibit
 
 _Kebun sekarang bisa diperluas sampai 18 petak, ada 14 bibit baru, dan tombol Siram semua, Tanam semua & Panen semua._
@@ -23,6 +44,8 @@ _Kebun sekarang bisa diperluas sampai 18 petak, ada 14 bibit baru, dan tombol Si
 ### Keamanan
 
 - Naik level kebun mengunci baris pemain dalam satu transaksi (ketuk dua kali tidak membayar dua kali); semua aksi kebun & aksi "semua" dicek di server; batas XP panen 150/hari & tanam 300/hari.
+
+Commit: [`63882f0`](https://github.com/envfri/kampung-baru/commit/63882f0)
 
 ## 0.32.0 · 2026-11-13 · Butik Benang: baju untuk pet
 

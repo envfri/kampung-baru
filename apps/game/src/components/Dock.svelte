@@ -27,7 +27,7 @@
   const active = (k: string) => (G.sheet ? G.sheet === k : G.view === k || (k === 'map' && ['garden', 'karung', 'fishing', 'panen', 'memori', 'shop', 'bakiak', 'gasing', 'layangan', 'pinang', 'alun'].includes(G.view)) || (k === 'friends' && (G.view === 'visit' || G.view === 'duel')));
 </script>
 
-<nav class="dock" aria-label="Navigasi">
+<nav class="dock" class:dim={G.dimNav} aria-label="Navigasi">
   {#each tabs as t}
     <button class:on={active(t.k)} aria-pressed={active(t.k)} onclick={() => go(t.k)}>
       {@html t.icon}<span>{t.label}</span>
@@ -42,6 +42,7 @@
   button { position: relative; width: 64px; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 2px solid transparent; border-radius: 16px; background: transparent; font-weight: 700; font-size: 12.5px; cursor: pointer; padding: 0; }
   button :global(svg) { width: 25px; height: 25px; }
   button.on { background: var(--coin); border-color: var(--ink); }
-  .badge { position: absolute; top: 2px; right: 6px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--low); color: #fff; font-style: normal; font-size: 11.5px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--ink); padding: 0 3px; }
+  .badge { position: absolute; top: 1px; right: 6px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--low); color: #fff; font-style: normal; font-size: 11.5px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--ink); padding: 0 3px; }
+  .dock.dim { opacity: .45; filter: saturate(.5); pointer-events: none; transition: opacity .2s; }
   @media (max-width: 360px) { button { width: 56px; font-size: 11.5px; } }
 </style>

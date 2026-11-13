@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS } from '@kb/shared';
+  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS, FISH_TIERS, FISH_TIER_KEYS } from '@kb/shared';
   import { api } from '../lib/api';
   import { A, can, err, toast, ask, num, dt, toLocal, fromLocal, setQuery } from '../lib/store.svelte';
   import { type FDef, readFilters, isActive } from '../lib/filters';
@@ -135,6 +135,8 @@
     f.available_from = toLocal(f.available_from); f.available_to = toLocal(f.available_to);
     f.event_id ??= ''; f.shop ??= '';
     f.data ??= {}; if (f.kind === 'food') f.data.effects ??= {};
+    if (f.kind === 'fish') { f.data.time ??= {}; f.data.tier ??= 'biasa'; }
+    if (f.kind === 'material' && Number(f.data.fishWeight) > 0) f.data.find ??= 'junk';
     f.data.set ??= '';
     form = f; snap = norm(f);
     setArg(row ? row.id : '');
@@ -150,7 +152,7 @@
     form.kind = k;
     const b = A.me?.builtins?.[k]?.[0];
     form.art = { type: 'builtin', key: b?.key ?? 'kotak', colors: { ...(b?.colors ?? {}) } };
-    form.data = k === 'food' ? { effects: { kenyang: 10 } } : k === 'furniture' ? { w: 1, d: 1 } : k === 'wear' ? { slot: b?.slot ?? 'head' } : k === 'seed' ? { growMinutes: 30, yieldItem: 'tomat', yieldQty: 3 } : k === 'room' ? { size: 6, theme: b?.key === 'luar' ? 'luar' : 'dalam' } : {};
+    form.data = k === 'food' ? { effects: { kenyang: 10 } } : k === 'furniture' ? { w: 1, d: 1 } : k === 'wear' ? { slot: b?.slot ?? 'head' } : k === 'seed' ? { growMinutes: 30, yieldItem: 'tomat', yieldQty: 3 } : k === 'room' ? { size: 6, theme: b?.key === 'luar' ? 'luar' : 'dalam' } : k === 'fish' ? { tier: 'biasa', pull: 1, time: {} } : k === 'material' ? { find: 'junk' } : {};
     form.data.set = set;
   }
   async function save() {
@@ -192,6 +194,17 @@
     return '';
   });
 </script>
+
+{#snippet pondFind(title: string)}
+  <details class="pond" open={Number(form.data.fishWeight) > 0}>
+    <summary>Temuan Kolam Pancing <span class="help">{title}: bisa tersangkut kail (kosong = tidak)</span></summary>
+    <div class="grid2">
+      <label>Peluang muncul di kolam<input type="number" min="0" step="0.1" bind:value={form.data.fishWeight} /></label>
+      <label>Pengali lempar jauh<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.far} /></label>
+      <label>Pengali lempar dekat<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.near} /></label>
+    </div>
+  </details>
+{/snippet}
 
 <PageHead title="Item & harga" updated={updated} onrefresh={load}>
   {#if items.length}{num(items.length)} item · {num(counts.on)} aktif · perubahan berlaku tanpa deploy{:else}Semua barang di game: makanan, mebel, pakaian, dekorasi, bibit, ikan{/if}
@@ -282,6 +295,7 @@
               <label>Panjang (petak)<input type="number" min="1" max="4" bind:value={form.data.d} /></label>
             </div>
             <label class="inline"><input type="checkbox" bind:checked={form.data.flat} />Barang datar (karpet): bisa dilewati & ditumpuki</label>
+            {@render pondFind('Hiasan rumah dari kolam')}
           {:else if form.kind === 'wear'}
             {@const artSlot = form.art?.type === 'builtin' ? A.me?.builtins?.wear?.find((b: any) => b.key === form.art.key)?.slot : undefined}
             <div class="grid2">
@@ -290,6 +304,7 @@
               </label>
               <label>Set padu-padan<input bind:value={form.data.outfit} maxlength="32" placeholder="mis. Koki Cilik" /><span class="help">Opsional. Tampil di kartu toko: "Baju · Set Koki Cilik".</span></label>
             </div>
+            {@render pondFind('Aksesori dari kolam')}
           {:else if form.kind === 'seed'}
             <div class="grid2">
               <label>Lama tumbuh (menit)<input type="number" min="1" bind:value={form.data.growMinutes} /></label>
@@ -302,11 +317,32 @@
               <label>Level pet minimal<input type="number" min="1" max="100" bind:value={form.data.minLevel} /><span class="help">Kosong/1 = semua level.</span></label>
               <label>XP panen<input type="number" min="0" max="100" bind:value={form.data.harvestXp} /><span class="help">Kosong = XP panen bawaan (Ekonomi & fitur › Kebun).</span></label>
             </div>
-          {:else if form.kind === 'fish' || form.kind === 'material'}
+          {:else if form.kind === 'fish'}
             <div class="grid2">
-              <label>Peluang muncul di kolam<input type="number" min="0" bind:value={form.data.fishWeight} /><span class="help">Bobot relatif. 0/kosong = tidak muncul.</span></label>
+              <label>Peluang muncul di kolam<input type="number" min="0" step="0.1" bind:value={form.data.fishWeight} /><span class="help">Bobot relatif (boleh desimal, mis. 1.2). 0/kosong = tidak muncul.</span></label>
+              <label>Tingkat<select bind:value={form.data.tier}>{#each FISH_TIER_KEYS as t}<option value={t}>{FISH_TIERS[t].label} {'★'.repeat(FISH_TIERS[t].stars)}</option>{/each}</select><span class="help">Warna kartu & pengali peluang per jarak (Ekonomi & fitur › Kolam Pancing › tier mult).</span></label>
               <label>Ukuran min (cm)<input type="number" min="1" bind:value={form.data.minCm} /></label>
               <label>Ukuran maks (cm)<input type="number" min="1" bind:value={form.data.maxCm} /></label>
+              <label>Tarikan (1–5)<input type="number" min="1" max="5" bind:value={form.data.pull} /><span class="help">Kekuatan saat tarik-ulur.</span></label>
+              <label>Ngicip min–maks<span class="pair"><input type="number" min="0" max="6" placeholder="0" bind:value={form.data.nibbleMin} /><input type="number" min="0" max="6" placeholder="bawaan" bind:value={form.data.nibbleMax} /></span><span class="help">Berapa kali pelampung "tuk…" sebelum sambar.</span></label>
+            </div>
+            <span class="lbl">Pengali peluang per waktu (WIB) <span class="help">kosong = 1 · 0 = tidak muncul · 2 = dua kali lebih sering</span></span>
+            <div class="grid4">{#each ['pagi', 'siang', 'sore', 'malam'] as k}<label>{k[0].toUpperCase() + k.slice(1)}<input type="number" min="0" step="0.1" bind:value={form.data.time[k]} /></label>{/each}</div>
+            <div class="grid2">
+              <label>Pengali lempar dekat<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.near} /></label>
+              <label>Pengali lempar jauh<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.far} /></label>
+            </div>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.slick} />Licin: ikan lepas lebih cepat bila tali kendur</label>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.jerk} />Suka menyentak saat tarik-ulur</label>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.release} />Dilepas lagi setelah dicatat (tidak masuk Tas): berkah Mutiara & ceria</label>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.secret} />Ikan rahasia: tampil "???" di Buku Ikan, nama & gambar baru terbuka setelah tertangkap</label>
+            {#if form.data.secret}<label>Petunjuk (dari Botol Berisi Pesan)<input maxlength="160" bind:value={form.data.hint} placeholder="mis. Saat kabut pagi turun, ada sisik perak…" /><span class="help">Ikut diundi sebagai pesan botol. Pemain yang membacanya melihat petunjuk ini saat mengetuk "???".</span></label>{/if}
+          {:else if form.kind === 'material'}
+            <div class="grid2">
+              <label>Peluang muncul di kolam<input type="number" min="0" step="0.1" bind:value={form.data.fishWeight} /><span class="help">Bobot relatif. 0/kosong = tidak muncul.</span></label>
+              <label>Jenis temuan<select bind:value={form.data.find}><option value="junk">Sampah (masuk Tas)</option><option value="bottle">Botol pesan (koin + pesan)</option><option value="treasure">Peti harta (koin + bonus Mutiara)</option></select></label>
+              <label>Pengali lempar dekat<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.near} /></label>
+              <label>Pengali lempar jauh<input type="number" min="0" step="0.1" placeholder="1" bind:value={form.data.far} /></label>
             </div>
           {:else if form.kind === 'room'}
             <div class="grid2">
@@ -366,6 +402,12 @@
   fieldset { gap: 10px; }
   fieldset:disabled { opacity: .75; }
   .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .pair { display: flex; gap: 6px; }
+  .pair input { min-width: 0; }
+  .lbl { font-weight: 600; font-size: 13.5px; }
+  details.pond { border: 1px dashed #C5CDC8; border-radius: 10px; padding: 8px 10px; }
+  details.pond summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+  details.pond[open] summary { margin-bottom: 8px; }
   .prevcol { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; align-self: start; }
   .icon { background: #EFF6F2; border-radius: 12px; display: grid; place-items: center; height: 130px; }
   .icon :global(svg) { height: 116px; width: auto; max-width: 100%; }

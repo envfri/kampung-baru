@@ -82,8 +82,26 @@ try {
   });
   await step('10-mancing', async () => {
     await p.click('.card .btn:has-text("Kampung")'); await p.click('[data-loc="kolam"]');
-    await p.click('.btn:has-text("Lempar")'); await p.waitForSelector('text=TARIK!', { timeout: 8000 }); await p.click('text=TARIK!');
+    // tahan tombol lempar (bar kekuatan bolak-balik) lalu lepas → tunggu sambar → TARIK → tarik-ulur
+    const cb = await (await p.waitForSelector('.panel .press-btn', { timeout: 10000 })).boundingBox();
+    await p.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2); await p.mouse.down(); await p.waitForTimeout(500); await p.mouse.up();
+    await p.waitForSelector('.panel[data-phase="bite"]', { timeout: 20000 });
+    await p.click('.panel .pull');
+    await p.waitForSelector('.panel[data-phase="fight"], .panel[data-phase="fail"]', { timeout: 8000 });
+    // tahan saat tegangan rendah, lepas sebelum masuk merah
+    let held = false;
+    for (let i = 0; i < 600 && (await p.getAttribute('.panel', 'data-phase').catch(() => null)) === 'fight'; i++) {
+      const t = Number(await p.getAttribute('.panel', 'data-tension').catch(() => 0));
+      if (!held && t < 0.6) { const hb = await p.locator('.panel .hold').boundingBox(); if (hb) { await p.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await p.mouse.down(); held = true; } }
+      else if (held && t > 0.78) { await p.mouse.up(); held = false; }
+      await p.waitForTimeout(50);
+    }
+    if (held) await p.mouse.up();
+    await p.waitForSelector('.reveal, .panel[data-phase="fail"]', { timeout: 15000 });
     await p.waitForTimeout(800);
+    await p.screenshot({ path: `${OUT}/10-mancing-hasil.png` });
+    // tutup kartu hasil (peti: ketuk 3× dulu)
+    for (let i = 0; i < 5 && (await p.locator('.reveal').count()); i++) { await p.click('.reveal .row .btn >> nth=0'); await p.waitForTimeout(250); }
   });
   await step('11-notifikasi', () => p.click('.tool[aria-label^="Notifikasi"]'));
   if (errors.length) throw new Error('Error di halaman:\n' + errors.join('\n'));

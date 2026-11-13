@@ -1,7 +1,7 @@
 import { GAMES, NEW_ITEM_DAYS, chubOf, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { maskPhone } from './klikflow';
-import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog } from './core';
+import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog, type CatalogItem } from './core';
 import { questSummary } from './quests';
 
 export const J = (v: unknown) => JSON.stringify(v ?? null);
@@ -222,7 +222,32 @@ export async function playerState(db: Db, userId: string) {
     friendAsks: asks?.c ?? 0,
     /** foto bareng yang dipajang di lukisan rumah */
     photo: photo ?? null,
+    /** ikan rahasia yang sudah terbuka (tidak ada di katalog umum) */
+    revealed: await revealedItems(db, userId, cat),
   };
+}
+
+/** Bentuk item untuk client. Petunjuk ikan rahasia (data.hint) tidak pernah dikirim lewat item. */
+export function publicItem(i: CatalogItem) {
+  const { hint, ...data } = (i.data ?? {}) as Record<string, any>;
+  void hint;
+  return {
+    id: i.id, kind: i.kind, name: i.name, description: i.description,
+    price_coin: i.price_coin, price_pearl: i.price_pearl, sell_coin: i.sell_coin, shop: i.shop,
+    art: i.art, data, event_id: i.event_id,
+    available_from: i.available_from, available_to: i.available_to,
+  };
+}
+
+/** Item rahasia (ikan rahasia) yang sudah terbuka untuk pemain: pernah ditangkap atau ada di Tas. */
+export async function revealedItems(q: Db, uid: string, cat: Catalog) {
+  const secret = cat.items.filter((i) => i.data?.secret).map((i) => i.id);
+  if (!secret.length) return [];
+  const rows = await q.query<{ id: string }>(
+    `select fish_id id from fish_collection where user_id = $1 and count > 0 and fish_id = any($2::text[])
+     union select item_id from inventory where user_id = $1 and qty > 0 and item_id = any($2::text[])`, [uid, secret]);
+  const got = new Set(rows.map((r) => r.id));
+  return cat.items.filter((i) => got.has(i.id)).map(publicItem);
 }
 
 /** Data publik: katalog + pengaturan yang perlu diketahui client. Di-cache oleh client & service worker. */
@@ -234,15 +259,10 @@ export function publicCatalog(cat: Catalog, s: Settings) {
   const newMs = NEW_ITEM_DAYS * 86_400_000;
   return {
     version: cat.version,
+    // ikan rahasia tidak ikut katalog umum (nama, gambar & waktunya baru terbuka setelah tertangkap: lihat revealed)
     items: cat.items
-      .filter((i) => i.active)
-      .map((i) => ({
-        id: i.id, kind: i.kind, name: i.name, description: i.description,
-        price_coin: i.price_coin, price_pearl: i.price_pearl, sell_coin: i.sell_coin, shop: i.shop,
-        art: i.art, data: i.data, event_id: i.event_id,
-        available_from: i.available_from, available_to: i.available_to,
-        ...(created(i) > first + 3_600_000 && now - created(i) < newMs ? { new_until: created(i) + newMs } : {}),
-      })),
+      .filter((i) => i.active && !i.data?.secret)
+      .map((i) => ({ ...publicItem(i), ...(created(i) > first + 3_600_000 && now - created(i) < newMs ? { new_until: created(i) + newMs } : {}) })),
     locations: cat.locations.filter((l) => l.enabled),
     events: cat.events.filter((e) => e.active && new Date(e.ends_at).getTime() > now - 86_400_000),
     packages: cat.packages.filter((p) => p.active),
@@ -255,7 +275,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       daily: s.daily,
       karung: s.karung,
       games: (s as any).games,
-      fishing: { castsPerDay: s.fishing.castsPerDay, energiCost: s.fishing.energiCost, windowMs: s.fishing.windowMs },
+      fishing: { castsPerDay: s.fishing.castsPerDay, energi: s.fishing.energi, pearlDailyCap: s.fishing.pearlDailyCap },
       sleep: (s as any).sleep,
       health: (s as any).health,
       weight: (s as any).weight,

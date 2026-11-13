@@ -14,7 +14,7 @@ export const CUTOFF_PHRASE = 'RESET BUPI';
 /** Data progres pemain yang dikosongkan saat cut-off "akun tetap". Akun, login, sesi, notifikasi push & pertemanan tidak disentuh. */
 const PROGRESS_TABLES = [
   'pets', 'inventory', 'rooms', 'wallets', 'wallet_ledger', 'cooldowns', 'daily_counters', 'daily_claims', 'visits', 'gifts',
-  'garden_plots', 'races', 'fishing_casts', 'fish_collection', 'notifications', 'quest_progress', 'event_progress', 'game_runs',
+  'garden_plots', 'races', 'fishing_casts', 'fish_collection', 'fish_hints', 'notifications', 'quest_progress', 'event_progress', 'game_runs',
   'house_likes', 'duels', 'transfer_codes', 'idempotency',
 ];
 

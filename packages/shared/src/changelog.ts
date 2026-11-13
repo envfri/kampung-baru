@@ -39,9 +39,26 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.34.0',
+    date: '2026-11-13',
+    title: 'Kolam Pancing baru: 25 ikan, ikan rahasia & harta karun',
+    summary: 'Mancing sekarang ada tahapannya: lempar, tunggu bayangan ikan, sambar, lalu tarik-ulur. Ada 25 ikan, 3 ikan rahasia, dan peti harta karun!',
+    items: [
+      { kind: 'baru', text: 'Mancing bertahap: tahan untuk atur tenaga lempar (Dekat, Sedang, Jauh), tunggu bayangan ikan mendekat, ikan ngicip-ngicip dulu, sambar tepat waktu, lalu tarik-ulur sambil menjaga tali supaya tidak kendur atau putus.', player: true },
+      { kind: 'baru', text: '25 ikan dalam 4 kelas (Biasa, Jarang, Langka, Legenda). Ada ikan yang lebih sering muncul pagi, malam, di tepi atau di tengah kolam. Lempar jauh memakai energi lebih banyak, tapi lebih sering dapat ikan langka.', player: true },
+      { kind: 'baru', text: '3 ikan rahasia tampil sebagai "???" di Buku Ikan sampai tertangkap. Petunjuknya bisa ditemukan di Botol Berisi Pesan.', player: true },
+      { kind: 'baru', text: 'Temuan dari kolam: sandal, kaleng, botol berisi pesan (koin + pesan), Kendi Antik (hiasan rumah), Kalung Kerang Mutiara, dan Peti Harta Karun berisi 50–300 koin, kadang juga Mutiara (maks. 3 Mutiara per hari dari kolam).', player: true },
+      { kind: 'baru', text: 'Buku Ikan baru: dikelompokkan per kelas, dengan siluet, kapan & di mana ikan muncul, tab Temuan dan Rekor. Kolam ikut jam: pagi, siang, sore & malam.', player: true },
+      { kind: 'baru', text: 'Peta Kampung menampilkan berapa orang sedang di Alun-alun ("● 7 orang di sini · Alun-alun 1 · 7/20"), dengan tanda "Ramai!" kalau hampir penuh.', player: true },
+      { kind: 'ubah', text: 'Teknis: migrasi 024, lib/fishing.ts (dipakai ulang untuk alun-alun nanti: place, kuota, hadiah), rute /api/fish/cast·hook·land·lost; /api/fish/reel lama menjawab update_required. Paket konten 11 (penanda pack_ikan): id ikan lama tetap, sandal pindah ke temuan. Admin: pengaturan Kolam Pancing lengkap & isian ikan baru. Komponen FishingFlow & CatchCard. Lebar kartu badge peta diukur dari teks sungguhan.' },
+      { kind: 'keamanan', text: 'Hasil lemparan ditentukan server saat melempar; nama, gambar & petunjuk ikan rahasia tidak dikirim sebelum tertangkap; waktu sambar & lama tarik-ulur minimum dicek server, jadi skrip tidak bisa langsung menangkap.' },
+    ],
+  },
+  {
     version: '0.33.0',
     date: '2026-11-13',
     title: 'Kebun bisa diperluas & 18 bibit',
+    commits: ['63882f0'],
     summary: 'Kebun sekarang bisa diperluas sampai 18 petak, ada 14 bibit baru, dan tombol Siram semua, Tanam semua & Panen semua.',
     items: [
       { kind: 'baru', text: 'Perluas kebun dari Lv1 (6 petak) sampai Lv5 (18 petak): 400, 1.200, 3.000 & 6.000 koin, saat pet Lv 3, 6, 10 & 15. Tiap level menambah hiasan: orang-orangan sawah & pagar bambu, gentong air, gubuk, papan nama & bunga.', player: true },

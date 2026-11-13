@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { forgetMute } from './square';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, KEBUN_CROPS } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -49,9 +49,53 @@ function cleanArt(v: any) {
   return { type: 'builtin', key, colors, ...(Object.keys(params).length ? { params } : {}) };
 }
 
+/**
+ * Data Kolam Pancing (semua jenis item): bobot peluang, lalu untuk ikan: ukuran, tingkat, tarikan, pengali waktu
+ * & jarak, rahasia/dilepas/petunjuk, ngicip, licin/menyentak; untuk temuan: jenis temuan & pengali jarak.
+ */
+function cleanPond(kind: string, d: any) {
+  const out: any = {};
+  if (d.fishWeight === undefined || d.fishWeight === '' || d.fishWeight === null || !(Number(d.fishWeight) > 0)) return out;
+  const dec = (x: any, name: string, min: number, max: number) => {
+    const n = Number(x);
+    if (!Number.isFinite(n) || n < min || n > max) throw bad('invalid_data', `${name} harus ${min}–${max}.`);
+    return Math.round(n * 100) / 100;
+  };
+  const opt = (x: any) => x !== undefined && x !== null && x !== '';
+  const whole = (x: any, name: string, min: number, max: number, def?: number) => (opt(x) ? int(Math.round(Number(x)), name, { min, max }) : def);
+  out.fishWeight = dec(d.fishWeight, 'Peluang di kolam', 0.1, 1000);
+  if (opt(d.near)) out.near = dec(d.near, 'Pengali lempar dekat', 0, 10);
+  if (opt(d.far)) out.far = dec(d.far, 'Pengali lempar jauh', 0, 10);
+  if (kind !== 'fish') {
+    out.find = oneOf(opt(d.find) ? d.find : kind === 'furniture' ? 'decor' : kind === 'wear' ? 'wear' : 'junk', 'Jenis temuan', POND_FINDS);
+    return out;
+  }
+  out.minCm = whole(d.minCm, 'Ukuran min', 1, 500, 10);
+  out.maxCm = Math.max(out.minCm, whole(d.maxCm, 'Ukuran maks', 1, 500, 20)!);
+  out.tier = oneOf(opt(d.tier) ? d.tier : 'biasa', 'Tingkat', FISH_TIER_KEYS);
+  out.pull = whole(d.pull, 'Tarikan', 1, 5, 1);
+  const time: Record<string, number> = {};
+  for (const k of ['pagi', 'siang', 'sore', 'malam']) if (d.time && opt(d.time[k])) time[k] = dec(d.time[k], `Pengali ${k}`, 0, 10);
+  if (Object.keys(time).length) {
+    if (Object.values(time).length === 4 && Object.values(time).every((x) => x === 0)) throw bad('invalid_data', 'Ikan harus bisa muncul setidaknya di satu waktu.');
+    out.time = time;
+  }
+  if (opt(d.nibbleMin)) out.nibbleMin = whole(d.nibbleMin, 'Ngicip min', 0, 6);
+  if (opt(d.nibbleMax)) out.nibbleMax = Math.max(out.nibbleMin ?? 0, whole(d.nibbleMax, 'Ngicip maks', 0, 6)!);
+  if (bool(d.slick)) out.slick = true;
+  if (bool(d.jerk)) out.jerk = true;
+  if (bool(d.release)) out.release = true;
+  if (bool(d.secret)) {
+    out.secret = true;
+    const h = str(d.hint, 'Petunjuk', { max: 160, optional: true });
+    if (h) out.hint = h;
+  }
+  return out;
+}
+
 /** Data item per jenis + set premium (dipakai efek suasana di rumah) yang berlaku untuk semua jenis. */
 function cleanItemData(kind: string, v: any) {
-  const out: any = cleanKindData(kind, v);
+  const out: any = { ...cleanKindData(kind, v), ...cleanPond(kind, v && typeof v === 'object' ? v : {}) };
   const set = v && typeof v === 'object' ? v.set : undefined;
   if (set !== undefined && set !== null && set !== '') {
     if (!PREMIUM_SET_BY_KEY[String(set)]) throw bad('invalid_set', 'Set premium tidak dikenal.');
@@ -93,16 +137,7 @@ function cleanKindData(kind: string, v: any) {
       if (d.cat) out.cat = oneOf(d.cat, 'Kelompok bibit', ['sayur', 'buah', 'bunga', 'event'] as const);
       return out;
     }
-    case 'fish':
-    case 'material': {
-      const out: any = {};
-      if (d.fishWeight !== undefined && d.fishWeight !== '' && Number(d.fishWeight) > 0) {
-        out.fishWeight = num(d.fishWeight, 'Peluang di kolam', 1, 1000);
-        out.minCm = num(d.minCm, 'Ukuran min', 1, 500, 10);
-        out.maxCm = Math.max(out.minCm, num(d.maxCm, 'Ukuran maks', 1, 500, 20)!);
-      }
-      return out;
-    }
+    // ikan & bahan: data kolam diisi cleanPond (berlaku juga untuk mebel/pakaian temuan kolam)
     default:
       return {};
   }
@@ -122,6 +157,36 @@ function cleanGardenLevels(v: unknown) {
     prev = slots;
     return i === 0 ? { slots, coins: 0, petLevel: 1 } : { slots, coins, petLevel };
   });
+}
+
+/** Batas wajar pengaturan Kolam Pancing (angka sudah dipastikan angka oleh sanitizeSettings). */
+function checkFishing(f: any) {
+  const no = (msg: string) => { throw bad('invalid_settings', `Kolam Pancing: ${msg}`); };
+  const range = (v: any, name: string, lo: number, hi: number) => {
+    if (!Array.isArray(v) || v.length !== 2 || v[0] < lo || v[1] > hi || v[1] < v[0]) no(`${name} harus 2 angka (min ≤ maks) antara ${lo}–${hi}.`);
+  };
+  if (f.castsPerDay < 0 || f.castsPerDay > 500) no('jatah lempar per hari 0–500.');
+  for (const d of ['dekat', 'sedang', 'jauh']) {
+    if (f.energi[d] < 0 || f.energi[d] > 50) no(`energi ${d} harus 0–50.`);
+    range(f.waitMs[d], `waitMs ${d}`, 500, 30_000);
+    for (const t of ['biasa', 'jarang', 'langka', 'legenda']) if (f.tierMult[d][t] < 0 || f.tierMult[d][t] > 20) no(`tierMult ${d} ${t} harus 0–20.`);
+  }
+  for (const t of ['biasa', 'jarang', 'langka', 'legenda']) {
+    if (f.windowMs[t] < 400 || f.windowMs[t] > 5000) no(`windowMs ${t} harus 400–5000.`);
+    if (f.xp[t] < 0 || f.xp[t] > 100) no(`xp ${t} harus 0–100.`);
+  }
+  for (const k of Object.keys(f.fightMs)) range(f.fightMs[k], `fightMs ${k}`, 1000, 30_000);
+  if (f.nibbleMax < 0 || f.nibbleMax > 6) no('nibbleMax harus 0–6.');
+  range(f.nibbleGapMs, 'nibbleGapMs', 300, 4000);
+  const tr = f.treasure;
+  if (!tr.bandMax.length || tr.bandMax.length !== tr.bandOdds.length) no('treasure bandMax & bandOdds harus sama panjang.');
+  if (tr.bandMax.some((x: number, i: number) => x < (i ? tr.bandMax[i - 1] : tr.coinMin)) || tr.bandMax[tr.bandMax.length - 1] > 10_000) no('treasure bandMax harus naik dari coinMin (maks 10000).');
+  if (tr.bandOdds.some((x: number) => x < 0) || tr.bandOdds.reduce((a: number, b: number) => a + b, 0) <= 0) no('treasure bandOdds harus ≥ 0 dan tidak semua 0.');
+  if (tr.pearlChance < 0 || tr.pearlChance > 100) no('treasure pearlChance harus 0–100 (%).');
+  if (tr.pearlMin < 0 || tr.pearlMax < tr.pearlMin || tr.pearlMax > 20) no('treasure pearlMin–pearlMax harus 0–20 (min ≤ maks).');
+  if (f.pearlDailyCap < 0 || f.pearlDailyCap > 50) no('pearlDailyCap harus 0–50.');
+  if (f.bottle.coinMin < 0 || f.bottle.coinMax < f.bottle.coinMin || f.bottle.coinMax > 1000) no('bottle coinMin–coinMax harus 0–1000 (min ≤ maks).');
+  if (f.release.pearl < 0 || f.release.pearl > 10 || f.release.ceria < 0 || f.release.ceria > 100) no('release pearl 0–10, ceria 0–100.');
 }
 
 /** Pastikan nilai pengaturan tetap bertipe sama dengan default (angka tetap angka, dst). */
@@ -460,7 +525,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     gp('harvestXp', 0, 100, 'Kebun: XP panen');
     gp('xpCapPerDay', 0, 100000, 'Kebun: batas XP panen per hari');
     gp('plantsPerDay', 1, 100000, 'Kebun: batas tanam per hari');
-    if (value.fishing.biteMaxMs < value.fishing.biteMinMs) throw bad('invalid_settings', 'Jeda gigitan maksimum harus ≥ minimum.');
+    checkFishing(value.fishing);
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
     const changes = diffPaths(before, value);

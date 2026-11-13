@@ -3,9 +3,10 @@ import { randomInt } from 'node:crypto';
 import { applyNeedDelta, karungRace, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC } from '@kb/shared';
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, purchasable, track } from '../lib/core';
+import { castFish, fishBook, hookFish, kolamReward, landFish, loseFish } from '../lib/fishing';
 import { requireUser } from '../lib/auth';
 import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../lib/state';
-import { int, str } from '../lib/validate';
+import { int, oneOf, str } from '../lib/validate';
 import { grantXp, patch } from './game';
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -79,87 +80,60 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
   });
 
   /* ---------------- Kolam Pancing ---------------- */
+  // Alur: cast (server memilih tangkapan) → hook (tekan TARIK saat sambar) → land (setelah tarik-ulur) | lost.
+
+  const DISTS = ['dekat', 'sedang', 'jauh'] as const;
+  const castIdOf = (req: any) => {
+    const id = String(req.body?.castId ?? '');
+    if (!UUID.test(id)) throw bad('invalid', 'Lemparan tidak valid.');
+    return id;
+  };
+  const UPDATE = 'Kolam Pancing sudah diperbarui. Muat ulang aplikasi untuk memancing lagi, ya.';
 
   app.post('/api/fish/cast', auth, async (req: any) => {
     const u = req.user!;
     const s = await getSettings(db);
     if (!s.features.fishing) throw forbidden('Kolam Pancing sedang ditutup.');
+    // klien lama (tanpa jarak) belum punya tarik-ulur: tolak sebelum memotong energi
+    if (req.body?.distance === undefined) throw bad('update_required', UPDATE);
+    const dist = oneOf(req.body.distance, 'Jarak', DISTS);
     const cat = await getCatalog(db);
-    const now = Date.now();
-    const pool = cat.items.filter((i) => i.active && Number(i.data?.fishWeight) > 0 && (!i.event_id || purchasableEvent(cat, i.event_id, now)));
-    if (!pool.length) throw bad('empty_pond', 'Kolam sedang kosong.');
+    const energi = Math.max(0, Math.round(Number((s.fishing.energi as any)?.[dist]) || 0));
     return db.tx(async (t) => {
-      const pet = await lockPet(t, u.id);
-      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
-      assertAwake(pet, s);
-      const needs = currentNeeds(pet, s);
-      if (needs.energi < s.fishing.energiCost) throw bad('tired', `${pet.name} terlalu capek untuk memancing.`);
-      await bumpCounter(t, u.id, 'fishing', s.fishing.castsPerDay);
-      await savePet(t, u.id, { needs: applyNeedDelta(needs, { energi: -s.fishing.energiCost }) });
-      const total = pool.reduce((a, i) => a + Number(i.data.fishWeight), 0);
-      let r = randomInt(0, 1_000_000) / 1_000_000 * total;
-      let fish = pool[0];
-      for (const i of pool) { r -= Number(i.data.fishWeight); if (r <= 0) { fish = i; break; } }
-      const biteIn = randomInt(s.fishing.biteMinMs, Math.max(s.fishing.biteMinMs + 1, s.fishing.biteMaxMs));
-      const c = (await t.one<{ id: string }>(
-        `insert into fishing_casts (user_id, fish_id, bite_at, window_ms) values ($1,$2, now() + ($3::int * interval '1 millisecond'), $4) returning id`,
-        [u.id, fish.id, biteIn, s.fishing.windowMs],
-      ))!;
-      return { ok: true, castId: c.id, biteInMs: biteIn, windowMs: s.fishing.windowMs, ...(await patch(t, u.id, ['pet', 'limits'])) };
+      const c = await castFish(t, u.id, { place: 'kolam', dist, s, cat, energi, quota: { key: 'fishing', limit: s.fishing.castsPerDay } });
+      return { ok: true, ...c, ...(await patch(t, u.id, ['pet', 'limits'])) };
     });
   });
 
-  app.post('/api/fish/reel', auth, async (req: any) => {
+  app.post('/api/fish/hook', auth, async (req: any) => {
     const u = req.user!;
-    const castId = String(req.body?.castId ?? '');
-    if (!UUID.test(castId)) throw bad('invalid', 'Lemparan tidak valid.');
+    const castId = castIdOf(req);
+    return db.tx(async (t) => ({ ok: true, ...(await hookFish(t, u.id, castId)) }));
+  });
+
+  app.post('/api/fish/land', auth, async (req: any) => {
+    const u = req.user!;
+    const castId = castIdOf(req);
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     return db.tx(async (t) => {
-      const c = await t.one<{ fish_id: string; bite_at: Date; window_ms: number; result: string | null }>(
-        `select fish_id, bite_at, window_ms, result from fishing_casts where id = $1 and user_id = $2 for update`, [castId, u.id]);
-      if (!c) throw notFound('Lemparan tidak ditemukan.');
-      if (c.result) throw bad('resolved', 'Lemparan ini sudah selesai.');
-      const bite = new Date(c.bite_at).getTime();
-      const now = Date.now();
-      const tooEarly = now < bite - 350; // toleransi latensi jaringan
-      const tooLate = now > bite + c.window_ms + 700;
-      if (tooEarly || tooLate) {
-        await t.query(`update fishing_casts set result = 'missed' where id = $1`, [castId]);
-        return { ok: true, result: 'missed', reason: tooEarly ? 'early' : 'late', ...(await patch(t, u.id, ['limits'])) };
-      }
-      const fish = cat.byId.get(c.fish_id)!;
-      const min = Number(fish.data?.minCm) || 5, max = Math.max(min, Number(fish.data?.maxCm) || min);
-      const cm = Math.round((min + (randomInt(0, 1001) / 1000) * (max - min)) * 10) / 10;
-      await t.query(`update fishing_casts set result = 'caught' where id = $1`, [castId]);
-      await addItem(t, u.id, fish.id, 1);
-      const prev = await t.one<{ best_cm: number; count: number }>(`select best_cm, count from fish_collection where user_id = $1 and fish_id = $2`, [u.id, fish.id]);
-      await t.query(
-        `insert into fish_collection (user_id, fish_id, count, best_cm) values ($1,$2,1,$3)
-         on conflict (user_id, fish_id) do update set count = fish_collection.count + 1, best_cm = greatest(fish_collection.best_cm, excluded.best_cm)`,
-        [u.id, fish.id, cm],
-      );
-      const pet = await lockPet(t, u.id);
-      if (pet && s.fishing.xp) {
-        const lv = await grantXp(t, u.id, pet, s.fishing.xp);
-        await savePet(t, u.id, { level: lv.level, xp: lv.xp });
-      }
-      await track(t, u.id, 'fish', { fishId: fish.id });
-      return {
-        ok: true, result: 'caught', fishId: fish.id, cm,
-        firstCatch: !prev, newRecord: !!prev && cm > prev.best_cm,
-        ...(await patch(t, u.id, ['inventory', 'pet', 'wallet', 'limits'])),
-      };
+      const r: any = await landFish(t, u.id, castId, cat, kolamReward(t, u.id, s, cat));
+      if (r.suspicious) req.log.warn({ userId: u.id, castId, elapsed: r.elapsed, min: r.min }, 'mancing: tarik-ulur terlalu cepat');
+      delete r.suspicious; delete r.elapsed; delete r.min;
+      return { ok: true, ...r, ...(await patch(t, u.id, r.result === 'caught' ? ['inventory', 'pet', 'wallet', 'limits'] : ['limits'])) };
     });
   });
 
-  app.get('/api/fish/collection', auth, async (req) => {
-    const rows = await db.query(`select fish_id, count, best_cm, first_at from fish_collection where user_id = $1`, [req.user!.id]);
-    return { collection: rows };
+  app.post('/api/fish/lost', auth, async (req: any) => {
+    const u = req.user!;
+    const castId = castIdOf(req);
+    const reason = oneOf(req.body?.reason ?? 'batal', 'Alasan', ['putus', 'kendur', 'batal'] as const);
+    return db.tx(async (t) => ({ ok: true, ...(await loseFish(t, u.id, castId, reason)) }));
   });
 
-  function purchasableEvent(cat: Awaited<ReturnType<typeof getCatalog>>, eventId: string, now: number) {
-    const ev = cat.events.find((e) => e.id === eventId);
-    return !!ev && ev.active && new Date(ev.starts_at).getTime() <= now && new Date(ev.ends_at).getTime() > now;
-  }
+  // klien lama: tarik langsung tanpa tarik-ulur tidak lagi didukung
+  app.post('/api/fish/reel', auth, async () => { throw bad('update_required', UPDATE); });
+
+  app.get('/api/fish/collection', auth, async (req) => fishBook(db, req.user!.id, await getCatalog(db)));
+
   void purchasable;
 }

@@ -157,11 +157,12 @@ test('lomba karung menolak waktu mustahil dan menerima waktu wajar', async () =>
 
 test('mancing: tarik terlalu cepat = lepas', async () => {
   const { c } = await newPlayer();
-  const cast = await c.post('/api/fish/cast');
+  const cast = await c.post('/api/fish/cast', { distance: 'sedang' });
   assert.equal(cast.status, 200, JSON.stringify(cast.body));
-  const reel = await c.post('/api/fish/reel', { castId: cast.body.castId });
-  assert.equal(reel.body.result, 'missed');
-  assert.equal(reel.body.reason, 'early');
+  const hook = await c.post('/api/fish/hook', { castId: cast.body.castId });
+  assert.equal(hook.body.result, 'early');
+  // klien lama (tanpa jarak) diminta memuat ulang, tanpa memotong energi
+  assert.equal((await c.post('/api/fish/cast')).body.error.code, 'update_required');
 });
 
 test('hadiah harian hanya sekali', async () => {

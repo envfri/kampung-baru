@@ -1,6 +1,7 @@
 export * from './economy';
 export * from './settings';
 export * from './art';
+export * from './art-ikan';
 export * from './house';
 export * from './square';
 export * from './quests';

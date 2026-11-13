@@ -88,7 +88,8 @@ type Ctx = ReturnType<typeof G>;
 /* Furniture                                                           */
 /* ------------------------------------------------------------------ */
 
-type FurnFn = (g: Ctx, x: number, y: number, w: number, d: number, c: Record<string, string>, p: Record<string, number>) => string;
+export type FurnFn = (g: Ctx, x: number, y: number, w: number, d: number, c: Record<string, string>, p: Record<string, number>) => string;
+export type FurnCtx = Ctx;
 
 const FURN: Record<string, { label: string; colors: Record<string, string>; draw: FurnFn }> = {
   karpet: {
@@ -940,6 +941,14 @@ Object.assign(ICONS, KEBUN_ICONS);
 function seedPic(i: number) {
   const d = ICONS[SEED_PICS[i] ?? ''];
   return d ? d.draw(d.colors, {}) : '';
+}
+
+/** Pendaftaran gambar dari modul lain (mis. art-ikan.ts): ikon kecil 64×52 & mebel isometrik. */
+export type IconDef = { label: string; kinds: ItemKind[]; colors: Record<string, string>; draw: IconFn };
+export type FurnDef = { label: string; colors: Record<string, string>; draw: FurnFn };
+export function registerArt(icons: Record<string, IconDef>, furn: Record<string, FurnDef> = {}) {
+  Object.assign(ICONS, icons);
+  Object.assign(FURN, furn);
 }
 
 /* ------------------------------------------------------------------ */
