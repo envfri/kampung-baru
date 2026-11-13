@@ -43,6 +43,9 @@
   import SaveProgress from '../panels/SaveProgress.svelte';
   import HouseBar from '../components/HouseBar.svelte';
   import SquareBar from '../components/SquareBar.svelte';
+  import AlunFishing from '../components/AlunFishing.svelte';
+  import LombaCard from '../components/LombaCard.svelte';
+  import { ALUN, lombaCardOpen } from '../lib/alun.svelte';
   import FriendAskCard from '../components/FriendAskCard.svelte';
   import BarengLayer from '../components/bareng/BarengLayer.svelte';
   import { inGameNow, BG } from '../lib/bareng.svelte';
@@ -332,8 +335,11 @@
   {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
   {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive}<CamPanel />{/if}
   {#if G.view === 'alun'}
-    <div class="roombar">{@render camBtn()}</div>
-    {#if !playingGame && !BG.card && !(friendPrompt && !wideDesk)}<SquareBar />{/if}<PhotoPreview />
+    {#if !ALUN.fishing}<div class="roombar">{@render camBtn()}</div>{/if}
+    {#if !playingGame && !BG.card && !(friendPrompt && !wideDesk) && !ALUN.fishing && !(lombaCardOpen() && !wideDesk)}<SquareBar />{/if}<PhotoPreview />
+    <!-- mancing di dermaga Kolam Pemancingan Bareng & papan/hasil Lomba Mancing -->
+    {#if ALUN.fishing}<AlunFishing />{/if}
+    <LombaCard />
   {/if}
   <FriendAskCard />
   {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && H.live}<BarengLayer />{/if}

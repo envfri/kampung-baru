@@ -2,7 +2,7 @@
   // Alur mancing bertahap (±12–25 dtk): lempar (bar kekuatan) → ulur & tunggu (bayangan ikan) → ngicip/sambar
   // → tarik-ulur (tegangan & jarak) → kartu hasil. Semua hasil diputuskan server lewat `api`; komponen ini hanya
   // menampilkan petunjuk dari server, jadi bisa dipakai ulang (mis. Lomba Mancing alun-alun) dengan api lain.
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, type Snippet } from 'svelte';
   import { renderPet, pondSky as skyAt, DIST_LABEL, SKY_LABEL, type SkyTime } from '@kb/shared';
   import { G, fail, toast, wearItems, petLook, serverNow, needsNow } from '../../lib/game.svelte';
   import { sfx } from '../../lib/sfx';
@@ -10,8 +10,9 @@
   import { VIEW, SPOT, TIP, DOCK, pondBase, skyLayer, pondRings, shadowSvg, bobberSvg, splashSvg, rodSvg, sweatSvg, bubbleSvg, lineD, skyBg, type Dist, type FishApi, type RodPose } from './pond';
   import CatchCard from './CatchCard.svelte';
 
-  let { api, left = 0, costs = {}, title = 'Kolam Pancing', exitLabel = 'Kampung', onexit, onbook }: {
-    api: FishApi; left?: number; costs?: Partial<Record<Dist, number>>; title?: string; exitLabel?: string; onexit?: () => void; onbook?: () => void;
+  // extra: baris tambahan di atas panel (mis. papan skor ringkas Lomba Mancing alun-alun)
+  let { api, left = 0, costs = {}, title = 'Kolam Pancing', exitLabel = 'Kampung', onexit, onbook, extra }: {
+    api: FishApi; left?: number; costs?: Partial<Record<Dist, number>>; title?: string; exitLabel?: string; onexit?: () => void; onbook?: () => void; extra?: Snippet;
   } = $props();
 
   type Phase = 'idle' | 'aim' | 'cast' | 'wait' | 'bite' | 'hooking' | 'fight' | 'landing' | 'result' | 'fail';
@@ -344,6 +345,7 @@
     <CatchCard {res} onclose={again} onagain={again} onbook={() => { again(); onbook?.(); }} />
   {:else}
     <div class="panel" class:under={!!G.sheet && !active} bind:clientHeight={panelH} data-phase={phase} data-tension={T.toFixed(2)} data-dist={D.toFixed(2)}>
+      {#if extra}{@render extra()}{/if}
       {#if phase === 'idle' || phase === 'aim'}
         <div class="ttl"><h2>{title}</h2><span class="chip">{@html SKY_IC[sky]} {SKY_LABEL[sky]}</span><span class="chip">Jatah {left}</span></div>
         <div>

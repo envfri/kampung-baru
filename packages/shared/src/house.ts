@@ -4,8 +4,8 @@
 // Dua ruangan yang bersebelahan dipisah dinding rendah dengan satu pintu. Dinding tinggi (berjendela & berlukisan)
 // hanya di sisi belakang rumah, supaya tidak menutupi ruangan lain.
 
-/** gx, gy: letak yang diatur pemain (boleh kosong = disusun otomatis) */
-export interface HouseRoomIn { id: string; size: number; theme?: string | null; gx?: number | null; gy?: number | null }
+/** gx, gy: letak yang diatur pemain (boleh kosong = disusun otomatis); w, d: ruangan persegi panjang (alun-alun 28×22), bila kosong = size */
+export interface HouseRoomIn { id: string; size: number; w?: number; d?: number; theme?: string | null; gx?: number | null; gy?: number | null }
 /** jenis tiap petak dinding belakang ruangan */
 export type WallKind = 'tall' | 'low' | 'part' | 'door';
 export interface WallSeg { k: WallKind; by?: string }
@@ -15,9 +15,13 @@ export interface HouseRoom {
   i: number;
   gx: number;
   gy: number;
+  /** sisi ruangan persegi (ruangan persegi panjang: sisi terpanjang) */
   size: number;
+  /** lebar (sumbu x) & panjang (sumbu y); ruangan rumah selalu w = d = size */
+  w: number;
+  d: number;
   outdoor: boolean;
-  /** dinding kiri-belakang (bidang x = gx) & kanan-belakang (bidang y = gy), satu entri per petak */
+  /** dinding kiri-belakang (bidang x = gx, sepanjang d) & kanan-belakang (bidang y = gy, sepanjang w), satu entri per petak */
   L: WallSeg[];
   R: WallSeg[];
   window: boolean;
@@ -42,28 +46,29 @@ export interface HousePlan {
 
 /** dinding tinggi (150 px) menutupi ±4,4 petak di belakangnya */
 const WALL_REACH = 4.5;
-// batas aman ukuran satu ruangan; alun-alun (20×20) harus tergambar utuh, jadi batasnya di atas ALUN_SIZE
-const MIN_SIZE = 3, MAX_SIZE = 24;
+// batas aman ukuran satu ruangan; alun-alun (28×22) harus tergambar utuh, jadi batasnya di atas ALUN_W
+const MIN_SIZE = 3, MAX_SIZE = 32;
 
-type Rect = { id: string; i: number; gx: number; gy: number; s: number; outdoor: boolean };
-const overlaps = (a: Rect, b: { gx: number; gy: number; s: number }) => a.gx < b.gx + b.s && b.gx < a.gx + a.s && a.gy < b.gy + b.s && b.gy < a.gy + a.s;
+type Box = { gx: number; gy: number; w: number; d: number };
+type Rect = Box & { id: string; i: number; outdoor: boolean };
+const overlaps = (a: Box, b: Box) => a.gx < b.gx + b.w && b.gx < a.gx + a.w && a.gy < b.gy + b.d && b.gy < a.gy + a.d;
 /** sisi bersama bila `b` menempel di depan `a` */
-function sharedEdge(a: { gx: number; gy: number; s: number }, b: { gx: number; gy: number; s: number }) {
-  if (b.gx === a.gx + a.s) { const f = Math.max(a.gy, b.gy), t = Math.min(a.gy + a.s, b.gy + b.s); if (t > f) return { axis: 'x' as const, line: b.gx, from: f, to: t }; }
-  if (b.gy === a.gy + a.s) { const f = Math.max(a.gx, b.gx), t = Math.min(a.gx + a.s, b.gx + b.s); if (t > f) return { axis: 'y' as const, line: b.gy, from: f, to: t }; }
+function sharedEdge(a: Box, b: Box) {
+  if (b.gx === a.gx + a.w) { const f = Math.max(a.gy, b.gy), t = Math.min(a.gy + a.d, b.gy + b.d); if (t > f) return { axis: 'x' as const, line: b.gx, from: f, to: t }; }
+  if (b.gy === a.gy + a.d) { const f = Math.max(a.gx, b.gx), t = Math.min(a.gx + a.w, b.gx + b.w); if (t > f) return { axis: 'y' as const, line: b.gy, from: f, to: t }; }
   return null;
 }
-const touches = (a: Rect, b: { gx: number; gy: number; s: number }) => !!(sharedEdge(a, b) ?? sharedEdge(b, a));
+const touches = (a: Box, b: Box) => !!(sharedEdge(a, b) ?? sharedEdge(b, a));
 
 const sizeOf = (v: unknown) => Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(Number(v) || 6)));
 const isPos = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && Math.abs(v) <= 2000;
 
 /** Ruangan yang menempel satu sama lain, mulai dari ruangan pertama (indeks dalam `list`). */
-function linked<T extends { gx: number; gy: number; s: number }>(list: T[]) {
+function linked<T extends Box>(list: T[]) {
   const seen = new Set<number>(list.length ? [0] : []);
   const q = list.length ? [0] : [];
   for (let k = 0; k < q.length; k++)
-    list.forEach((b, j) => { if (!seen.has(j) && touches(list[q[k]] as any, b)) { seen.add(j); q.push(j); } });
+    list.forEach((b, j) => { if (!seen.has(j) && touches(list[q[k]], b)) { seen.add(j); q.push(j); } });
   return seen;
 }
 
@@ -73,8 +78,8 @@ function linked<T extends { gx: number; gy: number; s: number }>(list: T[]) {
  */
 export function planProblem(rooms: { id: string; size: number; gx: number; gy: number }[]): null | 'range' | 'overlap' | 'apart' {
   if (rooms.some((r) => !isPos(r.gx) || !isPos(r.gy))) return 'range';
-  const rs = rooms.map((r) => ({ gx: r.gx, gy: r.gy, s: sizeOf(r.size) }));
-  for (let a = 0; a < rs.length; a++) for (let b = a + 1; b < rs.length; b++) if (overlaps(rs[a] as Rect, rs[b])) return 'overlap';
+  const rs = rooms.map((r) => ({ gx: r.gx, gy: r.gy, w: sizeOf(r.size), d: sizeOf(r.size) }));
+  for (let a = 0; a < rs.length; a++) for (let b = a + 1; b < rs.length; b++) if (overlaps(rs[a], rs[b])) return 'overlap';
   if (linked(rs).size !== rs.length) return 'apart';
   return null;
 }
@@ -84,7 +89,7 @@ export function planProblem(rooms: { id: string; size: number; gx: number; gy: n
  * `strict`: semua posisi dipakai persis (layar Atur denah, saat pemain sedang menggeser ruangan).
  */
 export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Set<string> | undefined, opts: { strict?: boolean } = {}): HousePlan {
-  const list: (Rect & { fixed: boolean })[] = input.map((r, i) => ({ id: r.id, i, gx: isPos(r.gx) ? r.gx : 0, gy: isPos(r.gy) ? r.gy : 0, s: sizeOf(r.size), outdoor: r.theme === 'luar', fixed: isPos(r.gx) && isPos(r.gy) }));
+  const list: (Rect & { fixed: boolean })[] = input.map((r, i) => ({ id: r.id, i, gx: isPos(r.gx) ? r.gx : 0, gy: isPos(r.gy) ? r.gy : 0, w: sizeOf(r.w ?? r.size), d: sizeOf(r.d ?? r.size), outdoor: r.theme === 'luar', fixed: isPos(r.gx) && isPos(r.gy) }));
   const placed: Rect[] = [];
   // 1. letak buatan pemain (yang bertumpuk dengan ruangan sebelumnya disusun ulang otomatis)
   for (const r of list) {
@@ -102,10 +107,10 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
   // 3. sisanya ditempel otomatis: ruangan dalam dulu, halaman terakhir (di depan rumah)
   const free = list.filter((r) => !r.fixed);
   const order = [...free.filter((r) => !r.outdoor), ...free.filter((r) => r.outdoor)];
-  const bbox = (extra?: { gx: number; gy: number; s: number }) => {
-    const all = extra ? [...placed, extra] : placed;
+  const bbox = (extra?: Box) => {
+    const all: Box[] = extra ? [...placed, extra] : placed;
     const x0 = Math.min(...all.map((r) => r.gx)), y0 = Math.min(...all.map((r) => r.gy));
-    const x1 = Math.max(...all.map((r) => r.gx + r.s)), y1 = Math.max(...all.map((r) => r.gy + r.s));
+    const x1 = Math.max(...all.map((r) => r.gx + r.w)), y1 = Math.max(...all.map((r) => r.gy + r.d));
     return { W: x1 - x0, D: y1 - y0 };
   };
   for (const r of order) {
@@ -114,30 +119,30 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
     const pool = r.outdoor || !inside.length ? placed : inside;
     const cands: { gx: number; gy: number }[] = [];
     for (const p of pool) {
-      const al = [p.gy, p.gy + p.s - r.s, p.gy + Math.floor((p.s - r.s) / 2)];
-      for (const gy of al) cands.push({ gx: p.gx + p.s, gy });
-      const ax = [p.gx, p.gx + p.s - r.s, p.gx + Math.floor((p.s - r.s) / 2)];
-      for (const gx of ax) cands.push({ gx, gy: p.gy + p.s });
+      const al = [p.gy, p.gy + p.d - r.d, p.gy + Math.floor((p.d - r.d) / 2)];
+      for (const gy of al) cands.push({ gx: p.gx + p.w, gy });
+      const ax = [p.gx, p.gx + p.w - r.w, p.gx + Math.floor((p.w - r.w) / 2)];
+      for (const gx of ax) cands.push({ gx, gy: p.gy + p.d });
     }
     let Win = 0, Din = 0;
     if (r.outdoor && inside.length) {
-      Win = Math.max(...inside.map((p) => p.gx + p.s)); Din = Math.max(...inside.map((p) => p.gy + p.s));
+      Win = Math.max(...inside.map((p) => p.gx + p.w)); Din = Math.max(...inside.map((p) => p.gy + p.d));
       // halaman di tengah depan rumah
-      cands.push({ gx: Math.floor((Win - r.s) / 2), gy: Din }, { gx: Win, gy: Math.floor((Din - r.s) / 2) });
+      cands.push({ gx: Math.floor((Win - r.w) / 2), gy: Din }, { gx: Win, gy: Math.floor((Din - r.d) / 2) });
     }
     let best: { gx: number; gy: number; score: number[] } | null = null;
     for (const c of cands) {
-      const rect = { gx: c.gx, gy: c.gy, s: r.s };
+      const rect = { gx: c.gx, gy: c.gy, w: r.w, d: r.d };
       if (!r.outdoor && !anyFixed && (c.gx < 0 || c.gy < 0)) continue;
       if (placed.some((p) => overlaps(p, rect))) continue;
       if (!placed.some((p) => touches(p, rect))) continue;
       let centre = c.gx + c.gy;
       if (r.outdoor && inside.length) {
         // halaman harus di depan rumah (tidak di belakang / di sela ruangan dalam)
-        const frontY = inside.every((p) => !(p.gx < c.gx + r.s && c.gx < p.gx + p.s) || p.gy + p.s <= c.gy);
-        const frontX = inside.every((p) => !(p.gy < c.gy + r.s && c.gy < p.gy + p.s) || p.gx + p.s <= c.gx);
+        const frontY = inside.every((p) => !(p.gx < c.gx + r.w && c.gx < p.gx + p.w) || p.gy + p.d <= c.gy);
+        const frontX = inside.every((p) => !(p.gy < c.gy + r.d && c.gy < p.gy + p.d) || p.gx + p.w <= c.gx);
         if (!frontY && !frontX) continue;
-        centre = frontY ? Math.abs(c.gx + r.s / 2 - Win / 2) : Math.abs(c.gy + r.s / 2 - Din / 2);
+        centre = frontY ? Math.abs(c.gx + r.w / 2 - Win / 2) : Math.abs(c.gy + r.d / 2 - Din / 2);
       }
       const b = bbox(rect);
       const score = [Math.max(b.W, b.D), b.W + b.D, centre];
@@ -145,8 +150,8 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
     }
     if (!best) {
       // tidak ada tempat menempel (seharusnya tidak terjadi): taruh di kanan ruangan paling kanan
-      const far = placed.reduce((a, p) => (p.gx + p.s > a.gx + a.s ? p : a));
-      best = { gx: far.gx + far.s, gy: far.gy, score: [] };
+      const far = placed.reduce((a, p) => (p.gx + p.w > a.gx + a.w ? p : a));
+      best = { gx: far.gx + far.w, gy: far.gy, score: [] };
     }
     r.gx = best.gx; r.gy = best.gy;
     placed.push(r);
@@ -156,12 +161,12 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
   const x0 = placed.length ? Math.min(...placed.map((r) => r.gx)) : 0, y0 = placed.length ? Math.min(...placed.map((r) => r.gy)) : 0;
   if (!opts.strict) for (const r of placed) { r.gx -= x0; r.gy -= y0; }
   const ox = opts.strict ? x0 : 0, oy = opts.strict ? y0 : 0;
-  const W = placed.length ? Math.max(...placed.map((r) => r.gx + r.s)) - ox : 0;
-  const D = placed.length ? Math.max(...placed.map((r) => r.gy + r.s)) - oy : 0;
+  const W = placed.length ? Math.max(...placed.map((r) => r.gx + r.w)) - ox : 0;
+  const D = placed.length ? Math.max(...placed.map((r) => r.gy + r.d)) - oy : 0;
 
   // petak → ruangan
   const grid = new Map<string, Rect>();
-  for (const r of placed) for (let x = r.gx; x < r.gx + r.s; x++) for (let y = r.gy; y < r.gy + r.s; y++) grid.set(`${x},${y}`, r);
+  for (const r of placed) for (let x = r.gx; x < r.gx + r.w; x++) for (let y = r.gy; y < r.gy + r.d; y++) grid.set(`${x},${y}`, r);
   const cell = (x: number, y: number) => grid.get(`${Math.floor(x)},${Math.floor(y)}`);
   const inHouse = (x: number, y: number) => grid.has(`${Math.floor(x)},${Math.floor(y)}`);
 
@@ -199,23 +204,25 @@ export function houseLayout(input: HouseRoomIn[], blockedOf?: (id: string) => Se
   const doorAt = (axis: 'x' | 'y', line: number, k: number) => doors.some((d) => d.axis === axis && d.line === line && d.at === k);
   const rooms: HouseRoom[] = placed.map((r) => {
     const L: WallSeg[] = [], R: WallSeg[] = [];
-    for (let k = 0; k < r.s; k++) {
+    for (let k = 0; k < r.d; k++) {
       const y = r.gy + k, behindL = cell(r.gx - 1, y);
       L.push(behindL ? { k: doorAt('x', r.gx, y) ? 'door' : 'part', by: behindL.id } : { k: tallOk('x', r.gx, y) ? 'tall' : 'low' });
+    }
+    for (let k = 0; k < r.w; k++) {
       const x = r.gx + k, behindR = cell(x, r.gy - 1);
       R.push(behindR ? { k: doorAt('y', r.gy, x) ? 'door' : 'part', by: behindR.id } : { k: tallOk('y', r.gy, x) ? 'tall' : 'low' });
     }
-    const span = (a: number, b: number) => { const out: number[] = []; for (let k = Math.max(0, Math.floor(a)); k < Math.min(r.s, Math.ceil(b)); k++) out.push(k); return out; };
-    const win = !r.outdoor && span(r.s / 2 - 1.2, r.s / 2 + 1.2).every((k) => R[k].k === 'tall');
-    const pic = !r.outdoor && span(r.s / 2 + 0.35, r.s / 2 + 1.65).every((k) => L[k].k === 'tall');
-    return { id: r.id, i: r.i, gx: r.gx, gy: r.gy, size: r.s, outdoor: r.outdoor, L, R, window: win, painting: pic };
+    const span = (a: number, b: number, n: number) => { const out: number[] = []; for (let k = Math.max(0, Math.floor(a)); k < Math.min(n, Math.ceil(b)); k++) out.push(k); return out; };
+    const win = !r.outdoor && span(r.w / 2 - 1.2, r.w / 2 + 1.2, r.w).every((k) => R[k].k === 'tall');
+    const pic = !r.outdoor && span(r.d / 2 + 0.35, r.d / 2 + 1.65, r.d).every((k) => L[k].k === 'tall');
+    return { id: r.id, i: r.i, gx: r.gx, gy: r.gy, size: Math.max(r.w, r.d), w: r.w, d: r.d, outdoor: r.outdoor, L, R, window: win, painting: pic };
   });
   rooms.sort((a, b) => a.i - b.i);
   const byId = new Map(rooms.map((r) => [r.id, r]));
   const roomAt = (x: number, y: number) => { const c = cell(x, y); return c ? byId.get(c.id) : undefined; };
   return {
     rooms, doors, W, D, byId,
-    sig: rooms.map((r) => `${r.id}@${r.gx},${r.gy}/${r.size}`).join(';'),
+    sig: rooms.map((r) => `${r.id}@${r.gx},${r.gy}/${r.w === r.d ? r.w : `${r.w}x${r.d}`}`).join(';'),
     at: roomAt,
     pass(ax, ay, bx, by) {
       const A = cell(ax, ay), B = cell(bx, by);

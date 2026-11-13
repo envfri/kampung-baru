@@ -10,6 +10,7 @@ import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPa
 import { seedPackV11 } from './db/seed-ikan';
 import { seedPackV12 } from './db/seed-butik';
 import { seedPackV13 } from './db/seed-kebun';
+import { seedPackV14 } from './db/seed-alun';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -75,6 +76,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV11(db)) app.log.info('Paket konten v11 (Kolam Pancing: 25 ikan, ikan rahasia & temuan) ditambahkan');
   if (await seedPackV12(db)) app.log.info('Paket konten v12 (Butik Benang: baju & aksesori tambahan) ditambahkan');
   if (await seedPackV13(db)) app.log.info('Paket konten 13 (kebun bisa diperluas, 14 bibit baru, pupuk) ditambahkan');
+  if (await seedPackV14(db)) app.log.info('Paket konten 14 (alun-alun Pojok Wahana: jatah main 14) diterapkan');
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');

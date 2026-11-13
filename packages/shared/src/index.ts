@@ -4,6 +4,7 @@ export * from './art';
 export * from './art-ikan';
 export * from './house';
 export * from './square';
+export * from './art-alun';
 export * from './quests';
 export * from './activities';
 export * from './events';

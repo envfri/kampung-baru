@@ -39,10 +39,28 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.35.0',
+    date: '2026-11-13',
+    title: 'Alun-alun makin ramai: Pojok Wahana, 8 acara & Lomba Mancing',
+    summary: 'Alun-alun sekarang lebih luas: ada bianglala, kereta kelinci, lempar gelang, arak-arakan ondel-ondel, layar tancap, kembang api, dan Lomba Mancing tiap 20 menit!',
+    items: [
+      { kind: 'baru', text: 'Alun-alun lebih luas dengan Pojok Wahana di balik gapura: Bianglala, Kereta Kelinci keliling pagar, dan Lempar Gelang (3 gelang, bonus koin kalau masuk semua, sekali sehari).', player: true },
+      { kind: 'baru', text: 'Panggung sekarang punya 8 acara bergiliran: Orkes Kampung, Wayang Kardus, Tari Payung, Sulap Pak Badut, Angklung Kampung, Pencak Silat, Kuda Lumping, dan Lawak Kampung.', player: true },
+      { kind: 'baru', text: 'Arak-arakan ondel-ondel tiap 10 menit. Pet bisa ikut berjalan di belakangnya (maks. 8 pet).', player: true },
+      { kind: 'baru', text: 'Malam di alun-alun: layar tancap jam 19.00–22.00 dan kembang api jam 20.00 & 21.00 (pet jadi lebih ceria, sekali sehari).', player: true },
+      { kind: 'baru', text: 'Mancing bareng di Kolam Pemancingan Bareng: duduk di salah satu dari 6 dermaga, pemain lain melihat pet-mu memancing. Memakai jatah & hadiah Kolam Pancing.', player: true },
+      { kind: 'baru', text: 'Lomba Mancing tiap 20 menit selama 3 menit: papan skor langsung, skor = total berat ikan. Juara 1–3 dapat 40·25·15 koin, peserta lain yang dapat ikan dapat 5 koin. Ikan lomba dicatat di Buku Ikan lalu dilepas lagi. Jatah lomba 12 lemparan per hari.', player: true },
+      { kind: 'ubah', text: 'Jatah main berhadiah di alun-alun naik dari 10 menjadi 14 per hari. Wahana panjang (bianglala, kereta kelinci, arak-arakan) memberi hadiah setelah selesai.', player: true },
+      { kind: 'ubah', text: 'Teknis: alun-alun 28x22 (denah ruangan persegi panjang w x d di houseLayout, rumah tetap persegi), jadwal panggung/arak-arakan/kereta/bianglala/malam/lomba sebagai fungsi murni di @kb/shared. Paket konten 14 (penanda pack_alun). Migrasi 027: fishing_casts.contest & square_contests. Rute /api/square/ride, /api/square/pier, /api/square/fish/cast·hook·land·lost, /api/square/lomba. Pengaturan square.lomba + rideCoins/rideXp/rideCeria/gelangBonus/fireworkCeria dengan validasi admin.' },
+      { kind: 'keamanan', text: 'Hasil lempar gelang, wahana dan Lomba Mancing ditentukan server. Hasil lomba diselesaikan server sekali (tercatat, tidak dibayar dua kali) walau pemain terputus; lemparan lomba tidak bisa diklaim sebagai tangkapan Kolam Pancing; maks. 3 lomba berhadiah per hari.' },
+    ],
+  },
+  {
     version: '0.34.0',
     date: '2026-11-13',
     title: 'Kolam Pancing baru: 25 ikan, ikan rahasia & harta karun',
     summary: 'Mancing sekarang ada tahapannya: lempar, tunggu bayangan ikan, sambar, lalu tarik-ulur. Ada 25 ikan, 3 ikan rahasia, dan peti harta karun!',
+    commits: ['2b7b060'],
     items: [
       { kind: 'baru', text: 'Mancing bertahap: tahan untuk atur tenaga lempar (Dekat, Sedang, Jauh), tunggu bayangan ikan mendekat, ikan ngicip-ngicip dulu, sambar tepat waktu, lalu tarik-ulur sambil menjaga tali supaya tidak kendur atau putus.', player: true },
       { kind: 'baru', text: '25 ikan dalam 4 kelas (Biasa, Jarang, Langka, Legenda). Ada ikan yang lebih sering muncul pagi, malam, di tepi atau di tengah kolam. Lempar jauh memakai energi lebih banyak, tapi lebih sering dapat ikan langka.', player: true },

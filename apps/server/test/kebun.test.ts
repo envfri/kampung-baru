@@ -336,7 +336,9 @@ test('naik dari database content_pack 10: petak & bibit pemain tetap ada', async
   const B = (await buildApp({ db: old, logger: false, rateLimit: false, worker: false })).app;
   cur = B;
   try {
-    assert.equal((await old.one(`select value from settings where key = 'content_pack'`)).value, 13);
+    // paket sesudahnya (mis. 14 alun-alun) boleh ikut jalan: cukup paling tidak 13 + penanda kebun
+    assert.ok(Number((await old.one(`select value from settings where key = 'content_pack'`)).value) >= 13);
+    assert.ok(await old.one(`select 1 from settings where key = 'pack_kebun'`), 'penanda paket kebun tercatat');
     const me = (await c.get('/api/me')).body;
     assert.equal(me.gardenLevel, 1, 'pemain lama mulai di Kebun Lv1');
     assert.deepEqual(me.garden.map((p: any) => [p.slot, p.seed_id]), [[0, 'bibit-tomat'], [5, 'bibit-jagung']]);

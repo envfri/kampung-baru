@@ -526,6 +526,16 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     gp('xpCapPerDay', 0, 100000, 'Kebun: batas XP panen per hari');
     gp('plantsPerDay', 1, 100000, 'Kebun: batas tanam per hari');
     checkFishing(value.fishing);
+    const sq = value.square;
+    if (sq.actsPerDay < 0 || sq.actsPerDay > 100) throw bad('invalid_settings', 'Jatah main alun-alun per hari harus 0–100.');
+    for (const k of ['actCoins', 'actXp', 'ceria', 'rideCoins', 'rideXp', 'rideCeria', 'gelangBonus', 'fireworkCeria'] as const) if (sq[k] < 0 || sq[k] > 200) throw bad('invalid_settings', `Alun-alun › ${k} harus 0–200.`);
+    const lb = sq.lomba;
+    if (lb.castsPerDay < 0 || lb.castsPerDay > 100) throw bad('invalid_settings', 'Lomba Mancing: jatah lempar per hari harus 0–100.');
+    if (lb.entryEnergi < 0 || lb.entryEnergi > 50) throw bad('invalid_settings', 'Lomba Mancing: energi masuk harus 0–50.');
+    if (lb.perDay < 0 || lb.perDay > 72) throw bad('invalid_settings', 'Lomba Mancing: lomba berhadiah per hari harus 0–72.');
+    if (lb.prizes.length !== 3 || lb.prizeXp.length !== 3) throw bad('invalid_settings', 'Lomba Mancing: hadiah & XP juara harus 3 angka (juara 1, 2, 3).');
+    if ([...lb.prizes, lb.joinCoins].some((n) => n < 0 || n > 1000)) throw bad('invalid_settings', 'Lomba Mancing: hadiah koin harus 0–1000.');
+    if ([...lb.prizeXp, lb.joinXp].some((n) => n < 0 || n > 200)) throw bad('invalid_settings', 'Lomba Mancing: XP harus 0–200.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
     const changes = diffPaths(before, value);

@@ -2,18 +2,26 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
   import { api } from '../lib/api';
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
+  import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
   /** alun-alun: lapangan bersama semua pemain (pet sendiri jalan-jalan, pemain lain live) */
   const square = untrack(() => mode === 'square');
   const ALUN_FLOOR: any = { id: 'alun-rumput', kind: 'floor', name: 'Rumput', art: { type: 'builtin', key: 'rumput', colors: { main: '#8CC56E', accent: '#7FB862' } } };
+  /** alun-alun: jam setempat (atau pratinjau ?jam= / ?langit=) untuk langit malam, layar tancap & kembang api */
+  let hm = $state(localNow());
+  onMount(() => { if (!square) return; const t = setInterval(() => { hm = localNow(); }, 10_000); return () => clearInterval(t); });
+  const nightEv = $derived(squareNight(hm.h, hm.m));
+  const nightSq = $derived(square && skyTime(hm.h) === 'malam');
+  const layarOn = $derived(square && nightEv.layar);
+  const fireworks = $derived(square && nightEv.kembangApi);
   let svgEl: SVGSVGElement | undefined = $state();
   let wrapEl: HTMLDivElement | undefined = $state();
   let fxLayer: SVGGElement | undefined = $state();
@@ -23,13 +31,14 @@
   /* ---------------- denah rumah ---------------- */
   const defSize = () => G.catalog?.settings?.room?.size ?? 6;
   const rooms = $derived.by<any[]>(() => {
-    if (square) return [{ id: ALUN_ROOM, name: 'Alun-alun', size: ALUN_SIZE, theme: 'luar', layout: ALUN_LAYOUT, floorItem: ALUN_FLOOR }];
+    if (square) return [{ id: ALUN_ROOM, name: 'Alun-alun', size: ALUN_W, w: ALUN_W, d: ALUN_D, theme: 'luar', layout: ALUN_LAYOUT, floorItem: ALUN_FLOOR }];
     if (mode === 'visit') return G.visit?.rooms?.length ? G.visit.rooms : G.visit?.room ? [{ id: '', name: 'Kamar', ...G.visit.room }] : [];
     if (G.me?.rooms?.length) return G.me.rooms;
     const c = curRoom();
     return c ? [c] : [];
   });
-  const itemMap = $derived<Record<string, any>>(square ? { ...Object.fromEntries(items()), ...ALUN_ITEMS } : Object.fromEntries(items()));
+  // malam (19–22): layar terbentang, proyektor & tikar nonton muncul
+  const itemMap = $derived<Record<string, any>>(square ? { ...Object.fromEntries(items()), ...ALUN_ITEMS, ...(layarOn ? ALUN_NIGHT_ITEMS : {}) } : Object.fromEntries(items()));
   const itemOf = (id: string | undefined) => (id ? itemMap[id] ?? item(id) : undefined);
   /** ruangan yang sedang diatur (mode Atur) */
   const editId = $derived<string | null>(mode === 'home' && G.edit ? curRoom()?.id ?? '' : null);
@@ -39,7 +48,7 @@
   /** mode Atur denah: letak ruangan diambil dari yang sedang diatur, persis apa adanya */
   const planning = $derived(mode === 'home' && !!G.plan);
   const plan = $derived(houseLayout(
-    rooms.map((r) => ({ id: r.id, size: r.size ?? defSize(), theme: r.theme, gx: planning ? G.plan!.pos[r.id]?.gx : r.gx, gy: planning ? G.plan!.pos[r.id]?.gy : r.gy })),
+    rooms.map((r) => ({ id: r.id, size: r.size ?? defSize(), w: r.w, d: r.d, theme: r.theme, gx: planning ? G.plan!.pos[r.id]?.gx : r.gx, gy: planning ? G.plan!.pos[r.id]?.gy : r.gy })),
     (id) => occ.get(id), { strict: planning },
   ));
   /** berubah hanya bila letak/ukuran ruangan berubah (bukan setiap denah dibuat ulang) */
@@ -57,15 +66,15 @@
   function toHouse(roomId: string, x: number, y: number): [number, number] {
     const r = plan.byId.get(roomId) ?? plan.rooms[0];
     if (!r) return [x, y];
-    const c = (v: number) => Math.max(0.5, Math.min(r.size - 0.5, v));
-    return [r.gx + c(x), r.gy + c(y)];
+    const c = (v: number, n: number) => Math.max(0.5, Math.min(n - 0.5, v));
+    return [r.gx + c(x, r.w), r.gy + c(y, r.d)];
   }
   /** petak kosong di satu ruangan (koordinat rumah) */
   function freeIn(roomId: string | undefined): [number, number][] {
     const r = roomId !== undefined ? plan.byId.get(roomId) : undefined;
     if (!r) return [];
     const out: [number, number][] = [];
-    for (let x = r.gx; x < r.gx + r.size; x++) for (let y = r.gy; y < r.gy + r.size; y++) if (!blocked.has(`${x},${y}`)) out.push([x, y]);
+    for (let x = r.gx; x < r.gx + r.w; x++) for (let y = r.gy; y < r.gy + r.d; y++) if (!blocked.has(`${x},${y}`)) out.push([x, y]);
     return out;
   }
   /** tempat berdiri pet di tengah ruangan */
@@ -79,8 +88,8 @@
   /** alun-alun: masuk lewat gerbang depan (petak kosong acak dekat jalan utama) */
   function entrySpot(): [number, number] {
     // sedikit masuk ke lapangan (bukan di tepi) supaya alun-alun terlihat luas sejak datang
-    const near = freeIn(ALUN_ROOM).filter(([x, y]) => y >= ALUN_SIZE - 6 && y <= ALUN_SIZE - 4 && Math.abs(x - 10) <= 3);
-    const t = near[Math.floor(Math.random() * near.length)] ?? [10, ALUN_SIZE - 1];
+    const near = freeIn(ALUN_ROOM).filter(([x, y]) => y >= ALUN_D - 6 && y <= ALUN_D - 4 && Math.abs(x - 10) <= 3);
+    const t = near[Math.floor(Math.random() * near.length)] ?? [10, ALUN_D - 1];
     return [t[0] + 0.5, t[1] + 0.5];
   }
   // ruangan yang difokuskan: di rumah sendiri = ruangan aktif (ikut pet), saat berkunjung = ruangan pet sendiri
@@ -242,38 +251,49 @@
     return yardStr;
   });
   /** batas pandang kamera: pekarangan (bila tampil) atau rumah saja */
-  const viewBounds = () => (showYard ? houseYardBounds(plan) : houseBounds(plan));
+  const viewBounds = () => (square ? SQB : showYard ? houseYardBounds(plan) : houseBounds(plan));
   const crumbsHtml = $derived(G.edit ? '' : houseCrumbs(plan, crumbRoom, crumbs));
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
-  type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string } };
+  type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string }; behind?: boolean };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
   const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop }) : '');
   /** gambar pet lain disimpan per pet: hanya dibuat ulang bila tampilannya berubah (bukan setiap ada yang pindah petak) */
   const markupCache = new Map<string, { k: string; h: string }>();
   function compMarkup(c: Comp) {
-    const k = JSON.stringify([c.look?.color, c.look?.ear, c.look?.pattern, c.look?.eyes, c.look?.tail, c.wear?.map((w: any) => w.id), c.state, c.flip]);
+    // naik bianglala: depan gondola menutupi badan; ikut arak-arakan: bawa bendera
+    const prop = c.ride ? (c.ride.kind === 'bianglala' ? `gondola${c.ride.seat}` : c.ride.kind === 'arak' ? 'bendera' : c.ride.kind === 'kolam' ? (c.ride.seat <= 3 ? 'joran' : 'joran2') : undefined) : undefined;
+    const k = JSON.stringify([c.look?.color, c.look?.ear, c.look?.pattern, c.look?.eyes, c.look?.tail, c.wear?.map((w: any) => w.id), c.state, c.flip, prop]);
     const hit = markupCache.get(c.id);
     if (hit && hit.k === k) return hit.h;
-    const h = petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip });
+    const h = petMarkup({ look: c.look, wear: c.wear, state: c.state, flip: c.flip, prop });
     markupCache.set(c.id, { k, h });
     return h;
   }
   const petDraws = $derived.by(() => {
     void compVer;
     const out: Draw[] = [];
-    if (mainMarkup && pos) out.push({ key: 'pet', d: pos[0] + pos[1] + 0.01, h: mainMarkup, pet: { cls: `pet${pose?.pose ? ' pose-' + pose.pose : ''}`, tf: tf(pos, pose?.lift ?? 0) } });
+    if (mainMarkup && pos) out.push({ key: 'pet', d: rideD ?? pos[0] + pos[1] + 0.01, h: mainMarkup, behind: rideBehind, pet: { cls: `pet${pose?.pose ? ' pose-' + pose.pose : ''}`, tf: rideTf ?? tf(pos, pose?.lift ?? 0) } });
     if (!(mode === 'home' && (G.edit || G.plan)))
       for (const c of comps.values())
-        out.push({ key: 'o:' + c.id, d: c.live[0] + c.live[1] + 0.005, h: compMarkup(c), pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: tf(c.live), o: c.id } });
+        out.push({ key: 'o:' + c.id, d: c.rideD ?? c.live[0] + c.live[1] + 0.005, h: compMarkup(c), behind: !!c.rideBehind, pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: c.rideTf ?? tf(c.live), o: c.id } });
     return out;
   });
-  const draws = $derived<Draw[]>([...fixedDraws, ...petDraws, ...npcDraws].sort(houseDrawOrder));
+  /** ondel-ondel penyambut tidak tampil di gerbang selama arak-arakan (mereka sedang berkeliling) */
+  const shownFixed = $derived.by(() => {
+    if (!square || !paradeOn) return fixedDraws;
+    const hide = new Set(ALUN_LAYOUT.map((p, i) => (p.i === 'alun-ondel' || p.i === 'alun-ondelnone' ? `f:${ALUN_ROOM}:${i}` : '')).filter(Boolean));
+    return fixedDraws.filter((d) => !hide.has(d.key));
+  });
+  const draws = $derived<Draw[]>([...shownFixed, ...(square ? [FESTOON] : []), ...petDraws, ...npcDraws, ...moverDraws].sort(houseDrawOrder));
+  /** gerbong kereta di rel belakang & kiri (dan penumpangnya) digambar di balik pagar & semak */
+  const drawsBehind = $derived(square ? draws.filter((d) => d.behind) : []);
+  const drawsFront = $derived(square ? draws.filter((d) => !d.behind) : draws);
 
   const petEl = () => svgEl?.querySelector('.pet') as SVGGElement | null;
   function place() {
     const el = petEl();
     if (!el || !live) return;
-    el.setAttribute('transform', tf(live, pose?.lift ?? 0));
+    el.setAttribute('transform', rideTf ?? tf(live, pose?.lift ?? 0));
   }
 
   /** Jalur terpendek (BFS) dari petak pet ke salah satu petak tujuan; pindah ruangan hanya lewat pintu. */
@@ -497,7 +517,7 @@
       if (m === 'near' && !square) { const t = nearCam(); if (t) aim(t); return; }
       if (m === 'yard' && !square) { aim(fit(viewBounds())); return; }
       if (m === 'house') {
-        const b = houseBounds(plan);
+        const b = square ? SQB : houseBounds(plan);
         // ruang kosong di sekeliling rumah untuk memindah ruangan
         aim(fit(pl ? { x: b.x - b.w * 0.15, y: b.y - b.h * 0.1, w: b.w * 1.3, h: b.h * 1.2 } : b));
       } else aim(fit(houseBounds(plan, f), true));
@@ -671,7 +691,9 @@
   });
 
   /* ---------------- pet lain di rumah: tamu yang sedang live & pet sendiri saat berkunjung ---------------- */
-  type Comp = { id: string; name: string; look: any; wear: any[]; state?: any; live: [number, number]; tile: string; path: [number, number][]; speed: number; flip: boolean; pose?: string; target: string; self?: boolean };
+  type Comp = { id: string; name: string; look: any; wear: any[]; state?: any; live: [number, number]; tile: string; path: [number, number][]; speed: number; flip: boolean; pose?: string; target: string; self?: boolean;
+    /** sedang naik wahana alun-alun (dari sinkron): posisi dihitung dari jadwal wahana */
+    ride?: { kind: RideKind | 'kolam'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean };
   const SELF = '__me';
   const comps = new Map<string, Comp>();
   const missing = new Map<string, number>();
@@ -682,7 +704,7 @@
   function placeComp(c: Comp) {
     const el = svgEl?.querySelector(`[data-o="${c.id}"]`) as SVGGElement | null;
     if (!el) return;
-    el.setAttribute('transform', tf(c.live));
+    el.setAttribute('transform', c.rideTf ?? tf(c.live));
     el.querySelector('.pet-face')?.setAttribute('transform', c.flip ? 'scale(-1 1)' : '');
     el.classList.toggle('moving', c.path.length > 0);
   }
@@ -781,10 +803,14 @@
         let c = comps.get(m.id);
         if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
         else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
-        const pz = m.act === 'duduk' ? 'duduk' : m.act === 'joget' ? 'joget' : undefined;
+        const rd = rideOf(m.act);
+        const pz = m.act === 'duduk' ? 'duduk' : m.act === 'joget' ? 'joget' : rd ? (rd.kind === 'arak' ? 'arak' : rd.kind === 'kolam' ? 'mancing' : 'wahana') : undefined;
         if (pz !== c.pose) { c.pose = pz; changed = true; }
+        if ((rd ? `${rd.kind}:${rd.seat}` : '') !== (c.ride ? `${c.ride.kind}:${c.ride.seat}` : '')) { c.ride = rd ?? undefined; c.rideTf = undefined; c.rideD = undefined; c.rideBehind = undefined; c.path = []; if (rd?.kind === 'kolam') c.flip = rd.seat <= 3; changed = true; }
         const tk = `${tgt[0].toFixed(2)},${tgt[1].toFixed(2)}`;
-        if (tk !== c.target) {
+        // naik bianglala / kereta: posisinya dari jadwal wahana, bukan dari sinkron (sesudahnya berjalan dari posisi terakhir)
+        if (c.ride && c.ride.kind !== 'arak') c.target = '';
+        else if (tk !== c.target) {
           c.target = tk;
           const d = Math.hypot(tgt[0] - c.live[0], tgt[1] - c.live[1]);
           if (d > 16) { c.live = [...tgt]; c.path = []; c.tile = tileOf(tgt); changed = true; }
@@ -841,7 +867,7 @@
       H.pos.x = +(at[0] - (r?.gx ?? 0)).toFixed(2);
       H.pos.y = +(at[1] - (r?.gy ?? 0)).toFixed(2);
       if (mode === 'visit' && me) { H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
-      else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' || pose?.pose === 'naik' || pose?.pose === 'ayun' ? 'duduk' : pose?.pose === 'joget' ? 'joget' : pose?.pose === 'lihat' ? 'lihat' : walking ? 'jalan' : null; }
+      else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' || pose?.pose === 'naik' || pose?.pose === 'ayun' || pose?.pose === 'wahana' ? 'duduk' : pose?.pose === 'joget' ? 'joget' : pose?.pose === 'lihat' ? 'lihat' : walking ? 'jalan' : null; }
   }
   // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
   let entered = '';
@@ -1046,6 +1072,13 @@
         if (a.id === 'jajan' && it && SQUARE_SNACKS[it.id]) return { ...a, name: `Jajan ${SQUARE_SNACKS[it.id].name}`, note: `${SQUARE_SNACKS[it.id].coins} koin`, item: it.id };
         if (a.id === 'nonton' && show && !show.playing) return { ...a, off: true, note: `${show.next.name} mulai ${Math.max(1, Math.ceil((show.until - serverNow()) / 1000))} dtk lagi` };
         if (a.id === 'nonton' && show) return { ...a, note: `Sedang tampil: ${show.name}` };
+        const now = clockMs();
+        if (a.id === 'bianglala') return { ...a, note: 'Satu putaran ±1 menit' };
+        if (a.id === 'kereta') { const k = keretaAt(now); return { ...a, note: k.stopped ? 'Kereta di halte' : `Datang ${mmss(k.arriveAt - now)}` }; }
+        if (a.id === 'arak') { const pa = paradeNow(now); return pa.joinable ? { ...a, note: pa.on ? 'Sedang lewat!' : `Mulai ${mmss(pa.start - now)}` } : { ...a, off: true, note: pa.on ? 'Rombongan sudah jauh' : `Mulai ${Math.ceil((pa.start - now) / 60_000)} mnt lagi` }; }
+        if (a.id === 'layar') return layarOn ? { ...a, note: FILMS[film] } : { ...a, off: true, note: 'Diputar 19.00–22.00' };
+        if (a.id === 'gelang') return { ...a, note: '3 dari 3 = bonus' };
+        if (a.id === 'mancing') { const used = new Set([...comps.values()].filter((c) => c.ride?.kind === 'kolam').map((c) => c.ride!.seat)); const free = 6 - used.size; return free <= 0 ? { ...a, off: true, note: 'Dermaga penuh' } : { ...a, name: ALUN.lomba?.phase === 'lomba' ? 'Ikut Lomba Mancing' : a.name, note: `${free} dermaga kosong` }; }
         return { ...a, note: a.id === 'foto' ? 'Bersama pet di dekatmu' : '' };
       });
     }
@@ -1059,7 +1092,7 @@
     const r = plan.byId.get(t.room);
     if (!r) return { goals: [], center: null, faceTo: null, flipTo: null };
     // tujuan hanya di dalam ruangan itu (tidak dari balik dinding)
-    const inRoom = (g: [number, number][]) => g.filter(([x, y]) => x >= 0 && y >= 0 && x < r.size && y < r.size).map(([x, y]) => [x + r.gx, y + r.gy] as [number, number]);
+    const inRoom = (g: [number, number][]) => g.filter(([x, y]) => x >= 0 && y >= 0 && x < r.w && y < r.d).map(([x, y]) => [x + r.gx, y + r.gy] as [number, number]);
     if (t.spot) return { goals: inRoom([...ROOM_SPOTS[t.spot].tiles(r.size)]), center: null, faceTo: null, flipTo: ROOM_SPOTS[t.spot].flip };
     const p = placedAt(t);
     if (!p) return { goals: [], center: null, faceTo: null, flipTo: null };
@@ -1074,6 +1107,8 @@
 
   function openMenu(e: MouseEvent, t: Target) {
     if (acting) return;
+    // Papan Lomba Mancing: papan skor / hasil / jadwal
+    if (square && itemOf(placedAt(t)?.i)?.art?.key === 'papanlomba') { sfx.tap(); ALUN.board = true; return; }
     const acts = activitiesFor(t);
     const title = t.spot ? ACTIVITY_SPOTS[t.spot] : itemOf(placedAt(t)?.i)?.name ?? 'Mebel';
     if (!acts.length) {
@@ -1148,9 +1183,15 @@
   const music = $derived(!!show?.music);
   /** komponen masih tampil (aktivitas yang masih berjalan berhenti diam-diam setelah keluar) */
   let alive = true;
-  onDestroy(() => { alive = false; });
+  // keluar dari alun-alun saat naik / menunggu wahana: kabar wahana di bar dihapus (server menghapus kursinya saat keluar)
+  onDestroy(() => { alive = false; if (square) { ALUN.ride = null; ALUN.fishing = null; ALUN.board = false; } });
 
+  /** menit:detik untuk hitung mundur singkat */
+  const mmss = (ms: number) => { const v = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
   async function doSquareAct(a: any, t: Target) {
+    if (a.ride) return doRide(a);
+    if (a.id === 'mancing') return doMancing();
+    if (a.id === 'gelang') return doGelang(t);
     menu = null;
     if (acting || G.busy) return;
     const g = goalsFor(t);
@@ -1174,7 +1215,7 @@
       pose = null; acting = false; scheduleIdle();
       return;
     }
-    const r: any = await run(() => api.post('/api/square/act', { kind: a.id, item: a.item }));
+    const r: any = await run(() => api.post('/api/square/act', { kind: a.id, item: a.item, tz: tzMin() }));
     if (!alive) return;
     if (!r) { acting = false; scheduleIdle(); return; }
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
@@ -1186,7 +1227,7 @@
     queueMicrotask(place);
     if (r.kind === 'jajan') { sfx.eat(); fx('food'); } else sfx.pop();
     const beats = Math.max(2, Math.round(anim.ms / 700));
-    for (let i = 0; i < beats; i++) { if (!alive) return; fx((r.kind === 'jajan' ? 'food' : a.id === 'nonton' ? 'notes' : anim.fx) as any); await sleep(anim.ms / beats + 200); }
+    for (let i = 0; i < beats; i++) { if (!alive) return; fx((r.kind === 'jajan' ? 'food' : a.id === 'nonton' ? 'notes' : a.id === 'layar' ? 'sparkle' : anim.fx) as any); await sleep(anim.ms / beats + 200); }
     if (gen !== planGen || !alive) return;
     pose = null;
     if (seat && standAt) { live = standAt; pos = [...standAt]; }
@@ -1221,24 +1262,57 @@
     }
   }
 
-  // pengisi acara di panggung (pet kampung) sesuai acara yang sedang tampil
+  // pengisi acara di panggung (pet kampung) sesuai acara yang sedang tampil (8 acara, 3 pengisi; yang baru hanya properti & pose)
   const NPC_LOOKS = [{ color: '#F2C94C', ear: 'kucing', eyes: 'bulat' }, { color: '#9FD3C2', ear: 'kelinci' }, { color: '#E7A6C8', ear: 'tunas' }];
-  const SHOW_PROPS: Record<string, (string | undefined)[]> = { orkes: ['gitar', 'kendang', 'gitar'], wayang: ['wayang', undefined, 'wayang'], tari: ['payungtari', 'payungtari', 'payungtari'], sulap: [undefined, 'topi', undefined] };
+  type NpcCfg = { prop?: string; lift?: number; rot?: number; flip?: boolean; at?: [number, number]; cls?: string } | null;
+  const SHOW_CAST: Record<string, NpcCfg[]> = {
+    orkes: [{ prop: 'gitar' }, { prop: 'kendang' }, { prop: 'gitar' }],
+    wayang: [{ prop: 'wayang' }, {}, { prop: 'wayang' }],
+    tari: [{ prop: 'payungtari', cls: 'pose-joget' }, { prop: 'payungtari', cls: 'pose-joget' }, { prop: 'payungtari', cls: 'pose-joget' }],
+    sulap: [null, { prop: 'topi' }, null],
+    angklung: [{ prop: 'angklung' }, { prop: 'angklung2' }, { prop: 'angklung3' }],
+    // pencak silat: tendangan melompat & kuda-kuda rendah, penabuh kendang di tengah
+    silat: [{ prop: 'silat', lift: 22, rot: -14, cls: 'pose-silat' }, { prop: 'kendang', at: [10, 1.1] }, { prop: 'silat2', rot: 9, at: [11.55, 1.45], cls: 'pose-silat' }],
+    // kuda lumping: tiga kuda anyaman, langkah berderap bergantian
+    kudalumping: [{ prop: 'kudaA', lift: 6, cls: 'pose-derap' }, { prop: 'kudaB', lift: 16, cls: 'pose-derap d2' }, { prop: 'kudaC', lift: 4, cls: 'pose-derap d3' }],
+    // lawak: kacamata-kumis tempel, kipas & peci, penabuh kendang
+    lawak: [{ prop: 'lawak', rot: -6 }, { prop: 'kipas', flip: true }, { prop: 'kendang' }],
+  };
   // tiga pengisi acara sebaris dengan jarak sama di atas panggung (panggung: x 8–12, y 0–2);
   // yang paling kiri menghadap ke kiri supaya alat musik / payung / wayangnya tidak tertutup temannya
   const NPC_AT: [number, number][] = [[8.55, 1.3], [10, 1.3], [11.45, 1.3]];
   /** kedalaman gambar panggung (x + y + (w + d) / 2): pengisi acara selalu digambar di atasnya, tidak tertutup tirai/lantai panggung */
   const STAGE_D = 8 + 0 + (4 + 2) / 2;
+  /** titik di atas lantai panggung (layar) */
+  const stageTop = (at: [number, number], extra = 0) => { const p = houseIso(at[0], at[1]); return [p[0], p[1] - (22.6 + extra) * (HOUSE_T / 32)]; };
+  /** efek panggung: gelembung tulisan (silat, lawak) bergantian muncul, debu kuda lumping */
+  function showFx(key: string) {
+    const t0 = stageTop(NPC_AT[0]), t1 = stageTop(NPC_AT[1]), t2 = stageTop(NPC_AT[2]);
+    if (key === 'silat') {
+      const k = stageTop(NPC_AT[0], 22), st = stageTop([11.55, 1.45]);
+      return swooshSVG(k[0] - 4, k[1] - 28, 44, 120, 230) + swooshSVG(k[0] + 6, k[1] - 24, 54, 140, 210) + swooshSVG(st[0] + 8, st[1] - 34, 46, -40, 40)
+        + speechSVG(k[0] - 18, k[1] - 96, 'Hiaat!', { size: 14, color: '#C0392B', tail: 'r', cls: 'ngakak', delay: 0 }) + speechSVG(st[0] + 18, st[1] - 98, 'Hup!', { size: 14, color: '#3F7FBF', tail: 'l', cls: 'ngakak', delay: -1.6 });
+    }
+    if (key === 'lawak') {
+      return speechSVG(t0[0] - 6, t0[1] - 100, 'HAHA', { size: 17, tail: 'c', rot: -6, cls: 'ngakak', delay: 0 }) + speechSVG(t1[0] + 16, t1[1] - 112, 'Hehehe', { size: 14, color: '#3F7FBF', tail: 'l', rot: 4, cls: 'ngakak', delay: -1.1 })
+        + speechSVG(t2[0] + 14, t2[1] - 96, 'tak-dung!', { size: 13, color: '#9A6FC0', tail: 'l', cls: 'ngakak', delay: -2.2 });
+    }
+    if (key === 'kudalumping') return `<g class="blink">${[t0, t1, t2].map((t) => dustSVG(t[0] - 20, t[1] + 2) + dustSVG(t[0] + 22, t[1] + 4)).join('')}</g>`;
+    return '';
+  }
   const npcDraws = $derived.by(() => {
     const [key, playing] = showKey.split('|');
     if (!square || playing !== 'true') return [] as Draw[];
-    const props = SHOW_PROPS[key] ?? [];
-    const dance = key === 'tari';
-    return NPC_AT.map((p, i) => {
-      const at = key === 'sulap' && i !== 1 ? null : p;
-      if (!at) return null;
-      return { key: `npc:${i}`, d: Math.max(STAGE_D + 0.02 + i * 0.001, at[0] + at[1] + 0.03), h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: i === 0, prop: props[i] }), pet: { cls: `npc ${dance ? 'pose-joget' : 'pose-tampil'}`, tf: tf(at, 22.6) } } as Draw;
+    const cast = SHOW_CAST[key] ?? [];
+    const out = cast.map((c, i) => {
+      if (!c) return null;
+      const at = c.at ?? NPC_AT[i];
+      const t = tf(at, 22.6 + (c.lift ?? 0)) + (c.rot ? ` rotate(${c.rot})` : '');
+      return { key: `npc:${i}`, d: Math.max(STAGE_D + 0.02 + i * 0.001, at[0] + at[1] + 0.03), h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: c.flip ?? i === 0, prop: c.prop }), pet: { cls: `npc ${c.cls ?? 'pose-tampil'}`, tf: t } } as Draw;
     }).filter(Boolean) as Draw[];
+    const fxh = showFx(key);
+    if (fxh) out.push({ key: 'npc:fx', d: STAGE_D + 0.5, h: `<g pointer-events="none">${fxh}</g>` });
+    return out;
   });
   // not musik melayang dari panggung saat musik dimainkan
   $effect(() => {
@@ -1246,6 +1320,348 @@
     const t = setInterval(() => { const [x, y] = houseIso(10, 1); spawn(x, y - 110, 'notes'); }, 1800);
     return () => clearInterval(t);
   });
+
+  /* ---------------- alun-alun v32: Pojok Wahana, arak-arakan, kereta kelinci, bianglala, malam ---------------- */
+  const SS = HOUSE_T / 32;
+  /** jam server dalam ms (G.now hanya berdetak tiap detik) */
+  const clockMs = () => Date.now() + G.offset;
+  /** tanah & rel di sekeliling lapangan (statis, dibuat sekali) */
+  const groundHtml = square ? alunGroundSVG() : '';
+  /** batas kamera alun-alun: pulau beserta rel & benda tinggi di belakang */
+  const SQB = (() => {
+    if (!square) return { x: 0, y: 0, w: 1, h: 1 };
+    const pts = alunIslandPoly(), xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys) - 130, y1 = Math.max(...ys) + 26;
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  })();
+  /** lampu taman (untuk cahaya malam) */
+  const LAMPS = ALUN_LAYOUT.filter((p) => p.i === 'alun-lampu').map((p) => ({ x: p.x, y: p.y }));
+  let film = $state(square ? filmAt(serverNow()) : 0);
+  onMount(() => { if (!square) return; const t = setInterval(() => { film = filmAt(serverNow()); }, 20_000); return () => clearInterval(t); });
+  const nightHtml = $derived(square && nightSq ? alunNightSVG(LAMPS, layarOn ? film : -1) : '');
+  /** bohlam roda bianglala yang menyala di malam hari (ikut diputar) */
+  const BL_BRIGHT = square ? bianglalaBulbsSVG() : '';
+  /** untaian lampu Jalan Wahana (antara lampu 21,12 & 25,12) */
+  const FESTOON: Draw = { key: 'festoon', d: 21 + 12 + 0.6, h: square ? `<g pointer-events="none">${festoonSVG(lampHead(21, 12), lampHead(25, 12))}</g>` : '' };
+  /** indeks ondel-ondel penyambut di ALUN_LAYOUT (disembunyikan selama arak-arakan) */
+  const ONDEL_IDX = ALUN_LAYOUT.map((p, i) => (p.i === 'alun-ondel' || p.i === 'alun-ondelnone' ? i : -1)).filter((i) => i >= 0);
+
+  /** keadaan arak-arakan & kereta pada `now` (pratinjau ?arak= / ?kereta= dibekukan pada detik itu) */
+  const paradeNow = (now: number) => {
+    if (PREVIEW.arak === null) return paradeAt(now);
+    const st = Math.floor((now - PARADE.offsetMs) / PARADE.everyMs) * PARADE.everyMs + PARADE.offsetMs;
+    return paradeAt(st + PREVIEW.arak * 1000);
+  };
+  const trainNow = (now: number) => (PREVIEW.kereta === null ? keretaAt(now) : keretaAt(Math.floor(now / KERETA.lapMs) * KERETA.lapMs + PREVIEW.kereta * 1000));
+  let paradeOn = $state(false);
+
+  /* benda bergerak (gerbong kereta, ondel-ondel arak-arakan): digeser lewat transform; urutan kedalaman diperbarui bila perlu */
+  type Mover = { d: number; behind: boolean; hk: string; h: string; tf: string };
+  const movers = new Map<string, Mover>();
+  let moverVer = $state(0);
+  let resort = false;
+  const moverDraws = $derived.by(() => {
+    void moverVer;
+    return [...movers.entries()].map(([key, m]) => ({ key: 'mv:' + key, d: m.d, h: m.h, behind: m.behind, pet: { cls: 'mv', tf: m.tf, o: 'mv:' + key } }) as Draw);
+  });
+  function moveTo(key: string, x: number, y: number, d: number, behind: boolean, hk: string, make: () => string, seen: Set<string>) {
+    seen.add(key);
+    const [sx, sy] = houseIso(x, y);
+    const tfs = `translate(${sx.toFixed(1)} ${sy.toFixed(1)})`;
+    const m = movers.get(key);
+    if (!m || m.hk !== hk || m.behind !== behind) { movers.set(key, { d, behind, hk, h: m?.hk === hk ? m.h : make(), tf: tfs }); resort = true; return; }
+    if (Math.abs(m.d - d) > 0.5) { m.d = d; resort = true; }
+    if (m.tf !== tfs) { m.tf = tfs; svgEl?.querySelector(`[data-o="mv:${key}"]`)?.setAttribute('transform', tfs); }
+  }
+
+  /* wahana pet sendiri & pet lain yang sedang naik (dari sinkron: "bianglala:2", "kereta:4", "arak:1") */
+  type SelfRide = { kind: RideKind; seat: number; from: number; until: number };
+  let selfRide: SelfRide | null = null;
+  /** posisi layar pet sendiri saat di gondola / kereta (dipakai place() & urutan gambar) */
+  let rideTf: string | null = null;
+  let rideD = $state<number | null>(null);
+  let rideBehind = $state(false);
+  const rideOf = (act: string | null | undefined) => { const m = /^(bianglala|kereta|arak|kolam):(\d)$/.exec(act ?? ''); return m ? { kind: m[1] as RideKind | 'kolam', seat: +m[2] } : null; };
+  /** transform & kedalaman penumpang (null = tidak sedang di gondola / kereta) */
+  function ridePose(kind: RideKind | 'kolam', seat: number, now: number): { tf: string; d: number; behind: boolean; at: [number, number] } | null {
+    if (kind === 'kolam') {
+      // duduk di dingklik dermaga (lantai dermaga 4 + dingklik 7)
+      const st = PIERS[seat - 1];
+      return st ? { tf: tf([st.x, st.y], 11), d: st.x + st.y + 0.02, behind: false, at: [st.x, st.y] } : null;
+    }
+    if (kind === 'bianglala') {
+      const p = gondolaPos(now, seat);
+      return { tf: `translate(${p.x.toFixed(1)} ${(p.y + 43 * SS).toFixed(1)}) scale(0.42)`, d: BIANGLALA.x + BIANGLALA.y + 3 + 0.05 + seat * 0.001, behind: false, at: [BIANGLALA.x + 1.5, BIANGLALA.y + 3.5] };
+    }
+    if (kind === 'kereta') {
+      const k = trainNow(now), s = keretaSeat(k.u, seat), [sx, sy] = houseIso(s.x, s.y);
+      return { tf: `translate(${sx.toFixed(1)} ${(sy - 12 * SS).toFixed(1)}) scale(0.6)`, d: s.car.x + s.car.y, behind: s.car.y < 0.3 || s.car.x < 0.3, at: [Math.max(0.5, Math.min(ALUN_W - 0.5, s.x)), Math.max(0.5, Math.min(ALUN_D - 0.5, s.y))] };
+    }
+    return null;
+  }
+
+  /** satu langkah ±15 fps: bianglala berputar, kereta & ondel-ondel berjalan, penumpang ikut */
+  let blEls: Element[] = [], gonEls: Element[] = [], elsAt = 0;
+  let marching: { seat: number } | null = null;
+  function wahanaTick(dt: number) {
+    if (!svgEl) return;
+    const now = clockMs();
+    // bianglala: roda (dan bohlam malamnya) berputar, gondola tetap tegak
+    if (!blEls.length || !blEls[0].isConnected || performance.now() - elsAt > 3000) { blEls = [...svgEl.querySelectorAll('.bl-wheel')]; gonEls = [...svgEl.querySelectorAll('.bl-gon')]; elsAt = performance.now(); }
+    const rot = (gondolaAngle(now, 0) % 360).toFixed(1);
+    for (const el of blEls) el.setAttribute('transform', `translate(${BIANG_HUB.x.toFixed(1)} ${BIANG_HUB.y.toFixed(1)}) rotate(${rot})`);
+    for (const el of gonEls) { const p = gondolaPos(now, Number((el as HTMLElement).dataset.k)); el.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); }
+    const seen = new Set<string>();
+    // kereta kelinci: lokomotif + 3 gerbong (gerbong: lantai di belakang penumpang, dinding & atap di depan)
+    const k = trainNow(now);
+    for (const c of keretaCars(k.u)) {
+      const behind = c.y < 0.3 || c.x < 0.3, fwd = c.alongY ? c.dy > 0 : c.dx > 0, hk = `${c.alongY ? 'y' : 'x'}${fwd ? 'f' : 'b'}`, d = c.x + c.y;
+      if (c.i === 0) moveTo('kr0', c.x, c.y, d, behind, hk, () => keretaCarSVG(0, c.alongY, fwd, 'front'), seen);
+      else { moveTo(`kr${c.i}b`, c.x, c.y, d - 0.02, behind, hk, () => keretaCarSVG(c.i, c.alongY, fwd, 'back'), seen); moveTo(`kr${c.i}f`, c.x, c.y, d + 0.02, behind, hk, () => keretaCarSVG(c.i, c.alongY, fwd, 'front'), seen); }
+    }
+    // arak-arakan: dua ondel-ondel berjalan di rute (bisa diketuk untuk ikut)
+    const pa = paradeNow(now);
+    if (pa.on !== paradeOn) paradeOn = pa.on;
+    if (pa.on) {
+      [pa.lead, pa.second].forEach((u, i) => {
+        const p = paradePoint(u), idx = ONDEL_IDX[i] ?? -1;
+        moveTo(`ondel${i}`, p.x + (i ? 0.25 : -0.25) * p.dy, p.y - (i ? 0.25 : -0.25) * p.dx, p.x + p.y + 0.3, false, 'o', () => `<g class="furn" data-r="${ALUN_ROOM}" data-i="${idx}"><g class="ondel-jalan">${ondelSVG(0, 0, i)}</g></g>`, seen);
+      });
+    }
+    for (const key of [...movers.keys()]) if (!seen.has(key)) { movers.delete(key); resort = true; }
+    // penumpang: pet sendiri
+    if (selfRide && now >= selfRide.from && now < selfRide.until && selfRide.kind !== 'arak') {
+      const r = ridePose(selfRide.kind, selfRide.seat, now);
+      if (r) {
+        rideTf = r.tf;
+        petEl()?.setAttribute('transform', r.tf);
+        if (rideD === null || Math.abs(rideD - r.d) > 0.5) rideD = r.d;
+        if (rideBehind !== r.behind) rideBehind = r.behind;
+        if (live && (Math.floor(live[0]) !== Math.floor(r.at[0]) || Math.floor(live[1]) !== Math.floor(r.at[1]))) { live = [...r.at]; pos = [...r.at]; }
+      }
+    } else if (rideTf) { rideTf = null; rideD = null; rideBehind = false; }
+    // ikut arak-arakan: pet sendiri menyusul tempatnya di barisan
+    if (marching && live) {
+      const u = pa.on ? pa.slot(marching.seat) : -1;
+      if (u >= 0) {
+        const t = paradePoint(u), dx = t.x - live[0], dy = t.y - live[1], dd = Math.hypot(dx, dy);
+        if (dd > 0.04) {
+          const step = Math.min(dd, Math.max(0.6, dd * 2.2) * dt);
+          const sx = dx - dy;
+          if (Math.abs(sx) > 0.01 && sx < 0 !== flip) flip = sx < 0;
+          const before = tileOf(live);
+          live = [live[0] + (dx / dd) * step, live[1] + (dy / dd) * step];
+          if (tileOf(live) !== before) pos = [...live];
+          if (!walking) walking = true;
+          place();
+        } else if (walking) walking = false;
+      }
+    }
+    // pet lain yang naik wahana
+    for (const c of comps.values()) {
+      if (!c.ride || c.ride.kind === 'arak') continue;
+      const r = ridePose(c.ride.kind, c.ride.seat, now);
+      if (!r) continue;
+      c.rideTf = r.tf;
+      svgEl.querySelector(`[data-o="${c.id}"]`)?.setAttribute('transform', r.tf);
+      if (c.rideD === undefined || Math.abs(c.rideD - r.d) > 0.5 || c.rideBehind !== r.behind) { c.rideD = r.d; c.rideBehind = r.behind; compVer++; }
+    }
+    if (resort) { resort = false; moverVer++; }
+  }
+  onMount(() => {
+    if (!square) return;
+    let raf = 0, lastT = performance.now(), acc = 0;
+    // ±15 fps (animasi dikurangi: ±2 fps); berhenti saat tab tersembunyi
+    const every = reduced ? 500 : 66;
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop);
+      acc += t - lastT; lastT = t;
+      if (acc < every || document.hidden) return;
+      const dt = Math.min(0.5, acc / 1000);
+      acc = 0;
+      wahanaTick(dt);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  });
+  /** musik arak-arakan: not melayang dari ondel-ondel */
+  $effect(() => {
+    if (!square || !paradeOn) return;
+    const t = setInterval(() => { for (const i of [0, 1]) { const el = svgEl?.querySelector(`[data-o="mv:ondel${i}"]`); const m = el && /translate\(([-\d.]+) ([-\d.]+)\)/.exec(el.getAttribute('transform') ?? ''); if (m) spawn(+m[1], +m[2] - 230, 'notes'); } }, 2200);
+    return () => clearInterval(t);
+  });
+
+  /** tempat berdiri sebelum naik: gondola di bawah roda, sisi jalan halte, gerbang depan (arak-arakan) */
+  function rideGoals(kind: RideKind): [number, number][] {
+    if (kind === 'bianglala') return [[25, 4], [26, 4], [24, 4]];
+    // menunggu di depan halte (di belakangnya tertutup bangunan halte)
+    if (kind === 'kereta') return [[27, 21], [26, 21], [26, 20]];
+    const taken = takenTiles('');
+    return [[10, 19], [9, 19], [11, 19], [10, 18], [9, 18], [11, 18], [8, 19], [12, 19], [10, 17]].filter(([x, y]) => !taken.has(`${x},${y}`)) as [number, number][];
+  }
+  /** Wahana panjang: jalan ke tempat naik → (tunggu) → naik → selesai → hadiah dari server. */
+  let rideGen = 0;
+  async function doRide(a: any) {
+    const kind = a.id as RideKind;
+    menu = null;
+    if (acting || G.busy) return;
+    acting = true;
+    clearTimeout(idleTimer);
+    const gen = planGen, my = ++rideGen;
+    const live0 = () => alive && gen === planGen && my === rideGen;
+    const p = routeToAny(rideGoals(kind));
+    if (p) await walkPath(p);
+    if (!live0()) return;
+    const standAt: [number, number] | null = live ? [...live] : null;
+    let registered = false;
+    const finish = async (ok: boolean) => {
+      selfRide = null; marching = null; rideTf = null; rideD = null; rideBehind = false;
+      ALUN.ride = null;
+      pose = null; walking = false;
+      if (standAt && kind !== 'arak') { live = [...standAt]; pos = [...standAt]; }
+      queueMicrotask(place);
+      if (!ok && registered) await api.post('/api/square/ride', { kind, cancel: true }).catch(() => {});
+      acting = false;
+      scheduleIdle();
+    };
+    // kereta: tunggu di halte sampai kereta berhenti
+    if (kind === 'kereta' && !keretaAt(clockMs()).stopped) {
+      ALUN.ride = { kind, phase: 'tunggu', at: keretaAt(clockMs()).arriveAt, until: keretaAt(clockMs()).arriveAt };
+      pose = { pose: 'lihat', lift: 0 }; queueMicrotask(place);
+      toast('Kereta Kelinci belum datang. Tunggu di halte, ya.');
+      while (live0() && !keretaAt(clockMs()).stopped) await new Promise((r) => setTimeout(r, 400));
+      if (!live0()) return finish(false);
+    }
+    const r: any = await run(() => api.post('/api/square/ride', { kind }));
+    if (!live0()) { if (r?.ride) registered = true; return finish(false); }
+    if (!r?.ride) return finish(false);
+    registered = true;
+    const ride: SelfRide = r.ride;
+    // tunggu gondola tiba di bawah / arak-arakan mulai
+    if (clockMs() < ride.from) {
+      ALUN.ride = { kind, phase: 'tunggu', at: ride.from, until: ride.until };
+      pose = { pose: 'lihat', lift: 0 }; queueMicrotask(place);
+      while (live0() && clockMs() < ride.from) await new Promise((res) => setTimeout(res, 300));
+      if (!live0()) return finish(false);
+    }
+    ALUN.ride = { kind, phase: 'naik', at: ride.from, until: ride.until };
+    selfRide = ride;
+    sfx.pop();
+    if (kind === 'arak') { pose = { pose: 'arak', prop: 'bendera', lift: 0 }; marching = { seat: ride.seat }; }
+    else pose = { pose: 'wahana', prop: kind === 'bianglala' ? `gondola${ride.seat}` : undefined, lift: 0 };
+    queueMicrotask(place);
+    while (live0() && clockMs() < ride.until) await new Promise((res) => setTimeout(res, 400));
+    if (!live0()) return;
+    const done: any = await run(() => api.post('/api/square/ride', { kind, done: true }));
+    registered = false;
+    await finish(true);
+    if (done) {
+      const nm = kind === 'bianglala' ? 'Naik bianglala' : kind === 'kereta' ? 'Keliling naik kereta' : 'Ikut arak-arakan';
+      toast(done.rewarded ? `${nm} seru! +${done.coins} koin${done.xp ? `, +${done.xp} XP` : ''} · sisa main berhadiah hari ini ${done.left}` : `${G.me.pet.name} senang! (hadiah main hari ini sudah habis)`, 'good');
+      if (done.coins) sfx.coin();
+      if (done.levelUp) { sfx.level(); toast(`Naik ke Lv ${done.levelUp}!`, 'good'); }
+    }
+  }
+  // tombol Batal di bar alun-alun (hanya saat menunggu)
+  let cancelSeen = ALUN.cancel;
+  $effect(() => {
+    const c = ALUN.cancel;
+    if (c === cancelSeen) return;
+    cancelSeen = c;
+    untrack(() => { if (ALUN.ride?.phase === 'tunggu') { rideGen++; selfRide = null; marching = null; ALUN.ride = null; pose = null; acting = false; queueMicrotask(place); scheduleIdle(); for (const k of ['bianglala', 'kereta', 'arak']) api.post('/api/square/ride', { kind: k, cancel: true }).catch(() => {}); } });
+  });
+
+  /** Lempar gelang: tiga lemparan diundi server; 3 dari 3 = bonus koin (sekali sehari). */
+  async function doGelang(t: Target) {
+    menu = null;
+    if (acting || G.busy) return;
+    acting = true; clearTimeout(idleTimer);
+    const gen = planGen;
+    const p = routeToAny([[21, 3], [22, 3], [23, 3]]);
+    if (p) await walkPath(p);
+    if (!alive || gen !== planGen) return;
+    const g = goalsFor(t);
+    if (g.faceTo && live) { const sx = (g.faceTo[0] - live[0]) - (g.faceTo[1] - live[1]); if (Math.abs(sx) > 0.01) flip = sx < 0; }
+    const r: any = await run(() => api.post('/api/square/act', { kind: 'gelang' }));
+    if (!alive) return;
+    if (!r) { acting = false; scheduleIdle(); return; }
+    const [bx, by] = houseIso(22.3, 2.0);
+    for (let i = 0; i < 3; i++) {
+      pose = { pose: 'lihat', prop: 'gelang', lift: 0 }; queueMicrotask(place);
+      await sleep(650);
+      if (!alive) return;
+      pose = { pose: 'lihat', lift: 0 }; queueMicrotask(place);
+      spawn(bx, by - 40 * SS, r.hits?.[i] ? 'sparkle' : 'drops');
+      (r.hits?.[i] ? sfx.pop : sfx.tap)();
+      await sleep(550);
+    }
+    if (gen !== planGen || !alive) return;
+    pose = null; queueMicrotask(place);
+    const n = (r.hits ?? []).filter(Boolean).length;
+    toast(`Masuk ${n} dari 3 gelang!${r.bonus ? ` Bonus +${r.bonus} koin!` : ''}${r.rewarded ? ` +${r.coins} koin · sisa main berhadiah ${r.left}` : ''}`, 'good');
+    if (r.coins || r.bonus) sfx.coin();
+    if (r.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.levelUp}!`, 'good'); }
+    acting = false; scheduleIdle();
+  }
+
+  /* Kolam Pemancingan Bareng: duduk di dermaga (server memilih yang kosong), lalu layar mancing terbuka (AlunFishing) */
+  const PIERS = square ? pondSeats() : [];
+  let fishingAt: { pier: number; from: [number, number] } | null = null;
+  async function doMancing() {
+    menu = null;
+    if (acting || G.busy) return;
+    acting = true; clearTimeout(idleTimer);
+    const gen = planGen;
+    // dermaga kosong terdekat sebagai pilihan (server tetap yang memutuskan)
+    const used = new Set([...comps.values()].filter((c) => c.ride?.kind === 'kolam').map((c) => c.ride!.seat));
+    const here = live ?? [20, 11];
+    const want = PIERS.filter((p) => !used.has(p.n)).sort((a, b) => Math.hypot(a.x - here[0], a.y - here[1]) - Math.hypot(b.x - here[0], b.y - here[1]))[0]?.n;
+    const r: any = await run(() => api.post('/api/square/pier', { n: want }));
+    if (!alive) return;
+    if (!r?.pier) { acting = false; scheduleIdle(); return; }
+    const st = PIERS[r.pier - 1];
+    const p = routeToAny([st.from]);
+    if (p) await walkPath(p);
+    if (!alive || gen !== planGen) { api.post('/api/square/pier', { leave: true }).catch(() => {}); return; }
+    fishingAt = { pier: st.n, from: live ? [...live] as [number, number] : [st.from[0] + 0.5, st.from[1] + 0.5] };
+    live = [st.x, st.y]; pos = [st.x, st.y];
+    flip = st.side === 'back';
+    pose = { pose: 'mancing', prop: st.side === 'back' ? 'joran' : 'joran2', lift: 11 };
+    queueMicrotask(place);
+    sfx.pop();
+    ALUN.fishing = { pier: st.n };
+  }
+  // tombol Berdiri di layar mancing: kembali ke tepi kolam, dermaga dikosongkan
+  $effect(() => {
+    const f = ALUN.fishing;
+    if (f || !fishingAt) return;
+    untrack(() => {
+      const back = fishingAt!.from;
+      fishingAt = null;
+      api.post('/api/square/pier', { leave: true }).catch(() => {});
+      pose = null; live = [...back]; pos = [...back];
+      queueMicrotask(place);
+      acting = false; scheduleIdle();
+    });
+  });
+
+  /** kembang api 20.00 & 21.00 (jam setempat): sekali per pertunjukan, server memberi ceria sekali sehari */
+  let fwClaimed = '';
+  $effect(() => {
+    if (!square || !fireworks || !H.live || PREVIEW.hm) return;
+    const key = `${new Date().toDateString()}-${hm.h}`;
+    if (fwClaimed === key) return;
+    fwClaimed = key;
+    untrack(async () => {
+      const r: any = await api.post('/api/square/act', { kind: 'kembangapi', tz: tzMin() }).catch(() => null);
+      if (r?.rewarded) { toast(`Kembang api! ${G.me.pet.name} ikut menonton · +${r.ceria} ceria`, 'good'); fx('sparkle'); }
+    });
+  });
+  /** ledakan kembang api (lapisan layar di atas alun-alun, hanya saat kembang api) */
+  const FW = [
+    { l: 28, t: 16, r: 46, c1: '#FFD36E', c2: '#FFF6D8', n: 16, d: 0 }, { l: 12, t: 28, r: 32, c1: '#FF8FB8', c2: '#FFE1EC', n: 14, d: 0.7 },
+    { l: 72, t: 14, r: 38, c1: '#7FE3F2', c2: '#E6FBFF', n: 18, d: 1.3 }, { l: 86, t: 30, r: 26, c1: '#9BE07A', c2: '#F0FFE6', n: 12, d: 0.4 }, { l: 50, t: 9, r: 30, c1: '#FFB36B', c2: '#FFF1DE', n: 12, d: 1.9 },
+  ].map((f) => ({ ...f, h: fireworkSVG(f.r, f.c1, f.c2, f.n) }));
 
   /* ---------------- mandi: gosok sabun lalu bilas ---------------- */
 
@@ -1432,7 +1848,7 @@
     const m = G.cam;
     if (m === 'near') { const t = nearCam(); if (t) aim(t, false, 700); }
     else if (m === 'yard') aim(fit(viewBounds()), false, 700);
-    else if (m === 'house') aim(fit(houseBounds(plan)), false, 700);
+    else if (m === 'house') aim(fit(square ? SQB : houseBounds(plan)), false, 700);
     else if (m === 'room') aim(fit(houseBounds(plan, focusId), true), false, 700);
   }
   $effect(() => {
@@ -1671,23 +2087,27 @@
 </script>
 
 <svelte:window onkeydown={key} onpointermove={onPointer} onpointerup={onUp} onpointercancel={onUp} />
-<div class="roomwrap" class:sky={!square} data-sky={sky} bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh}>
-  {#if !square}<div class="hills" aria-hidden="true"></div><div class="orb" aria-hidden="true"></div><div class="cloud c1" aria-hidden="true"></div><div class="cloud c2" aria-hidden="true"></div>{/if}
+<div class="roomwrap" class:alun={square} class:sky={!square || nightSq} data-sky={square ? skyTime(hm.h) : sky} bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh}>
+  {#if !square}<div class="hills" aria-hidden="true"></div><div class="orb" aria-hidden="true"></div><div class="cloud c1" aria-hidden="true"></div><div class="cloud c2" aria-hidden="true"></div>{:else if nightSq}<div class="orb" aria-hidden="true"></div>{/if}
+  {#if fireworks}<div class="fwk" aria-hidden="true">{#each FW as f}<svg class="fwb" viewBox="-70 -70 140 140" style="left:{f.l}%;top:{f.t}%;width:{f.r * 2.8}px;animation-delay:{f.d}s">{@html f.h}</svg>{/each}</div>{/if}
   <svg bind:this={svgEl} class="room" class:mirror={mirrored} class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
     class:mangap={mouthOpen || chewing} class:chew={chewing} class:asleep class:editing={mode === 'home' && G.edit}
     {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} onclick={click} onpointerdown={down}>
+    {#if square}{@html groundHtml}{/if}
     {@html yardHtml}
     {@html layers.shadow}
+    {#if drawsBehind.length}<g class="draws behind">{#each drawsBehind as d (d.key)}{#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}{/each}</g>{/if}
     {#each layers.back as l (l.key)}<g>{@html l.h}</g>{/each}
     {#each layers.floor as l (l.key)}<g>{@html l.h}</g>{/each}
     {@html layers.mats}
     {#each layers.flats as l (l.key)}<g>{@html l.h}</g>{/each}
     <g>{@html crumbsHtml}</g>
     <g class="draws">
-    {#each draws as d (d.key)}
+    {#each drawsFront as d (d.key)}
       {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
     {/each}
     </g>
+    {#if square && nightSq}<g class="malam" pointer-events="none"><rect class="veil" x="-8000" y="-8000" width="16000" height="16000" />{@html nightHtml}{@html BL_BRIGHT}</g>{/if}
     {#if moodHtml}<g class="moods" pointer-events="none">{@html moodHtml}</g>{/if}
     {#if planning}
       <g class="planmarks" pointer-events="none">
@@ -1700,6 +2120,7 @@
     <g bind:this={foamLayer} pointer-events="none"></g>
     <g bind:this={fxLayer} pointer-events="none"></g>
   </svg>
+  {#if !ALUN.fishing}
   {#each tags as t (t.id)}
     {#if t.self || !H.members.some((m) => m.id === t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>
     {:else}<button class="tag tap" style="left:{t.x}px;top:{t.y}px" aria-label="Lihat profil {t.name}" onclick={() => { H.card = t.id; sfx.tap(); }}>{t.name}</button>{/if}
@@ -1709,6 +2130,7 @@
     {@const at = bpos[b.who]}
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
   {/each}
+  {/if}
   {#if bubble && G.speech && mode === 'home'}
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
@@ -1778,6 +2200,26 @@
   .room :global(.flicker) { animation: flicker .45s ease-in-out infinite alternate; }
   .room :global(.swim) { animation: swim 9s linear infinite; }
   .room :global(.canopy) { transition: opacity .25s; }
+  /* alun-alun v32: acara panggung baru, ondel-ondel, wahana, malam */
+  .room :global(.npc.pose-derap .pet-bob) { animation: derap 0.36s ease-in-out infinite alternate; }
+  .room :global(.npc.pose-derap.d2 .pet-bob) { animation-delay: -.12s; }
+  .room :global(.npc.pose-derap.d3 .pet-bob) { animation-delay: -.24s; }
+  .room :global(.npc.pose-silat .pet-bob) { animation: silat 1.1s ease-in-out infinite alternate; }
+  .room :global(.ngakak) { opacity: 0; animation: ngakak 3.3s ease-in-out infinite; }
+  .room :global(.ondel-jalan) { animation: ondel 0.9s ease-in-out infinite alternate; }
+  .room :global(.pose-wahana .pet-bob) { animation: ride 1.6s ease-in-out infinite alternate; }
+  .room :global(.pose-arak .pet-bob) { animation: waddle 0.3s ease-in-out infinite alternate; }
+  .room :global(.riak) { animation: blink 2.4s ease-in-out infinite alternate; }
+  .room :global(.malam .veil) { fill: #14204A; opacity: .46; }
+  /* alun-alun malam: tirai gelap menutupi seluruh layar, jadi langitnya dibuat lebih terang supaya hasilnya sama dengan langit malam rumah */
+  .roomwrap.sky.alun[data-sky='malam'] { --s1: #283853; --s2: #4D79A3; --s3: #719EC1; }
+  .fwk { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+  .fwb { position: absolute; height: auto; transform: translate(-50%, -50%) scale(.2); opacity: 0; animation: fwburst 2.6s ease-out infinite; }
+  @keyframes fwburst { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 0; } 12% { opacity: 1; } 55% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -38%) scale(1.12); opacity: 0; } }
+  @keyframes derap { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+  @keyframes silat { from { transform: rotate(-4deg); } to { transform: rotate(5deg) translateY(-6px); } }
+  @keyframes ngakak { 0%, 8% { opacity: 0; } 18%, 62% { opacity: 1; } 75%, 100% { opacity: 0; } }
+  @keyframes ondel { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(3deg) translateY(-5px); } }
   .room :global(.canopy.seethru) { opacity: .32; }
   @keyframes blink { from { opacity: .3; } to { opacity: 1; } }
   @keyframes flicker { from { transform: scale(1, 1); } to { transform: scale(.86, 1.1); } }
@@ -1815,5 +2257,5 @@
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; text-align: left; }
   .menu .nm { font-weight: 800; flex: 1 1 auto; min-width: 0; }
   .menu .ef { flex: 0 1 44%; min-width: 0; font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; line-height: 1.15; }
-  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob) { animation: none; } .bubble { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob), .room :global(.ondel-jalan), .room :global(.pose-wahana .pet-bob), .room :global(.pose-arak .pet-bob), .room :global(.riak) { animation: none; } .room :global(.ngakak) { animation: none; opacity: 1; } .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); } .bubble { animation: none; } }
 </style>

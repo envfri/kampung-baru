@@ -946,9 +946,11 @@ function seedPic(i: number) {
 /** Pendaftaran gambar dari modul lain (mis. art-ikan.ts): ikon kecil 64×52 & mebel isometrik. */
 export type IconDef = { label: string; kinds: ItemKind[]; colors: Record<string, string>; draw: IconFn };
 export type FurnDef = { label: string; colors: Record<string, string>; draw: FurnFn };
-export function registerArt(icons: Record<string, IconDef>, furn: Record<string, FurnDef> = {}) {
+export function registerArt(icons: Record<string, IconDef>, furn: Record<string, FurnDef> = {}, props: Record<string, string> = {}) {
   Object.assign(ICONS, icons);
   Object.assign(FURN, furn);
+  // properti yang dipegang pet (art-alun.ts: angklung, kuda lumping, gondola, ...)
+  Object.assign(PROPS, props);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1101,9 +1103,10 @@ const PROPS: Record<string, string> = {
 export const ROOM_ISO: Iso = { ox: 400, oy: 150, t: 34, h: 17 };
 export const ROOM_VIEWBOX = '140 -70 520 500';
 
+// mebel katalog dibatasi 4×4 oleh admin; benda tetap alun-alun (kolam pancing 6×5) boleh sampai 8
 export function footprint(item?: ItemLike | null) {
   const d = item?.data ?? {};
-  return { w: Math.max(1, Math.min(4, d.w | 0 || 1)), d: Math.max(1, Math.min(4, d.d | 0 || 1)), flat: !!d.flat };
+  return { w: Math.max(1, Math.min(8, d.w | 0 || 1)), d: Math.max(1, Math.min(8, d.d | 0 || 1)), flat: !!d.flat };
 }
 
 export function occupied(layout: Placed[], items: Record<string, ItemLike>, skip = -1) {
@@ -1112,6 +1115,9 @@ export function occupied(layout: Placed[], items: Record<string, ItemLike>, skip
     if (i === skip) return;
     const it = items[p.i];
     if (!it) return;
+    // mask: petak yang benar-benar menghalangi (kolam: air; gapura: dua tiangnya saja), datar atau tidak
+    const mask: [number, number][] | undefined = Array.isArray(it.data?.mask) ? it.data.mask : undefined;
+    if (mask) { for (const [a, b] of mask) set.add(`${p.x + a},${p.y + b}`); return; }
     const f = footprint(it);
     if (f.flat) return;
     for (let a = 0; a < f.w; a++) for (let b = 0; b < f.d; b++) set.add(`${p.x + a},${p.y + b}`);
@@ -1328,12 +1334,12 @@ function paintingSVG(g: Ctx, W: number, photo = '', rid?: string) {
 }
 
 /** Petak-petak lantai (bisa diketuk) + garis tepi ruangan. */
-function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string) {
+function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string, D = W) {
   const s = g.s;
   const rattr = rid !== undefined ? ` data-r="${esc(rid)}"` : '';
   let o = '';
   for (let i = 0; i < W; i++)
-    for (let j = 0; j < W; j++) {
+    for (let j = 0; j < D; j++) {
       const solid = floor.key === 'teraso' || floor.key === 'karpet' || floor.key === 'terasoemas' || floor.key === 'pasir';
       const fill = solid ? floor.main : floor.key === 'batutaman' ? ((i + j) % 2 ? floor.main : shade(floor.main, -0.05)) : (i + j) % 2 ? floor.main : floor.accent;
       const attrs = `class="${edit ? 'tile' : 'fl'}"${rattr} data-x="${i}" data-y="${j}"`;
@@ -1366,12 +1372,12 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string)
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
       }
     }
-  o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, W), g.iso(0, W)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
+  o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, D), g.iso(0, D)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
   return o;
 }
 
-function roomShadow(g: Ctx, W: number) {
-  const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, W), D = g.iso(0, W);
+function roomShadow(g: Ctx, W: number, DD = W) {
+  const A = g.iso(0, 0), B = g.iso(W, 0), Cc = g.iso(W, DD), D = g.iso(0, DD);
   return `<polygon points="${P([[A[0], A[1] + 10], [B[0] + 12, B[1] + 8], [Cc[0], Cc[1] + 16], [D[0] - 12, D[1] + 8]])}" fill="${INK}" opacity=".12"/>`;
 }
 
@@ -1487,10 +1493,10 @@ export function houseBounds(plan: HousePlan, roomId?: string) {
   for (const r of list) {
     const tall = !r.outdoor && [...r.L, ...r.R].some((s) => s.k === 'tall');
     const top = houseIso(r.gx, r.gy)[1] - (tall ? WALL_H : r.outdoor ? 60 : 90);
-    x0 = Math.min(x0, houseIso(r.gx, r.gy + r.size)[0]);
-    x1 = Math.max(x1, houseIso(r.gx + r.size, r.gy)[0]);
+    x0 = Math.min(x0, houseIso(r.gx, r.gy + r.d)[0]);
+    x1 = Math.max(x1, houseIso(r.gx + r.w, r.gy)[0]);
     y0 = Math.min(y0, top);
-    y1 = Math.max(y1, houseIso(r.gx + r.size, r.gy + r.size)[1]);
+    y1 = Math.max(y1, houseIso(r.gx + r.w, r.gy + r.d)[1]);
   }
   if (!isFinite(x0)) return { x: -200, y: -150, w: 400, h: 300 };
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
@@ -1508,8 +1514,8 @@ export function houseLayers(plan: HousePlan, art: Record<string, HouseRoomArt>, 
   const dimWrap = (a: HouseRoomArt, s: string) => (a.dim && s ? `<g class="dim">${s}</g>` : s);
   for (const r of plan.rooms) {
     const a = art[r.id] ?? { layout: [] };
-    const g = roomG(r), W = r.size;
-    shadow += roomShadow(g, W);
+    const g = roomG(r), W = r.w, D = r.d;
+    shadow += roomShadow(g, W, D);
     const wall = wallColors(a.wall);
     let b = '';
     if (r.outdoor) {
@@ -1519,12 +1525,12 @@ export function houseLayers(plan: HousePlan, art: Record<string, HouseRoomArt>, 
       for (const [p, q] of tl) b += wallRun(g, 'L', p, q, wall);
       for (const [p, q] of tr) b += wallRun(g, 'R', p, q, wall);
       if (r.window) b += windowSVG(g, W, wall, r.id);
-      if (r.painting) b += paintingSVG(g, W, a.photo ?? '', r.id);
+      if (r.painting) b += paintingSVG(g, D, a.photo ?? '', r.id);
       b += roomDecor(g, W, decor, tl, tr, r.window);
     }
     // data-r: dinding juga bisa diketuk untuk memilih ruangan (atur denah / mode atur)
     back.push({ key: r.id, h: b ? dimWrap(a, `<g data-r="${esc(r.id)}">${b}</g>`) : '' });
-    floor.push({ key: r.id, h: dimWrap(a, floorSVG(g, W, floorColors(a.floor, r.outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!a.edit, r.id)) });
+    floor.push({ key: r.id, h: dimWrap(a, floorSVG(g, W, floorColors(a.floor, r.outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!a.edit, r.id, D)) });
     let f = '';
     a.layout.forEach((p, idx) => {
       const it = items[p.i];
@@ -2385,6 +2391,9 @@ const PREMIUM: Record<string, { label: string; colors: Record<string, string>; d
 };
 Object.assign(FURN, PREMIUM);
 
+/** konteks gambar isometrik (untuk modul gambar lain, mis. art-alun.ts) */
+export type IsoCtx = Ctx;
+
 /** Dinding & lantai premium (pola digambar di wallRun / floorSVG) */
 Object.assign(WALLS, {
   langit: { label: 'Langit malam', colors: { main: '#2B3A6B', accent: '#F7C548' } },
@@ -2403,7 +2412,7 @@ Object.assign(FLOORS, {
 /** batas petak pekarangan di sekeliling denah (belakang sempit, depan lebih lebar untuk jalan & gerbang) */
 function yardBox(plan: HousePlan) {
   let X0 = Infinity, X1 = -Infinity, Y0 = Infinity, Y1 = -Infinity;
-  for (const r of plan.rooms) { X0 = Math.min(X0, r.gx); Y0 = Math.min(Y0, r.gy); X1 = Math.max(X1, r.gx + r.size); Y1 = Math.max(Y1, r.gy + r.size); }
+  for (const r of plan.rooms) { X0 = Math.min(X0, r.gx); Y0 = Math.min(Y0, r.gy); X1 = Math.max(X1, r.gx + r.w); Y1 = Math.max(Y1, r.gy + r.d); }
   return { X0, X1, Y0, Y1, a: X0 - 2.5, b: Y0 - 2.5, c: X1 + 4, d: Y1 + 4 };
 }
 const YARD_DEPTH = 40;

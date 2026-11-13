@@ -115,6 +115,8 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
     const u = req.user!;
     const castId = castIdOf(req);
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
+    // lemparan Lomba Mancing alun-alun (tangkap-lepas) hanya diselesaikan di /api/square/fish/land
+    if ((await db.one<{ contest: string | null }>(`select contest from fishing_casts where id = $1 and user_id = $2`, [castId, u.id]))?.contest) throw bad('invalid', 'Lemparan lomba diselesaikan di alun-alun.');
     return db.tx(async (t) => {
       const r: any = await landFish(t, u.id, castId, cat, kolamReward(t, u.id, s, cat));
       if (r.suspicious) req.log.warn({ userId: u.id, castId, elapsed: r.elapsed, min: r.min }, 'mancing: tarik-ulur terlalu cepat');

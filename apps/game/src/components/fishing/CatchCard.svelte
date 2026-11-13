@@ -1,6 +1,6 @@
 <script lang="ts">
   // Kartu hasil mancing: ikan (warna tingkat), ikan rahasia (versi emas), harta karun (ketuk 3×), botol pesan, temuan.
-  import { FISH_TIERS, FIND_LABEL, pondIcon, secretIcon, chestIcon, type FishTier } from '@kb/shared';
+  import { FISH_TIERS, FIND_LABEL, pondIcon, secretIcon, chestIcon, fmtGrams, type FishTier } from '@kb/shared';
   import { COIN, PEARL, I } from '../../lib/icons';
   import { sfx } from '../../lib/sfx';
 
@@ -90,7 +90,10 @@
     {#if flav}<p class="flav">{flav}</p>{/if}
     <div class="rew">
       {#if fish && !res.released && it.sell_coin > 0}<span class="chip">{@html COIN} laku {it.sell_coin}</span>{/if}
-      {#if res.released}
+      {#if res.lomba}
+        <!-- Lomba Mancing alun-alun: tangkap-lepas, skor = berat ikan -->
+        <span class="chip">{res.late ? 'Waktu lomba habis · tidak dihitung' : `Lomba +${fmtGrams(res.grams ?? 0)}`}</span>
+      {:else if res.released}
         {#if res.pearl > 0}<span class="chip">{@html PEARL} berkah +{res.pearl}</span>{:else if capped}<span class="chip">Mutiara kolam hari ini penuh</span>{/if}
         <span class="chip">Ceria +{res.ceria ?? 20}</span>
       {/if}

@@ -52,10 +52,13 @@ test('alun-alun: orang asing saling melihat, hadiah kunjungan harian, obrolan te
   assert.deepEqual(ra2.body.members.map((m: any) => m.name), ['Alun2'], 'bukan teman pun saling melihat');
   assert.equal(ra2.body.members[0].roomId, 'alun');
   assert.equal(ra2.body.count, 2);
-  // posisi dibatasi lapangan 20×20
+  // posisi dibatasi lapangan 28×22 (v32: sayap Pojok Wahana & jalur depan)
   await sync(b, { x: 99, y: -5 });
   const m = (await sync(a)).body.members[0];
-  assert.equal(m.x, 19.5); assert.equal(m.y, 0.5);
+  assert.equal(m.x, 27.5); assert.equal(m.y, 0.5);
+  await sync(b, { x: -3, y: 99 });
+  const m2 = (await sync(a)).body.members[0];
+  assert.equal(m2.x, 0.5); assert.equal(m2.y, 21.5);
   // obrolan: frasa & ketik bebas tersaring (tautan / nomor ditolak)
   assert.equal((await a.c.post('/api/square/say', { text: 'Halo semua!' })).status, 200);
   await new Promise((r) => setTimeout(r, 1600));
@@ -129,7 +132,8 @@ test('alun-alun: main berhadiah terbatas, jeda antaraksi, jajan, joget & nonton 
     assert.equal(r1.body.rewarded, true);
     assert.ok(r1.body.coins > 0);
     assert.equal((await a.c.post('/api/square/act', { kind: 'ayun' })).body.error?.code, 'too_fast', 'ada jeda antaraksi');
-    for (let i = 0; i < 12; i++) { await gap(); await a.c.post('/api/square/act', { kind: 'ayun' }); }
+    // jatah main berhadiah 14 per hari (v32)
+    for (let i = 0; i < 15; i++) { await gap(); await a.c.post('/api/square/act', { kind: 'ayun' }); }
     await gap();
     await db.query(`update pets set ceria = 10 where user_id = $1`, [a.id]);
     const capped = await a.c.post('/api/square/act', { kind: 'duduk' });
@@ -173,7 +177,7 @@ test('alun-alun: batas 0 dari admin dihormati', async () => {
     assert.equal(r.body.rewarded, false, 'actsPerDay 0 = tidak ada main berhadiah');
     await resetSquareGap(a);
     assert.equal((await a.c.post('/api/square/act', { kind: 'jajan', item: 'alun-dawet' })).body.error?.code, 'daily_limit');
-  } finally { await setVisit('square', { actsPerDay: 10, snacksPerDay: 5 }); }
+  } finally { await setVisit('square', { actsPerDay: 14, snacksPerDay: 5 }); }
 });
 
 test('alun-alun: laporan hanya dari yang bertemu, bisu sekali per gelombang & bisa dibuka admin', async () => {
