@@ -2,7 +2,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_SIZE, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
@@ -1128,7 +1128,14 @@
   /* ---------------- alun-alun: main di benda, joget, panggung ---------------- */
 
   /** acara panggung sekarang (dari jam server: semua orang melihat yang sama) */
-  const show = $derived(square ? squareShow(serverNow()) : null);
+  // ?acara=tari (dll.) hanya untuk pratinjau tampilan panggung (tidak mengubah apa pun di server)
+  const previewShow = square && typeof location !== 'undefined' ? new URLSearchParams(location.search).get('acara') : null;
+  const show = $derived.by(() => {
+    if (!square) return null;
+    const s = squareShow(serverNow());
+    const pv = previewShow ? SQUARE_SHOWS.find((x) => x.key === previewShow) : null;
+    return pv ? { ...s, key: pv.key, name: pv.name, playing: true, music: pv.music } : s;
+  });
   // jam berubah tiap detik: yang bergantung pada acara cukup memakai kunci ini (tidak dihitung ulang tiap detik)
   const showKey = $derived(show ? `${show.key}|${show.playing}` : '');
   const music = $derived(!!show?.music);
@@ -1210,7 +1217,11 @@
   // pengisi acara di panggung (pet kampung) sesuai acara yang sedang tampil
   const NPC_LOOKS = [{ color: '#F2C94C', ear: 'kucing', eyes: 'bulat' }, { color: '#9FD3C2', ear: 'kelinci' }, { color: '#E7A6C8', ear: 'tunas' }];
   const SHOW_PROPS: Record<string, (string | undefined)[]> = { orkes: ['gitar', 'kendang', 'gitar'], wayang: ['wayang', undefined, 'wayang'], tari: ['payungtari', 'payungtari', 'payungtari'], sulap: [undefined, 'topi', undefined] };
-  const NPC_AT: [number, number][] = [[8.9, 1.25], [10, 1.35], [11.1, 1.25]];
+  // tiga pengisi acara sebaris dengan jarak sama di atas panggung (panggung: x 8–12, y 0–2);
+  // yang paling kiri menghadap ke kiri supaya alat musik / payung / wayangnya tidak tertutup temannya
+  const NPC_AT: [number, number][] = [[8.55, 1.3], [10, 1.3], [11.45, 1.3]];
+  /** kedalaman gambar panggung (x + y + (w + d) / 2): pengisi acara selalu digambar di atasnya, tidak tertutup tirai/lantai panggung */
+  const STAGE_D = 8 + 0 + (4 + 2) / 2;
   const npcDraws = $derived.by(() => {
     const [key, playing] = showKey.split('|');
     if (!square || playing !== 'true') return [] as Draw[];
@@ -1219,7 +1230,7 @@
     return NPC_AT.map((p, i) => {
       const at = key === 'sulap' && i !== 1 ? null : p;
       if (!at) return null;
-      return { key: `npc:${i}`, d: at[0] + at[1] + 0.03, h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: i === 2, prop: props[i] }), pet: { cls: `npc ${dance ? 'pose-joget' : 'pose-tampil'}`, tf: tf(at, 22.6) } } as Draw;
+      return { key: `npc:${i}`, d: Math.max(STAGE_D + 0.02 + i * 0.001, at[0] + at[1] + 0.03), h: petMarkup({ look: NPC_LOOKS[i] as any, wear: [], flip: i === 0, prop: props[i] }), pet: { cls: `npc ${dance ? 'pose-joget' : 'pose-tampil'}`, tf: tf(at, 22.6) } } as Draw;
     }).filter(Boolean) as Draw[];
   });
   // not musik melayang dari panggung saat musik dimainkan

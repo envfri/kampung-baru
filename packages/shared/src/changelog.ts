@@ -39,9 +39,19 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.31.1',
+    date: '2026-11-13',
+    title: 'Panggung alun-alun lebih rapi',
+    items: [
+      { kind: 'perbaikan', text: 'Panggung alun-alun: pengisi acara paling kiri tidak lagi tertutup tirai & lantai panggung. Ketiganya sekarang berdiri sebaris dengan jarak sama, dan payung tari, gitar, serta wayangnya terlihat semua.', player: true },
+      { kind: 'ubah', text: 'Teknis: ?acara=tari|orkes|wayang|sulap untuk pratinjau tampilan panggung (hanya tampilan, tidak mengubah jadwal acara).' },
+    ],
+  },
+  {
     version: '0.31.0',
     date: '2026-11-12',
     title: 'Halaman depan baru: rumah, pekarangan & langit',
+    commits: ['46e0354'],
     items: [
       { kind: 'ubah', text: 'Halaman depan dirombak. Di desktop jadi dua kolom: judul, tombol Main sekarang / Masuk dengan email di kiri, dan adegan besar rumah dua ruangan di atas pekarangan (pohon, pagar bambu, bunga, jalan batu, lampu taman) di kanan.', player: true },
       { kind: 'ubah', text: 'Tiga pet di halaman depan diacak setiap kali dibuka (warna, telinga, motif & aksesori) dan bergerak pelan. Langit ikut jam pengunjung (pagi, siang, sore, malam berbintang dengan lampu taman menyala), lengkap dengan bukit & awan.', player: true },

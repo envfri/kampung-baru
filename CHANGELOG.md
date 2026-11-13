@@ -4,6 +4,16 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.31.1 · 2026-11-13 · Panggung alun-alun lebih rapi
+
+### Perubahan
+
+- Teknis: ?acara=tari|orkes|wayang|sulap untuk pratinjau tampilan panggung (hanya tampilan, tidak mengubah jadwal acara).
+
+### Perbaikan
+
+- Panggung alun-alun: pengisi acara paling kiri tidak lagi tertutup tirai & lantai panggung. Ketiganya sekarang berdiri sebaris dengan jarak sama, dan payung tari, gitar, serta wayangnya terlihat semua. _(pemain)_
+
 ## 0.31.0 · 2026-11-12 · Halaman depan baru: rumah, pekarangan & langit
 
 ### Perubahan
@@ -12,6 +22,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 - Tiga pet di halaman depan diacak setiap kali dibuka (warna, telinga, motif & aksesori) dan bergerak pelan. Langit ikut jam pengunjung (pagi, siang, sore, malam berbintang dengan lampu taman menyala), lengkap dengan bukit & awan. _(pemain)_
 - Kartu fitur bergambar (pet, miniatur ruangan, main bareng, gasing & layangan) dan tautan Instagram di pojok atas. Di HP adegan rumah tampil di atas, lalu judul, tombol & kartu fitur. _(pemain)_
 - Teknis: lib/heroScene.ts menggambar adegan dari fungsi rumah & pekarangan yang sudah ada (tanpa unduhan gambar); ?langit= & ?pets= untuk pratinjau; layar ≥1600 px ikut membesar; diuji 7 ukuran layar tanpa geser samping & tanpa teks keluar dari latar.
+
+Commit: [`46e0354`](https://github.com/envfri/kampung-baru/commit/46e0354)
 
 ## 0.30.0 · 2026-11-12 · Admin → Server: pemantauan CPU, memori, penyimpanan & database
 
