@@ -2,7 +2,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
@@ -1389,7 +1389,9 @@
   const LAMPS = ALUN_LAYOUT.filter((p) => p.i === 'alun-lampu').map((p) => ({ x: p.x, y: p.y }));
   let film = $state(square ? filmAt(serverNow()) : 0);
   onMount(() => { if (!square) return; const t = setInterval(() => { film = filmAt(serverNow()); }, 20_000); return () => clearInterval(t); });
-  const nightHtml = $derived(square && nightSq ? alunNightSVG(LAMPS, layarOn ? film : -1) : '');
+  /** Pos Ronda: bohlamnya menyala di malam hari */
+  const RONDAS = ALUN_LAYOUT.filter((p) => p.i === 'alun-posronda');
+  const nightHtml = $derived(square && nightSq ? alunNightSVG(LAMPS, layarOn ? film : -1) + RONDAS.map((p) => rondaNightSVG(p.x, p.y)).join('') : '');
   /** bohlam roda bianglala yang menyala di malam hari (ikut diputar) */
   const BL_BRIGHT = square ? bianglalaBulbsSVG() : '';
   /** untaian lampu Jalan Wahana (antara lampu 21,12 & 25,12) */

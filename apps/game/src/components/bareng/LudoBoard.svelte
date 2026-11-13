@@ -4,7 +4,7 @@
   // Kepala bidak beda bentuk per warna (bulat, kotak, belah ketupat, segitiga) supaya tidak hanya dibedakan warnanya.
   import { onDestroy, untrack } from 'svelte';
   import {
-    renderPet, shade, textW, INK, LUDO_BASES, LUDO_COLORS, LUDO_COLOR_NAMES, LUDO_HOME, LUDO_LANE, LUDO_LANES, LUDO_PATH, LUDO_SAFE,
+    renderPet, shade, textW, INK, LUDO_BASES, LUDO_COLORS, LUDO_HEADS, LUDO_COLOR_NAMES, LUDO_HOME, LUDO_LANE, LUDO_LANES, LUDO_PATH, LUDO_SAFE,
     ludoCell, ludoFrames, ludoHomeCount, ludoPlan, ludoProgress, ludoTarget,
   } from '@kb/shared';
   import { BG, moveGame, serverNow, startGame } from '../../lib/bareng.svelte';
@@ -40,12 +40,7 @@
   }
 
   /* ---------------- gambar bidak & papan statis ---------------- */
-  const HEAD = [
-    `<circle cx="12" cy="8.4" r="4.9"/>`,
-    `<rect x="7.4" y="3.8" width="9.2" height="9.2" rx="2"/>`,
-    `<path d="M12 2.6 17.6 8.4 12 14.2 6.4 8.4Z"/>`,
-    `<path d="M12 2.8 17.4 12.8H6.6Z"/>`,
-  ];
+  const HEAD = LUDO_HEADS;
   /** bidak (kotak 24×24, titik pijak di 12,21) */
   const tokenSVG = (s: number) => {
     const col = LUDO_COLORS[s];

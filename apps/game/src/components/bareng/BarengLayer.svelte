@@ -1,6 +1,6 @@
 <script lang="ts">
   // Lapisan game main bareng di rumah & alun-alun: kartu ajakan, ruang tunggu, papan permainan, hasil.
-  import { petSVG } from '@kb/shared';
+  import { petSVG, INK, LUDO_COLORS, LUDO_COLOR_NAMES, LUDO_HEADS, LUDO_JOIN_SEAT } from '@kb/shared';
   import { G, wearItems, settings } from '../../lib/game.svelte';
   import { RULE_CHIPS, CLOCK_ICON } from '../../lib/barengTiles';
   import { H } from '../../lib/house.svelte';
@@ -29,6 +29,10 @@
   const ava = (p: any) => (p.pet ? petSVG({ color: p.pet.color ?? '#F2EEE3', ear: p.pet.ear ?? 'tunas', pattern: p.pet.pattern, eyes: p.pet.eyes, tail: p.pet.tail }, wearItems(p.pet.wear ?? [])) : '');
   const starterName = (g: any) => g.players.find((p: any) => p.id === g.starter)?.name ?? 'Teman';
   const resultOf = (g: any) => g.results?.find((r: any) => r.id === me);
+  /** kursi Ludo pemain ke-k (sebelum mulai: menurut urutan ikut, sama dengan server) */
+  const ludoSeat = (g: any, k: number): number => g.ludo?.seat?.[g.players[k]?.id] ?? LUDO_JOIN_SEAT[k] ?? k;
+  /** kepala bidak berwarna (bentuk beda per warna, sama dengan di papan) */
+  const tokSVG = (s: number) => `<svg viewBox="5 1.4 14 14" aria-hidden="true"><g fill="${LUDO_COLORS[s]}" stroke="${INK}" stroke-width="1.9" stroke-linejoin="round">${LUDO_HEADS[s]}</g></svg>`;
   /** kartu hasil muncul setelah langkah terakhir selesai dimainkan di papan */
   // kartu di atas dock: selama tampil, panel tamu/alun-alun, tombol aksi & kartu tugas disembunyikan (tidak saling menutupi)
   const showCard = $derived(mine ? mine.phase === 'ajak' || mine.phase === 'siap' || mine.phase === 'selesai' : !!watch || !!invite);
@@ -41,7 +45,7 @@
     <div class="card" role="dialog" aria-label="Menunggu pemain {GAME_NAMES[mine.game]}">
       <h3>{GAME_NAMES[mine.game]} <span class="chip">mulai {secs(mine.inviteUntil)} dtk</span></h3>
       <div class="who">
-        {#each mine.players as p (p.id)}<span><i>{@html ava(p)}</i>{p.id === me ? `${p.name} (kamu)` : p.name}</span>{/each}
+        {#each mine.players as p, k (p.id)}<span><i>{@html ava(p)}</i>{p.id === me ? `${p.name} (kamu)` : p.name}{@render tok(mine, k)}</span>{/each}
         {#each Array(Math.max(0, mine.max - mine.players.length)) as _}<span class="empty">kursi kosong</span>{/each}
       </div>
       <p class="note">{mine.starter === me ? 'Yang lain di sini mendapat ajakan. Mulai otomatis saat kursi penuh atau hitung mundur habis.' : `Menunggu ${starterName(mine)} memulai.`}</p>
@@ -84,7 +88,7 @@
   <div class="card" role="dialog" aria-label="Ajakan main {GAME_NAMES[invite.game]}">
     <h3>{GAME_NAMES[invite.game]} <span class="chip">ajakan · {secs(invite.inviteUntil)} dtk</span></h3>
     <div class="who">
-      {#each invite.players as p (p.id)}<span><i>{@html ava(p)}</i>{p.name}</span>{/each}
+      {#each invite.players as p, k (p.id)}<span><i>{@html ava(p)}</i>{p.name}{@render tok(invite, k)}</span>{/each}
       <span class="empty">+{invite.max - invite.players.length} kursi</span>
     </div>
     <p class="note">{starterName(invite)} mengajak main {GAME_NAMES[invite.game]}.{invite.game === 'karung' ? ' Memakai energi & jatah Lomba Karung.' : ''}</p>
@@ -98,6 +102,10 @@
   <button class="watch" onclick={() => (BG.watching = running.id)}>{GAME_NAMES[running.game]} sedang dimainkan · <b>Tonton</b></button>
 {/if}
 
+{#snippet tok(g: any, k: number)}
+  {#if g.game === 'ludo'}{@const s = ludoSeat(g, k)}<b class="tok" role="img" aria-label="bidak {LUDO_COLOR_NAMES[s].toLowerCase()}" title="Bidak {LUDO_COLOR_NAMES[s].toLowerCase()}">{@html tokSVG(s)}</b>{/if}
+{/snippet}
+
 {#snippet rules(game: string)}
   {#if RULE_CHIPS[game]}<div class="rules">{#each RULE_CHIPS[game](settings()) as r (r.t)}<span>{#if r.clock}{@html CLOCK_ICON}{/if}{r.t}</span>{/each}</div>{/if}
 {/snippet}
@@ -110,6 +118,8 @@
   .who span { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 0 9px 0 2px; background: #fff; min-height: 30px; }
   .who i { width: 24px; height: 26px; display: inline-block; }
   .who i :global(svg), .rk i :global(svg) { width: 100%; height: 100%; }
+  .who .tok { display: inline-flex; width: 17px; height: 17px; margin-left: 1px; flex: none; }
+  .who .tok :global(svg) { width: 100%; height: 100%; overflow: visible; }
   .who .empty { border-style: dashed; color: var(--muted); padding: 0 10px; }
   .note { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); line-height: 1.3; }
   .btns { display: flex; gap: 8px; }

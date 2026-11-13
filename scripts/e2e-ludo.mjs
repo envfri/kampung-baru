@@ -88,6 +88,10 @@ await shot(C, '01-ajakan-ludo-320');
 for (const pl of [B, C]) await pl.p.click('.card .btn:has-text("Ikut main")');
 await W(1200);
 check((await A.p.locator('.card .rules span').count()) === 3, 'ruang tunggu menampilkan aturan Ludo');
+{
+  const toks = await A.p.locator('.card .who .tok').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  check(toks.join(',') === 'bidak hijau,bidak biru,bidak kuning', `ruang tunggu: bidak berwarna tiap pemain menurut urutan ikut (${toks.join(',')})`);
+}
 await shot(A, '02-ruang-tunggu-ludo');
 await A.p.click('.card .btn:has-text("Mulai sekarang")');
 for (const pl of [A, B, C]) await board(pl).waitFor({ timeout: 8000 }).catch(() => {});

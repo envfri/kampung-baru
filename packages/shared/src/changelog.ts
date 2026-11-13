@@ -39,10 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.37.1',
+    date: '2026-11-13',
+    title: 'Lampu Pos Ronda & warna bidak di ruang tunggu Ludo',
+    summary: 'Pos Ronda di alun-alun sekarang punya bohlam yang menyala di malam hari, dan di ruang tunggu Ludo langsung kelihatan siapa dapat bidak warna apa.',
+    items: [
+      { kind: 'baru', text: 'Pos Ronda punya bohlam yang tergantung di pojok depan atapnya. Malam hari bohlamnya menyala dan menerangi bale-bale tempat main catur.', player: true },
+      { kind: 'baru', text: 'Ruang tunggu & ajakan Ludo menunjukkan warna bidak tiap pemain (hijau, kuning, biru, merah) dengan bentuk kepala bidak yang sama seperti di papan, jadi tetap mudah dibedakan walau warnanya mirip.', player: true },
+      { kind: 'ubah', text: 'Teknis: RONDA_BULB & rondaNightSVG (art-catur.ts) dipasang di lapisan malam alun-alun; bentuk kepala bidak dipindah ke LUDO_HEADS (ludo.ts) dan dipakai papan & kartu ajakan. Uji baru: posisi bohlam di antara kursi pemain; e2e-ludo memeriksa warna bidak di ruang tunggu.' },
+    ],
+  },
+  {
     version: '0.37.0',
     date: '2026-11-13',
     title: 'Catur & Ludo main bareng',
     summary: 'Dua permainan papan baru untuk main bareng teman: Catur berdua dan Ludo untuk 2–4 orang, di rumah atau di pojok permainan alun-alun.',
+    commits: ['ffe1edb'],
     items: [
       { kind: 'baru', text: 'Catur untuk berdua (Catur Kilat 5+3): tiap pemain punya jam 5 menit + 3 detik tiap langkah, warna diundi. Aturan lengkap: rokade, en passant, promosi pion, skak, skakmat, dan remis. Ada tombol Tawar remis & Menyerah. Diam 60 detik dapat peringatan, 90 detik kalah waktu. Teman lain bisa ikut menonton.', player: true },
       { kind: 'baru', text: 'Ludo untuk 2–4 orang: angka 6 untuk keluar kandang & lempar lagi, makan bidak lawan = lempar lagi, kotak bintang aman, masuk rumah harus pas, tiga kali 6 berturut-turut hangus. Berdua masing-masing 4 bidak, bertiga/berempat 2 bidak, paling lama 15 menit. Papan diputar supaya kandangmu selalu di kiri bawah.', player: true },

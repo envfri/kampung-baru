@@ -4,6 +4,19 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.37.1 · 2026-11-13 · Lampu Pos Ronda & warna bidak di ruang tunggu Ludo
+
+_Pos Ronda di alun-alun sekarang punya bohlam yang menyala di malam hari, dan di ruang tunggu Ludo langsung kelihatan siapa dapat bidak warna apa._
+
+### Baru
+
+- Pos Ronda punya bohlam yang tergantung di pojok depan atapnya. Malam hari bohlamnya menyala dan menerangi bale-bale tempat main catur. _(pemain)_
+- Ruang tunggu & ajakan Ludo menunjukkan warna bidak tiap pemain (hijau, kuning, biru, merah) dengan bentuk kepala bidak yang sama seperti di papan, jadi tetap mudah dibedakan walau warnanya mirip. _(pemain)_
+
+### Perubahan
+
+- Teknis: RONDA_BULB & rondaNightSVG (art-catur.ts) dipasang di lapisan malam alun-alun; bentuk kepala bidak dipindah ke LUDO_HEADS (ludo.ts) dan dipakai papan & kartu ajakan. Uji baru: posisi bohlam di antara kursi pemain; e2e-ludo memeriksa warna bidak di ruang tunggu.
+
 ## 0.37.0 · 2026-11-13 · Catur & Ludo main bareng
 
 _Dua permainan papan baru untuk main bareng teman: Catur berdua dan Ludo untuk 2–4 orang, di rumah atau di pojok permainan alun-alun._
@@ -24,6 +37,8 @@ _Dua permainan papan baru untuk main bareng teman: Catur berdua dan Ludo untuk 2
 ### Perbaikan
 
 - Ajakan main yang tidak jadi (dibatalkan atau tidak ada yang ikut) tidak lagi menampilkan "Kamu menang!". Hitung mundur di kartu ajakan tidak lagi keluar dari pilnya, dan pil "sedang dimainkan · Tonton" tidak lagi menutupi menu Main. _(pemain)_
+
+Commit: [`ffe1edb`](https://github.com/envfri/kampung-baru/commit/ffe1edb)
 
 ## 0.36.1 · 2026-11-13 · Ular Tangga harus pas & Panjat Pinang lebih licin
 

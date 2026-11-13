@@ -1,7 +1,7 @@
 // Gambar Catur: bidak gaya datar BUPI (Raja, Menteri, Benteng, Gajah, Kuda, Pion; isi gading / biru tua, garis INK)
 // dan Pos Ronda 2×2 di alun-alun (gardu kayu beratap genteng, dinding gedek, bale-bale dengan papan catur di meja pendek,
 // kentongan, termos kopi, papan nama di puncak atap). Didaftarkan ke art.ts lewat registerArt.
-import { INK, P, shade, registerArt, type IsoCtx } from './art';
+import { INK, P, shade, registerArt, houseIso, type IsoCtx } from './art';
 import { textW } from './art-alun';
 
 const f1 = (v: number) => Math.round(v * 10) / 10;
@@ -53,6 +53,21 @@ export const RONDA_SEATS: [number, number][] = [[0.3, 1.7], [1.7, 0.3]];
 export const RONDA_LIFT = 21;
 /** ukuran terukur Pos Ronda pada skala 1 (px): lebar atap ±140, tinggi sampai papan nama ±185 dari tanah */
 export const RONDA_SIZE = { w: 150, h: 186 };
+/** bohlam yang tergantung di pojok depan lis atap, di depan tiang (relatif pojok Pos Ronda: petak x, petak y, tinggi pusat kaca px): tepat di antara dua pemain */
+export const RONDA_BULB: [number, number, number] = [2.1, 2.1, 86];
+/** bohlam: fitting + kaca; tali dari lis atap (tertutup atap di atasnya) */
+function rondaBulb(cx: number, cy: number, s: number, glass: string, cord = 0) {
+  return (cord ? `<line x1="${f1(cx)}" y1="${f1(cy - cord)}" x2="${f1(cx)}" y2="${f1(cy - 8.5 * s)}" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/>` : '')
+    + `<rect x="${f1(cx - 2.6 * s)}" y="${f1(cy - 9 * s)}" width="${f1(5.2 * s)}" height="${f1(4.2 * s)}" rx="${f1(1 * s)}" fill="#6B6F86" stroke="${INK}" stroke-width="${f1(1.1 * s)}"/>`
+    + `<path d="M${f1(cx - 3.2 * s)} ${f1(cy - 5 * s)}h${f1(6.4 * s)}c${f1(3.2 * s)} ${f1(2 * s)} ${f1(3.4 * s)} ${f1(8 * s)} ${f1(-3.2 * s)} ${f1(8.6 * s)}c${f1(-6.6 * s)} ${f1(-0.6 * s)} ${f1(-6.4 * s)} ${f1(-6.6 * s)} ${f1(-3.2 * s)} ${f1(-8.6 * s)}Z" fill="${glass}" stroke="${INK}" stroke-width="${f1(1.3 * s)}" stroke-linejoin="round"/>`;
+}
+/** Malam: bohlam Pos Ronda menyala + cahaya di bale-bale (lapisan malam alun-alun; gradien alun-glow & alun-pool dari alunNightSVG). */
+export function rondaNightSVG(x: number, y: number) {
+  const s = 34 / 32, [dx, dy, h] = RONDA_BULB;
+  const b = houseIso(x + dx, y + dy), f = houseIso(x + 1, y + 1);
+  return `<ellipse cx="${f1(f[0])}" cy="${f1(f[1] - 20 * s)}" rx="${f1(74 * s)}" ry="${f1(34 * s)}" fill="url(#alun-pool)"/>`
+    + `<circle cx="${f1(b[0])}" cy="${f1(b[1] - h * s)}" r="${f1(46 * s)}" fill="url(#alun-glow)"/>` + rondaBulb(b[0], b[1] - h * s, s, '#FFE07A');
+}
 
 function posRonda(g: IsoCtx, x: number, y: number) {
   const s = g.s, iso = (a: number, b: number) => g.iso(a, b) as number[];
@@ -93,6 +108,8 @@ function posRonda(g: IsoCtx, x: number, y: number) {
   for (const [i, j, col, t] of pieces.sort((a, b2) => a[0] + a[1] - b2[0] - b2[1])) h += pc(i, j, col === 'w' ? '#FFF6E2' : '#3A3F5E', t);
   // tiang depan
   h += box(x + 1.84, y + 1.84, 0, 0.12, 0.12, 106, C3(wood));
+  // bohlam di bawah lis atap depan (siang tidak menyala; malam lihat rondaNightSVG)
+  { const b = Q(x + RONDA_BULB[0], y + RONDA_BULB[1], RONDA_BULB[2]); h += rondaBulb(b[0], b[1], s, '#FFF4D6', 18 * s); }
   // kentongan bambu di tiang kanan
   const kt = Q(x + 2.02, y + 0.3, 100), kb = Q(x + 2.02, y + 0.3, 72);
   h += `<line x1="${f1(kt[0])}" y1="${f1(kt[1])}" x2="${f1(kb[0])}" y2="${f1(kb[1] - 24 * s)}" stroke="${INK}" stroke-width="1.2"/><rect x="${f1(kb[0] - 5.5 * s)}" y="${f1(kb[1] - 26 * s)}" width="${f1(11 * s)}" height="${f1(28 * s)}" rx="${f1(4.5 * s)}" fill="#C9A25A" stroke="${INK}" stroke-width="${f1(1.5 * s)}"/><line x1="${f1(kb[0])}" y1="${f1(kb[1] - 20 * s)}" x2="${f1(kb[0])}" y2="${f1(kb[1] - 5 * s)}" stroke="${INK}" stroke-width="${f1(2.2 * s)}" stroke-linecap="round"/>`;

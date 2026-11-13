@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { config } from '../src/config';
 import {
   ALUN_D, ALUN_ITEMS, ALUN_LAYOUT, ALUN_W, BIANGLALA, DEFAULT_SETTINGS, KERETA, LOMBA, PARADE, PARADE_LEN, PARADE_ROUTE, POND, SQUARE_SHOWS, pondSeats,
-  SQUARE_ACTS, houseIso, gondolaAngle, gondolaBottomAt, gondolaQueue, houseLayout, keretaAt, keretaCars, lombaAt, localHM, occupied, paradeAt, paradePoint, ringLen, ringPoint, squareNight, squareShow, tzOf,
+  SQUARE_ACTS, RONDA_BULB, RONDA_SEATS, rondaNightSVG, houseIso, gondolaAngle, gondolaBottomAt, gondolaQueue, houseLayout, keretaAt, keretaCars, lombaAt, localHM, occupied, paradeAt, paradePoint, ringLen, ringPoint, squareNight, squareShow, tzOf,
 } from '@kb/shared';
 
 config.paymentProvider = 'mock';
@@ -235,6 +235,25 @@ test('benda tinggi (ondel-ondel, Pos Ronda, bianglala, panggung, ...) tidak menu
   assert.deepEqual([pr.x, pr.y], [0, 9]);
   const others = occupied(ALUN_LAYOUT.filter((p) => p !== pr), ALUN_ITEMS);
   for (const k of ['0,9', '1,9', '0,10', '1,10']) assert.ok(!others.has(k), `petak ${k} kosong`);
+});
+
+test('Pos Ronda: bohlam tergantung di pojok depan di antara dua pemain catur, menyala di malam hari', () => {
+  const pr = ALUN_LAYOUT.find((p) => p.i === 'alun-posronda')!;
+  const s = 34 / 32, [dx, dy, h] = RONDA_BULB;
+  const [bx, by] = houseIso(pr.x + dx, pr.y + dy), bulbY = by - h * s;
+  // di bawah atap (lis atap pojok depan setinggi 106 px) dan masih di dalam tapak atap
+  const [, ey] = houseIso(pr.x + 2.2, pr.y + 2.2);
+  assert.ok(bulbY - 10 * s > ey - 106 * s, 'bohlam tergantung di bawah lis atap');
+  assert.ok(dx <= 2.2 && dy <= 2.2, 'di bawah atap');
+  // kepala pet yang duduk (skala 0,6, setengah lebar ±30 px) tidak tertutup bohlam
+  for (const [a, b] of RONDA_SEATS) {
+    const [sx] = houseIso(pr.x + a, pr.y + b);
+    assert.ok(Math.abs(sx - bx) > 30 + 4 * s, `bohlam jauh dari pemain di (${a},${b}): ${Math.round(Math.abs(sx - bx))} px`);
+  }
+  // malam: cahaya bohlam & bale-bale
+  const night = rondaNightSVG(pr.x, pr.y);
+  assert.match(night, /url\(#alun-glow\)/);
+  assert.match(night, /#FFE07A/);
 });
 
 test('wahana: bianglala naik dulu, hadiah wahana panjang setelah satu putaran; pemain lain melihat gondolanya', async () => {

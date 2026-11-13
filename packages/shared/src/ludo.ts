@@ -5,6 +5,13 @@
 /** kursi (warna) searah jarum jam: 0 hijau kiri atas, 1 kuning kanan atas, 2 biru kanan bawah, 3 merah kiri bawah */
 export const LUDO_COLORS = ['#3FA06A', '#F2B632', '#3F7FBF', '#E0583F'];
 export const LUDO_COLOR_NAMES = ['Hijau', 'Kuning', 'Biru', 'Merah'];
+/** kepala bidak per kursi (kotak 24×24): bulat, kotak, belah ketupat, segitiga — warna tidak jadi satu-satunya pembeda */
+export const LUDO_HEADS = [
+  `<circle cx="12" cy="8.4" r="4.9"/>`,
+  `<rect x="7.4" y="3.8" width="9.2" height="9.2" rx="2"/>`,
+  `<path d="M12 2.6 17.6 8.4 12 14.2 6.4 8.4Z"/>`,
+  `<path d="M12 2.8 17.4 12.8H6.6Z"/>`,
+];
 export const LUDO_BASE = -1;
 export const LUDO_HOME = 56;
 /** kemajuan pertama di lajur pulang */
