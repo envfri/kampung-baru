@@ -562,7 +562,8 @@ export const bianglalaBulbsSVG = () => `<g class="bl-wheel bl-bright" transform=
 /* ================================================================== */
 /* Pendaftaran ke art.ts                                                */
 /* ================================================================== */
-const ondelFurn = (g: IsoCtx, x: number, y: number, p: Record<string, number>) => { const q = g.iso(x + 0.5, y + 0.45); return ondelSVG(q[0], q[1], p.v ?? 0); };
+// kelas canopy: ondel-ondel yang berjaga jadi tembus pandang bila ada pet di belakangnya (seperti pohon)
+const ondelFurn = (g: IsoCtx, x: number, y: number, p: Record<string, number>) => { const q = g.iso(x + 0.5, y + 0.45); return ondelSVG(q[0], q[1], p.v ?? 0, { cls: 'canopy' }); };
 registerArt({}, {
     kolampancing: { label: 'Kolam pemancingan bareng', colors: {}, draw: (g, x, y, w, d) => kolam(g, x, y, w, d) },
     papanlomba: { label: 'Papan lomba mancing', colors: {}, draw: (g, x, y) => papanLomba(g, x, y) },

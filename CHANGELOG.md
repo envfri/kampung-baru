@@ -4,6 +4,22 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.36.0 · 2026-11-13 · Bonus Ramai-ramai di kolam alun-alun
+
+_Mancing bareng makin seru: kalau paling tidak 3 pet duduk di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat XP tambahan._
+
+### Baru
+
+- Bonus Ramai-ramai di Kolam Pemancingan Bareng: kalau paling tidak 3 pet memancing di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat +1 XP. Panel mancing menunjukkan berapa pemancing sekarang dan berapa lagi yang perlu diajak. _(pemain)_
+
+### Perubahan
+
+- Teknis: pengaturan square.ramai (anglers 3, waitPct 70, xp 1) dengan validasi admin; jumlah pemancing dihitung server dari dermaga yang terisi saat melempar, bonus XP dicatat di lemparan (payload.ramaiXp) dan hanya untuk mancing santai, tidak saat Lomba Mancing. Lampu gerbang kanan pindah ke 12,20. Uji baru: bonus Ramai-ramai & ondel-ondel tidak menutupi benda bermain.
+
+### Perbaikan
+
+- Ondel-ondel di alun-alun tidak lagi menutupi tikar Ular Tangga saat diam. Mereka berjaga agak jauh di kiri-kanan gerbang, berjalan ke gerbang sebelum arak-arakan dan pulang lagi sesudahnya, dan jadi tembus pandang kalau ada pet di belakangnya. _(pemain)_
+
 ## 0.35.0 · 2026-11-13 · Alun-alun makin ramai: Pojok Wahana, 8 acara & Lomba Mancing
 
 _Alun-alun sekarang lebih luas: ada bianglala, kereta kelinci, lempar gelang, arak-arakan ondel-ondel, layar tancap, kembang api, dan Lomba Mancing tiap 20 menit!_
@@ -25,6 +41,8 @@ _Alun-alun sekarang lebih luas: ada bianglala, kereta kelinci, lempar gelang, ar
 ### Keamanan
 
 - Hasil lempar gelang, wahana dan Lomba Mancing ditentukan server. Hasil lomba diselesaikan server sekali (tercatat, tidak dibayar dua kali) walau pemain terputus; lemparan lomba tidak bisa diklaim sebagai tangkapan Kolam Pancing; maks. 3 lomba berhadiah per hari.
+
+Commit: [`bbf61a1`](https://github.com/envfri/kampung-baru/commit/bbf61a1)
 
 ## 0.34.0 · 2026-11-13 · Kolam Pancing baru: 25 ikan, ikan rahasia & harta karun
 

@@ -536,6 +536,10 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (lb.prizes.length !== 3 || lb.prizeXp.length !== 3) throw bad('invalid_settings', 'Lomba Mancing: hadiah & XP juara harus 3 angka (juara 1, 2, 3).');
     if ([...lb.prizes, lb.joinCoins].some((n) => n < 0 || n > 1000)) throw bad('invalid_settings', 'Lomba Mancing: hadiah koin harus 0–1000.');
     if ([...lb.prizeXp, lb.joinXp].some((n) => n < 0 || n > 200)) throw bad('invalid_settings', 'Lomba Mancing: XP harus 0–200.');
+    const rm = sq.ramai;
+    if (!(rm.anglers >= 2 && rm.anglers <= 6)) throw bad('invalid_settings', 'Ramai-ramai: jumlah pemancing harus 2–6.');
+    if (!(rm.waitPct >= 30 && rm.waitPct <= 100)) throw bad('invalid_settings', 'Ramai-ramai: waktu tunggu harus 30–100 %.');
+    if (!(rm.xp >= 0 && rm.xp <= 20)) throw bad('invalid_settings', 'Ramai-ramai: XP tambahan harus 0–20.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
     const changes = diffPaths(before, value);

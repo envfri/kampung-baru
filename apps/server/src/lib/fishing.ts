@@ -71,7 +71,7 @@ export function pickCatch(pool: CatalogItem[], dist: FishDist, sky: SkyTime, s: 
 }
 
 /** Rencana satu lemparan: semua angka acak ditentukan di sini dan disimpan di server. */
-export function planCast(item: CatalogItem, dist: FishDist, s: Settings, cat: Catalog) {
+export function planCast(item: CatalogItem, dist: FishDist, s: Settings, cat: Catalog, waitPct = 100) {
   const F = s.fishing as any;
   const kind = pondKind(item) as CatchKind;
   const d = item.data ?? {};
@@ -84,7 +84,8 @@ export function planCast(item: CatalogItem, dist: FishDist, s: Settings, cat: Ca
   const nMin = fish ? Math.min(nMax, Math.max(0, Math.round(num(d.nibbleMin, 0)))) : 0;
   const nCount = nMax > nMin ? randomInt(nMin, nMax + 1) : nMin;
   const gap = span(F.nibbleGapMs, [600, 1400]);
-  let t = FISH_LEAD_MS + between(span(F.waitMs?.[dist], [3000, 6000]));
+  // waitPct < 100: ikan lebih cepat datang (bonus Ramai-ramai kolam alun-alun)
+  let t = FISH_LEAD_MS + Math.round(between(span(F.waitMs?.[dist], [3000, 6000])) * Math.min(100, Math.max(10, waitPct)) / 100);
   const nibbles: number[] = [];
   for (let k = 0; k < nCount; k++) { nibbles.push(t); t += between(gap); }
   const biteInMs = t;
@@ -137,7 +138,7 @@ export async function closeOpenCasts(t: Db, uid: string) {
  * Lempar kail: cek pet & energi, potong jatah & energi, pilih tangkapan, simpan rencana.
  * Kembalian hanya berisi petunjuk animasi — tanpa id/nama/gambar ikan.
  */
-export async function castFish(t: Db, uid: string, o: { place: FishPlace; dist: FishDist; s: Settings; cat: Catalog; energi: number; quota: { key: string; limit: number }; now?: number }) {
+export async function castFish(t: Db, uid: string, o: { place: FishPlace; dist: FishDist; s: Settings; cat: Catalog; energi: number; quota: { key: string; limit: number }; now?: number; ramai?: { waitPct: number; xp: number } }) {
   const pet = await lockPet(t, uid);
   if (!pet) throw bad('no_pet', 'Buat pet dulu.');
   assertAwake(pet, o.s);
@@ -151,13 +152,15 @@ export async function castFish(t: Db, uid: string, o: { place: FishPlace; dist: 
   await closeOpenCasts(t, uid);
   await bumpCounter(t, uid, o.quota.key, o.quota.limit);
   if (o.energi > 0) await savePet(t, uid, { needs: applyNeedDelta(needs, { energi: -o.energi }) });
-  const plan = planCast(item, o.dist, o.s, o.cat);
+  const plan = planCast(item, o.dist, o.s, o.cat, o.ramai?.waitPct ?? 100);
+  // bonus Ramai-ramai dicatat di lemparan; XP tambahannya diberikan saat tangkapan didaratkan
+  if (o.ramai && o.ramai.xp > 0) plan.payload.ramaiXp = o.ramai.xp;
   const c = (await t.one<{ id: string }>(
     `insert into fishing_casts (user_id, fish_id, cast_at, bite_at, window_ms, place, distance, sky, catch_kind, cm, fight_min_ms, payload)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text::jsonb) returning id`,
     [uid, item.id, new Date(now), new Date(now + plan.biteInMs), plan.windowMs, o.place, o.dist, sky, plan.kind, plan.cm, plan.fightMs, JSON.stringify(plan.payload)],
   ))!;
-  return { castId: c.id, place: o.place, dist: o.dist, sky, leadMs: FISH_LEAD_MS, biteInMs: plan.biteInMs, nibbles: plan.nibbles, windowMs: plan.windowMs, shadow: plan.shadow, fight: plan.fight };
+  return { castId: c.id, place: o.place, dist: o.dist, sky, leadMs: FISH_LEAD_MS, biteInMs: plan.biteInMs, nibbles: plan.nibbles, windowMs: plan.windowMs, shadow: plan.shadow, fight: plan.fight, ...(o.ramai ? { ramai: true } : {}) };
 }
 
 /** Tekan TARIK: kail menyangkut bila tepat waktu (bukan saat ngicip, tidak terlambat). */
@@ -290,6 +293,9 @@ export function kolamReward(t: Db, uid: string, s: Settings, cat: Catalog) {
       out.xp = Math.max(0, Math.round(num(F.xp?.temuan, 1)));
       await track(t, uid, 'fish_find', { itemId: item.id, find: kind });
     }
+    // bonus Ramai-ramai (mancing santai bersama di kolam alun-alun): XP tambahan, tanpa koin
+    const ramaiXp = Math.max(0, Math.round(num(payload?.ramaiXp, 0)));
+    if (ramaiXp > 0) { out.xp += ramaiXp; out.ramaiXp = ramaiXp; }
     const pet = await lockPet(t, uid);
     if (pet && (out.xp > 0 || ceria > 0)) {
       const lv = out.xp > 0 ? await grantXp(t, uid, pet, out.xp) : null;

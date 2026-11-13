@@ -39,10 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.36.0',
+    date: '2026-11-13',
+    title: 'Bonus Ramai-ramai di kolam alun-alun',
+    summary: 'Mancing bareng makin seru: kalau paling tidak 3 pet duduk di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat XP tambahan.',
+    items: [
+      { kind: 'baru', text: 'Bonus Ramai-ramai di Kolam Pemancingan Bareng: kalau paling tidak 3 pet memancing di dermaga, ikan lebih cepat datang dan tiap tangkapan dapat +1 XP. Panel mancing menunjukkan berapa pemancing sekarang dan berapa lagi yang perlu diajak.', player: true },
+      { kind: 'perbaikan', text: 'Ondel-ondel di alun-alun tidak lagi menutupi tikar Ular Tangga saat diam. Mereka berjaga agak jauh di kiri-kanan gerbang, berjalan ke gerbang sebelum arak-arakan dan pulang lagi sesudahnya, dan jadi tembus pandang kalau ada pet di belakangnya.', player: true },
+      { kind: 'ubah', text: 'Teknis: pengaturan square.ramai (anglers 3, waitPct 70, xp 1) dengan validasi admin; jumlah pemancing dihitung server dari dermaga yang terisi saat melempar, bonus XP dicatat di lemparan (payload.ramaiXp) dan hanya untuk mancing santai, tidak saat Lomba Mancing. Lampu gerbang kanan pindah ke 12,20. Uji baru: bonus Ramai-ramai & ondel-ondel tidak menutupi benda bermain.' },
+    ],
+  },
+  {
     version: '0.35.0',
     date: '2026-11-13',
     title: 'Alun-alun makin ramai: Pojok Wahana, 8 acara & Lomba Mancing',
     summary: 'Alun-alun sekarang lebih luas: ada bianglala, kereta kelinci, lempar gelang, arak-arakan ondel-ondel, layar tancap, kembang api, dan Lomba Mancing tiap 20 menit!',
+    commits: ['bbf61a1'],
     items: [
       { kind: 'baru', text: 'Alun-alun lebih luas dengan Pojok Wahana di balik gapura: Bianglala, Kereta Kelinci keliling pagar, dan Lempar Gelang (3 gelang, bonus koin kalau masuk semua, sekali sehari).', player: true },
       { kind: 'baru', text: 'Panggung sekarang punya 8 acara bergiliran: Orkes Kampung, Wayang Kardus, Tari Payung, Sulap Pak Badut, Angklung Kampung, Pencak Silat, Kuda Lumping, dan Lawak Kampung.', player: true },

@@ -52,6 +52,13 @@ const PIERS = new Map<number, Map<number, string>>();
 const POND_SEATS = 6;
 function pierOf(uid: string) { for (const [inst, m] of PIERS) for (const [n, u] of m) if (u === uid) return { inst, n }; return null; }
 function leavePier(uid: string) { for (const m of PIERS.values()) for (const [n, u] of m) if (u === uid) m.delete(n); }
+/** pemancing yang sedang duduk di dermaga alun-alun `q` (masih di sana) — untuk bonus Ramai-ramai */
+function anglersAt(q: Square) {
+  const m = PIERS.get(q.id);
+  let n = 0;
+  if (m) for (const u of m.values()) { const mb = q.members.get(u); if (mb && fresh(mb) && WHERE.get(u) === q.id) n++; }
+  return n;
+}
 type BoardRow = { id: string; name: string; grams: number; fish: number; best: number; at: number };
 type LombaResult = { id: string; name: string; grams: number; fish: number; best: number; rank: number; coins: number; xp: number };
 /** papan skor lomba (dihitung dari lemparan, disimpan sebentar) */
@@ -274,6 +281,8 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
       pings: takePings(uid),
       games: barengViews(`a:${id}`),
       lomba, pier: pierOf(uid)?.n ?? null,
+      // Ramai-ramai: berapa pemancing di dermaga & berapa yang dibutuhkan (untuk panel mancing)
+      ...(pierOf(uid) ? { ramai: { anglers: anglersAt(q), need: ramaiCfg(a).anglers, xp: ramaiCfg(a).xp } } : {}),
     };
   });
 
@@ -466,6 +475,11 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
   // (otomatis tiap 15 detik / saat ada permintaan berikutnya), hanya untuk pemain di alun-alun yang sama.
   const DISTS = ['dekat', 'sedang', 'jauh'] as const;
   const castIdOf = (req: any) => { const id = String(req.body?.castId ?? ''); if (!UUID.test(id)) throw bad('invalid', 'Lemparan tidak valid.'); return id; };
+  /** bonus Ramai-ramai (mancing santai di kolam alun-alun) */
+  const ramaiCfg = (a: any) => {
+    const R = a?.ramai ?? {};
+    return { anglers: Math.max(2, numOr(R.anglers, 3)), waitPct: Math.min(100, Math.max(30, numOr(R.waitPct, 70))), xp: Math.max(0, numOr(R.xp, 1)) };
+  };
   const lombaCfg = (a: any) => {
     const L = a?.lomba ?? {};
     const arr = (v: unknown, d: number[]) => (Array.isArray(v) ? v : d).map((x) => Math.max(0, Number(x) || 0));
@@ -626,9 +640,12 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
       });
     }
     const energi = Math.max(0, Math.round(Number((s.fishing.energi as any)?.[dist]) || 0));
+    // Ramai-ramai: cukup banyak pemancing di dermaga → ikan lebih cepat datang & XP tambahan (diputuskan server saat melempar)
+    const rc = ramaiCfg(a), anglers = anglersAt(h.q);
+    const ramai = anglers >= rc.anglers ? { waitPct: rc.waitPct, xp: rc.xp } : undefined;
     return db.tx(async (t) => {
-      const c = await castFish(t, uid, { place: 'alun', dist, s, cat, energi, quota: { key: 'fishing', limit: s.fishing.castsPerDay } });
-      return { ok: true, ...c, mode: 'santai', ...(await patch(t, uid, ['pet', 'limits'])) };
+      const c = await castFish(t, uid, { place: 'alun', dist, s, cat, energi, quota: { key: 'fishing', limit: s.fishing.castsPerDay }, ramai });
+      return { ok: true, ...c, mode: 'santai', anglers, ...(await patch(t, uid, ['pet', 'limits'])) };
     });
   });
 

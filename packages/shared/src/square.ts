@@ -96,8 +96,9 @@ export const ALUN_LAYOUT: Placed[] = [
   { i: 'alun-layar', x: 13, y: 0 },
   { i: 'alun-proyektor', x: 14, y: 4 },
   { i: 'alun-tikarnonton', x: 13, y: 2 },
-  { i: 'alun-ondel', x: 8, y: 21 }, { i: 'alun-ondelnone', x: 11, y: 21 },
-  { i: 'alun-lampu', x: 21, y: 12 }, { i: 'alun-lampu', x: 25, y: 12 }, { i: 'alun-lampu', x: 24, y: 16 }, { i: 'alun-lampu', x: 6, y: 20 }, { i: 'alun-lampu', x: 13, y: 20 },
+  // ondel-ondel berjaga agak jauh dari gerbang supaya tidak menutupi tikar ular tangga (5–7, 16–18) di belakangnya
+  { i: 'alun-ondel', x: 15, y: 21 }, { i: 'alun-ondelnone', x: 5, y: 21 },
+  { i: 'alun-lampu', x: 21, y: 12 }, { i: 'alun-lampu', x: 25, y: 12 }, { i: 'alun-lampu', x: 24, y: 16 }, { i: 'alun-lampu', x: 6, y: 20 }, { i: 'alun-lampu', x: 12, y: 20 },
   { i: 'alun-pohon', x: 20, y: 0 }, { i: 'alun-pohon', x: 21, y: 20 }, { i: 'alun-pohon', x: 24, y: 20 }, { i: 'alun-pohon', x: 2, y: 21 }, { i: 'alun-pohon', x: 17, y: 21 },
   { i: 'alun-bangku', x: 22, y: 12 }, { i: 'alun-bangku', x: 22, y: 17 }, { i: 'alun-payung', x: 24, y: 18 },
 ];
@@ -182,6 +183,8 @@ export const PARADE_LEN = PARADE_ROUTE.slice(1).reduce((s, p, i) => s + segLen(P
 /** jarak (petak) ondel kedua & tiap pengikut di belakang pemimpin */
 export const PARADE_GAP = { ondel: 1.4, first: 2.7, each: 1.15 };
 const PARADE_TAIL = PARADE_GAP.first + (PARADE.max - 1) * PARADE_GAP.each;
+/** kecepatan rombongan (petak per ms): pengikut terakhir sampai di gerbang tepat saat arak-arakan selesai */
+export const PARADE_SPEED = (PARADE_LEN + PARADE_TAIL) / PARADE.durMs;
 /** titik pada rute di jarak u (petak), dengan arah jalan */
 export function paradePoint(u: number) {
   let t = Math.max(0, Math.min(PARADE_LEN, u));
@@ -197,10 +200,12 @@ export function paradePoint(u: number) {
 export function paradeAt(now: number) {
   const c = cycleAt(now, PARADE.everyMs, PARADE.offsetMs, PARADE.durMs);
   // pemimpin sampai di gerbang lebih dulu; pengikut terakhir sampai tepat saat arak-arakan selesai
-  const speed = (PARADE_LEN + PARADE_TAIL) / PARADE.durMs;
+  const speed = PARADE_SPEED;
   const lead = c.on ? Math.min(PARADE_LEN, c.t * speed) : 0;
   return {
     on: c.on, start: c.start, end: c.end, lead,
+    /** jarak tempuh pemimpin tanpa batas akhir rute (lewat PARADE_LEN = sudah sampai, sedang pulang ke tempat jaga) */
+    run: c.on ? c.t * speed : 0,
     /** ondel kedua */
     second: c.on ? Math.min(PARADE_LEN, c.t * speed - PARADE_GAP.ondel) : 0,
     slot: (k: number) => (c.on ? Math.min(PARADE_LEN, c.t * speed - PARADE_GAP.first - k * PARADE_GAP.each) : -1),

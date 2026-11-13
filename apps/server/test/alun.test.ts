@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { config } from '../src/config';
 import {
   ALUN_D, ALUN_ITEMS, ALUN_LAYOUT, ALUN_W, BIANGLALA, DEFAULT_SETTINGS, KERETA, LOMBA, PARADE, PARADE_LEN, PARADE_ROUTE, POND, SQUARE_SHOWS, pondSeats,
-  gondolaAngle, gondolaBottomAt, gondolaQueue, houseLayout, keretaAt, keretaCars, lombaAt, localHM, occupied, paradeAt, paradePoint, ringLen, ringPoint, squareNight, squareShow, tzOf,
+  SQUARE_ACTS, houseIso, gondolaAngle, gondolaBottomAt, gondolaQueue, houseLayout, keretaAt, keretaCars, lombaAt, localHM, occupied, paradeAt, paradePoint, ringLen, ringPoint, squareNight, squareShow, tzOf,
 } from '@kb/shared';
 
 config.paymentProvider = 'mock';
@@ -159,6 +159,21 @@ test('lapangan 28×22: denah persegi panjang, kolam & gapura menghalangi seperlu
 
 /* ---------------- server ---------------- */
 
+test('ondel-ondel yang berjaga tidak menutupi benda yang bisa dimainkan (tikar ular tangga, bangku, ...)', () => {
+  // ondel-ondel tinggi (±280 px, lebar ±60 px dengan mahkota bunga): petak benda bermain di belakangnya tidak boleh tertutup
+  for (const o of ALUN_LAYOUT.filter((p) => p.i === 'alun-ondel' || p.i === 'alun-ondelnone')) {
+    const [cx, cy] = houseIso(o.x + 0.5, o.y + 0.45);
+    for (const p of ALUN_LAYOUT) {
+      const it: any = ALUN_ITEMS[p.i], key = it?.art?.key;
+      if (p === o || !key || !SQUARE_ACTS[key]) continue;
+      for (let a = 0; a < (it.data.w ?? 1); a++) for (let b = 0; b < (it.data.d ?? 1); b++) {
+        const [x, y] = houseIso(p.x + a + 0.5, p.y + b + 0.5);
+        assert.ok(!(Math.abs(x - cx) < 60 && y < cy && y > cy - 280), `${o.i} (${o.x},${o.y}) menutupi ${p.i} petak ${p.x + a},${p.y + b}`);
+      }
+    }
+  }
+});
+
 test('wahana: bianglala naik dulu, hadiah wahana panjang setelah satu putaran; pemain lain melihat gondolanya', async () => {
   resetSquares();
   const base = wib(15, 0, 1);
@@ -297,6 +312,10 @@ test('pengaturan alun-alun: nilai wahana bawaan & validasi admin', async () => {
   const bad = await adm.call('PUT', '/api/admin/settings', { value: { ...cur, square: { ...cur.square, actsPerDay: 500 } } });
   assert.equal(bad.status, 400);
   assert.equal((await adm.call('PUT', '/api/admin/settings', { value: { ...cur, square: { ...cur.square, rideCoins: -1 } } })).status, 400);
+  // bonus Ramai-ramai: 3 pemancing, tunggu 70 %, +1 XP; batas admin
+  assert.deepEqual(sq.ramai, { anglers: 3, waitPct: 70, xp: 1 });
+  assert.equal((await adm.call('PUT', '/api/admin/settings', { value: { ...cur, square: { ...cur.square, ramai: { anglers: 1, waitPct: 70, xp: 1 } } } })).status, 400);
+  assert.equal((await adm.call('PUT', '/api/admin/settings', { value: { ...cur, square: { ...cur.square, ramai: { anglers: 3, waitPct: 10, xp: 1 } } } })).status, 400);
   const ok = await adm.call('PUT', '/api/admin/settings', { value: { ...cur, square: { ...cur.square, rideCoins: 7 } } });
   assert.equal(ok.status, 200); assert.equal(ok.body.value.square.rideCoins, 7);
   await adm.call('PUT', '/api/admin/settings', { value: cur });
@@ -381,6 +400,46 @@ test('kolam alun-alun: dermaga diduduki bergantian, mancing santai memakai jatah
     assert.equal((await b.c.post('/api/square/pier', { n: 3 })).body.pier, 1, 'tetap di dermaganya sendiri');
     const seen2 = (await sync(b)).body.members.find((m: any) => m.name === 'Pancing1');
     assert.equal(seen2.act, null);
+  } finally { setSquareClock(() => Date.now()); await restore(); }
+});
+
+test('Ramai-ramai: ≥3 pemancing di dermaga → ikan lebih cepat datang & +1 XP per tangkapan (mancing santai saja)', async () => {
+  resetSquares();
+  await setGame({ fishing: { ...FAST, waitMs: { dekat: [1000, 1000], sedang: [1000, 1000], jauh: [1000, 1000] } } });
+  const restore = await onlyMas();
+  setSquareClock(() => wib(14, 10));
+  try {
+    const a = await player('Ramai1'), b = await player('Ramai2'), c = await player('Ramai3');
+    for (const p of [a, b, c]) await sync(p);
+    await a.c.post('/api/square/pier', {}); await b.c.post('/api/square/pier', {});
+    const s2 = (await sync(a)).body;
+    assert.deepEqual(s2.ramai, { anglers: 2, need: 3, xp: 1 }, 'panel mancing tahu berapa pemancing');
+    assert.equal((await sync(c)).body.ramai, undefined, 'hanya untuk yang duduk di dermaga');
+    // 2 pemancing: tanpa bonus
+    const one = await catchAlun(a);
+    assert.equal(one.cast.ramai, undefined);
+    assert.equal(one.cast.anglers, 2);
+    assert.equal(one.cast.biteInMs, 1400 + 1000);
+    assert.equal(one.land.ramaiXp, undefined);
+    // pemancing ke-3 duduk: bonus Ramai-ramai
+    await c.c.post('/api/square/pier', {});
+    assert.equal((await sync(a)).body.ramai.anglers, 3);
+    const two = await catchAlun(a);
+    assert.equal(two.cast.ramai, true);
+    assert.equal(two.cast.biteInMs, 1400 + 700, 'waktu tunggu ikan dipotong jadi 70 %');
+    assert.equal(two.land.ramaiXp, 1);
+    assert.equal(two.land.xp, one.land.xp + 1, 'XP tambahan, koin tidak berubah');
+    assert.equal(two.land.coins, one.land.coins);
+    // pemancing yang sudah pergi tidak dihitung
+    await c.c.post('/api/square/leave', {});
+    const three = await catchAlun(a);
+    assert.equal(three.cast.ramai, undefined);
+    // saat Lomba Mancing: tidak ada bonus Ramai-ramai
+    await c.c.post('/api/square/sync', { x: 10, y: 18 }); await c.c.post('/api/square/pier', {});
+    setSquareClock(() => wib(14, 20, 30));
+    const lc = await a.c.post('/api/square/fish/cast', { distance: 'dekat' });
+    assert.equal(lc.body.mode, 'lomba');
+    assert.equal(lc.body.ramai, undefined);
   } finally { setSquareClock(() => Date.now()); await restore(); }
 });
 

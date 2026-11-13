@@ -2,7 +2,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
@@ -278,10 +278,10 @@
         out.push({ key: 'o:' + c.id, d: c.rideD ?? c.live[0] + c.live[1] + 0.005, h: compMarkup(c), behind: !!c.rideBehind, pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: c.rideTf ?? tf(c.live), o: c.id } });
     return out;
   });
-  /** ondel-ondel penyambut tidak tampil di gerbang selama arak-arakan (mereka sedang berkeliling) */
+  /** ondel-ondel penyambut tidak tampil di tempat jaganya selama berjalan (ke gerbang, arak-arakan, pulang) */
   const shownFixed = $derived.by(() => {
-    if (!square || !paradeOn) return fixedDraws;
-    const hide = new Set(ALUN_LAYOUT.map((p, i) => (p.i === 'alun-ondel' || p.i === 'alun-ondelnone' ? `f:${ALUN_ROOM}:${i}` : '')).filter(Boolean));
+    if (!square || !ondelAway.some(Boolean)) return fixedDraws;
+    const hide = new Set(ONDEL_IDX.filter((_, k) => ondelAway[k]).map((i) => `f:${ALUN_ROOM}:${i}`));
     return fixedDraws.filter((d) => !hide.has(d.key));
   });
   const draws = $derived<Draw[]>([...shownFixed, ...(square ? [FESTOON] : []), ...petDraws, ...npcDraws, ...moverDraws].sort(houseDrawOrder));
@@ -1345,6 +1345,16 @@
   const FESTOON: Draw = { key: 'festoon', d: 21 + 12 + 0.6, h: square ? `<g pointer-events="none">${festoonSVG(lampHead(21, 12), lampHead(25, 12))}</g>` : '' };
   /** indeks ondel-ondel penyambut di ALUN_LAYOUT (disembunyikan selama arak-arakan) */
   const ONDEL_IDX = ALUN_LAYOUT.map((p, i) => (p.i === 'alun-ondel' || p.i === 'alun-ondelnone' ? i : -1)).filter((i) => i >= 0);
+  /** tempat jaga ondel-ondel (tengah petaknya): berjalan ke gerbang sebelum arak-arakan & pulang lagi sesudahnya */
+  const ONDEL_HOME = ONDEL_IDX.map((i) => [ALUN_LAYOUT[i].x + 0.5, ALUN_LAYOUT[i].y + 0.45] as [number, number]);
+  /** titik ondel ke-k di rute (sedikit ke samping supaya berdua berdampingan) */
+  const ondelLane = (u: number, k: number) => { const p = paradePoint(u), o = k ? 0.25 : -0.25; return [p.x + o * p.dy, p.y - o * p.dx] as [number, number]; };
+  const ONDEL_START = [ondelLane(0, 0), ondelLane(0, 1)];
+  const ONDEL_END = [ondelLane(PARADE_LEN, 0), ondelLane(PARADE_LEN, 1)];
+  /** lama berjalan dari tempat jaga ke gerbang (ms), dengan kecepatan rombongan */
+  const ONDEL_WALK = ONDEL_HOME.map((h, k) => Math.hypot(ONDEL_START[k][0] - h[0], ONDEL_START[k][1] - h[1]) / PARADE_SPEED);
+  const lerp2 = (a: [number, number], b: [number, number], t: number) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] as [number, number];
+  let ondelAway = $state<boolean[]>([false, false]);
 
   /** keadaan arak-arakan & kereta pada `now` (pratinjau ?arak= / ?kereta= dibekukan pada detik itu) */
   const paradeNow = (now: number) => {
@@ -1422,12 +1432,28 @@
     // arak-arakan: dua ondel-ondel berjalan di rute (bisa diketuk untuk ikut)
     const pa = paradeNow(now);
     if (pa.on !== paradeOn) paradeOn = pa.on;
-    if (pa.on) {
-      [pa.lead, pa.second].forEach((u, i) => {
-        const p = paradePoint(u), idx = ONDEL_IDX[i] ?? -1;
-        moveTo(`ondel${i}`, p.x + (i ? 0.25 : -0.25) * p.dy, p.y - (i ? 0.25 : -0.25) * p.dx, p.x + p.y + 0.3, false, 'o', () => `<g class="furn" data-r="${ALUN_ROOM}" data-i="${idx}"><g class="ondel-jalan">${ondelSVG(0, 0, i)}</g></g>`, seen);
-      });
+    const away = [false, false];
+    for (let i = 0; i < 2 && i < ONDEL_HOME.length; i++) {
+      let at: [number, number] | null = null;
+      if (pa.on) {
+        // di rute; sesudah sampai gerbang lagi, pulang ke tempat jaga dengan kecepatan yang sama
+        const raw = pa.run - (i ? PARADE_GAP.ondel : 0);
+        if (raw <= PARADE_LEN) at = ondelLane(Math.max(0, raw), i);
+        else {
+          const e = ONDEL_END[i], h = ONDEL_HOME[i], L = Math.hypot(h[0] - e[0], h[1] - e[1]) || 1;
+          const k = Math.min(1, (raw - PARADE_LEN) / L);
+          at = k < 1 ? lerp2(e, h, k) : null;
+        }
+      } else if (pa.start - now > 0 && pa.start - now < ONDEL_WALK[i]) {
+        // menjelang arak-arakan: berjalan dari tempat jaga ke gerbang
+        at = lerp2(ONDEL_HOME[i], ONDEL_START[i], 1 - (pa.start - now) / ONDEL_WALK[i]);
+      }
+      if (!at) continue;
+      away[i] = true;
+      const idx = ONDEL_IDX[i] ?? -1;
+      moveTo(`ondel${i}`, at[0], at[1], at[0] + at[1] + 0.3, false, 'o', () => `<g class="furn" data-r="${ALUN_ROOM}" data-i="${idx}"><g class="ondel-jalan">${ondelSVG(0, 0, i)}</g></g>`, seen);
     }
+    if (away[0] !== ondelAway[0] || away[1] !== ondelAway[1]) ondelAway = away;
     for (const key of [...movers.keys()]) if (!seen.has(key)) { movers.delete(key); resort = true; }
     // penumpang: pet sendiri
     if (selfRide && now >= selfRide.from && now < selfRide.until && selfRide.kind !== 'arak') {

@@ -5,7 +5,7 @@ import { api, ApiError } from './api';
 import { onPings } from './friends.svelte';
 import { syncGames } from './bareng.svelte';
 import { sfx } from './sfx';
-import { ALUN, previewLomba } from './alun.svelte';
+import { ALUN, PREVIEW, previewLomba } from './alun.svelte';
 
 export type Bubble = { id: number; who: string; text?: string; emote?: string; until: number };
 /** posisi (x, y) di dalam ruangan `roomId`; layar rumah memetakannya ke denah */
@@ -81,6 +81,7 @@ async function tick(myGen: number) {
       if (r.welcome) { merge(r.welcome); toast(`Selamat datang di Alun-alun! +${r.welcome.coins} koin`, 'good'); }
       // Lomba Mancing (papan skor / hasil) untuk bar & papan alun-alun
       ALUN.lomba = previewLomba(r.serverNow ?? Date.now()) ?? r.lomba ?? null;
+      ALUN.ramai = PREVIEW.ramai !== null && r.pier ? { anglers: PREVIEW.ramai, need: 3, xp: 1 } : r.ramai ?? null;
     }
     if (H.hostId === SQUARE && !r.live && r.reason) {
       // alun-alun ditutup admin / pet tertidur: kembali ke peta kampung

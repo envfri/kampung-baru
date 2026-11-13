@@ -100,7 +100,9 @@
       {#if kind === 'bottle' && res.coins > 0}<span class="chip">{@html COIN} +{res.coins} koin</span>{/if}
       {#if kind === 'bottle' && res.hint}<span class="chip hint">Petunjuk rahasia tersimpan di Buku Ikan</span>{/if}
       {#if (kind === 'junk' || kind === 'decor' || kind === 'wear')}<span class="chip">masuk Tas{#if it.sell_coin > 0}{' · '}jual {it.sell_coin}{/if}</span>{/if}
-      {#if res.xp > 0 && open}<span class="chip">+{res.xp} XP</span>{/if}
+      <!-- XP dasar & bonus Ramai-ramai ditampilkan terpisah (jumlahnya = res.xp) -->
+      {#if res.xp - (res.ramaiXp ?? 0) > 0 && open}<span class="chip">+{res.xp - (res.ramaiXp ?? 0)} XP</span>{/if}
+      {#if res.ramaiXp > 0 && open}<span class="chip ramai">Ramai-ramai +{res.ramaiXp} XP</span>{/if}
       {#if fish && res.book}<span class="chip">{@html I.book} Buku {res.book.got}/{res.book.total}</span>{/if}
     </div>
     <div class="row">
@@ -159,6 +161,7 @@
   .rew { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 800; padding: 2px 10px 1px; border-radius: 999px; background: var(--soft); border: 2px solid var(--ink); text-align: center; }
   .chip.hint { background: #E9E2FA; }
+  .chip.ramai { background: #FFE3CF; }
   .chip :global(svg) { width: 16px; height: 16px; flex: none; }
   .loot { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
   .lc { display: inline-flex; align-items: center; gap: 6px; font-size: 26px; font-weight: 800; background: var(--soft); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 3px 0 var(--ink); padding: 3px 14px 1px 10px; animation: pop .4s; }

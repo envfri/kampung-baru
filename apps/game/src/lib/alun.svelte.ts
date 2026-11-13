@@ -16,6 +16,8 @@ export const ALUN = $state({
   board: false,
   /** hasil lomba yang sudah ditutup pemain */
   seen: '',
+  /** bonus Ramai-ramai di kolam (dari sinkron, hanya saat duduk di dermaga): pemancing sekarang, yang dibutuhkan, XP tambahan */
+  ramai: null as null | { anglers: number; need: number; xp: number },
 });
 export type LombaRow = { name: string; grams: number; fish: number; me?: boolean; rank?: number; coins?: number };
 export type LombaView = {
@@ -40,6 +42,8 @@ export const PREVIEW = {
   lomba: qs?.has('lomba') ?? false,
   /** ?lomba=lomba | hasil: contoh papan skor / hasil untuk tangkapan layar & audit teks (nama 16 huruf) */
   lombaView: (['lomba', 'hasil'].includes(qs?.get('lomba') ?? '') ? qs!.get('lomba') : null) as null | 'lomba' | 'hasil',
+  /** ?ramai=N: contoh jumlah pemancing di dermaga (tampilan bonus Ramai-ramai) */
+  ramai: qs?.has('ramai') ? Math.max(1, Math.min(6, Number(qs.get('ramai')) || 1)) : null,
 };
 /** zona waktu HP dalam menit dari UTC (WIB 420, WITA 480, WIT 540) */
 export const tzMin = () => -new Date().getTimezoneOffset();

@@ -30,11 +30,29 @@
   const mmss = (ms: number) => { const v = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
   const now = $derived(serverNow());
   const top = $derived((L?.phase === 'hasil' && L.results ? L.results : L?.board ?? []).slice(0, 3));
+  /** papan skor lomba tampil (sebelum, saat & sesudah lomba); selain itu baris bonus Ramai-ramai */
+  const showL = $derived(!!L && (L.phase === 'lomba' || L.phase === 'hasil' || L.phase === 'daftar'));
+  const R = $derived(ALUN.ramai);
+  const ramaiOn = $derived(!!R && R.anglers >= R.need);
 </script>
 
 <div class="alunfish">
-  <FishingFlow {api} {left} {costs} title={inLomba ? 'Lomba Mancing' : 'Mancing Bareng'} exitLabel="Berdiri" onexit={() => (ALUN.fishing = null)} onbook={() => (G.sheet = 'collection')} extra={L && (L.phase === 'lomba' || L.phase === 'hasil' || L.phase === 'daftar') ? lstrip : undefined} />
+  <FishingFlow {api} {left} {costs} title={inLomba ? 'Lomba Mancing' : 'Mancing Bareng'} exitLabel="Berdiri" onexit={() => (ALUN.fishing = null)} onbook={() => (G.sheet = 'collection')} extra={showL ? lstrip : R ? rstrip : undefined} />
 </div>
+
+<!-- bonus Ramai-ramai: makin banyak yang duduk di dermaga, ikan makin cepat datang (diputuskan server saat melempar) -->
+{#snippet rstrip()}
+  <section class="rstrip" class:on={ramaiOn} aria-live="polite" aria-label="Bonus Ramai-ramai">
+    <p class="lh">
+      <b>{ramaiOn ? 'Ramai-ramai!' : 'Bonus Ramai-ramai'}</b>
+      <span class="cnt">{ramaiOn ? `${R!.anglers} pemancing` : `${R!.anglers}/${R!.need} pemancing`}</span>
+    </p>
+    <p class="ln">
+      {#if ramaiOn}Ikan lebih cepat datang{R!.xp > 0 ? ` · +${R!.xp} XP tiap tangkapan` : ''}
+      {:else}Ajak {R!.need - R!.anglers} lagi: ikan lebih cepat datang{R!.xp > 0 ? ` & +${R!.xp} XP` : ''}{/if}
+    </p>
+  </section>
+{/snippet}
 
 <!-- papan skor ringkas di dalam panel mancing (tidak menutupi kolam) -->
 {#snippet lstrip()}
@@ -76,4 +94,13 @@
   .ln { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--muted); line-height: 1.25; }
   .ln.win { color: #1E7A4C; font-weight: 800; }
   .ln.warn { color: #A93A27; }
+  .rstrip { background: #FFFDF7; border: 2px solid var(--ink); border-radius: 12px; padding: 4px 7px; display: flex; flex-direction: column; gap: 2px; }
+  .rstrip.on { background: #FFE3CF; }
+  .rstrip .lh { padding: 0; }
+  .cnt { font-weight: 800; font-size: 13px; border: 2px solid var(--ink); border-radius: 999px; padding: 0 9px; white-space: nowrap; background: #FFFDF7; }
+  .rstrip.on .cnt { background: #E0583F; color: #FFFDF7; }
+  /* bonus Ramai-ramai hanya sebelum melempar; saat menunggu & tarik-ulur kolamnya lebih penting */
+  :global(.panel[data-phase]:not([data-phase="idle"]):not([data-phase="aim"])) .rstrip { display: none; }
+  /* layar pendek: cukup judul & jumlah pemancing supaya kolam tetap terlihat */
+  @media (max-height: 680px) { .rstrip .ln { display: none; } }
 </style>
