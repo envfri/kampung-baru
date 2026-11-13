@@ -39,9 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.31.3',
+    date: '2026-11-13',
+    title: 'Bagian atas layar HP lebih rapi',
+    items: [
+      { kind: 'perbaikan', text: 'Di HP, tombol lonceng, kabar, kalender & pengaturan tidak lagi menutupi lingkaran Kenyang/Bersih/Ceria/Energi. Koin & Mutiara diusahakan tetap sebaris; kalau tetap turun dua baris (koin sangat banyak atau huruf HP diperbesar), kebutuhan, pilihan ruangan & tombol acara ikut turun.', player: true },
+      { kind: 'perbaikan', text: 'Nama acara di tombol acara tidak lagi terpotong ("Pekan Ceria Kampun…"); sekarang boleh dua baris.', player: true },
+      { kind: 'perbaikan', text: 'Petunjuk di peta Kampung tidak lagi terpotong di HP; teks turun ke baris kedua.', player: true },
+      { kind: 'ubah', text: 'HP sempit (≤380 px): level pindah ke pojok avatar dan tombol ikon sedikit lebih kecil supaya nama pet tetap terbaca. Teknis: HUD menulis kelebihan tingginya ke --hud-x; Needs, roombar, event, kartu kunjungan, toast, --prompt-top & tepi kamera rumah ikut menyesuaikan.' },
+    ],
+  },
+  {
     version: '0.31.2',
     date: '2026-11-13',
     title: 'Alun-alun tampil utuh 20×20',
+    commits: ['276a3b8'],
     items: [
       { kind: 'perbaikan', text: 'Alun-alun sekarang tergambar utuh 20×20 petak. Sebelumnya rumput & pagar terpotong di 16 petak, sehingga gerobak jajan, beberapa bangku, jalan batu, tikar Ular Tangga, garis start Balap Karung, dan pet yang berjalan ke sana tampak berada di luar lapangan.', player: true },
       { kind: 'ubah', text: 'Teknis: batas ukuran satu ruangan di houseLayout dinaikkan dari 16 ke 24 (ALUN_SIZE 20 tidak lagi terpotong); ukuran rumah pemain tetap dibatasi aturan pembelian ruangan.' },

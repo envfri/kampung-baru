@@ -4,6 +4,18 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.31.3 · 2026-11-13 · Bagian atas layar HP lebih rapi
+
+### Perubahan
+
+- HP sempit (≤380 px): level pindah ke pojok avatar dan tombol ikon sedikit lebih kecil supaya nama pet tetap terbaca. Teknis: HUD menulis kelebihan tingginya ke --hud-x; Needs, roombar, event, kartu kunjungan, toast, --prompt-top & tepi kamera rumah ikut menyesuaikan.
+
+### Perbaikan
+
+- Di HP, tombol lonceng, kabar, kalender & pengaturan tidak lagi menutupi lingkaran Kenyang/Bersih/Ceria/Energi. Koin & Mutiara diusahakan tetap sebaris; kalau tetap turun dua baris (koin sangat banyak atau huruf HP diperbesar), kebutuhan, pilihan ruangan & tombol acara ikut turun. _(pemain)_
+- Nama acara di tombol acara tidak lagi terpotong ("Pekan Ceria Kampun…"); sekarang boleh dua baris. _(pemain)_
+- Petunjuk di peta Kampung tidak lagi terpotong di HP; teks turun ke baris kedua. _(pemain)_
+
 ## 0.31.2 · 2026-11-13 · Alun-alun tampil utuh 20×20
 
 ### Perubahan
@@ -13,6 +25,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 ### Perbaikan
 
 - Alun-alun sekarang tergambar utuh 20×20 petak. Sebelumnya rumput & pagar terpotong di 16 petak, sehingga gerobak jajan, beberapa bangku, jalan batu, tikar Ular Tangga, garis start Balap Karung, dan pet yang berjalan ke sana tampak berada di luar lapangan. _(pemain)_
+
+Commit: [`276a3b8`](https://github.com/envfri/kampung-baru/commit/276a3b8)
 
 ## 0.31.1 · 2026-11-13 · Panggung alun-alun lebih rapi
 

@@ -8,9 +8,19 @@
   const look = $derived(petLook(pet));
   // wajah di avatar ikut keadaan pet (lapar, capek, tidur, ...); diperbarui saat suasana hati berubah
   const ava = $derived(petSVG(pet, wearItems(pet.wear), '', look ? { mood: look.mood, chub: look.chub } : undefined));
+  // HUD bisa lebih tinggi dari biasanya (koin & Mutiara turun dua baris, huruf HP diperbesar, ...):
+  // kelebihannya dicatat di --hud-x supaya kebutuhan, pilihan ruangan & kartu di bawahnya ikut turun, tidak tertimpa
+  let hudEl: HTMLDivElement | undefined = $state();
+  $effect(() => {
+    if (!hudEl) return;
+    const root = document.documentElement;
+    const set = () => root.style.setProperty('--hud-x', `${Math.max(0, Math.ceil(hudEl!.offsetHeight) - 92)}px`);
+    const ro = new ResizeObserver(set); ro.observe(hudEl); set();
+    return () => { ro.disconnect(); root.style.removeProperty('--hud-x'); };
+  });
 </script>
 
-<div class="hud">
+<div class="hud" bind:this={hudEl}>
   <button class="card" onclick={() => (G.sheet = 'wardrobe')} aria-label="Lemari: ubah penampilan {pet.name}">
     <span class="ava">{@html ava}</span>
     <span class="id">
@@ -42,12 +52,12 @@
   .id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .name { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .lv { flex: none; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 1px 7px; white-space: nowrap; }
   /* HP kecil: level jadi lencana di pojok avatar supaya nama tetap terbaca */
-  @media (max-width: 359px) {
+  @media (max-width: 380px) {
     .card { position: relative; }
     .lv { position: absolute; left: 4px; bottom: 3px; font-size: 10.5px; padding: 0 5px; border: 1.5px solid var(--paper); }
   }
-  .lv { flex: none; font-size: 12px; font-weight: 700; background: var(--ink); color: var(--paper); border-radius: 8px; padding: 1px 7px; white-space: nowrap; }
   .xp { display: block; width: 120px; max-width: 100%; height: 9px; border: 2px solid var(--ink); border-radius: 6px; background: var(--track); overflow: hidden; }
   .xp i { display: block; height: 100%; background: var(--sky); transition: width .4s; }
   .mood { font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -62,7 +72,9 @@
   .tool :global(svg) { width: 20px; height: 20px; }
   .cnt { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; border-radius: 10px; background: var(--low); color: #fff; border: 2px solid var(--ink); font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 3px; }
   .dot { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--low); border: 2px solid var(--ink); }
-  @media (max-width: 380px) { .xp { width: 84px; } .mood { display: none; } .pill { font-size: 14.5px; } }
+  /* HP: koin & Mutiara diusahakan tetap sebaris (kalau tetap turun, --hud-x menggeser isi di bawahnya) */
+  @media (max-width: 440px) { .xp { width: 100px; } .pill { gap: 4px; padding: 3px 7px 3px 4px; } .pill :global(svg) { width: 20px; height: 20px; } .plus { width: 20px; height: 20px; font-size: 13px; } .card { gap: 7px; padding-right: 10px; } }
+  @media (max-width: 380px) { .xp { width: 84px; } .mood { display: none; } .pill { font-size: 14.5px; } .tools { gap: 5px; } .tool { width: 35px; height: 35px; } .tool :global(svg) { width: 19px; height: 19px; } }
   /* layar lebar: HUD tetap di atas panel samping (panel dimulai di bawahnya) */
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .hud { z-index: 42; } }
 </style>

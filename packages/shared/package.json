@@ -1,6 +1,6 @@
 {
   "name": "@kb/shared",
-  "version": "0.31.2",
+  "version": "0.31.3",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts", "./art": "./src/art.ts", "./economy": "./src/economy.ts" }

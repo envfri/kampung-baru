@@ -431,7 +431,14 @@
   // panel tamu di rumah sendiri (menutup bagian bawah layar)
   const guestBar = $derived(mode === 'home' && !G.edit && !G.bath && !G.plan && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
   /** ruang layar yang tertutup tombol & panel (px) */
+  /** tepi aman kamera; di HP ditambah kelebihan tinggi HUD (--hud-x) supaya rumah tidak tertutup kebutuhan & pilihan ruangan */
   function insets() {
+    const i = insets0();
+    if (wide) return i;
+    const hx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-x')) || 0;
+    return hx ? { ...i, t: i.t + hx } : i;
+  }
+  function insets0() {
     if (square) return wide ? { t: 92, b: 110, l: 24, r: 340 } : vw > vh ? { t: 64, b: 120, l: 16, r: 16 } : { t: Math.min(vh * 0.2, 175), b: Math.min(vh * 0.34, 310), l: 8, r: 8 };
     if (planning) return wide ? { t: 92, b: 230, l: 24, r: 24 } : vw > vh ? { t: 64, b: 150, l: 16, r: 16 } : { t: Math.min(vh * 0.17, 140), b: Math.min(vh * 0.36, 320), l: 8, r: 8 };
     // desktop: bawah = dock + kartu tugas, kanan = tombol aksi (+ panel tamu), supaya rumah tidak tertutup menu

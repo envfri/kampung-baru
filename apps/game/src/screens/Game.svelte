@@ -383,8 +383,8 @@
   .game { position: fixed; inset: 0; overflow: hidden; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E %3Cg fill='none' stroke='%23FFFFFF' stroke-opacity='.5' stroke-width='2'%3E %3Cg transform='translate(40 40)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3Cg transform='translate(120 120)'%3E%3Cellipse cx='0' cy='-11' rx='6' ry='10'/%3E%3Cellipse cx='0' cy='11' rx='6' ry='10'/%3E%3Cellipse cx='-11' cy='0' rx='10' ry='6'/%3E%3Cellipse cx='11' cy='0' rx='10' ry='6'/%3E%3Ccircle r='2.2' fill='%23FFFFFF' fill-opacity='.5' stroke='none'/%3E%3C/g%3E %3C/g%3E %3Cg fill='%238FBFAD' fill-opacity='.42'%3E %3Cpath d='M118 30c10-12 26-12 30-8-4 4-6 20-22 22-6 0-9-6-8-14z'/%3E%3Cpath d='M38 112c-12-6-16-20-12-26 4 4 20 4 22 18 1 6-4 10-10 8z'/%3E %3C/g%3E %3Cg fill='%23FFFFFF' fill-opacity='.55'%3E %3Cg transform='translate(82 76)'%3E%3Ccircle cx='0' cy='-5' r='3.4'/%3E%3Ccircle cx='4.8' cy='-1.5' r='3.4'/%3E%3Ccircle cx='3' cy='4' r='3.4'/%3E%3Ccircle cx='-3' cy='4' r='3.4'/%3E%3Ccircle cx='-4.8' cy='-1.5' r='3.4'/%3E%3Ccircle r='2' fill='%23F2C94C' fill-opacity='.55'/%3E%3C/g%3E %3Ccircle cx='14' cy='72' r='2'/%3E%3Ccircle cx='150' cy='78' r='2.4'/%3E%3Ccircle cx='70' cy='146' r='2'/%3E%3Ccircle cx='96' cy='14' r='1.8'/%3E%3Ccircle cx='58' cy='96' r='1.5'/%3E%3Ccircle cx='138' cy='150' r='1.6'/%3E %3Cpath d='M150 14l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z'/%3E%3Cpath d='M12 148l1.3 3.2 3.2 1.3-3.2 1.3-1.3 3.2-1.3-3.2-3.2-1.3 3.2-1.3z'/%3E %3C/g%3E%3C/svg%3E") 0 0 / 160px 160px repeat, radial-gradient(ellipse 70% 45% at 50% 55%, rgba(255,255,255,.35), rgba(255,255,255,0) 70%), linear-gradient(180deg, var(--bg1), var(--bg2)); }
   .game[data-view='map'] { background: #A9D18A; }
   /* kartu ajakan / tombol Tonton: di bawah bar atas; saat berkunjung di bawah kartu rumah teman (HP) */
-  .game { --prompt-top: 226px; }
-  .game[data-view='visit'] { --prompt-top: 276px; }
+  .game { --prompt-top: calc(226px + var(--hud-x, 0px)); }
+  .game[data-view='visit'] { --prompt-top: calc(276px + var(--hud-x, 0px)); }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .game, .game[data-view='visit'] { --prompt-top: 214px; } }
   .scene { position: absolute; inset: 0; }
   .night { position: absolute; inset: 0; background: #1B2340; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 2; }
@@ -393,7 +393,7 @@
   .acts.hide { display: none; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
-  .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }
+  .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px + var(--hud-x, 0px)); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }
   .cambtn { flex: none; display: inline-flex; align-items: center; gap: 4px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 2px 0 var(--ink); padding: 3px 9px 3px 6px; font-weight: 800; font-size: 13px; color: var(--ink); cursor: pointer; white-space: nowrap; }
   .cambtn :global(svg) { width: 18px; height: 18px; flex: none; }
   .whorow { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
@@ -403,13 +403,13 @@
   .roompill :global(svg) { width: 18px; height: 18px; flex: none; }
   .roompill .n { flex: none; min-width: 18px; height: 18px; border-radius: 9px; background: var(--ok); color: #fff; font-size: 11.5px; display: grid; place-items: center; padding: 0 4px; }
   .cd { position: absolute; top: -9px; right: -6px; background: var(--ink); color: var(--paper); font-style: normal; font-size: 11px; border-radius: 8px; padding: 0 5px; }
-  .event { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px); right: max(10px, var(--safe-r)); max-width: calc(52vw - 30px); background: var(--ev); color: #fff; border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 14px; font-weight: 800; font-size: 13.5px; box-shadow: 0 2px 0 var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px + var(--hud-x, 0px)); right: max(10px, var(--safe-r)); max-width: calc(52vw - 30px); background: var(--ev); color: #fff; border: 2.5px solid var(--ink); border-radius: 16px; padding: 3px 12px; font-weight: 800; font-size: 13.5px; line-height: 1.2; text-align: center; box-shadow: 0 2px 0 var(--ink); cursor: pointer; overflow-wrap: break-word; }
   .sleepbar, .bathbar { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(520px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; animation: pop .2s ease-out; }
   .sleepbar p, .bathbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
   .meter { height: 12px; border: 2px solid var(--ink); border-radius: 8px; background: var(--track); overflow: hidden; }
   .meter i { display: block; height: 100%; background: #9FD3EC; transition: width .15s; }
   .editbar, .visit { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(560px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-  .visit { top: calc(var(--safe-t) + 118px); bottom: auto; flex-direction: column; }
+  .visit { top: calc(var(--safe-t) + 118px + var(--hud-x, 0px)); bottom: auto; flex-direction: column; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
   .planbar .warn, .editbar .warn { color: #A93A27; font-size: 13.5px; }
   .pick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
