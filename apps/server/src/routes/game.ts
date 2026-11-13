@@ -385,6 +385,45 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     });
   });
 
+  /**
+   * Kaca Pas (Butik): beli semua pakaian yang dicoba sekaligus. Satu transaksi: koin & Mutiara dicek untuk total
+   * keranjang, jadi kalau kurang tidak ada satu pun yang terbeli. Pakaian cukup satu, yang sudah dimiliki ditolak.
+   */
+  app.post('/api/shop/buy-many', auth, async (req: any) => {
+    const u = req.user!;
+    const raw = req.body?.items;
+    if (!Array.isArray(raw) || raw.length < 1 || raw.length > WEAR_SLOTS.length * 2) throw bad('invalid', 'Pilih barang yang mau dibeli.');
+    const ids = raw.map((x: unknown) => str(x, 'Item', { max: 64 })!);
+    if (new Set(ids).size !== ids.length) throw bad('invalid', 'Ada barang yang dobel.');
+    const cat = await getCatalog(db);
+    const total = { coin: 0, pearl: 0 };
+    const lines = ids.map((id: string) => {
+      const it = cat.byId.get(id);
+      if (!purchasable(cat, it) || it!.kind !== 'wear') throw bad('not_for_sale', `${it?.name ?? 'Barang ini'} sedang tidak dijual.`);
+      const currency: 'coin' | 'pearl' = it!.price_coin > 0 ? 'coin' : 'pearl';
+      const price = currency === 'coin' ? it!.price_coin : it!.price_pearl;
+      total[currency] += price;
+      return { it: it!, currency, price };
+    });
+    // harga berubah sejak dilihat: minta konfirmasi ulang
+    const expect = req.body?.total;
+    if (expect && typeof expect === 'object' && (Number(expect.coin ?? 0) !== total.coin || Number(expect.pearl ?? 0) !== total.pearl)) {
+      throw bad('price_changed', 'Harga berubah. Cek lagi totalnya, lalu beli.');
+    }
+    return once(db, u.id, reqId(req.body?.requestId), async (t) => {
+      const own = await ownedOf(t, u.id, ids);
+      const dup = lines.find((l: (typeof lines)[number]) => own.has(l.it.id));
+      if (dup) throw bad('owned', `Kamu sudah punya ${dup.it.name}.`);
+      if (total.coin) await credit(t, u.id, 'coin', -total.coin, 'buy', `kacapas:${ids.join(',').slice(0, 200)}`);
+      if (total.pearl) await credit(t, u.id, 'pearl', -total.pearl, 'buy', `kacapas:${ids.join(',').slice(0, 200)}`);
+      for (const l of lines) {
+        await addItem(t, u.id, l.it.id, 1);
+        await track(t, u.id, 'purchase', { itemId: l.it.id, kind: l.it.kind, currency: l.currency, total: l.price });
+      }
+      return { ok: true, items: ids, total, ...(await patch(t, u.id, ['wallet', 'inventory'])) };
+    });
+  });
+
   app.post('/api/shop/sell', auth, async (req: any) => {
     const u = req.user!;
     const itemId = str(req.body?.itemId, 'Item', { max: 64 })!;

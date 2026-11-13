@@ -23,6 +23,7 @@ const WEAR_POOL: Record<string, string[]> = {
   neck: ['syal', 'dasikupu', 'kalungbunga', 'lonceng', 'syalrajut'],
   back: ['ransel', 'jubah', 'sayapkupu', 'jubahbatik'],
   hand: ['balon', 'lampion', 'kincir'],
+  body: ['kaos', 'kaosgaris', 'daster', 'jersey', 'piyama', 'overall', 'batikparang', 'pantai'],
 };
 const wearItem = (slot: string, key: string): ItemLike => ({ id: key, kind: 'wear', name: key, art: { type: 'builtin', key } as any, data: { slot } });
 
@@ -35,6 +36,8 @@ export function randomPets(seed: number): HeroPet[] {
   return colors.map((color, i) => {
     const wear: ItemLike[] = [];
     const slots = i === 2 ? ['hand', pick(['head', 'neck', 'face'])] : r() < 0.85 ? [pick(['head', 'head', 'face', 'neck', 'back'])] : [];
+    // kadang memakai baju dari Butik Benang
+    if (r() < 0.5) slots.push('body');
     for (const s of slots) wear.push(wearItem(s, pick(WEAR_POOL[s])));
     return {
       look: { color, ear: pick(PET_PARTS.ear)[0], pattern: pick(PET_PARTS.pattern.slice(0, 3))[0], eyes: pick(PET_PARTS.eyes.slice(0, 3))[0], tail: pick(PET_PARTS.tail)[0] },

@@ -26,6 +26,7 @@ export const I = {
   quest: s('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M9 12l2 2 4-4"/><path d="M9 17h6"/>'),
   plus: s('<path d="M12 5v14M5 12h14"/>'),
   down: s('<path d="M12 4v12M6 11l6 6 6-6"/><path d="M5 20h14"/>'),
+  hanger: s('<path d="M12 6.5a2 2 0 1 1 2-2"/><path d="M12 6.5v1.5L3.5 14.5a1.2 1.2 0 0 0 .7 2.1h15.6a1.2 1.2 0 0 0 .7-2.1L12 8"/>'),
 };
 export const COIN = `<svg class="coin-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#F2B632" stroke="#2B2F4A" stroke-width="2"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#B9800F" stroke-width="2"/></svg>`;
 export const PEARL = `<svg class="pearl-ic" viewBox="0 0 24 24" aria-hidden="true"><defs><radialGradient id="pg" cx=".35" cy=".32" r=".75"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#ECE6F6"/><stop offset="1" stop-color="#B5A9D6"/></radialGradient></defs><circle cx="12" cy="12" r="9.5" fill="url(#pg)" stroke="#2B2F4A" stroke-width="2"/></svg>`;

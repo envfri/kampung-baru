@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { itemIcon } from '@kb/shared';
-  let { it, sub = '', badge = '', children }: { it: any; sub?: string; badge?: string; children?: Snippet } = $props();
+  let { it, sub = '', badge = '', tried = false, children }: { it: any; sub?: string; badge?: string; tried?: boolean; children?: Snippet } = $props();
 </script>
 
-<div class="card">
+<div class="card" class:tried>
   {#if badge}<span class="badge">{badge}</span>{/if}
   <div class="ic">{@html itemIcon(it)}</div>
   <div class="name">{it.name}</div>
@@ -14,6 +14,8 @@
 
 <style>
   .card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border: 2px solid var(--ink); border-radius: 14px; padding: 8px 6px 10px; background: var(--card); min-width: 0; }
+  /* sedang dicoba di Kaca Pas (Butik) */
+  .card.tried { border-color: #1E7A4C; box-shadow: 0 0 0 3px #3FA06A; }
   .ic { width: 100%; height: 66px; display: grid; place-items: center; background: var(--tint); border-radius: 10px; }
   .ic :global(svg) { height: 60px; width: auto; max-width: 100%; }
   .name { font-weight: 800; font-size: 14.5px; line-height: 1.12; }

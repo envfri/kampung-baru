@@ -128,8 +128,10 @@ export function mulberry32(seed: number) {
   };
 }
 
-/** Bagian tubuh tempat aksesori dipakai (hand = dibawa di samping). */
-export const WEAR_SLOTS = ['head', 'face', 'neck', 'back', 'hand'] as const;
+/** Bagian tubuh tempat aksesori dipakai (hand = dibawa di samping, body = baju). */
+export const WEAR_SLOTS = ['head', 'face', 'neck', 'back', 'hand', 'body'] as const;
+/** Barang yang baru ditambahkan ke katalog diberi lencana "Baru" di toko selama sekian hari. */
+export const NEW_ITEM_DAYS = 14;
 
 export const KARUNG_RIVALS = [
   { name: 'Kopi', color: '#B98A64', ear: 'anjing', pattern: 'totol', eyes: 'senyum' },

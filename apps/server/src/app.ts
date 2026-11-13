@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { config } from './config';
 import { openDb, migrate, type Db } from './db/index';
 import { seed, seedPacks, seedPackV3, seedPackV4, seedPackV5, seedPackV6, seedPackV7, seedPackV8, seedPackV9, seedPackV10 } from './db/seed';
+import { seedPackV12 } from './db/seed-butik';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -68,6 +69,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV8(db)) app.log.info('Paket konten v8 (alun-alun) ditambahkan');
   if (await seedPackV9(db)) app.log.info('Paket konten v9 (set item premium) ditambahkan');
   if (await seedPackV10(db)) app.log.info('Paket konten v10 (aksesori baru & slot dibawa) ditambahkan');
+  if (await seedPackV12(db)) app.log.info('Paket konten v12 (Butik Benang: baju & aksesori tambahan) ditambahkan');
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');

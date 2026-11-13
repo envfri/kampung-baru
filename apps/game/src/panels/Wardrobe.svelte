@@ -7,7 +7,7 @@
 
   type Tab = 'color' | 'ear' | 'pattern' | 'eyes' | 'tail' | 'wear';
   const TABS: [Tab, string][] = [['color', 'Warna'], ['ear', 'Telinga'], ['pattern', 'Motif'], ['eyes', 'Mata'], ['tail', 'Ekor'], ['wear', 'Aksesori']];
-  const SLOTS: [string, string][] = [['head', 'Kepala'], ['face', 'Wajah'], ['neck', 'Leher'], ['back', 'Punggung'], ['hand', 'Dibawa']];
+  const SLOTS: [string, string][] = [['head', 'Kepala'], ['body', 'Baju'], ['face', 'Wajah'], ['neck', 'Leher'], ['back', 'Punggung'], ['hand', 'Dibawa']];
   let tab = $state<Tab>('color');
   const pet = $derived(G.me.pet);
   const look = $derived({ color: pet.color, ear: pet.ear, pattern: pet.pattern, eyes: pet.eyes, tail: pet.tail });
@@ -51,7 +51,7 @@
     </div>
   {:else if tab === 'wear'}
     {#if myWear.length === 0}
-      <p class="muted">Belum punya aksesori. Beli di Butik Benang atau Toko Mutiara.</p>
+      <p class="muted">Belum punya baju atau aksesori. Beli di Butik Benang atau Toko Mutiara.</p>
     {/if}
     {#each SLOTS as [slot, label]}
       {@const list = myWear.filter((i) => (i.data?.slot ?? 'head') === slot)}

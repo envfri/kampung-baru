@@ -22,7 +22,11 @@
     if (!f) return;
     try { const r = await uploadFile(f); media = [{ id: r.id, filename: f.name }, ...media]; art = { ...art, type: 'image', url: r.url }; toast('Gambar diunggah'); } catch (e) { err(e); }
   }
-  const LABEL: Record<string, string> = { main: 'Warna utama', accent: 'Warna aksen' };
+  const LABEL: Record<string, string> = {
+    main: 'Warna utama', accent: 'Warna aksen',
+    // warna tambahan baju (Butik Benang)
+    mid: 'Warna tengah bunga', pipe: 'Warna lis', line: 'Warna garis', shirt: 'Warna kemeja', leaf: 'Warna daun', jarik: 'Warna jarik', spike: 'Warna duri', inner: 'Warna dalam',
+  };
 </script>
 
 <fieldset>

@@ -61,7 +61,7 @@
       shown[p.id] = (shown[p.id] ?? START) + (target - (shown[p.id] ?? START)) * 0.25;
       const x = shown[p.id];
       const hop = now > g.race.startAt && x < END - 1 && Math.floor(now / 170 + i) % 2 === 0;
-      s += sackPet(p.pet ?? { color: '#F2EEE3', ear: 'tunas' }, wearItems(p.pet?.wear ?? []).filter((x: any) => x.data?.slot !== 'back' && x.data?.slot !== 'hand'), x, laneY(i), hop);
+      s += sackPet(p.pet ?? { color: '#F2EEE3', ear: 'tunas' }, wearItems(p.pet?.wear ?? []).filter((x: any) => !['back', 'hand', 'body'].includes(x.data?.slot)), x, laneY(i), hop);
       s += `<text x="${Math.min(Math.max(x, 40), 340).toFixed(1)}" y="${laneY(i) - 52}" text-anchor="middle" class="nm${p.id === me ? ' me' : ''}">${p.name}${p.id === me ? ' (kamu)' : ''}</text>`;
     });
     return s;

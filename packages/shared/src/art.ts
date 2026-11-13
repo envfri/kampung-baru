@@ -5,6 +5,7 @@
 // Fungsi di sini mengembalikan string SVG. Dipakai oleh game dan pratinjau di admin.
 
 import type { HousePlan, HouseDoor, WallSeg } from './house';
+import { BODY_WEAR, EXTRA_WEAR, bodyIcon, mannequin, type BodyParts } from './art-butik';
 
 export const INK = '#2B2F4A';
 
@@ -577,10 +578,11 @@ export function partLevel(kind: keyof typeof PET_PARTS, key: string) {
   return PET_PARTS[kind].find((p) => p[0] === key)?.[2] ?? Infinity;
 }
 
-type WearSlot = 'head' | 'face' | 'neck' | 'back' | 'hand';
+type WearSlot = 'head' | 'face' | 'neck' | 'back' | 'hand' | 'body';
 type WearFn = (c: Record<string, string>) => string;
 // draw: digambar di depan tubuh; back: di belakang tubuh (sayap, ransel, jubah); slot hand = dibawa di samping kanan
-const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<string, string>; draw: WearFn; back?: WearFn }> = {
+// slot body (Baju, art-butik.ts): draw dipotong bentuk badan, over = setelah kaki
+const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<string, string>; draw: WearFn; back?: WearFn; over?: WearFn }> = {
   caping: { label: 'Topi caping', slot: 'head', colors: { main: '#E3C16F' }, draw: (c) => `<path d="M-50 -64L0 -102 50 -64Q0 -55 -50 -64Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-27 -76Q0 -72 27 -76M-14 -88Q0 -86 14 -88" stroke="${shade(c.main, -0.3)}" stroke-width="2" fill="none"/>` },
   peci: { label: 'Peci', slot: 'head', colors: { main: '#2B2F4A' }, draw: (c) => `<path d="M-26 -70L-23 -92Q0 -97 23 -92L26 -70Q0 -75 -26 -70Z" fill="${c.main}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-24 -84Q0 -89 24 -84" stroke="${shade(c.main, 0.25)}" stroke-width="1.6" fill="none"/>` },
   mahkota: { label: 'Mahkota bunga', slot: 'head', colors: { main: '#FFFFFF', accent: '#F2B632' }, draw: (c) => [-30, -15, 0, 15, 30].map((x) => { const y = -76 - (30 - Math.abs(x)) * 0.25; return `<g transform="translate(${x} ${y})"><circle r="6.5" fill="${c.main}" stroke="${INK}" stroke-width="2"/><circle r="2.6" fill="${c.accent}"/></g>`; }).join('') },
@@ -693,6 +695,8 @@ const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<strin
   kincir: { label: 'Kincir kertas', slot: 'hand', colors: { main: '#3F7FBF', accent: '#F2C230' },
     draw: (c) => `<path d="M40 -20L46 -60" stroke="#8A5A36" stroke-width="3" stroke-linecap="round"/><g transform="translate(46 -64)">${[0, 90, 180, 270].map((r, i) => `<path d="M0 0L0 -16Q8 -14 10 -6Z" transform="rotate(${r})" fill="${i % 2 ? c.accent : c.main}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>`).join('')}<circle r="2.6" fill="${INK}"/></g>` },
 };
+// Butik Benang v0.32: baju (slot body) + aksesori tambahan
+Object.assign(WEAR, BODY_WEAR, EXTRA_WEAR);
 
 const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
   head: [-48, -112, 96, 52],
@@ -700,6 +704,7 @@ const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
   neck: [-44, -36, 88, 40],
   back: [-66, -100, 132, 100],
   hand: [30, -112, 36, 92],
+  body: [-50, -42, 100, 40],
 };
 
 export interface PetLook {
@@ -726,6 +731,24 @@ function wearParts(item: ItemLike): { front: string; behind: string } {
   for (const k of Object.keys(def.colors)) c[k] = col(a.colors?.[k], def.colors[k]);
   return { front: def.draw(c), behind: def.back ? def.back(c) : '' };
 }
+
+const slotOf = (item: ItemLike): string => item.data?.slot ?? (item.art.type === 'builtin' ? WEAR[item.art.key]?.slot : 'head') ?? 'head';
+/** Baju (slot body): draw dipotong bentuk badan oleh pemanggil; back di belakang badan; over setelah kaki. */
+function bodyParts(item: ItemLike): BodyParts {
+  const a = item.art;
+  if (a.type === 'image') {
+    const url = safeUrl(a.url);
+    const [x, y, w, h] = WEAR_IMG_BOX.body;
+    return { back: '', over: '', draw: url ? `<image href="${esc(url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>` : '' };
+  }
+  const def = WEAR[a.key];
+  if (!def) return { back: '', draw: '', over: '' };
+  const c: Record<string, string> = {};
+  for (const k of Object.keys(def.colors)) c[k] = col(a.colors?.[k], def.colors[k]);
+  return { back: def.back ? def.back(c) : '', draw: def.draw(c), over: def.over ? def.over(c) : '' };
+}
+/** Manekin Butik yang memajang satu baju (titik 0,0 = lantai). */
+export const mannequinSVG = (item: ItemLike) => mannequin(bodyParts(item));
 
 const BODY = 'M0 -78C30 -78 46 -56 46 -34C46 -14 28 -6 0 -6C-28 -6 -46 -14 -46 -34C-46 -56 -30 -78 0 -78Z';
 
@@ -833,7 +856,10 @@ export function renderPet(look: PetLook, wear: ItemLike[] = [], st: PetStateLook
   const dk = shade(color, -0.22), lt = shade(color, 0.5);
   const ears = earsSVG(look.ear, color, dk);
   const order: Record<string, number> = { back: 0, neck: 1, face: 2, head: 3, hand: 4 };
-  const parts = [...wear].sort((a, b) => (order[a.data?.slot] ?? 1) - (order[b.data?.slot] ?? 1)).map(wearParts);
+  // baju punya lapisan sendiri: di atas bulu, di bawah garis tepi, kaki, telinga terkulai & semua aksesori depan
+  const cloth = wear.find((w) => slotOf(w) === 'body');
+  const bp = cloth ? bodyParts(cloth) : null;
+  const parts = wear.filter((w) => w !== cloth).sort((a, b) => (order[a.data?.slot] ?? 1) - (order[b.data?.slot] ?? 1)).map(wearParts);
   const mood = st.mood ?? 'biasa';
   const lid = look.pattern === 'topeng' || look.pattern === 'ujung' ? shade(color, -0.2) : color;
   const chub = Math.max(0, Math.min(1, st.chub ?? 0));
@@ -854,11 +880,14 @@ export function renderPet(look: PetLook, wear: ItemLike[] = [], st: PetStateLook
     parts.map((p) => p.behind).join('') +
     tailSVG(look.tail, lt, dk) +
     ears.behind +
+    (bp ? `<g class="w-body-back">${bp.back}</g>` : '') +
     `<path d="${BODY}" fill="${color}"/>` +
     patternSVG(look.pattern, color) +
+    (bp ? `<g class="w-body" clip-path="url(#kb-body)">${bp.draw}</g>` : '') +
     `<path d="${BODY}" fill="none" stroke="${INK}" stroke-width="3.5"/>` +
-    `<ellipse cx="0" cy="-23" rx="24" ry="13" fill="${lt}" opacity=".85"/>` +
+    (bp ? '' : `<ellipse cx="0" cy="-23" rx="24" ry="13" fill="${lt}" opacity=".85"/>`) +
     `<ellipse cx="-18" cy="-6" rx="12" ry="7" fill="${dk}" stroke="${INK}" stroke-width="3"/><ellipse cx="18" cy="-6" rx="12" ry="7" fill="${dk}" stroke="${INK}" stroke-width="3"/>` +
+    (bp?.over ? `<g class="w-body-over">${bp.over}</g>` : '') +
     dirtSVG(st.dirt ?? 0) +
     ears.front +
     `<g class="look">${eyes}</g>` + lids + tears +
@@ -1595,7 +1624,8 @@ export function itemIcon(item: ItemLike) {
     return `<svg viewBox="-50 -64 100 104" aria-hidden="true">${furnDraw(g, item, 0, 0)}</svg>`;
   }
   if (item.kind === 'wear') {
-    const slot = item.data?.slot ?? (a.type === 'builtin' ? WEAR[a.key]?.slot : 'head') ?? 'head';
+    const slot = slotOf(item);
+    if (slot === 'body') return bodyIcon(bodyParts(item));
     const vb = { head: '-56 -130 112 78', face: '-46 -64 92 50', neck: '-46 -40 92 54', back: '-80 -118 160 136', hand: '22 -114 46 98' }[slot as 'head'] ?? '-56 -130 112 70';
     const p = wearParts(item);
     return `<svg viewBox="${vb}" aria-hidden="true">${p.behind}${p.front}</svg>`;

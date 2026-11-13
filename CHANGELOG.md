@@ -4,6 +4,26 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.32.0 · 2026-11-13 · Butik Benang: baju untuk pet
+
+_Pet sekarang bisa pakai baju! 28 baju baru dan 12 aksesori di Butik Benang, bisa dicoba dulu sebelum dibeli._
+
+### Baru
+
+- Bagian baru "Baju": 28 pakaian, dari kaos polos, daster bunga, piyama bintang, sarung, baju lurik, batik Parang/Kawung/Mega Mendung, baju silat, sampai kebaya & beskap. Bisa dipadukan dengan topi, kalung, ransel & barang bawaan. _(pemain)_
+- Tiga baju istimewa di Toko Mutiara: Kostum Dino, Jaket Payet Panggung & Baju Songket Emas. _(pemain)_
+- 12 aksesori baru, jadi isi Butik Benang naik dari 50 ke 85 barang. _(pemain)_
+- Tombol "Coba": lihat petmu memakai barangnya dulu. Semua yang dicoba terkumpul di Kaca Pas dan bisa dibeli sekaligus, lalu langsung dipakai semua. _(pemain)_
+
+### Perubahan
+
+- Butik punya tab per bagian (Baju, Kepala, Wajah, Leher, Punggung, Dibawa), lencana "Baru" untuk barang baru selama 14 hari, dan manekin yang berganti tiap hari. Lemari punya bagian Baju. _(pemain)_
+- Teknis: slot pakaian `body` digambar di renderPet (lengan di belakang badan, kain mengikuti badan di bawah garis luar, aksesori depan tetap di atas); disembunyikan di Balap Karung karena tertutup karung. Paket konten 12 memakai penanda pack_butik sehingga urutan paket tidak saling melewatkan. Admin: slot Baju & isian "Set padu-padan".
+
+### Keamanan
+
+- POST /api/shop/buy-many (Kaca Pas): hanya barang pakai, tanpa dobel, menolak barang yang sudah dimiliki, total koin & Mutiara dicek dalam satu transaksi (kurang = tidak ada yang terbeli), idempoten per requestId.
+
 ## 0.31.3 · 2026-11-13 · Bagian atas layar HP lebih rapi
 
 ### Perubahan
@@ -15,6 +35,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 - Di HP, tombol lonceng, kabar, kalender & pengaturan tidak lagi menutupi lingkaran Kenyang/Bersih/Ceria/Energi. Koin & Mutiara diusahakan tetap sebaris; kalau tetap turun dua baris (koin sangat banyak atau huruf HP diperbesar), kebutuhan, pilihan ruangan & tombol acara ikut turun. _(pemain)_
 - Nama acara di tombol acara tidak lagi terpotong ("Pekan Ceria Kampun…"); sekarang boleh dua baris. _(pemain)_
 - Petunjuk di peta Kampung tidak lagi terpotong di HP; teks turun ke baris kedua. _(pemain)_
+
+Commit: [`37925c0`](https://github.com/envfri/kampung-baru/commit/37925c0)
 
 ## 0.31.2 · 2026-11-13 · Alun-alun tampil utuh 20×20
 

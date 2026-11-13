@@ -52,6 +52,19 @@ try {
     await p.click('.dock button:has-text("Tas")'); await p.click('.tabbar button:has-text("Mebel")');
     await p.click('.card:has-text("Meja Bambu") .btn'); await p.click('.editbar .btn:has-text("Selesai")');
   });
+  await step('07b-butik-coba', async () => {
+    // Butik Benang: Coba kaos di pet sendiri → Kaca Pas: Beli (konfirmasi) → Pakai semua
+    await p.click('.dock button:has-text("Kampung")'); await p.click('[data-loc="butik"]');
+    await p.waitForSelector('.shop .panel', { timeout: 10000 });
+    await p.click('.card:has-text("Kaos Polos Merah") .try');
+    await p.waitForSelector('.fit .buyall');
+    await p.click('.fit .buyall'); await p.click('.fit .buyall:has-text("Yakin")');
+    await p.click('.fit .buyall:has-text("Pakai semua")');
+    await p.waitForSelector('.fit', { state: 'detached' });
+    const body = await p.evaluate(() => fetch('/api/me').then((r) => r.json()).then((m) => m.pet.wear.body));
+    if (body !== 'kaos-merah') throw new Error('kaos tidak terpakai: ' + body);
+    await p.click('.shop .back');
+  });
   await step('08-kebun', async () => {
     await p.click('.dock button:has-text("Kampung")'); await p.click('[data-loc="kebun"]');
     await p.click('.plot >> nth=0'); await p.click('.sheet .btn:has-text("Tanam")');

@@ -1,4 +1,4 @@
-import { GAMES, chubOf, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
+import { GAMES, NEW_ITEM_DAYS, chubOf, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { maskPhone } from './klikflow';
 import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog } from './core';
@@ -226,6 +226,10 @@ export async function playerState(db: Db, userId: string) {
 /** Data publik: katalog + pengaturan yang perlu diketahui client. Di-cache oleh client & service worker. */
 export function publicCatalog(cat: Catalog, s: Settings) {
   const now = Date.now();
+  // barang baru = ditambahkan sesudah katalog awal; lencana "Baru" di toko sampai new_until (ms)
+  const created = (i: Catalog['items'][number]) => (i.created_at ? new Date(i.created_at).getTime() : 0);
+  const first = cat.items.reduce((m, i) => Math.min(m, created(i) || Infinity), Infinity);
+  const newMs = NEW_ITEM_DAYS * 86_400_000;
   return {
     version: cat.version,
     items: cat.items
@@ -235,6 +239,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
         price_coin: i.price_coin, price_pearl: i.price_pearl, sell_coin: i.sell_coin, shop: i.shop,
         art: i.art, data: i.data, event_id: i.event_id,
         available_from: i.available_from, available_to: i.available_to,
+        ...(created(i) > first + 3_600_000 && now - created(i) < newMs ? { new_until: created(i) + newMs } : {}),
       })),
     locations: cat.locations.filter((l) => l.enabled),
     events: cat.events.filter((e) => e.active && new Date(e.ends_at).getTime() > now - 86_400_000),

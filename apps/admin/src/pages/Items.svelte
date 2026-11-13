@@ -14,6 +14,7 @@
   import ArtEditor from '../components/ArtEditor.svelte';
 
   const KIND: Record<string, string> = { food: 'Makanan', furniture: 'Mebel', wear: 'Pakaian', wallpaper: 'Dinding', floor: 'Lantai', seed: 'Bibit', fish: 'Ikan', material: 'Bahan/lainnya', room: 'Ruangan rumah' };
+  const SLOT_LABEL: Record<string, string> = { head: 'Kepala', face: 'Wajah', neck: 'Leher', body: 'Baju', back: 'Punggung', hand: 'Dibawa' };
   let items = $state<any[]>([]);
   let locs = $state<any[]>([]);
   let events = $state<any[]>([]);
@@ -282,7 +283,13 @@
             </div>
             <label class="inline"><input type="checkbox" bind:checked={form.data.flat} />Barang datar (karpet): bisa dilewati & ditumpuki</label>
           {:else if form.kind === 'wear'}
-            <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option><option value="back">Punggung (di belakang badan)</option><option value="hand">Dibawa (di samping pet)</option></select></label>
+            {@const artSlot = form.art?.type === 'builtin' ? A.me?.builtins?.wear?.find((b: any) => b.key === form.art.key)?.slot : undefined}
+            <div class="grid2">
+              <label>Dipakai di<select bind:value={form.data.slot}><option value="head">Kepala</option><option value="face">Wajah</option><option value="neck">Leher</option><option value="body">Baju (di badan, di bawah aksesori)</option><option value="back">Punggung (di belakang badan)</option><option value="hand">Dibawa (di samping pet)</option></select>
+                {#if artSlot && artSlot !== form.data.slot}<span class="help">Bentuk ini dibuat untuk bagian {SLOT_LABEL[artSlot] ?? artSlot}. <button type="button" class="link" onclick={() => (form.data.slot = artSlot)}>Samakan</button></span>{/if}
+              </label>
+              <label>Set padu-padan<input bind:value={form.data.outfit} maxlength="32" placeholder="mis. Koki Cilik" /><span class="help">Opsional. Tampil di kartu toko: "Baju · Set Koki Cilik".</span></label>
+            </div>
           {:else if form.kind === 'seed'}
             <div class="grid2">
               <label>Lama tumbuh (menit)<input type="number" min="1" bind:value={form.data.growMinutes} /></label>

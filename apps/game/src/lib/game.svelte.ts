@@ -16,6 +16,8 @@ export interface CatalogItem extends ItemLike {
   event_id: string | null;
   available_from: string | null;
   available_to: string | null;
+  /** barang baru: lencana "Baru" di toko sampai waktu ini (ms) */
+  new_until?: number;
 }
 
 export const G = $state({

@@ -71,8 +71,11 @@ function cleanKindData(kind: string, v: any) {
     }
     case 'furniture':
       return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}) };
-    case 'wear':
-      return { slot: oneOf(d.slot ?? 'head', 'Bagian', WEAR_SLOTS) };
+    case 'wear': {
+      // outfit: nama set padu-padan (label di kartu toko), opsional
+      const outfit = str(d.outfit, 'Set padu-padan', { max: 32, optional: true });
+      return { slot: oneOf(d.slot ?? 'head', 'Bagian', WEAR_SLOTS), ...(outfit ? { outfit } : {}) };
+    }
     case 'room': {
       const out: any = { size: num(d.size, 'Ukuran ruangan', 4, 10, 6), theme: oneOf(d.theme ?? 'dalam', 'Tema', ['dalam', 'luar'] as const) };
       if (d.wall) out.wall = slug(d.wall, 'Dinding awal');

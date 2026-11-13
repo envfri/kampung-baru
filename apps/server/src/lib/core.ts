@@ -63,7 +63,7 @@ export async function getSettings(db: Db): Promise<Settings> {
 export interface CatalogItem {
   id: string; kind: any; name: string; description: string;
   price_coin: number; price_pearl: number; sell_coin: number; shop: string | null;
-  art: any; data: any; event_id: string | null; available_from: Date | null; available_to: Date | null; active: boolean; sort: number;
+  art: any; data: any; event_id: string | null; available_from: Date | null; available_to: Date | null; active: boolean; sort: number; created_at?: Date;
 }
 export interface Catalog {
   version: string;
@@ -78,7 +78,7 @@ export interface Catalog {
 export async function getCatalog(db: Db): Promise<Catalog> {
   if (catalogCache && Date.now() - catalogCache.at < TTL) return catalogCache.value;
   const [items, locations, events, packages, activities, ver] = await Promise.all([
-    db.query<CatalogItem>(`select id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, event_id, available_from, available_to, active, sort from items order by sort, id`),
+    db.query<CatalogItem>(`select id, kind, name, description, price_coin, price_pearl, sell_coin, shop, art, data, event_id, available_from, available_to, active, sort, created_at from items order by sort, id`),
     db.query(`select id, name, kind, x, y, style, enabled, sort, sells_back from locations order by sort, id`),
     db.query(`select id, name, description, starts_at, ends_at, theme, bonus, active, decor, points, milestones, token_name, repeat_yearly from events order by starts_at`),
     db.query(`select id, name, pearls, bonus, price_idr, active, sort from pearl_packages order by sort, id`),
