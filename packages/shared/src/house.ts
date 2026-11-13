@@ -42,7 +42,8 @@ export interface HousePlan {
 
 /** dinding tinggi (150 px) menutupi ±4,4 petak di belakangnya */
 const WALL_REACH = 4.5;
-const MIN_SIZE = 3, MAX_SIZE = 16;
+// batas aman ukuran satu ruangan; alun-alun (20×20) harus tergambar utuh, jadi batasnya di atas ALUN_SIZE
+const MIN_SIZE = 3, MAX_SIZE = 24;
 
 type Rect = { id: string; i: number; gx: number; gy: number; s: number; outdoor: boolean };
 const overlaps = (a: Rect, b: { gx: number; gy: number; s: number }) => a.gx < b.gx + b.s && b.gx < a.gx + a.s && a.gy < b.gy + b.s && b.gy < a.gy + a.s;

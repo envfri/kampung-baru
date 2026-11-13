@@ -39,9 +39,19 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.31.2',
+    date: '2026-11-13',
+    title: 'Alun-alun tampil utuh 20×20',
+    items: [
+      { kind: 'perbaikan', text: 'Alun-alun sekarang tergambar utuh 20×20 petak. Sebelumnya rumput & pagar terpotong di 16 petak, sehingga gerobak jajan, beberapa bangku, jalan batu, tikar Ular Tangga, garis start Balap Karung, dan pet yang berjalan ke sana tampak berada di luar lapangan.', player: true },
+      { kind: 'ubah', text: 'Teknis: batas ukuran satu ruangan di houseLayout dinaikkan dari 16 ke 24 (ALUN_SIZE 20 tidak lagi terpotong); ukuran rumah pemain tetap dibatasi aturan pembelian ruangan.' },
+    ],
+  },
+  {
     version: '0.31.1',
     date: '2026-11-13',
     title: 'Panggung alun-alun lebih rapi',
+    commits: ['b195d9a'],
     items: [
       { kind: 'perbaikan', text: 'Panggung alun-alun: pengisi acara paling kiri tidak lagi tertutup tirai & lantai panggung. Ketiganya sekarang berdiri sebaris dengan jarak sama, dan payung tari, gitar, serta wayangnya terlihat semua.', player: true },
       { kind: 'ubah', text: 'Teknis: ?acara=tari|orkes|wayang|sulap untuk pratinjau tampilan panggung (hanya tampilan, tidak mengubah jadwal acara).' },

@@ -4,6 +4,16 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.31.2 · 2026-11-13 · Alun-alun tampil utuh 20×20
+
+### Perubahan
+
+- Teknis: batas ukuran satu ruangan di houseLayout dinaikkan dari 16 ke 24 (ALUN_SIZE 20 tidak lagi terpotong); ukuran rumah pemain tetap dibatasi aturan pembelian ruangan.
+
+### Perbaikan
+
+- Alun-alun sekarang tergambar utuh 20×20 petak. Sebelumnya rumput & pagar terpotong di 16 petak, sehingga gerobak jajan, beberapa bangku, jalan batu, tikar Ular Tangga, garis start Balap Karung, dan pet yang berjalan ke sana tampak berada di luar lapangan. _(pemain)_
+
 ## 0.31.1 · 2026-11-13 · Panggung alun-alun lebih rapi
 
 ### Perubahan
@@ -13,6 +23,8 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 ### Perbaikan
 
 - Panggung alun-alun: pengisi acara paling kiri tidak lagi tertutup tirai & lantai panggung. Ketiganya sekarang berdiri sebaris dengan jarak sama, dan payung tari, gitar, serta wayangnya terlihat semua. _(pemain)_
+
+Commit: [`b195d9a`](https://github.com/envfri/kampung-baru/commit/b195d9a)
 
 ## 0.31.0 · 2026-11-12 · Halaman depan baru: rumah, pekarangan & langit
 
