@@ -1,6 +1,6 @@
 {
   "name": "bupi",
-  "version": "0.37.1",
+  "version": "0.38.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -28,6 +28,7 @@
     "test:e2e:bareng": "node scripts/e2e-bareng.mjs",
     "test:e2e:catur": "node scripts/e2e-catur.mjs",
     "test:e2e:ludo": "node scripts/e2e-ludo.mjs",
+    "test:e2e:jepret": "node scripts/e2e-jepret.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",

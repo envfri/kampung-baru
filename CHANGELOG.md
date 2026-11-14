@@ -4,6 +4,29 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.38.0 · 2026-11-14 · Jepret & Bagikan ke Story
+
+_Potret rumahmu, rumah teman, atau alun-alun, lalu bagikan jadi gambar Story atau Feed lengkap dengan nama pet dan link BUPI._
+
+### Baru
+
+- Tombol 📷 Jepret di rumah, saat berkunjung, dan di alun-alun. Geser untuk pindah, cubit (atau scroll) untuk zoom, lalu ketuk tombol kamera. Tombol Pet-ku memusatkan pet-mu, Semua memperlihatkan seisi ruangan. Nama pet bisa ditampilkan atau disembunyikan. Di komputer, tekan J untuk membuka Jepret, Spasi untuk memotret, dan Esc untuk menutup. _(pemain)_
+- Fotomu jadi kartu siap pamer dengan keterangan otomatis (misalnya "Lupis di Alun-alun · malam, bareng Wajik & Putu") dan link BUPI. Pilih ukuran Story (9:16) atau Feed (4:5). _(pemain)_
+- Ketuk Bagikan untuk mengirim gambar ke Instagram, WhatsApp, atau aplikasi lain. Link BUPI ikut tersalin, jadi di Story tinggal tempel lewat stiker Link. Bisa juga Simpan ke galeri. Di komputer ada tombol Unduh gambar dan Salin link. _(pemain)_
+- Pilihan "Kode temanku" untuk menaruh kode temanmu di gambar dan di link. Pilihan ini mati sampai kamu menyalakannya, karena siapa pun yang melihat kodenya bisa langsung berteman denganmu. _(pemain)_
+- Foto bareng sekarang juga punya tombol Bagikan dan Simpan ke galeri. _(pemain)_
+- Tugas harian baru: Bagikan 1 foto (+10 koin, +2 XP). _(pemain)_
+
+### Perubahan
+
+- Gambar dibuat di HP atau komputer pemain dan tidak disimpan di server. Server hanya mencatat lewat POST /api/share (paling banyak 10 per menit, dihitung paling banyak jepret.shareEventsPerDay kali per hari) untuk tugas h-bagikan (paket konten 15). Fitur bisa dimatikan di features.jepret; saat mati, tugasnya tidak masuk daftar harian.
+- Teknis: shared/jepret.ts menyusun kartu SVG (keterangan, label nama, area aman Story 250/340 px) dan app jepret.svelte.ts mengubahnya jadi PNG lewat canvas, dengan font Baloo 2 tertanam. Uji: jepret.test.ts (12 uji) dan e2e-jepret (122 cek).
+
+### Perbaikan
+
+- Di HP kecil, menu Foto bareng saat berkunjung tidak lagi tertutup kartu rumah teman, jadi gaya Senyum dan Lompat bisa dipilih lagi. _(pemain)_
+- Di layar komputer, kartu tugas tidak lagi menimpa panel tamu di rumah. _(pemain)_
+
 ## 0.37.1 · 2026-11-13 · Lampu Pos Ronda & warna bidak di ruang tunggu Ludo
 
 _Pos Ronda di alun-alun sekarang punya bohlam yang menyala di malam hari, dan di ruang tunggu Ludo langsung kelihatan siapa dapat bidak warna apa._
@@ -16,6 +39,8 @@ _Pos Ronda di alun-alun sekarang punya bohlam yang menyala di malam hari, dan di
 ### Perubahan
 
 - Teknis: RONDA_BULB & rondaNightSVG (art-catur.ts) dipasang di lapisan malam alun-alun; bentuk kepala bidak dipindah ke LUDO_HEADS (ludo.ts) dan dipakai papan & kartu ajakan. Uji baru: posisi bohlam di antara kursi pemain; e2e-ludo memeriksa warna bidak di ruang tunggu.
+
+Commit: [`709ac27`](https://github.com/envfri/kampung-baru/commit/709ac27)
 
 ## 0.37.0 · 2026-11-13 · Catur & Ludo main bareng
 

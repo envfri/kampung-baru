@@ -21,3 +21,4 @@ export * from './art-ludo';
 export * from './admin';
 export * from './art-kebun';
 export * from './kebun';
+export * from './jepret';

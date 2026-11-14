@@ -10,6 +10,7 @@
   import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
   import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
+  import { JP, type JepretSnap, type JepretPet } from '../lib/jepret.svelte';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
   /** alun-alun: lapangan bersama semua pemain (pet sendiri jalan-jalan, pemain lain live) */
@@ -1881,6 +1882,8 @@
 
   function click(e: MouseEvent) {
     if (Date.now() - suppressAt < 300) return;
+    // mode Jepret: ketukan di adegan tidak menggerakkan pet / membuka menu (geser & cubit tetap mengatur kamera)
+    if (G.jepret) return;
     const t = e.target as Element;
     if (G.bath && mode === 'home') return;
     if (planning && G.plan) {
@@ -1957,6 +1960,8 @@
   function key(e: KeyboardEvent) {
     wake();
     if (e.key === 'Escape') { if (menu) menu = null; else if (G.bath) G.bath = null; return; }
+    // mode Jepret punya tombolnya sendiri (Spasi, Esc, J, N, +/−)
+    if (G.jepret) return;
     // pintasan kamera (bukan saat mengetik, membuka panel, mengatur, mandi, atau main bareng)
     const t = e.target as HTMLElement | null;
     if (square || e.ctrlKey || e.metaKey || e.altKey || (t && (t.closest('input, textarea, select, [contenteditable]')))) return;
@@ -1992,7 +1997,7 @@
     if (square || reduced) return;
     const t = setInterval(() => {
       const idle = performance.now() - idleSince;
-      const ok = G.santai && wide && !document.hidden && !G.sheet && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free';
+      const ok = G.santai && wide && !document.hidden && !G.sheet && !G.jepret && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free';
       if (!ok || idle < 30_000) { if (santaiOn && !ok) { santaiOn = false; recam(); } return; }
       if (idle > 180_000) { if (santaiOn) { santaiOn = false; recam(); } return; }
       santaiOn = true;
@@ -2170,7 +2175,7 @@
     const lb = at(0.5, 0, r.outdoor ? 34 : HOUSE_WALL_H + 14);
     const text = `✦ Suasana ${set?.name.replace(/^Set /, '') ?? key}`;
     const w = text.length * 6.4 + 18;
-    o += `<g transform="translate(${lb[0].toFixed(1)} ${lb[1].toFixed(1)})"><rect x="${(-w / 2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="20" rx="10" fill="${set?.color ?? '#2B2F4A'}" stroke="#2B2F4A" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g>`;
+    o += `<g class="mood-label" transform="translate(${lb[0].toFixed(1)} ${lb[1].toFixed(1)})"><rect x="${(-w / 2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="20" rx="10" fill="${set?.color ?? '#2B2F4A'}" stroke="#2B2F4A" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g>`;
     return o;
   }
 
@@ -2220,6 +2225,121 @@
     });
   });
 
+  /* ---------------- Jepret: foto pemandangan (lib/jepret.svelte.ts) ---------------- */
+  // Masuk mode Jepret: kamera berhenti mengikuti pet (bingkai tidak bergeser saat pet berjalan); keluar: kamera kembali.
+  let camBefore: typeof G.cam | null = null;
+  $effect(() => {
+    const on = !!G.jepret;
+    untrack(() => {
+      if (on && camBefore === null) { camBefore = G.cam; menu = null; G.cam = 'free'; }
+      else if (!on && camBefore !== null) { const c = camBefore; camBefore = null; if (G.cam === 'free') G.cam = c; }
+    });
+  });
+  onDestroy(() => { if (camBefore !== null) G.cam = camBefore; });
+  const wrapRel = (el: Element | null | undefined, w: DOMRect) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left - w.left, y: r.top - w.top, w: r.width, h: r.height };
+  };
+  /** pet di layar untuk label jendela bidik & foto: hanya nama pet (tanpa "(kamu)", tanpa nama akun) */
+  function jpPets(): JepretPet[] {
+    const w = wrapEl?.getBoundingClientRect();
+    if (!w || !svgEl) return [];
+    const out: JepretPet[] = [];
+    const add = (id: string, el: Element | null | undefined, name: string | undefined, self: boolean) => {
+      const box = wrapRel(el, w);
+      if (!box || !name || box.w < 1) return;
+      out.push({ id, name, self, x: box.x + box.w / 2, y: box.y + box.h + 2, box });
+    };
+    // pet utama: di rumah sendiri & alun-alun pet sendiri; saat berkunjung pet tuan rumah (bila tuan rumah tidak sedang live)
+    if (mainMarkup && pos) add(mode === 'visit' ? 'host' : 'me', petEl(), mode === 'visit' ? G.visit?.pet?.name : G.me?.pet?.name, mode !== 'visit');
+    for (const c of comps.values()) add(c.id, svgEl.querySelector(`[data-o="${c.id}"]`), c.look?.name, !!c.self);
+    return out;
+  }
+  $effect(() => {
+    if (G.jepret !== 'frame') return;
+    const t = setInterval(() => { if (!document.hidden) JP.pets = jpPets(); }, 100);
+    JP.pets = jpPets();
+    return () => clearInterval(t);
+  });
+  /** gambar adegan saat ini sebagai string SVG yang bersih: tanpa efek, gelembung, tanda atur, label suasana */
+  function jpSnap(frame: { x: number; y: number; w: number; h: number }): JepretSnap | null {
+    if (!svgEl || !wrapEl || !vw || !vh) return null;
+    const clone = svgEl.cloneNode(true) as SVGSVGElement;
+    // "Putar sudut": tulisan dibalik lagi seperti .room.mirror text (dihitung sebelum ada elemen yang dibuang)
+    if (mirrored) {
+      const a = svgEl.querySelectorAll('text'), b = clone.querySelectorAll('text');
+      a.forEach((t, i) => { try { const bb = (t as SVGGraphicsElement).getBBox(); b[i]?.setAttribute('transform', `matrix(-1 0 0 1 ${(2 * bb.x + bb.width).toFixed(1)} 0)`); } catch { /* tidak tampil */ } });
+    }
+    clone.querySelectorAll('[data-jp="skip"], .planmarks, .ngakak, .speech, .mood-label, foreignObject, script').forEach((e) => e.remove());
+    // aturan CSS yang mengubah warna/tampilan (gambar SVG mandiri tidak membaca CSS halaman)
+    clone.querySelectorAll('.malam .veil').forEach((e) => { e.setAttribute('fill', '#14204A'); e.setAttribute('opacity', '.46'); });
+    clone.querySelectorAll('.canopy.seethru').forEach((e) => e.setAttribute('opacity', '.32'));
+    clone.querySelectorAll('.dim').forEach((e) => e.setAttribute('opacity', '.4'));
+    if (svgEl.classList.contains('mangap')) { clone.querySelectorAll('.pet .m-base').forEach((e) => e.setAttribute('display', 'none')); clone.querySelectorAll('.pet .m-open').forEach((e) => e.setAttribute('display', 'inline')); }
+    const xml = new XMLSerializer().serializeToString(clone);
+    const markup = xml.slice(xml.indexOf('>') + 1, xml.lastIndexOf('</svg>')).replace(/<!--[\s\S]*?-->/g, '');
+    const w = wrapEl.getBoundingClientRect();
+    const cs = getComputedStyle(wrapEl);
+    const v = (k: string) => cs.getPropertyValue(k).trim();
+    const isSky = wrapEl.classList.contains('sky');
+    const time = square ? skyTime(hm.h) : sky;
+    // lapisan layar di atas adegan: kembang api (alun-alun) & lampu mati saat pet tidur
+    let overlay = '';
+    wrapEl.querySelectorAll('.fwk .fwb').forEach((f) => {
+      const r = wrapRel(f, w), op = Number(getComputedStyle(f).opacity);
+      if (r && op > 0.02) overlay += `<svg x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" viewBox="-70 -70 140 140" opacity="${op.toFixed(2)}" overflow="visible">${[...f.childNodes].map((n) => new XMLSerializer().serializeToString(n)).join('')}</svg>`;
+    });
+    const night = document.querySelector('.game .night.on');
+    if (night) overlay += `<rect width="${vw}" height="${vh}" fill="#1B2340" opacity="${Number(getComputedStyle(night).opacity || 0.5).toFixed(2)}"/>`;
+    return {
+      vw, vh, frame, markup, viewBox: svgEl.getAttribute('viewBox') ?? viewBox, mirror: mirrored,
+      sky: {
+        plain: !isSky, night: wrapEl.dataset.sky === 'malam', hillsOn: !square,
+        colors: { s1: v('--s1'), s2: v('--s2'), s3: v('--s3'), h1: v('--h1'), h2: v('--h2'), orb: v('--orb'), glow: v('--glow'), cl: Number(v('--cl')) || 0.9 },
+        orb: wrapRel(wrapEl.querySelector('.orb'), w), hills: wrapRel(wrapEl.querySelector('.hills'), w),
+        clouds: [...wrapEl.querySelectorAll('.cloud')].map((c) => wrapRel(c, w)!).filter((r) => r.x + r.w > 0 && r.x < vw),
+      },
+      overlay, pets: jpPets(),
+      place: square ? 'alun' : mode === 'visit' ? 'visit' : 'home',
+      host: mode === 'visit' ? G.visit?.pet?.name ?? null : null,
+      pet: G.me?.pet?.name ?? '', time,
+    };
+  }
+  /** kamera Jepret: Pet-ku (pusatkan pet sendiri di bingkai) & Semua (seluruh rumah / alun-alun di bingkai) */
+  function jpAim(wx: number, wy: number, k: number, f: { x: number; y: number; w: number; h: number }) {
+    const [lo, hi] = kRange(), kk = Math.max(lo, Math.min(hi, k)), sg = mirrored ? -1 : 1;
+    aim(clampCam({ k: kk, x: wx - (sg * (f.x + f.w / 2 - vw / 2)) / kk, y: wy - (f.y + f.h / 2 - vh / 2) / kk }), false, 420);
+  }
+  $effect(() => {
+    const onCmd = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      const f = d.frame ?? { x: 0, y: 0, w: vw, h: vh };
+      if (d.op === 'snap') { d.reply?.(jpSnap(f)); return; }
+      wake();
+      if (d.op === 'zoom') zoomBy(d.f ?? 1.25);
+      else if (d.op === 'enter') {
+        // masuk Jepret: bila pet sendiri tidak ada di bingkai (mis. desktop, rumah digeser ke kiri oleh panel), pusatkan tanpa mengubah zoom
+        const me = jpPets().find((p) => p.self);
+        const at = mode === 'visit' ? comps.get(SELF)?.live : live ?? pos;
+        const c = me ? { x: me.box.x + me.box.w / 2, y: me.box.y + me.box.h / 2 } : null;
+        if (at && (!c || c.x < f.x || c.x > f.x + f.w || c.y < f.y || c.y > f.y + f.h)) { const [x, y] = houseIso(at[0], at[1]); jpAim(x, y - 44, cam.k, f); }
+      } else if (d.op === 'pet') {
+        const p = mode === 'visit' ? comps.get(SELF)?.live : live ?? pos;
+        if (!p) return;
+        const [x, y] = houseIso(p[0], p[1]);
+        jpAim(x, y - 44, f.w / (square ? 300 : 380), f);
+      } else if (d.op === 'all') {
+        const b = square ? SQB : houseBounds(plan);
+        jpAim(b.x + b.w / 2, b.y + b.h / 2, Math.min(f.w / b.w, f.h / b.h) * 0.94, f);
+      }
+      if (G.cam !== 'free') G.cam = 'free';
+      d.reply?.(true);
+    };
+    addEventListener('kb-jepret', onCmd);
+    return () => removeEventListener('kb-jepret', onCmd);
+  });
+
   const label = $derived(square ? 'Alun-alun kampung' : mode === 'visit' ? `Rumah ${G.visit?.owner?.display_name ?? 'teman'}` : `Rumahmu${rooms.length > 1 ? `, ${rooms.length} ruangan` : ''}`);
 </script>
 
@@ -2254,10 +2374,10 @@
         {/each}
       </g>
     {/if}
-    <g bind:this={foamLayer} pointer-events="none"></g>
-    <g bind:this={fxLayer} pointer-events="none"></g>
+    <g bind:this={foamLayer} pointer-events="none" data-jp="skip"></g>
+    <g bind:this={fxLayer} pointer-events="none" data-jp="skip"></g>
   </svg>
-  {#if !ALUN.fishing}
+  {#if !ALUN.fishing && !G.jepret}
   {#each tags as t (t.id)}
     {#if t.self || !H.members.some((m) => m.id === t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>
     {:else}<button class="tag tap" style="left:{t.x}px;top:{t.y}px" aria-label="Lihat profil {t.name}" onclick={() => { H.card = t.id; sfx.tap(); }}>{t.name}</button>{/if}
@@ -2268,10 +2388,10 @@
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
   {/each}
   {/if}
-  {#if bubble && G.speech && mode === 'home'}
+  {#if bubble && G.speech && mode === 'home' && !G.jepret}
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
-  {#if menu}
+  {#if menu && !G.jepret}
     <div class="menu" style={menuStyle} role="menu" aria-label="Aktivitas {menu.title}">
       <b>{menu.title}</b>
       {#each menu.acts as a (a.id)}

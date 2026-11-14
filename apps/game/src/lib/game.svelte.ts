@@ -47,7 +47,7 @@ export const G = $state({
   edit: false,
   sel: -1,
   draft: null as null | { i: string; x: number; y: number }[],
-  toast: { text: '', kind: 'info' as 'info' | 'error' | 'good', n: 0 },
+  toast: { text: '', kind: 'info' as 'info' | 'error' | 'good', n: 0, ms: 0 },
   now: Date.now(),
   offset: 0,
   busy: false,
@@ -73,6 +73,8 @@ export const G = $state({
   duel: null as null | { id: string; game: string; them: any; autostart?: boolean; live?: boolean },
   /** navigasi bawah diredupkan (mis. sedang memancing) supaya tidak terpencet */
   dimNav: false,
+  /** Jepret: jendela bidik terbuka (UI game disembunyikan) atau lembar "Fotomu siap!" */
+  jepret: null as null | 'frame' | 'preview',
 });
 
 let itemsCache: { v: string; map: Map<string, CatalogItem> } | null = null;
@@ -109,8 +111,9 @@ export function wearItems(wear: Record<string, string> | undefined) {
   return Object.values(wear ?? {}).map((id) => item(id)).filter(Boolean) as CatalogItem[];
 }
 
-export function toast(text: string, kind: 'info' | 'error' | 'good' = 'info') {
-  G.toast = { text, kind, n: G.toast.n + 1 };
+/** ms = lama tampil (bawaan 2 dtk, galat 2,8 dtk) */
+export function toast(text: string, kind: 'info' | 'error' | 'good' = 'info', ms = 0) {
+  G.toast = { text, kind, n: G.toast.n + 1, ms };
 }
 
 export function merge(p: any) {

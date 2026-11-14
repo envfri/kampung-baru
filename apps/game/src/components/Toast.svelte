@@ -1,13 +1,21 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { G } from '../lib/game.svelte';
   let show = $state(false);
   let timer: any;
-  $effect(() => {
-    if (G.toast.n === 0) return;
+  /** toast yang datang saat jendela bidik Jepret terbuka: ditahan, tampil setelah keluar */
+  let held = false;
+  function pop() {
     show = true;
     clearTimeout(timer);
-    timer = setTimeout(() => (show = false), G.toast.kind === 'error' ? 2800 : 2000);
+    timer = setTimeout(() => (show = false), G.toast.ms || (G.toast.kind === 'error' ? 2800 : 2000));
+  }
+  $effect(() => {
+    if (G.toast.n === 0) return;
+    if (untrack(() => G.jepret === 'frame')) { held = true; show = false; return; }
+    untrack(pop);
   });
+  $effect(() => { if (G.jepret !== 'frame' && held) { held = false; untrack(pop); } });
 </script>
 
 <div class="toast {G.toast.kind}" class:show role="status" aria-live="polite">{G.toast.text}</div>

@@ -44,5 +44,7 @@ export const sfx = {
   hop: () => tone(440, 0.07, 'triangle', 0.05, 200),
   tuk: () => { tone(620, 0.05, 'sine', 0.06, -80); buzz(10); },
   snap: () => { tone(900, 0.06, 'square', 0.04, -600); tone(160, 0.2, 'sawtooth', 0.03, -60, 0.05); buzz([40, 30, 80]); },
+  /** rana kamera Jepret: "cekrek" */
+  cekrek: () => { tone(2200, 0.025, 'square', 0.05, -1400); tone(900, 0.05, 'square', 0.045, -500, 0.07); tone(1600, 0.03, 'triangle', 0.035, -900, 0.13); buzz([12, 40, 18]); },
   bite: () => { tone(880, 0.1, 'square', 0.05); tone(880, 0.1, 'square', 0.05, 0, 0.14); buzz([60, 40, 60]); },
 };

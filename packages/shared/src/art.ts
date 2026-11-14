@@ -1842,13 +1842,17 @@ export function photoScene(members: { look: PetLook; wear: ItemLike[]; state?: P
 
 /** Foto polaroid untuk album: latar dari dinding & lantai ruangan tempat foto diambil. */
 export function renderPhoto(members: { look: PetLook; wear: ItemLike[]; state?: PetStateLook }[], pose: string, wall?: ItemLike | null, floor?: ItemLike | null, theme = 'dalam') {
+  return `<svg viewBox="0 0 160 140" aria-hidden="true"><rect x="1" y="1" width="158" height="138" rx="6" fill="#FFFDF7" stroke="${INK}" stroke-width="2"/>`
+    + `<svg x="12" y="10" width="136" height="100" viewBox="0 0 136 100">${photoInner(members, pose, wall, floor, theme)}</svg><rect x="12" y="10" width="136" height="100" fill="none" stroke="${INK}" stroke-width="1.5"/></svg>`;
+}
+/** Isi foto album (136 × 100, tanpa bingkai): latar dinding & lantai + pet. Dipakai juga kartu Bagikan (Foto bareng). */
+export function photoInner(members: { look: PetLook; wear: ItemLike[]; state?: PetStateLook }[], pose: string, wall?: ItemLike | null, floor?: ItemLike | null, theme = 'dalam') {
   const outdoor = theme === 'luar' || theme === 'alun';
   const w = outdoor ? { main: '#BFE3F5', accent: '#A9D6EE' } : wallColors(wall);
   const f = floorColors(floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR);
-  return `<svg viewBox="0 0 160 140" aria-hidden="true"><rect x="1" y="1" width="158" height="138" rx="6" fill="#FFFDF7" stroke="${INK}" stroke-width="2"/>`
-    + `<svg x="12" y="10" width="136" height="100" viewBox="0 0 136 100"><rect width="136" height="100" fill="${w.main}"/><rect y="70" width="136" height="30" fill="${f.main}"/><path d="M0 70H136" stroke="${shade(f.main, -0.25)}" stroke-width="1.5"/>`
+  return `<rect width="136" height="100" fill="${w.main}"/><rect y="70" width="136" height="30" fill="${f.main}"/><path d="M0 70H136" stroke="${shade(f.main, -0.25)}" stroke-width="1.5"/>`
     + (outdoor ? '' : `<path d="M0 ${'25'}H136" stroke="${shade(w.main, -0.08)}" stroke-width="3" opacity=".6"/>`)
-    + photoScene(members, pose) + `</svg><rect x="12" y="10" width="136" height="100" fill="none" stroke="${INK}" stroke-width="1.5"/></svg>`;
+    + photoScene(members, pose);
 }
 
 

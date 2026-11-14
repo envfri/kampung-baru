@@ -60,6 +60,9 @@
   import PushPrompt from '../components/PushPrompt.svelte';
   import { syncPush } from '../lib/push';
   import { openLink } from '../lib/links';
+  import JepretMode from '../components/JepretMode.svelte';
+  import SharePreview from '../components/SharePreview.svelte';
+  import { JP, openJepret, jepretOn } from '../lib/jepret.svelte';
 
   const ACTS = [
     { k: 'makan', label: 'Makan', icon: I.eat },
@@ -216,6 +219,30 @@
   const friendPrompt = $derived(G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests);
   /** panel tamu di rumah sendiri tampil (di HP menempati bagian bawah layar) */
   const guestBar = $derived(G.view === 'home' && !G.edit && !G.bath && !G.plan && !playingGame && !BG.card && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
+  /* ---------- Jepret (foto pemandangan): pil kamera di kolom kamera, kiri di bawah deret ruangan / kartu rumah teman ---------- */
+  const visitCard = $derived(G.view === 'visit' && !!G.visit && !playingGame && !longBoard);
+  let visitH = $state(0), roomH = $state(30);
+  /** tombol Jepret tampil di tempat tombol kamera tampil (rumah, rumah teman, alun-alun); tidak saat atur, mandi, mancing, mini-game & papan */
+  const jpPill = $derived(jepretOn() && !G.jepret && !JP.src && !G.immersive && !G.edit && !G.plan && !G.bath && !ALUN.fishing && !playingGame && !longBoard && !BG.watching
+    && (G.view === 'home' || (G.view === 'visit' && !!G.visit) || G.view === 'alun') && !(friendPrompt && !wideDesk) && !(G.view === 'visit' && !wideDesk && !visitH));
+  /** HP: 8 px di bawah deret ruangan/kamera (tinggi ±30 px) atau kartu rumah teman; desktop: di atas panel kamera (alun-alun: pojok sendiri) */
+  const jpStyle = $derived(wideDesk
+    ? `bottom:calc(var(--safe-b) + ${G.view === 'alun' ? 14 : 68}px)`
+    : `top:calc(var(--safe-t) + ${G.view === 'visit' ? 118 + visitH + 8 : 186 + (roomH || 30) + 8}px + var(--hud-x, 0px))`);
+  /** kartu ajakan (FriendPrompt, Tonton, ...) turun di bawah tombol Jepret di HP */
+  const promptTop = $derived(jpPill && !wideDesk ? `--prompt-top:calc(${G.view === 'visit' ? 118 + visitH + 8 + 44 + 10 : 186 + (roomH || 30) + 8 + 44 + 10}px + var(--hud-x, 0px))` : '');
+  // tautan /#jepret (tugas "Bagikan 1 foto" › Ke sana): buka setelah layar rumah / alun-alun siap
+  $effect(() => { if (JP.want && jpPill) { JP.want = false; setTimeout(() => { if (!G.jepret && jepretOn()) openJepret(); }, 450); } });
+  $effect(() => { if (G.jepret && !['home', 'visit', 'alun'].includes(G.view)) { G.jepret = null; JP.src = null; } });
+  /** J: buka Jepret (desktop; di dalam mode Jepret, J/Esc menutup) */
+  function onKey(e: KeyboardEvent) {
+    if (e.defaultPrevented || G.jepret || G.sheet || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'j') return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('input, textarea, select, [contenteditable]') || !jpPill) return;
+    e.preventDefault();
+    openJepret();
+  }
+  const CAM_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.8 6h6.4l1.6 2.5H20V19H4z"/><circle cx="12" cy="13.3" r="3.6"/></svg>';
 </script>
 
 {#snippet camBtn()}
@@ -226,8 +253,8 @@
 {/snippet}
 
 
-<svelte:window bind:innerWidth={winW} bind:innerHeight={winH} />
-<div class="game" data-view={G.view} class:board={longBoard && !wideDesk}>
+<svelte:window bind:innerWidth={winW} bind:innerHeight={winH} onkeydown={onKey} />
+<div class="game" data-view={G.view} class:board={longBoard && !wideDesk} style={promptTop}>
   <div class="scene">
     {#if G.view === 'home'}<Room mode="home" />
     {:else if G.view === 'visit' && G.visit}<Room mode="visit" />
@@ -249,10 +276,10 @@
   <!-- lampu mati saat pet tidur -->
   <div class="night" class:on={sleeping && G.view === 'home'}></div>
 
-  {#if !G.immersive}<Hud />{/if}
+  {#if !G.immersive && !G.jepret}<Hud />{/if}
 
-  {#if G.view === 'home' && !G.edit && !G.plan}
-    {#if !G.bath}<div class="roombar">
+  {#if G.view === 'home' && !G.edit && !G.plan && !G.jepret}
+    {#if !G.bath}<div class="roombar" bind:offsetHeight={roomH}>
       <button class="roompill" onclick={() => { sfx.tap(); G.sheet = 'rooms'; }} aria-label="Ruangan: {room?.name ?? 'Kamar'}. Ketuk untuk melihat semua ruangan">
         {@html I.home}<b>{room?.name ?? 'Kamar'}</b>{#if (G.me.rooms?.length ?? 1) > 1}<span class="n">{G.me.rooms.length}</span>{/if}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -264,7 +291,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk)}<QuestChip />{/if}
+    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk)}<QuestChip side={guestBar && wideDesk} />{/if}
     {#if sleeping}
       <div class="sleepbar">
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
@@ -332,24 +359,24 @@
     </div>
   {/if}
 
-  {#if guestBar}<HouseBar mode="home" />{/if}
-  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card}<HouseBar mode="visit" />{/if}
-  {#if G.view === 'home' || G.view === 'visit'}<CoopPanel /><PhotoPreview />{/if}
-  {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive}<CamPanel />{/if}
+  {#if guestBar && !G.jepret}<HouseBar mode="home" />{/if}
+  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card && !G.jepret}<HouseBar mode="visit" />{/if}
+  {#if (G.view === 'home' || G.view === 'visit') && !G.jepret}<CoopPanel /><PhotoPreview />{/if}
+  {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive && !G.jepret}<CamPanel />{/if}
   {#if G.view === 'alun'}
-    {#if !ALUN.fishing}<div class="roombar">{@render camBtn()}</div>{/if}
-    {#if !playingGame && !BG.card && !(friendPrompt && !wideDesk) && !ALUN.fishing && !(lombaCardOpen() && !wideDesk)}<SquareBar />{/if}<PhotoPreview />
+    {#if !ALUN.fishing && !G.jepret}<div class="roombar" bind:offsetHeight={roomH}>{@render camBtn()}</div>{/if}
+    {#if !playingGame && !BG.card && !(friendPrompt && !wideDesk) && !ALUN.fishing && !(lombaCardOpen() && !wideDesk) && !G.jepret}<SquareBar />{/if}{#if !G.jepret}<PhotoPreview />{/if}
     <!-- mancing di dermaga Kolam Pemancingan Bareng & papan/hasil Lomba Mancing -->
     {#if ALUN.fishing}<AlunFishing />{/if}
-    <LombaCard />
+    {#if !G.jepret}<LombaCard />{/if}
   {/if}
-  <FriendAskCard />
+  {#if !G.jepret}<FriendAskCard />{/if}
   {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && H.live}<BarengLayer />{/if}
-  {#if G.view === 'home' || G.view === 'visit' || G.view === 'alun'}<PersonCard mode={G.view} />{/if}
-  {#if friendPrompt}<FriendPrompt />{/if}
+  {#if (G.view === 'home' || G.view === 'visit' || G.view === 'alun') && !G.jepret}<PersonCard mode={G.view} />{/if}
+  {#if friendPrompt && !G.jepret}<FriendPrompt />{/if}
 
-  {#if G.view === 'visit' && G.visit && !playingGame && !longBoard}
-    <div class="visit">
+  {#if visitCard && !G.jepret}
+    <div class="visit" bind:offsetHeight={visitH}>
       <div class="whorow">
         <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
         {#if !wideDesk && (visitRooms.length > 1 || G.cam !== 'room')}{@render camBtn()}{/if}
@@ -363,10 +390,18 @@
     </div>
   {/if}
 
-  <PushPrompt />
+  {#if !G.jepret}<PushPrompt />{/if}
+  {#if jpPill}
+    <button class="jbtn" class:desk={wideDesk} style={jpStyle} onclick={openJepret} aria-label="Jepret: foto pemandangan" title={wideDesk ? 'Jepret: foto pemandangan (tombol J)' : undefined}>
+      <span class="ic">{@html CAM_IC}</span>Jepret{#if wideDesk}<kbd>J</kbd>{/if}{#if !JP.seen}<em>BARU</em>{/if}
+    </button>
+  {/if}
+  {#if G.jepret === 'frame'}<JepretMode wide={wideDesk} />{/if}
+  {#if JP.src}<SharePreview wide={wideDesk} />{/if}
+  {#key JP.flash}{#if JP.flash}<div class="jflash" aria-hidden="true"></div>{/if}{/key}
   {#if !G.online}<div class="offline">Kamu sedang offline. Beberapa aksi butuh internet.</div>{/if}
 
-  {#if !G.immersive && !G.edit && !G.plan}<Dock />{/if}
+  {#if !G.immersive && !G.edit && !G.plan && !G.jepret}<Dock />{/if}
 
   {#if G.sheet === 'rooms'}<Rooms />
   {:else if G.sheet === 'bag' || G.sheet === 'feed'}<Bag />
@@ -436,6 +471,17 @@
   .row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .who { display: flex; flex-direction: column; }
   .who b { font-size: 18px; } .who span { font-size: 13.5px; color: var(--muted); font-weight: 600; }
+  /* tombol Jepret: pil kamera 44 px (baru), di kolom kamera kiri */
+  .jbtn { position: absolute; z-index: 6; left: max(10px, var(--safe-l)); display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 14px 0 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 0 3px 0 var(--ink); font: 800 15px/1 var(--font); color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .jbtn.desk { left: max(14px, var(--safe-l)); }
+  .jbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+  .jbtn .ic { width: 31px; height: 31px; border-radius: 50%; background: var(--coin); border: 2px solid var(--ink); display: grid; place-items: center; flex: none; }
+  .jbtn .ic :global(svg) { width: 18px; height: 18px; }
+  .jbtn em { position: absolute; top: -10px; right: -10px; font-style: normal; background: #E0583F; color: #FFFDF7; font-size: 10.5px; font-weight: 800; border: 2px solid var(--ink); border-radius: 999px; padding: 0 6px; line-height: 1.35; }
+  .jbtn kbd { font: 800 11.5px var(--font); border: 1.5px solid var(--ink); border-radius: 6px; padding: 0 5px; background: var(--soft); margin-left: 2px; }
+  .jflash { position: fixed; inset: 0; z-index: 60; background: #FFFDF7; pointer-events: none; animation: jflash .34s ease-out forwards; }
+  @keyframes jflash { 0% { opacity: .95; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .jflash { animation: jfade .5s ease-out forwards; } @keyframes jfade { 0% { opacity: .5; } 100% { opacity: 0; } } }
   .offline { position: absolute; z-index: 30; top: calc(var(--safe-t) + 4px); left: 50%; transform: translateX(-50%); background: #A93A27; color: #fff; font-weight: 700; font-size: 13px; border-radius: 10px; padding: 3px 10px; white-space: nowrap; }
   /* layar sempit: tombol kamera cukup ikon supaya tidak menabrak label event */
   @media (max-width: 480px) {

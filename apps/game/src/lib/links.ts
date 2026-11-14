@@ -1,9 +1,18 @@
 // Tautan dalam game (dipakai notifikasi & deep link): /#garden, /#shop, /#friends, ...
 import { G, goTo } from './game.svelte';
+import { JP } from './jepret.svelte';
 
 export function openLink(url: string) {
   let hash = '';
   try { hash = new URL(url, location.origin).hash.replace('#', ''); } catch { hash = ''; }
+  // Jepret (tugas "Bagikan 1 foto" › Ke sana): di alun-alun tetap di sana, selain itu di rumah sendiri
+  if (hash === 'jepret') {
+    G.sheet = null;
+    if (G.edit) { G.edit = false; G.draft = null; }
+    if (G.view !== 'alun' && !(G.view === 'visit' && G.visit)) { G.visit = null; G.view = 'home'; }
+    JP.want = true;
+    return;
+  }
   G.sheet = null;
   G.visit = null;
   if (G.edit) { G.edit = false; G.draft = null; }

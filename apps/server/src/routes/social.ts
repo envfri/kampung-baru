@@ -351,4 +351,27 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       return { ok: true, itemId: g.item_id, qty: g.qty, ...(await patch(t, me.id, ['inventory'])) };
     });
   });
+
+  /* ---------------- Jepret & Bagikan: catatan berbagi (untuk tugas harian) ---------------- */
+  // Gambar dibuat & dibagikan dari HP pemain; server hanya mencatat bahwa pemain membagikan/menyimpan foto.
+  // Kita tidak bisa memastikan gambarnya sampai di mana, jadi hadiahnya kecil (tugas sekali sehari) dan catatannya dibatasi.
+  const SHARE_KIND = ['jepret', 'foto'] as const, SHARE_VIA = ['share', 'save', 'download', 'inapp'] as const, SHARE_FMT = ['story', 'feed'] as const;
+  app.post('/api/share', { ...auth, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req: any) => {
+    const s = await getSettings(db);
+    if (s.features.jepret === false) throw forbidden('Jepret & Bagikan sedang ditutup.');
+    const b = req.body ?? {};
+    if (!SHARE_KIND.includes(b.kind) || !SHARE_VIA.includes(b.via) || !SHARE_FMT.includes(b.fmt)) throw bad('invalid', 'Data bagikan tidak valid.');
+    const uid = req.user!.id;
+    const cap = Math.max(0, Math.round(Number(s.jepret?.shareEventsPerDay ?? 5)));
+    return db.tx(async (t) => {
+      const r = await t.one<{ count: number }>(
+        `insert into daily_counters (user_id, key, day, count) values ($1, 'share', $2, 1)
+         on conflict (user_id, key, day) do update set count = daily_counters.count + 1 returning count`,
+        [uid, today()],
+      );
+      const counted = r!.count <= cap;
+      if (counted) await track(t, uid, 'share', { kind: b.kind, via: b.via, fmt: b.fmt });
+      return { ok: true, counted, ...(await patch(t, uid, [])) };
+    });
+  });
 }

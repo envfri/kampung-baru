@@ -61,7 +61,8 @@
   const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; };
   /** ubin permainan papan & dadu (dari BARENG_GAMES: game yang belum ada tidak tampil) */
   const tiles = $derived(barengTiles('house', settings().features));
-  /** tinggi maksimal menu: ruang antara HUD dan bar ini (tidak menutupi HUD) */
+  /** tinggi maksimal menu (semua menu): ruang antara HUD dan bar ini, jadi menu tidak menutupi HUD.
+   *  Selama menu terbuka bar naik di atas kartu rumah teman (z 15): di HP kecil menu Foto bareng tidak lagi terselip di bawahnya. */
   let barEl = $state<HTMLElement | null>(null);
   let popMax = $state(0);
   $effect(() => {
@@ -73,7 +74,7 @@
   });
 </script>
 
-<div class="hbar" class:home={mode === 'home'} bind:this={barEl}>
+<div class="hbar" class:home={mode === 'home'} class:open={!!pop} bind:this={barEl} style={popMax ? `--pop-max:${popMax}px` : ''}>
   <p class="status" class:live={!!host || here.length > 0}>{#if here.length}<i class="dot"></i>{/if}{status}</p>
 
   {#if mode === 'visit' && together.on}
@@ -118,7 +119,7 @@
       <small>Pet yang sedang satu ruangan denganmu ikut berfoto (juga pet tuan rumah). Fotonya masuk album semua yang ada di foto.</small>
     </div>
   {:else if pop === 'play'}
-    <div class="pop col play" role="menu" style={popMax ? `max-height:${popMax}px` : ''}>
+    <div class="pop col play" role="menu">
       <b>Main bareng di rumah</b>
       <div class="row3">
         <button class="btn sm" role="menuitem" disabled={!liveOn || here.length < 1} onclick={() => play('masak')}>Masak bareng</button>
@@ -144,6 +145,7 @@
 </div>
 
 <style>
+  .hbar.open { z-index: 16; }
   .hbar { position: absolute; z-index: 14; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(560px, calc(100vw - 16px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
   .hbar.home { bottom: calc(var(--safe-b) + 150px); }
   .status { margin: 0; font-size: 13px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -159,7 +161,7 @@
   .chat .input { flex: 1; min-width: 0; min-height: 38px; font-size: 15px; }
   .phr { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .chip { flex: none; border: 2px solid var(--ink); border-radius: 999px; background: #FFF4D6; font-weight: 800; font-size: 13.5px; padding: 4px 10px; cursor: pointer; }
-  .pop { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; animation: pop .18s ease-out; }
+  .pop { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; max-height: var(--pop-max, none); overflow-y: auto; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; animation: pop .18s ease-out; }
   .pop.col { flex-direction: column; }
   .pop.play { flex-wrap: nowrap; overflow-y: auto; }
   .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }

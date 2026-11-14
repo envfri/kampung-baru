@@ -30,6 +30,11 @@ export function dailyFor(userId: string, day: string, pool: QuestDef[], n: numbe
   return [...pool].sort((a, b) => hash(userId + day + a.id) - hash(userId + day + b.id)).slice(0, Math.max(0, n));
 }
 
+/** kumpulan tugas harian yang bisa terpilih: tugas "bagikan foto" hanya bila fitur Jepret menyala */
+export function dailyPool(qs: QuestDef[], s: { features: Record<string, boolean> }) {
+  return qs.filter((q) => q.kind === 'daily' && (q.event !== 'share' || s.features.jepret !== false));
+}
+
 const matches = (filter: Record<string, unknown>, props: Record<string, unknown> | undefined) =>
   Object.entries(filter ?? {}).every(([k, v]) => String(props?.[k]) === String(v));
 
@@ -42,7 +47,7 @@ export async function questEvent(db: Db, userId: string | null, name: string, pr
   const s = await getSettings(db);
   if (!s.features.quests) return;
   const day = today();
-  const daily = new Set(dailyFor(userId, day, qs.filter((q) => q.kind === 'daily'), s.quests.dailyCount).map((q) => q.id));
+  const daily = new Set(dailyFor(userId, day, dailyPool(qs, s), s.quests.dailyCount).map((q) => q.id));
   for (const q of cands) {
     if (q.kind === 'daily' && !daily.has(q.id)) continue;
     await db.query(
@@ -61,7 +66,7 @@ export async function questList(db: Db, userId: string) {
   const s = await getSettings(db);
   const qs = await getQuests(db);
   const day = today();
-  const daily = dailyFor(userId, day, qs.filter((q) => q.kind === 'daily'), s.quests.dailyCount);
+  const daily = dailyFor(userId, day, dailyPool(qs, s), s.quests.dailyCount);
   const rows = await db.query<{ quest_id: string; period: string; progress: number; completed_at: Date | null; claimed_at: Date | null }>(
     `select quest_id, period, progress, completed_at, claimed_at from quest_progress where user_id = $1 and (period in ('starter', 'badge') or period = $2)`,
     [userId, day],

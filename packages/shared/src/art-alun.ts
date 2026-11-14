@@ -511,7 +511,7 @@ export const lampHead = (x: number, y: number) => H0.up(houseIso(x + 0.5, y + 0.
 export function speechSVG(x: number, y: number, txt: string, o: { size?: number; color?: string; tail?: 'l' | 'r' | 'c'; rot?: number; cls?: string; delay?: number } = {}) {
   const size = o.size ?? 14, w = textW(txt, size) + 18, h = size + 10;
   const tx = o.tail === 'l' ? -w / 2 + 12 : o.tail === 'r' ? w / 2 - 12 : 0;
-  return `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${o.rot ?? 0})"><g${o.cls ? ` class="${o.cls}" style="animation-delay:${o.delay ?? 0}s"` : ''}><path d="M${f1(-w / 2)} ${f1(-h)}h${f1(w)}q6 0 6 6v${f1(h - 12)}q0 6 -6 6H${f1(tx + 6)}l-6 8l-4 -8H${f1(-w / 2)}q-6 0 -6 -6v${f1(-(h - 12))}q0 -6 6 -6Z" fill="#FFFDF7" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>`
+  return `<g class="speech" transform="translate(${f1(x)} ${f1(y)}) rotate(${o.rot ?? 0})"><g${o.cls ? ` class="${o.cls}" style="animation-delay:${o.delay ?? 0}s"` : ''}><path d="M${f1(-w / 2)} ${f1(-h)}h${f1(w)}q6 0 6 6v${f1(h - 12)}q0 6 -6 6H${f1(tx + 6)}l-6 8l-4 -8H${f1(-w / 2)}q-6 0 -6 -6v${f1(-(h - 12))}q0 -6 6 -6Z" fill="#FFFDF7" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>`
     + `<text x="0" y="${f1(-h / 2 + 2)}" text-anchor="middle" dy=".35em" ${FONT} font-weight="800" font-size="${size}" fill="${o.color ?? '#E0583F'}" data-fit="${f1(w - 4)}">${txt}</text></g></g>`;
 }
 export const swooshSVG = (x: number, y: number, r: number, a0: number, a1: number) => {

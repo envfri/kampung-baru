@@ -17,6 +17,7 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
   visit_play: { label: 'Main dengan pet teman saat berkunjung', filters: 'kind: sapa | peluk | camilan | kejar | duduk' },
   coop: { label: 'Selesai main bareng di rumah (Masak bareng / Lempar bola)', filters: 'game: masak | bola · ok: true' },
   photo: { label: 'Foto bareng (di rumah atau alun-alun)', filters: 'place: alun' },
+  share: { label: 'Bagikan / simpan foto (Jepret atau Foto bareng)', filters: 'kind: jepret | foto · via: share | save | download | inapp' },
   square_visit: { label: 'Datang ke Alun-alun (pertama tiap hari)', filters: '' },
   square_act: { label: 'Main di Alun-alun', filters: 'kind: nonton | naik | ayun | teduh | duduk | joget | jajan' },
   sell: { label: 'Jual barang di Pasar', filters: '' },
@@ -38,5 +39,5 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
 
 export const QUEST_LINKS: [string, string][] = [
   ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko (lewat peta)'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
-  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'],
+  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'],
 ];

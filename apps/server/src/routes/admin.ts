@@ -555,6 +555,8 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (!(rm.xp >= 0 && rm.xp <= 20)) throw bad('invalid_settings', 'Ramai-ramai: XP tambahan harus 0–20.');
     checkCaturSettings(value, (msg) => { throw bad('invalid_settings', msg); });
     checkLudo(value.ludo);
+    const jp = value.jepret;
+    if (!(Number.isInteger(jp.shareEventsPerDay) && jp.shareEventsPerDay >= 0 && jp.shareEventsPerDay <= 50)) throw bad('invalid_settings', 'Jepret: batas catatan bagikan per hari harus bilangan bulat 0–50.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
     await bumpCatalog(db);
     const changes = diffPaths(before, value);

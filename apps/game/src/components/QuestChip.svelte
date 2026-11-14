@@ -2,13 +2,15 @@
   import { G } from '../lib/game.svelte';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
+  /** desktop dengan panel tamu di kanan bawah: kartu digeser ke kiri panel itu (tidak saling menutupi) */
+  let { side = false }: { side?: boolean } = $props();
   const q = $derived(G.me.quests);
   const next = $derived(q?.next);
   const show = $derived(!!q && (q.ready > 0 || !!next || q.dailyDone < q.dailyTotal));
 </script>
 
 {#if show}
-  <button class="chip" class:ready={q.ready > 0} onclick={() => { sfx.tap(); G.sheet = 'quests'; }} aria-label="Buka daftar tugas">
+  <button class="chip" class:ready={q.ready > 0} class:side onclick={() => { sfx.tap(); G.sheet = 'quests'; }} aria-label="Buka daftar tugas">
     <span class="ic">{@html I.quest}</span>
     {#if q.ready > 0}
       <span class="txt"><b>Hadiah tugas siap!</b><em>{q.ready} tugas selesai, ketuk untuk ambil</em></span>
@@ -33,6 +35,12 @@
   .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
   .bar small { position: relative; display: block; text-align: center; font-size: 12px; font-weight: 800; line-height: 16px; }
   @keyframes nudge { 0%, 100% { transform: translateX(-50%); } 50% { transform: translateX(-50%) translateY(-3px); } }
-  @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .chip { bottom: calc(var(--safe-b) + 90px); } }
+  @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    .chip { bottom: calc(var(--safe-b) + 90px); }
+    /* panel tamu: kanan max(150, aman) lebar 340 → kartu berakhir 8 px di kirinya, dan tidak sampai ke tombol Jepret di kiri */
+    .chip.side { left: auto; right: calc(max(150px, var(--safe-r)) + 348px); transform: none; width: min(400px, calc(100vw - 660px)); }
+    .chip.side.ready { animation-name: nudge2; }
+  }
+  @keyframes nudge2 { 0%, 100% { transform: none; } 50% { transform: translateY(-3px); } }
   @media (prefers-reduced-motion: reduce) { .chip.ready { animation: none; } }
 </style>

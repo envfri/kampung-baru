@@ -39,10 +39,29 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.38.0',
+    date: '2026-11-14',
+    title: 'Jepret & Bagikan ke Story',
+    summary: 'Potret rumahmu, rumah teman, atau alun-alun, lalu bagikan jadi gambar Story atau Feed lengkap dengan nama pet dan link BUPI.',
+    items: [
+      { kind: 'baru', text: 'Tombol 📷 Jepret di rumah, saat berkunjung, dan di alun-alun. Geser untuk pindah, cubit (atau scroll) untuk zoom, lalu ketuk tombol kamera. Tombol Pet-ku memusatkan pet-mu, Semua memperlihatkan seisi ruangan. Nama pet bisa ditampilkan atau disembunyikan. Di komputer, tekan J untuk membuka Jepret, Spasi untuk memotret, dan Esc untuk menutup.', player: true },
+      { kind: 'baru', text: 'Fotomu jadi kartu siap pamer dengan keterangan otomatis (misalnya "Lupis di Alun-alun · malam, bareng Wajik & Putu") dan link BUPI. Pilih ukuran Story (9:16) atau Feed (4:5).', player: true },
+      { kind: 'baru', text: 'Ketuk Bagikan untuk mengirim gambar ke Instagram, WhatsApp, atau aplikasi lain. Link BUPI ikut tersalin, jadi di Story tinggal tempel lewat stiker Link. Bisa juga Simpan ke galeri. Di komputer ada tombol Unduh gambar dan Salin link.', player: true },
+      { kind: 'baru', text: 'Pilihan "Kode temanku" untuk menaruh kode temanmu di gambar dan di link. Pilihan ini mati sampai kamu menyalakannya, karena siapa pun yang melihat kodenya bisa langsung berteman denganmu.', player: true },
+      { kind: 'baru', text: 'Foto bareng sekarang juga punya tombol Bagikan dan Simpan ke galeri.', player: true },
+      { kind: 'baru', text: 'Tugas harian baru: Bagikan 1 foto (+10 koin, +2 XP).', player: true },
+      { kind: 'perbaikan', text: 'Di HP kecil, menu Foto bareng saat berkunjung tidak lagi tertutup kartu rumah teman, jadi gaya Senyum dan Lompat bisa dipilih lagi.', player: true },
+      { kind: 'perbaikan', text: 'Di layar komputer, kartu tugas tidak lagi menimpa panel tamu di rumah.', player: true },
+      { kind: 'ubah', text: 'Gambar dibuat di HP atau komputer pemain dan tidak disimpan di server. Server hanya mencatat lewat POST /api/share (paling banyak 10 per menit, dihitung paling banyak jepret.shareEventsPerDay kali per hari) untuk tugas h-bagikan (paket konten 15). Fitur bisa dimatikan di features.jepret; saat mati, tugasnya tidak masuk daftar harian.' },
+      { kind: 'ubah', text: 'Teknis: shared/jepret.ts menyusun kartu SVG (keterangan, label nama, area aman Story 250/340 px) dan app jepret.svelte.ts mengubahnya jadi PNG lewat canvas, dengan font Baloo 2 tertanam. Uji: jepret.test.ts (12 uji) dan e2e-jepret (122 cek).' },
+    ],
+  },
+  {
     version: '0.37.1',
     date: '2026-11-13',
     title: 'Lampu Pos Ronda & warna bidak di ruang tunggu Ludo',
     summary: 'Pos Ronda di alun-alun sekarang punya bohlam yang menyala di malam hari, dan di ruang tunggu Ludo langsung kelihatan siapa dapat bidak warna apa.',
+    commits: ['709ac27'],
     items: [
       { kind: 'baru', text: 'Pos Ronda punya bohlam yang tergantung di pojok depan atapnya. Malam hari bohlamnya menyala dan menerangi bale-bale tempat main catur.', player: true },
       { kind: 'baru', text: 'Ruang tunggu & ajakan Ludo menunjukkan warna bidak tiap pemain (hijau, kuning, biru, merah) dengan bentuk kepala bidak yang sama seperti di papan, jadi tetap mudah dibedakan walau warnanya mirip.', player: true },
