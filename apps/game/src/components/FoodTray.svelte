@@ -10,12 +10,15 @@
       .filter((x) => x.it?.kind === 'food' && x.n > 0)
       .sort((a, b) => Number(!!b.it!.data?.cure && G.me.pet.sick) - Number(!!a.it!.data?.cure && G.me.pet.sick) || a.it!.name.localeCompare(b.it!.name)),
   );
-  // Geser ke samping = menggulir nampan (jari: digulir browser sendiri lewat touch-action pan-x; mouse: digulir di sini),
-  // seret ke atas = membawa makanan ke mulut pet, ketuk = langsung menyuapi.
-  let start: { x: number; y: number; id: string; touch: boolean; sl: number } | null = null;
+  // Di atas makanan, gerakan jari/mouse dibaca sendiri (touch-action: none), supaya seret ke pet yang agak menyamping tetap seret:
+  // gerak mendatar (sudut < ~30°) = menggulir nampan (dengan luncuran), selain itu = membawa makanan ke mulut pet, ketuk = langsung menyuapi.
+  // Celah & tepi nampan tetap digulir browser biasa (touch-action: pan-x).
+  let start: { x: number; y: number; id: string; sl: number } | null = null;
   let mode: null | 'drag' | 'scroll' = null;
   let listEl = $state<HTMLElement | null>(null);
   let canL = $state(false), canR = $state(false);
+  let trail: { x: number; t: number }[] = [];
+  let glide = 0;
   const edges = () => { const l = listEl; if (!l) return; canL = l.scrollLeft > 2; canR = l.scrollLeft + l.clientWidth < l.scrollWidth - 2; };
   $effect(() => {
     const l = listEl; if (!l) return;
@@ -27,24 +30,45 @@
       e.preventDefault(); l.scrollLeft += e.deltaY;
     };
     l.addEventListener('wheel', wheel, { passive: false });
-    return () => { ro.disconnect(); l.removeEventListener('wheel', wheel); };
+    return () => { ro.disconnect(); l.removeEventListener('wheel', wheel); cancelAnimationFrame(glide); };
   });
   $effect(() => { void foods.length; queueMicrotask(edges); });
+  /** luncuran setelah jari dilepas (kecepatan px/ms, melambat sendiri) */
+  function slide(v: number) {
+    cancelAnimationFrame(glide);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let last = performance.now();
+    const step = (now: number) => {
+      const l = listEl; if (!l) return;
+      const dt = Math.min(32, now - last); last = now;
+      const before = l.scrollLeft;
+      l.scrollLeft -= v * dt;
+      v *= Math.pow(0.995, dt);
+      if (Math.abs(v) > 0.03 && l.scrollLeft !== before) glide = requestAnimationFrame(step);
+    };
+    glide = requestAnimationFrame(step);
+  }
 
   function down(e: PointerEvent, id: string) {
-    if (G.busy) return;
-    start = { x: e.clientX, y: e.clientY, id, touch: e.pointerType === 'touch', sl: listEl?.scrollLeft ?? 0 };
+    if (G.busy || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    cancelAnimationFrame(glide);
+    start = { x: e.clientX, y: e.clientY, id, sl: listEl?.scrollLeft ?? 0 };
     mode = null;
+    trail = [{ x: e.clientX, t: e.timeStamp }];
   }
   function move(e: PointerEvent) {
     if (!start) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     if (!mode) {
       if (Math.hypot(dx, dy) < 8) return;
-      // lebih ke samping daripada ke atas → menggulir; selain itu → menyeret makanan
-      mode = Math.abs(dx) > Math.abs(dy) ? 'scroll' : 'drag';
+      mode = Math.abs(dy) < Math.abs(dx) * 0.58 ? 'scroll' : 'drag';
     }
-    if (mode === 'scroll') { if (!start.touch && listEl) listEl.scrollLeft = start.sl - dx; return; }
+    if (mode === 'scroll') {
+      if (listEl) listEl.scrollLeft = start.sl - dx;
+      trail.push({ x: e.clientX, t: e.timeStamp });
+      if (trail.length > 6) trail.shift();
+      return;
+    }
     G.feedDrag = { x: e.clientX, y: e.clientY, id: start.id };
   }
   function cancel() { start = null; mode = null; G.feedDrag = null; }
@@ -54,7 +78,12 @@
     const drag = G.feedDrag;
     cancel();
     if (!m) return feed(id);
-    if (m !== 'drag') return;
+    if (m === 'scroll') {
+      const a = trail.find((p) => e.timeStamp - p.t < 120) ?? trail[0];
+      const dt = e.timeStamp - a.t;
+      if (dt > 0) slide((e.clientX - a.x) / dt);
+      return;
+    }
     // dilepas di dekat mulut pet?
     const r = document.querySelector('.room .pet')?.getBoundingClientRect();
     if (r && drag && Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height * 0.55)) < Math.max(120, r.width)) feed(id);
@@ -112,8 +141,8 @@
   .wrap::after { right: 0; background: linear-gradient(270deg, var(--paper), transparent); }
   .wrap.l::before, .wrap.r::after { opacity: 1; }
   .list { display: flex; gap: 6px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 8px 6px 4px 2px; touch-action: pan-x; }
-  /* pan-x: geser ke samping tetap menggulir nampan walau jari mulai di atas makanan; gerakan ke atas diteruskan ke seret */
-  .food { flex: none; position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 4px 2px; cursor: grab; touch-action: pan-x; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  /* gerakan di atas makanan dibaca sendiri (geser mendatar = gulir, selain itu = seret); lihat move() */
+  .food { flex: none; position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 4px 2px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   @media (pointer: fine) { .list { scrollbar-width: thin; } }
   .food.cure { background: #FFF3CF; }
   .ic { width: 54px; height: 44px; display: grid; place-items: center; pointer-events: none; }

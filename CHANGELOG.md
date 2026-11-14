@@ -4,6 +4,20 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.38.1 · 2026-11-14 · Nampan makanan bisa digeser di HP
+
+_Kalau makananmu banyak, nampan makanan sekarang bisa digeser ke samping untuk memilih makanan lain._
+
+### Perubahan
+
+- Ada bayangan di tepi nampan sebagai tanda masih ada makanan lain. Di komputer, nampan bisa digeser dengan roda mouse atau diseret dengan mouse. Angka jumlah makanan tidak lagi terpotong. _(pemain)_
+- Teknis: FoodTray membaca gerakan sendiri di atas makanan (touch-action: none): gerak mendatar < ~30° = gulir dengan luncuran, selain itu = seret. Audit geser dengan sentuhan CDP di 320 & 390 untuk semua daftar yang bisa digulir (Tas, Lemari, toko, Tugas, Teman, peta, kebun, dan lainnya): semua bisa digeser.
+
+### Perbaikan
+
+- Nampan makanan bisa digeser ke samping di HP, walau jarimu mulai di atas makanan, jadi makanan di ujung kanan bisa dipilih. Geser ke samping untuk melihat makanan lain, seret ke atas untuk menyuapi pet, atau ketuk untuk langsung menyuapi. _(pemain)_
+- Seret makanan ke pet yang berdiri agak di samping tetap menyuapi, tidak malah menggeser nampan. Nampan juga masih meluncur sebentar setelah disentil. _(pemain)_
+
 ## 0.38.0 · 2026-11-14 · Jepret & Bagikan ke Story
 
 _Potret rumahmu, rumah teman, atau alun-alun, lalu bagikan jadi gambar Story atau Feed lengkap dengan nama pet dan link BUPI._
@@ -26,6 +40,8 @@ _Potret rumahmu, rumah teman, atau alun-alun, lalu bagikan jadi gambar Story ata
 
 - Di HP kecil, menu Foto bareng saat berkunjung tidak lagi tertutup kartu rumah teman, jadi gaya Senyum dan Lompat bisa dipilih lagi. _(pemain)_
 - Di layar komputer, kartu tugas tidak lagi menimpa panel tamu di rumah. _(pemain)_
+
+Commit: [`5a14d99`](https://github.com/envfri/kampung-baru/commit/5a14d99)
 
 ## 0.37.1 · 2026-11-13 · Lampu Pos Ronda & warna bidak di ruang tunggu Ludo
 

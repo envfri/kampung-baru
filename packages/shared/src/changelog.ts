@@ -39,10 +39,23 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.38.1',
+    date: '2026-11-14',
+    title: 'Nampan makanan bisa digeser di HP',
+    summary: 'Kalau makananmu banyak, nampan makanan sekarang bisa digeser ke samping untuk memilih makanan lain.',
+    items: [
+      { kind: 'perbaikan', text: 'Nampan makanan bisa digeser ke samping di HP, walau jarimu mulai di atas makanan, jadi makanan di ujung kanan bisa dipilih. Geser ke samping untuk melihat makanan lain, seret ke atas untuk menyuapi pet, atau ketuk untuk langsung menyuapi.', player: true },
+      { kind: 'perbaikan', text: 'Seret makanan ke pet yang berdiri agak di samping tetap menyuapi, tidak malah menggeser nampan. Nampan juga masih meluncur sebentar setelah disentil.', player: true },
+      { kind: 'ubah', text: 'Ada bayangan di tepi nampan sebagai tanda masih ada makanan lain. Di komputer, nampan bisa digeser dengan roda mouse atau diseret dengan mouse. Angka jumlah makanan tidak lagi terpotong.', player: true },
+      { kind: 'ubah', text: 'Teknis: FoodTray membaca gerakan sendiri di atas makanan (touch-action: none): gerak mendatar < ~30° = gulir dengan luncuran, selain itu = seret. Audit geser dengan sentuhan CDP di 320 & 390 untuk semua daftar yang bisa digulir (Tas, Lemari, toko, Tugas, Teman, peta, kebun, dan lainnya): semua bisa digeser.' },
+    ],
+  },
+  {
     version: '0.38.0',
     date: '2026-11-14',
     title: 'Jepret & Bagikan ke Story',
     summary: 'Potret rumahmu, rumah teman, atau alun-alun, lalu bagikan jadi gambar Story atau Feed lengkap dengan nama pet dan link BUPI.',
+    commits: ['5a14d99'],
     items: [
       { kind: 'baru', text: 'Tombol 📷 Jepret di rumah, saat berkunjung, dan di alun-alun. Geser untuk pindah, cubit (atau scroll) untuk zoom, lalu ketuk tombol kamera. Tombol Pet-ku memusatkan pet-mu, Semua memperlihatkan seisi ruangan. Nama pet bisa ditampilkan atau disembunyikan. Di komputer, tekan J untuk membuka Jepret, Spasi untuk memotret, dan Esc untuk menutup.', player: true },
       { kind: 'baru', text: 'Fotomu jadi kartu siap pamer dengan keterangan otomatis (misalnya "Lupis di Alun-alun · malam, bareng Wajik & Putu") dan link BUPI. Pilih ukuran Story (9:16) atau Feed (4:5).', player: true },
