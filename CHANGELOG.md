@@ -4,6 +4,21 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.40.0 · 2026-11-15 · Putar perabot
+
+_Perabot sekarang bisa diputar menghadap dinding lainnya, jadi sofa, kasur, dan TV bisa ditata sesukamu._
+
+### Baru
+
+- Di mode Atur, ketuk perabot lalu ketuk Putar untuk memutarnya menghadap dinding lainnya. Sofa dan kasur kini bisa menempel di dinding kiri, dan TV serta kursi bisa dihadapkan ke sofa. Ketuk Putar lagi untuk kembali ke arah semula. Di komputer, tekan R. _(pemain)_
+- Kalau setelah diputar perabot tidak muat, perabot bergeser sedikit. Kalau tetap tidak muat, kamu diberi tahu supaya menggesernya dulu ke tempat yang lebih lega. _(pemain)_
+
+### Perubahan
+
+- Arah perabot tersimpan dan tampil sama saat temanmu berkunjung. Pet tetap bisa duduk, tidur, dan memakai perabot yang diputar. _(pemain)_
+- Admin: centang "Tidak bisa diputar" di editor barang (mebel) untuk gambar unggahan yang berisi tulisan. Bila dicentang belakangan, arah putar barang itu diabaikan.
+- Teknis: susunan ruangan { i, x, y } + r: 1 bila diputar (tanpa r = arah awal, rumah lama tidak berubah). Diputar = gambar dicerminkan terhadap titik iso (0,0) ruangan & lebar/dalam ditukar (footprint/occupied/fits/rotatePlaced di shared art.ts); server memeriksa r & tabrakan. Uji: putar.test.ts (6 uji), e2e-putar (24 cek).
+
 ## 0.39.1 · 2026-11-15 · Alun-alun pindah ke dekat Rumahku
 
 _Di peta kampung, Alun-alun dan Lapangan Lomba bertukar tempat: Alun-alun sekarang di samping Kebun, dekat Rumahku._
@@ -12,6 +27,8 @@ _Di peta kampung, Alun-alun dan Lapangan Lomba bertukar tempat: Alun-alun sekara
 
 - Alun-alun pindah ke kiri bawah peta, di samping Kebun dan dekat Rumahku, jadi di HP langsung kelihatan tanpa menggeser peta. Lapangan Lomba pindah ke ujung kanan. _(pemain)_
 - Teknis: paket konten 16 menukar letak di tabel locations hanya bila keduanya masih di letak bawaan (letak buatan admin tidak disentuh) dan menaikkan versi katalog. Uji: peta.test.ts (tidak menimpa jalan / tempat lain).
+
+Commit: [`0393957`](https://github.com/envfri/kampung-baru/commit/0393957)
 
 ## 0.39.0 · 2026-11-15 · Pet ngajak ke Alun-alun
 

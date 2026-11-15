@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { WEAR_SLOTS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, canRotate, fits, NEED_KEYS, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -460,17 +460,25 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const size = roomMeta(target.room_item, cat, s, target.size).size;
     const maxItems = maxItemsFor(s, size);
     if (body.layout.length > maxItems) throw bad('too_many', `Maksimal ${maxItems} barang di ruangan ini.`);
-    const layout = body.layout.map((p: any) => ({ i: String(p?.i ?? ''), x: int(p?.x, 'x', { min: 0, max: size - 1 }), y: int(p?.y, 'y', { min: 0, max: size - 1 }) }));
+    // r: arah perabot (kosong / 0 = awal, 1 = diputar); hanya 1 yang disimpan supaya susunan lama tetap sama
+    const layout: { i: string; x: number; y: number; r?: 1 }[] = body.layout.map((p: any) => {
+      const q: { i: string; x: number; y: number; r?: 1 } = { i: String(p?.i ?? ''), x: int(p?.x, 'x', { min: 0, max: size - 1 }), y: int(p?.y, 'y', { min: 0, max: size - 1 }) };
+      if (p?.r !== undefined && p?.r !== null && p?.r !== 0 && p?.r !== 1) throw bad('invalid', 'Arah perabot tidak valid.');
+      if (p?.r === 1) q.r = 1;
+      return q;
+    });
     const items: Record<string, any> = {};
     for (const p of layout) {
       const it = cat.byId.get(p.i);
       if (!it || it.kind !== 'furniture') throw bad('invalid_item', 'Ada barang yang bukan mebel.');
+      // admin mematikan putar untuk barang ini: arahnya kembali ke awal
+      if (p.r && !canRotate(it)) delete p.r;
       items[it.id] = it;
     }
-    // cek tabrakan satu per satu
+    // cek tabrakan satu per satu (perabot yang diputar memakai ukuran petak yang ditukar)
     const placed: typeof layout = [];
     for (const p of layout) {
-      if (!fits(items[p.i], p.x, p.y, placed, items, size)) throw bad('overlap', 'Ada barang yang bertumpuk atau keluar ruangan.');
+      if (!fits(items[p.i], p.x, p.y, placed, items, size, -1, p.r ?? 0)) throw bad('overlap', 'Ada barang yang bertumpuk atau keluar ruangan.');
       placed.push(p);
     }
     return db.tx(async (t) => {

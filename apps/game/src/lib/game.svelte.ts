@@ -1,6 +1,6 @@
 // State global game (Svelte 5 runes). Semua angka penting berasal dari server;
 // client hanya menghitung ulang tampilan kebutuhan pet di antara respons.
-import { decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planProblem, type ItemLike, type Needs } from '@kb/shared';
+import { canRotate, decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planProblem, rotatePlaced, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
@@ -360,6 +360,19 @@ export function startEdit() {
   G.edit = true;
   G.sheet = null;
   G.view = 'home';
+}
+
+/** Putar perabot yang dipilih (mode Atur): tetap / geser ≤ 1 petak; tidak muat → pesan. */
+export function rotateSel() {
+  if (!G.edit || !G.draft || G.sel < 0 || !G.draft[G.sel]) return false;
+  const it = item(G.draft[G.sel].i);
+  if (!it || !canRotate(it)) return false;
+  const size = curRoom()?.size ?? settings().room?.size ?? 6;
+  const next = rotatePlaced(G.draft, G.sel, Object.fromEntries(items()), size);
+  if (!next) { sfx.error(); toast('Tidak muat kalau diputar di sini. Geser dulu ke tempat yang lebih lega.', 'error'); return false; }
+  G.draft[G.sel] = next;
+  sfx.pop();
+  return true;
 }
 
 export function draftAvail(id: string) {

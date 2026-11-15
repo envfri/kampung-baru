@@ -1006,6 +1006,8 @@ export interface Placed {
   i: string; // item id
   x: number;
   y: number;
+  /** 1 = diputar (dicerminkan, lebar & dalam ditukar); kosong / 0 = arah awal */
+  r?: number;
 }
 
 /** Benda event kecil (dipusatkan di 0,0, ±14px) untuk dekorasi & mini-game. */
@@ -1103,10 +1105,17 @@ const PROPS: Record<string, string> = {
 export const ROOM_ISO: Iso = { ox: 400, oy: 150, t: 34, h: 17 };
 export const ROOM_VIEWBOX = '140 -70 520 500';
 
+/** Perabot bisa diputar (dicerminkan): tidak bila admin mematikannya (gambar bertulisan) atau benda tetap bermasker. */
+export const canRotate = (item?: ItemLike | null) => !!item && !item.data?.noRotate && !Array.isArray(item.data?.mask);
+/** arah perabot yang dipakai (1 = diputar) — r diabaikan bila perabot tidak bisa diputar */
+export const rotOf = (item: ItemLike | null | undefined, r?: number) => (r === 1 && canRotate(item) ? 1 : 0);
+
 // mebel katalog dibatasi 4×4 oleh admin; benda tetap alun-alun (kolam pancing 6×5) boleh sampai 8
-export function footprint(item?: ItemLike | null) {
+/** Ukuran petak perabot; r = 1 (diputar): lebar & dalam ditukar. */
+export function footprint(item?: ItemLike | null, r?: number) {
   const d = item?.data ?? {};
-  return { w: Math.max(1, Math.min(8, d.w | 0 || 1)), d: Math.max(1, Math.min(8, d.d | 0 || 1)), flat: !!d.flat };
+  const w = Math.max(1, Math.min(8, d.w | 0 || 1)), dd = Math.max(1, Math.min(8, d.d | 0 || 1));
+  return rotOf(item, r) ? { w: dd, d: w, flat: !!d.flat } : { w, d: dd, flat: !!d.flat };
 }
 
 export function occupied(layout: Placed[], items: Record<string, ItemLike>, skip = -1) {
@@ -1118,20 +1127,39 @@ export function occupied(layout: Placed[], items: Record<string, ItemLike>, skip
     // mask: petak yang benar-benar menghalangi (kolam: air; gapura: dua tiangnya saja), datar atau tidak
     const mask: [number, number][] | undefined = Array.isArray(it.data?.mask) ? it.data.mask : undefined;
     if (mask) { for (const [a, b] of mask) set.add(`${p.x + a},${p.y + b}`); return; }
-    const f = footprint(it);
+    const f = footprint(it, p.r);
     if (f.flat) return;
     for (let a = 0; a < f.w; a++) for (let b = 0; b < f.d; b++) set.add(`${p.x + a},${p.y + b}`);
   });
   return set;
 }
 
-export function fits(item: ItemLike, x: number, y: number, layout: Placed[], items: Record<string, ItemLike>, size: number, skip = -1) {
-  const f = footprint(item);
+/** Perabot muat di (x, y)? r = 1: dicek dengan ukuran petak yang ditukar. */
+export function fits(item: ItemLike, x: number, y: number, layout: Placed[], items: Record<string, ItemLike>, size: number, skip = -1, r = 0) {
+  const f = footprint(item, r);
   if (x < 0 || y < 0 || x + f.w > size || y + f.d > size) return false;
   if (f.flat) return true;
   const o = occupied(layout, items, skip);
   for (let a = 0; a < f.w; a++) for (let b = 0; b < f.d; b++) if (o.has(`${x + a},${y + b}`)) return false;
   return true;
+}
+
+/** urutan geser saat diputar: tetap di tempat, lalu 1 petak ke samping, lalu serong */
+const ROT_SHIFT: [number, number][] = [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+/**
+ * Putar perabot ke-`sel` (arah awal ↔ diputar). Tetap di tempat bila muat; bila tidak, digeser paling jauh 1 petak.
+ * Hasil: susunan barunya untuk perabot itu, atau null bila tidak bisa diputar / tidak muat di sekitar sini.
+ */
+export function rotatePlaced(layout: Placed[], sel: number, items: Record<string, ItemLike>, size: number): Placed | null {
+  const p = layout[sel];
+  const it = p ? items[p.i] : null;
+  if (!p || !it || !canRotate(it)) return null;
+  const r = rotOf(it, p.r) ? 0 : 1;
+  for (const [dx, dy] of ROT_SHIFT) {
+    const x = p.x + dx, y = p.y + dy;
+    if (fits(it, x, y, layout, items, size, sel, r)) return r ? { ...p, x, y, r: 1 } : (({ r: _r, ...rest }) => ({ ...rest, x, y }))(p);
+  }
+  return null;
 }
 
 export function petSpot(layout: Placed[], items: Record<string, ItemLike>, size = 6): [number, number] {
@@ -1145,7 +1173,19 @@ export function petSpot(layout: Placed[], items: Record<string, ItemLike>, size 
   return [m + 0.5, m + 0.5];
 }
 
-function furnDraw(g: Ctx, item: ItemLike, x: number, y: number) {
+/**
+ * Gambar perabot di petak (x, y). r = 1 (diputar): digambar di (y, x) lalu dicerminkan terhadap garis tegak lewat
+ * titik iso (0,0) ruangan — cermin itu memetakan petak (u, v) ke (v, u), jadi hasilnya perabot berukuran d×w di (x, y)
+ * yang menghadap ke dinding lainnya. Tidak perlu gambar baru.
+ */
+function furnDraw(g: Ctx, item: ItemLike, x: number, y: number, r = 0) {
+  if (rotOf(item, r)) {
+    const X0 = g.iso(0, 0)[0];
+    return `<g class="rot" transform="translate(${f1(2 * X0)} 0) scale(-1 1)">${furnDrawRaw(g, item, y, x)}</g>`;
+  }
+  return furnDrawRaw(g, item, x, y);
+}
+function furnDrawRaw(g: Ctx, item: ItemLike, x: number, y: number) {
   const f = footprint(item);
   const a = item.art;
   if (a.type === 'image') {
@@ -1409,12 +1449,12 @@ export function renderRoom(o: RoomOpts) {
   let out = roomShell(g, W, wallColors(o.wall), floorColors(o.floor, outdoor ? GRASS_FLOOR : DEFAULT_FLOOR), !!o.edit, outdoor, o.photo ?? '') + (outdoor ? '' : roomDecor(g, W, o.decor));
   const list = o.layout.map((p, idx) => ({ p, idx, it: o.items[p.i] })).filter((e) => e.it);
   const grp = (e: (typeof list)[number]) =>
-    `<g class="furn${o.edit ? ' editable' : ''}${o.edit && o.sel === e.idx ? ' sel' : ''}" data-i="${e.idx}">${furnDraw(g, e.it, e.p.x, e.p.y)}</g>`;
+    `<g class="furn${o.edit ? ' editable' : ''}${o.edit && o.sel === e.idx ? ' sel' : ''}" data-i="${e.idx}">${furnDraw(g, e.it, e.p.x, e.p.y, e.p.r)}</g>`;
   list.filter((e) => footprint(e.it).flat).forEach((e) => (out += grp(e)));
   if (!o.edit) (o.crumbs ?? []).forEach((c, i) => (out += crumbSVG(g, c, i)));
   const draws = list
     .filter((e) => !footprint(e.it).flat)
-    .map((e) => { const f = footprint(e.it); return { d: e.p.x + e.p.y + (f.w + f.d) / 2, h: grp(e) }; });
+    .map((e) => { const f = footprint(e.it, e.p.r); return { d: e.p.x + e.p.y + (f.w + f.d) / 2, h: grp(e) }; });
   if (o.pet) {
     const pos = o.pet.pos ?? petSpot(o.layout, o.items, W);
     const c = g.iso(pos[0], pos[1]);
@@ -1536,7 +1576,7 @@ export function houseLayers(plan: HousePlan, art: Record<string, HouseRoomArt>, 
       const it = items[p.i];
       if (!it || !footprint(it).flat) return;
       // alun-alun: jalan batu diteruskan ke lantai; tikar permainan (data.tap) tetap bisa diketuk
-      f += a.inertFlats && !it.data?.tap ? `<g pointer-events="none">${furnDraw(g, it, p.x, p.y)}</g>` : `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`;
+      f += a.inertFlats && !it.data?.tap ? `<g pointer-events="none">${furnDraw(g, it, p.x, p.y, p.r)}</g>` : `<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y, p.r)}</g>`;
     });
     flats.push({ key: r.id, h: dimWrap(a, f) });
   }
@@ -1620,10 +1660,10 @@ export function houseDraws(plan: HousePlan, art: Record<string, HouseRoomArt>, i
     a.layout.forEach((p, idx) => {
       const it = items[p.i];
       if (!it) return;
-      const f = footprint(it);
+      const f = footprint(it, p.r);
       if (f.flat) return;
       const x0 = r.gx + p.x, y0 = r.gy + p.y;
-      out.push({ key: `f:${r.id}:${idx}`, d: x0 + y0 + (f.w + f.d) / 2, h: dim(`<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y)}</g>`), b: [x0, y0, x0 + f.w, y0 + f.d] });
+      out.push({ key: `f:${r.id}:${idx}`, d: x0 + y0 + (f.w + f.d) / 2, h: dim(`<g class="${furnCls(a, idx)}" data-r="${esc(r.id)}" data-i="${idx}">${furnDraw(g, it, p.x, p.y, p.r)}</g>`), b: [x0, y0, x0 + f.w, y0 + f.d] });
     });
   }
   return out;

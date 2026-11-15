@@ -1054,7 +1054,7 @@
     }
     if (bed) {
       const { r, p } = bed;
-      const f = footprint(bed.it);
+      const f = footprint(bed.it, p.r);
       const goals: [number, number][] = [];
       for (let a = 0; a < f.w; a++) goals.push([p.x + a, p.y - 1], [p.x + a, p.y + f.d]);
       for (let b = 0; b < f.d; b++) goals.push([p.x - 1, p.y + b], [p.x + f.w, p.y + b]);
@@ -1139,7 +1139,7 @@
     if (t.spot) return { goals: inRoom([...ROOM_SPOTS[t.spot].tiles(r.size)]), center: null, faceTo: null, flipTo: ROOM_SPOTS[t.spot].flip };
     const p = placedAt(t);
     if (!p) return { goals: [], center: null, faceTo: null, flipTo: null };
-    const f = footprint(itemOf(p.i));
+    const f = footprint(itemOf(p.i), p.r);
     const goals: [number, number][] = [];
     for (let a = 0; a < f.w; a++) goals.push([p.x + a, p.y - 1], [p.x + a, p.y + f.d]);
     for (let b = 0; b < f.d; b++) goals.push([p.x - 1, p.y + b], [p.x + f.w, p.y + b]);
@@ -1916,7 +1916,7 @@
         const it = item(p?.i);
         const size = plan.byId.get(editId ?? '')?.size ?? defSize();
         if (!it) return;
-        if (!fits(it, x, y, G.draft, itemMap, size, G.sel)) { sfx.error(); toast('Tidak muat di situ.', 'error'); return; }
+        if (!fits(it, x, y, G.draft, itemMap, size, G.sel, p.r)) { sfx.error(); toast('Tidak muat di situ.', 'error'); return; }
         G.draft[G.sel] = { ...p, x, y };
         sfx.pop();
         return;

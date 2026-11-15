@@ -39,9 +39,23 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.40.0',
+    date: '2026-11-15',
+    title: 'Putar perabot',
+    summary: 'Perabot sekarang bisa diputar menghadap dinding lainnya, jadi sofa, kasur, dan TV bisa ditata sesukamu.',
+    items: [
+      { kind: 'baru', text: 'Di mode Atur, ketuk perabot lalu ketuk Putar untuk memutarnya menghadap dinding lainnya. Sofa dan kasur kini bisa menempel di dinding kiri, dan TV serta kursi bisa dihadapkan ke sofa. Ketuk Putar lagi untuk kembali ke arah semula. Di komputer, tekan R.', player: true },
+      { kind: 'baru', text: 'Kalau setelah diputar perabot tidak muat, perabot bergeser sedikit. Kalau tetap tidak muat, kamu diberi tahu supaya menggesernya dulu ke tempat yang lebih lega.', player: true },
+      { kind: 'ubah', text: 'Arah perabot tersimpan dan tampil sama saat temanmu berkunjung. Pet tetap bisa duduk, tidur, dan memakai perabot yang diputar.', player: true },
+      { kind: 'ubah', text: 'Admin: centang "Tidak bisa diputar" di editor barang (mebel) untuk gambar unggahan yang berisi tulisan. Bila dicentang belakangan, arah putar barang itu diabaikan.' },
+      { kind: 'ubah', text: 'Teknis: susunan ruangan { i, x, y } + r: 1 bila diputar (tanpa r = arah awal, rumah lama tidak berubah). Diputar = gambar dicerminkan terhadap titik iso (0,0) ruangan & lebar/dalam ditukar (footprint/occupied/fits/rotatePlaced di shared art.ts); server memeriksa r & tabrakan. Uji: putar.test.ts (6 uji), e2e-putar (24 cek).' },
+    ],
+  },
+  {
     version: '0.39.1',
     date: '2026-11-15',
     title: 'Alun-alun pindah ke dekat Rumahku',
+    commits: ['0393957'],
     summary: 'Di peta kampung, Alun-alun dan Lapangan Lomba bertukar tempat: Alun-alun sekarang di samping Kebun, dekat Rumahku.',
     items: [
       { kind: 'ubah', text: 'Alun-alun pindah ke kiri bawah peta, di samping Kebun dan dekat Rumahku, jadi di HP langsung kelihatan tanpa menggeser peta. Lapangan Lomba pindah ke ujung kanan.', player: true },

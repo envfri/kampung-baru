@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom, isSleeping, setSleep, needsNow, movePlanRoom, autoPlan, savePlan, cancelPlan, planIssue, cutOffRooms } from '../lib/game.svelte';
+  import { canRotate } from '@kb/shared';
+  import { rotateSel } from '../lib/game.svelte';
   import FoodTray from '../components/FoodTray.svelte';
   import AjakAlun from '../components/AjakAlun.svelte';
   import { ajakOn, ajakLeftAlun } from '../lib/ajak.svelte';
@@ -248,12 +250,21 @@
   $effect(() => { if (G.jepret && !['home', 'visit', 'alun'].includes(G.view)) { G.jepret = null; JP.src = null; } });
   /** J: buka Jepret (desktop; di dalam mode Jepret, J/Esc menutup) */
   function onKey(e: KeyboardEvent) {
+    // R di mode Atur: putar perabot yang dipilih
+    if (G.edit && G.sel >= 0 && !G.sheet && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'r') {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.('input, textarea, select, [contenteditable]')) return;
+      e.preventDefault(); rotateSel(); return;
+    }
     if (e.defaultPrevented || G.jepret || G.sheet || e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'j') return;
     const t = e.target as HTMLElement | null;
     if (t?.closest?.('input, textarea, select, [contenteditable]') || !jpPill) return;
     e.preventDefault();
     openJepret();
   }
+  /** ikon Putar (panah melingkar) */
+  const ROT_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const selRot = $derived(!!selItem && canRotate(selItem));
   const CAM_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L8.8 6h6.4l1.6 2.5H20V19H4z"/><circle cx="12" cy="13.3" r="3.6"/></svg>';
 </script>
 
@@ -336,8 +347,9 @@
   {#if G.edit}
     <div class="editbar">
       {#if doorsShut.length}<p class="warn">{doorsShut.join(', ')} tidak bisa dimasuki: jalannya tertutup mebel di dekat pintu. Geser mebelnya sedikit supaya pet & tamu bisa lewat.</p>{/if}
-      <p><b class="ename">Atur {room?.name ?? 'ruangan'}</b>{selItem ? `${selItem.name} dipilih. Ketuk lantai untuk memindah.` : `Ketuk barang, lalu ketuk lantai untuk memindah. Tambah barang dari Tas.${(G.me.rooms?.length ?? 1) > 1 ? ' Ketuk ruangan lain untuk mengatur ruangan itu.' : ''}`}</p>
+      <p><b class="ename">Atur {room?.name ?? 'ruangan'}</b>{selItem ? `${selItem.name} dipilih. Ketuk lantai untuk memindah${selRot ? `, Putar${wideDesk ? ' (R)' : ''} untuk mengubah arah` : ''}.` : `Ketuk barang, lalu ketuk lantai untuk memindah. Tambah barang dari Tas.${(G.me.rooms?.length ?? 1) > 1 ? ' Ketuk ruangan lain untuk mengatur ruangan itu.' : ''}`}</p>
       <div class="row">
+        {#if selRot}<button class="btn sm rotbtn" onclick={rotateSel} aria-label="Putar {selItem?.name}" title={wideDesk ? 'Putar (tombol R)' : undefined}>{@html ROT_IC} Putar</button>{/if}
         {#if selItem}<button class="btn sm" onclick={storeSel}>Simpan ke Tas</button>{/if}
         <button class="btn sm" onclick={() => { G.sheet = 'bag'; G.bagTab = 'furniture'; }}>{@html I.bag} Tas</button>
         <button class="btn sm" onclick={cancelEdit}>Batal</button>
@@ -474,6 +486,8 @@
   .visit { top: calc(var(--safe-t) + 118px + var(--hud-x, 0px)); bottom: auto; flex-direction: column; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
   .planbar .warn, .editbar .warn { color: #A93A27; font-size: 13.5px; }
+  .rotbtn { display: inline-flex; align-items: center; gap: 4px; }
+  .rotbtn :global(svg) { width: 18px; height: 18px; }
   .pick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .pick .chip { flex: none; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); font-weight: 800; font-size: 13.5px; padding: 3px 10px; cursor: pointer; }
   .pick .chip.on { background: #FFE8A3; box-shadow: 0 2px 0 var(--ink); }
