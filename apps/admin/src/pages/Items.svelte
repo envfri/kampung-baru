@@ -296,6 +296,7 @@
             </div>
             <label class="inline"><input type="checkbox" bind:checked={form.data.flat} />Barang datar (karpet): bisa dilewati & ditumpuki</label>
             <label class="inline"><input type="checkbox" bind:checked={form.data.noRotate} />Tidak bisa diputar (mis. gambar unggahan berisi tulisan, supaya tulisannya tidak terbalik)</label>
+            <label class="inline"><input type="checkbox" bind:checked={form.data.noBack} disabled={form.data.noRotate} />Tanpa tampak belakang (2 arah saja), bila tampak belakang yang dibuat otomatis kurang pas</label>
             {@render pondFind('Hiasan rumah dari kolam')}
           {:else if form.kind === 'wear'}
             {@const artSlot = form.art?.type === 'builtin' ? A.me?.builtins?.wear?.find((b: any) => b.key === form.art.key)?.slot : undefined}

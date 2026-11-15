@@ -3,7 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config';
-import { canRotate, fits, footprint, houseDraws, houseLayout, occupied, renderRoom, rotatePlaced, rotOf } from '@kb/shared';
+import { canBack, canRotate, fits, footprint, houseDraws, houseLayout, occupied, renderRoom, rotatePlaced, rotOf, rotSteps, shade } from '@kb/shared';
 
 config.paymentProvider = 'mock';
 config.adminEmail = 'owner@test.local';
@@ -19,7 +19,11 @@ const SOFA: any = { id: 'sofa', kind: 'furniture', name: 'Sofa', art: { type: 'b
 const KURSI: any = { id: 'kursi', kind: 'furniture', name: 'Kursi', art: { type: 'builtin', key: 'kursi' }, data: { w: 1, d: 1 } };
 const POSTER: any = { id: 'poster', kind: 'furniture', name: 'Poster', art: { type: 'builtin', key: 'kotak' }, data: { w: 2, d: 1, noRotate: true } };
 const KOLAM: any = { id: 'kolam', kind: 'furniture', name: 'Kolam', art: { type: 'builtin', key: 'kotak' }, data: { w: 2, d: 2, mask: [[0, 0]] } };
-const ITEMS: Record<string, any> = { sofa: SOFA, kursi: KURSI, poster: POSTER, kolam: KOLAM };
+const FOTO: any = { id: 'foto', kind: 'furniture', name: 'Foto', art: { type: 'image', url: 'https://contoh.test/a.png' }, data: { w: 2, d: 1 } };
+const RAK: any = { id: 'rak', kind: 'furniture', name: 'Rak', art: { type: 'builtin', key: 'rak' }, data: { w: 1, d: 2, noBack: true } };
+const TV: any = { id: 'tv', kind: 'furniture', name: 'TV', art: { type: 'builtin', key: 'tv' }, data: { w: 1, d: 1 } };
+const KASUR: any = { id: 'kasur', kind: 'furniture', name: 'Kasur', art: { type: 'builtin', key: 'kasur' }, data: { w: 2, d: 1 } };
+const ITEMS: Record<string, any> = { sofa: SOFA, kursi: KURSI, poster: POSTER, kolam: KOLAM, foto: FOTO, rak: RAK, tv: TV, kasur: KASUR };
 
 /* ---------------- fungsi murni ---------------- */
 
@@ -33,7 +37,14 @@ test('putar: ukuran petak ditukar; tidak bisa diputar bila admin mematikan atau 
   assert.deepEqual(footprint(POSTER, 1), { w: 2, d: 1, flat: false }, 'r diabaikan bila tidak bisa diputar');
   assert.equal(rotOf(SOFA, 1), 1);
   assert.equal(rotOf(POSTER, 1), 0);
-  assert.equal(rotOf(SOFA, 2 as any), 0);
+  // 4 arah: gambar bawaan; gambar unggahan & "tanpa tampak belakang" 2 arah; tidak bisa diputar 1 arah
+  assert.deepEqual([rotSteps(SOFA), rotSteps(FOTO), rotSteps(RAK), rotSteps(POSTER), rotSteps(KOLAM)], [4, 2, 2, 1, 1]);
+  assert.equal(canBack(SOFA), true);
+  assert.equal(canBack(FOTO), false);
+  assert.deepEqual([0, 1, 2, 3, 4, -1, 1.5].map((r) => rotOf(SOFA, r)), [0, 1, 2, 3, 0, 0, 0]);
+  assert.deepEqual([0, 1, 2, 3].map((r) => rotOf(FOTO, r)), [0, 1, 0, 0]);
+  // ukuran petak: arah 1 & 3 ditukar, arah 2 sama dengan awal
+  assert.deepEqual([0, 1, 2, 3].map((r) => { const f = footprint(SOFA, r); return `${f.w}x${f.d}`; }), ['2x1', '1x2', '2x1', '1x2']);
 });
 
 test('putar: petak terpakai & cek muat memakai ukuran yang ditukar', () => {
@@ -54,8 +65,14 @@ test('putar: tetap di tempat bila muat, geser ≤ 1 petak bila tidak, null bila 
   const lay: any[] = [{ i: 'sofa', x: 2, y: 2 }];
   const a = rotatePlaced(lay, 0, ITEMS, 6)!;
   assert.deepEqual(a, { i: 'sofa', x: 2, y: 2, r: 1 });
-  const b = rotatePlaced([a], 0, ITEMS, 6)!;
-  assert.deepEqual(b, { i: 'sofa', x: 2, y: 2 }, 'kembali ke arah awal tanpa r');
+  const a2 = rotatePlaced([a], 0, ITEMS, 6)!, a3 = rotatePlaced([a2], 0, ITEMS, 6)!;
+  assert.deepEqual([a2.r, a3.r], [2, 3], 'seperempat putaran tiap ketukan');
+  const b = rotatePlaced([a3], 0, ITEMS, 6)!;
+  assert.deepEqual(b, { i: 'sofa', x: 2, y: 2 }, '4 ketukan: kembali ke arah awal tanpa r');
+  // 2 arah (gambar unggahan): awal <-> 1
+  const f1 = rotatePlaced([{ i: 'foto', x: 0, y: 0 }], 0, ITEMS, 6)!;
+  assert.equal(f1.r, 1);
+  assert.equal(rotatePlaced([f1], 0, ITEMS, 6)!.r, undefined);
   // di baris terakhir: diputar butuh 2 baris → geser 1 petak ke atas
   const c = rotatePlaced([{ i: 'sofa', x: 0, y: 5 }], 0, ITEMS, 6)!;
   assert.deepEqual([c.x, c.y, c.r], [0, 4, 1]);
@@ -70,6 +87,21 @@ test('putar: gambar dicerminkan terhadap titik iso (0,0) ruangan, juga di rumah 
   const rot = renderRoom({ size: 6, layout: [{ i: 'sofa', x: 1, y: 1, r: 1 }], items: ITEMS } as any);
   assert.ok(!normal.includes('class="rot"'));
   assert.match(rot, /<g class="rot" transform="translate\(800 0\) scale\(-1 1\)">/);
+  // tampak belakang (arah 2) & belakang dicerminkan (arah 3)
+  const back = renderRoom({ size: 6, layout: [{ i: 'sofa', x: 1, y: 1, r: 2 }], items: ITEMS } as any);
+  const back3 = renderRoom({ size: 6, layout: [{ i: 'sofa', x: 1, y: 1, r: 3 }], items: ITEMS } as any);
+  assert.ok(back.includes('class="back"') && !back.includes('class="rot"'));
+  assert.ok(back3.includes('class="back"') && back3.includes('class="rot"'));
+  // layar TV (panel depan) tidak terlihat dari belakang
+  const tv0 = renderRoom({ size: 3, layout: [{ i: 'tv', x: 0, y: 0 }], items: ITEMS } as any);
+  const tv2 = renderRoom({ size: 3, layout: [{ i: 'tv', x: 0, y: 0, r: 2 }], items: ITEMS } as any);
+  assert.ok(tv0.includes('#7FC4E8') && !tv2.includes('#7FC4E8'), 'layar TV hilang dari belakang');
+  // urutan balok dari belakang: selimut kasur digambar setelah kasurnya (tidak tertutup)
+  const bed = renderRoom({ size: 3, layout: [{ i: 'kasur', x: 0, y: 0, r: 2 }], items: ITEMS } as any);
+  const gb = bed.slice(bed.indexOf('class="back"'));
+  // warna atas balok = shade(warna, 0.14): kasur #F4EEE2, selimut #5E8FC7
+  const top = (hex: string) => shade(hex, 0.14);
+  assert.ok(gb.indexOf(top('#F4EEE2')) >= 0 && gb.indexOf(top('#5E8FC7')) > gb.indexOf(top('#F4EEE2')), 'selimut di atas kasur');
   const plan = houseLayout([{ id: 'a', size: 6 }, { id: 'b', size: 6 }] as any);
   const art: any = Object.fromEntries(plan.rooms.map((r: any) => [r.id, { layout: r.id === 'b' ? [{ i: 'sofa', x: 1, y: 1, r: 1 }] : [{ i: 'sofa', x: 1, y: 1 }] }]));
   const draws = houseDraws(plan, art, ITEMS);
@@ -115,13 +147,29 @@ test('server: arah putar disimpan (r: 1), r tidak valid & tabrakan karena putar 
   let lay = (now.rooms ?? [now.room])[0];
   assert.deepEqual(lay.layout.find((p: any) => p.i === 'kasur-rotan'), { i: 'kasur-rotan', x: 0, y: 0, r: 1 });
   // r tidak valid
-  r = await save([{ i: 'kasur-rotan', x: 0, y: 0, r: 2 }, ...others], lay.version);
+  r = await save([{ i: 'kasur-rotan', x: 0, y: 0, r: 4 }, ...others], lay.version);
+  assert.equal(r.status, 400);
+  r = await save([{ i: 'kasur-rotan', x: 0, y: 0, r: 'dua' }, ...others], lay.version);
   assert.equal(r.status, 400);
   // diputar di baris terakhir: keluar ruangan
   const size = lay.size ?? 6;
   r = await save([{ i: 'kasur-rotan', x: 0, y: size - 1, r: 1 }, ...others.filter((p: any) => !(p.x === 0 && p.y >= size - 2))], lay.version);
   assert.equal(r.status, 400);
   assert.match(JSON.stringify(r.body), /bertumpuk atau keluar/);
+  // membelakangi kamera (arah 2): ukuran petak sama dengan awal
+  r = await save([{ i: 'kasur-rotan', x: 4, y: 0, r: 2 }, ...others], lay.version);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  now = (await c.get('/api/me')).body; lay = (now.rooms ?? [now.room])[0];
+  assert.deepEqual(lay.layout.find((p: any) => p.i === 'kasur-rotan'), { i: 'kasur-rotan', x: 4, y: 0, r: 2 });
+  // "tanpa tampak belakang": arah 2 kembali ke awal saat disimpan
+  await db.query(`update items set data = data || '{"noBack": true}'::jsonb where id = 'kasur-rotan'`);
+  invalidateCaches();
+  r = await save([{ i: 'kasur-rotan', x: 4, y: 0, r: 2 }, ...others], lay.version);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  now = (await c.get('/api/me')).body; lay = (now.rooms ?? [now.room])[0];
+  assert.deepEqual(lay.layout.find((p: any) => p.i === 'kasur-rotan'), { i: 'kasur-rotan', x: 4, y: 0 });
+  await db.query(`update items set data = data - 'noBack' where id = 'kasur-rotan'`);
+  invalidateCaches();
   // r: 0 tidak disimpan
   r = await save([{ i: 'kasur-rotan', x: 4, y: 0, r: 0 }, ...others], lay.version);
   assert.equal(r.status, 200, JSON.stringify(r.body));

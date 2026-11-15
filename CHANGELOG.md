@@ -4,6 +4,20 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.41.0 · 2026-11-15 · Putar perabot 4 arah
+
+_Perabot sekarang bisa diputar ke 4 arah, termasuk membelakangi kamera._
+
+### Baru
+
+- Tombol Putar sekarang memutar perabot seperempat putaran tiap ketukan, jadi ada 4 arah: menghadap kiri, menghadap kanan, dan membelakangi kamera dari dua sisi. Sofa bisa menghadap TV di sisi mana pun. Di komputer, tekan R. _(pemain)_
+
+### Perubahan
+
+- Dari belakang, sisi depan perabot tidak terlihat: layar TV, pintu lemari, pintu oven, dan papan menu tersembunyi, sedangkan sandaran sofa, sandaran kursi, dan kepala kasur ada di depan. _(pemain)_
+- Perabot dari gambar unggahan admin tetap 2 arah. Admin bisa membatasi perabot lain ke 2 arah lewat pilihan "Tanpa tampak belakang" di editor barang.
+- Teknis: r 0–3 (0 tidak disimpan; r: 1 dari v0.40.0 tetap sama). Tampak belakang dibuat otomatis (furnBack): titik dicerminkan terhadap pusat petak, panel depan (quadX/quadY) tidak digambar, balok diurutkan ulang (sortBoxes: belakang/bawah dulu). Penyesuaian gambar: lemari, kulkas, mesin kopi, tenda, karpet awan. Uji: putar.test.ts, e2e-putar.
+
 ## 0.40.0 · 2026-11-15 · Putar perabot
 
 _Perabot sekarang bisa diputar menghadap dinding lainnya, jadi sofa, kasur, dan TV bisa ditata sesukamu._
@@ -18,6 +32,8 @@ _Perabot sekarang bisa diputar menghadap dinding lainnya, jadi sofa, kasur, dan 
 - Arah perabot tersimpan dan tampil sama saat temanmu berkunjung. Pet tetap bisa duduk, tidur, dan memakai perabot yang diputar. _(pemain)_
 - Admin: centang "Tidak bisa diputar" di editor barang (mebel) untuk gambar unggahan yang berisi tulisan. Bila dicentang belakangan, arah putar barang itu diabaikan.
 - Teknis: susunan ruangan { i, x, y } + r: 1 bila diputar (tanpa r = arah awal, rumah lama tidak berubah). Diputar = gambar dicerminkan terhadap titik iso (0,0) ruangan & lebar/dalam ditukar (footprint/occupied/fits/rotatePlaced di shared art.ts); server memeriksa r & tabrakan. Uji: putar.test.ts (6 uji), e2e-putar (24 cek).
+
+Commit: [`9823db0`](https://github.com/envfri/kampung-baru/commit/9823db0)
 
 ## 0.39.1 · 2026-11-15 · Alun-alun pindah ke dekat Rumahku
 

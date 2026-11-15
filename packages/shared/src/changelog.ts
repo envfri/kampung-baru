@@ -39,9 +39,22 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.41.0',
+    date: '2026-11-15',
+    title: 'Putar perabot 4 arah',
+    summary: 'Perabot sekarang bisa diputar ke 4 arah, termasuk membelakangi kamera.',
+    items: [
+      { kind: 'baru', text: 'Tombol Putar sekarang memutar perabot seperempat putaran tiap ketukan, jadi ada 4 arah: menghadap kiri, menghadap kanan, dan membelakangi kamera dari dua sisi. Sofa bisa menghadap TV di sisi mana pun. Di komputer, tekan R.', player: true },
+      { kind: 'ubah', text: 'Dari belakang, sisi depan perabot tidak terlihat: layar TV, pintu lemari, pintu oven, dan papan menu tersembunyi, sedangkan sandaran sofa, sandaran kursi, dan kepala kasur ada di depan.', player: true },
+      { kind: 'ubah', text: 'Perabot dari gambar unggahan admin tetap 2 arah. Admin bisa membatasi perabot lain ke 2 arah lewat pilihan "Tanpa tampak belakang" di editor barang.' },
+      { kind: 'ubah', text: 'Teknis: r 0–3 (0 tidak disimpan; r: 1 dari v0.40.0 tetap sama). Tampak belakang dibuat otomatis (furnBack): titik dicerminkan terhadap pusat petak, panel depan (quadX/quadY) tidak digambar, balok diurutkan ulang (sortBoxes: belakang/bawah dulu). Penyesuaian gambar: lemari, kulkas, mesin kopi, tenda, karpet awan. Uji: putar.test.ts, e2e-putar.' },
+    ],
+  },
+  {
     version: '0.40.0',
     date: '2026-11-15',
     title: 'Putar perabot',
+    commits: ['9823db0'],
     summary: 'Perabot sekarang bisa diputar menghadap dinding lainnya, jadi sofa, kasur, dan TV bisa ditata sesukamu.',
     items: [
       { kind: 'baru', text: 'Di mode Atur, ketuk perabot lalu ketuk Putar untuk memutarnya menghadap dinding lainnya. Sofa dan kasur kini bisa menempel di dinding kiri, dan TV serta kursi bisa dihadapkan ke sofa. Ketuk Putar lagi untuk kembali ke arah semula. Di komputer, tekan R.', player: true },

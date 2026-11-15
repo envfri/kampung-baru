@@ -80,7 +80,8 @@ function G(c: Iso) {
     const Q = (xx: number, v: number) => { const p = iso(xx, y); return [p[0], p[1] - v * s]; };
     return poly([Q(x0, v0), Q(x1, v0), Q(x1, v1), Q(x0, v1)], fill, sw);
   };
-  return { s, iso, poly, box, quadX, quadY };
+  /** back: digambar sebagai tampak belakang (perabot diputar 180°) — hiasan di sisi depan boleh dilewati */
+  return { s, iso, poly, box, quadX, quadY, back: false as boolean };
 }
 type Ctx = ReturnType<typeof G>;
 
@@ -218,6 +219,7 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       const X = x + w - 0.05;
       o += g.quadX(X, y + 0.12, y + d / 2 - 0.03, 8, 88, shade(c.main, -0.2), 1.2);
       o += g.quadX(X, y + d / 2 + 0.03, y + d - 0.12, 8, 88, shade(c.main, -0.2), 1.2);
+      if (g.back) return o; // dari belakang: gagang pintu tidak terlihat
       const k1 = g.iso(X, y + d / 2 - 0.12), k2 = g.iso(X, y + d / 2 + 0.12);
       o += `<circle cx="${f1(k1[0])}" cy="${f1(k1[1] - 48 * g.s)}" r="${f1(2.4 * g.s)}" fill="#F2B632" stroke="${INK}" stroke-width="1"/>`;
       o += `<circle cx="${f1(k2[0])}" cy="${f1(k2[1] - 48 * g.s)}" r="${f1(2.4 * g.s)}" fill="#F2B632" stroke="${INK}" stroke-width="1"/>`;
@@ -262,6 +264,7 @@ const FURN: Record<string, { label: string; colors: Record<string, string>; draw
       o += g.quadY(Y, x + 0.12, x + 0.88, 58, 60, shade(c.main, -0.35), 0);
       o += g.quadY(Y, x + 0.72, x + 0.79, 66, 84, '#9AA7B8', 1);
       o += g.quadY(Y, x + 0.72, x + 0.79, 30, 50, '#9AA7B8', 1);
+      if (g.back) return o; // dari belakang: magnet hiasan di pintu tidak terlihat
       const m = g.iso(x + 0.35, Y);
       return o + `<circle cx="${f1(m[0])}" cy="${f1(m[1] - 76 * g.s)}" r="${f1(3 * g.s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(g.s)}"/>`;
     },
@@ -1006,7 +1009,7 @@ export interface Placed {
   i: string; // item id
   x: number;
   y: number;
-  /** 1 = diputar (dicerminkan, lebar & dalam ditukar); kosong / 0 = arah awal */
+  /** arah: kosong / 0 = awal, 1 = seperempat putaran (dicerminkan, lebar & dalam ditukar), 2 = membelakangi kamera, 3 = keduanya */
   r?: number;
 }
 
@@ -1107,15 +1110,22 @@ export const ROOM_VIEWBOX = '140 -70 520 500';
 
 /** Perabot bisa diputar (dicerminkan): tidak bila admin mematikannya (gambar bertulisan) atau benda tetap bermasker. */
 export const canRotate = (item?: ItemLike | null) => !!item && !item.data?.noRotate && !Array.isArray(item.data?.mask);
-/** arah perabot yang dipakai (1 = diputar) — r diabaikan bila perabot tidak bisa diputar */
-export const rotOf = (item: ItemLike | null | undefined, r?: number) => (r === 1 && canRotate(item) ? 1 : 0);
+/** Perabot punya tampak belakang (4 arah): gambar bawaan saja (gambar unggahan tidak punya sisi belakang). */
+export const canBack = (item?: ItemLike | null) => canRotate(item) && item!.art?.type === 'builtin' && !item!.data?.noBack;
+/** jumlah arah perabot: 4, 2, atau 1 */
+export const rotSteps = (item?: ItemLike | null) => (canBack(item) ? 4 : canRotate(item) ? 2 : 1);
+/** arah perabot yang dipakai (0–3) — arah yang tidak tersedia untuk perabot itu dianggap arah awal */
+export const rotOf = (item: ItemLike | null | undefined, r?: number) => {
+  const n = rotSteps(item);
+  return Number.isInteger(r) && (r as number) > 0 && (r as number) < n ? (r as number) : 0;
+};
 
 // mebel katalog dibatasi 4×4 oleh admin; benda tetap alun-alun (kolam pancing 6×5) boleh sampai 8
 /** Ukuran petak perabot; r = 1 (diputar): lebar & dalam ditukar. */
 export function footprint(item?: ItemLike | null, r?: number) {
   const d = item?.data ?? {};
   const w = Math.max(1, Math.min(8, d.w | 0 || 1)), dd = Math.max(1, Math.min(8, d.d | 0 || 1));
-  return rotOf(item, r) ? { w: dd, d: w, flat: !!d.flat } : { w, d: dd, flat: !!d.flat };
+  return rotOf(item, r) % 2 ? { w: dd, d: w, flat: !!d.flat } : { w, d: dd, flat: !!d.flat };
 }
 
 export function occupied(layout: Placed[], items: Record<string, ItemLike>, skip = -1) {
@@ -1147,17 +1157,18 @@ export function fits(item: ItemLike, x: number, y: number, layout: Placed[], ite
 /** urutan geser saat diputar: tetap di tempat, lalu 1 petak ke samping, lalu serong */
 const ROT_SHIFT: [number, number][] = [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
 /**
- * Putar perabot ke-`sel` (arah awal ↔ diputar). Tetap di tempat bila muat; bila tidak, digeser paling jauh 1 petak.
+ * Putar perabot ke-`sel` seperempat putaran. Tetap di tempat bila muat; bila tidak, digeser paling jauh 1 petak.
  * Hasil: susunan barunya untuk perabot itu, atau null bila tidak bisa diputar / tidak muat di sekitar sini.
  */
 export function rotatePlaced(layout: Placed[], sel: number, items: Record<string, ItemLike>, size: number): Placed | null {
   const p = layout[sel];
   const it = p ? items[p.i] : null;
   if (!p || !it || !canRotate(it)) return null;
-  const r = rotOf(it, p.r) ? 0 : 1;
+  // seperempat putaran: awal → 1 → 2 → 3 → awal (2 arah: awal ↔ 1)
+  const r = (rotOf(it, p.r) + 1) % rotSteps(it);
   for (const [dx, dy] of ROT_SHIFT) {
     const x = p.x + dx, y = p.y + dy;
-    if (fits(it, x, y, layout, items, size, sel, r)) return r ? { ...p, x, y, r: 1 } : (({ r: _r, ...rest }) => ({ ...rest, x, y }))(p);
+    if (fits(it, x, y, layout, items, size, sel, r)) return r ? { ...p, x, y, r } : (({ r: _r, ...rest }) => ({ ...rest, x, y }))(p);
   }
   return null;
 }
@@ -1179,11 +1190,61 @@ export function petSpot(layout: Placed[], items: Record<string, ItemLike>, size 
  * yang menghadap ke dinding lainnya. Tidak perlu gambar baru.
  */
 function furnDraw(g: Ctx, item: ItemLike, x: number, y: number, r = 0) {
-  if (rotOf(item, r)) {
+  const q = rotOf(item, r);
+  if (q % 2) {
     const X0 = g.iso(0, 0)[0];
-    return `<g class="rot" transform="translate(${f1(2 * X0)} 0) scale(-1 1)">${furnDrawRaw(g, item, y, x)}</g>`;
+    return `<g class="rot" transform="translate(${f1(2 * X0)} 0) scale(-1 1)">${q === 3 ? furnBack(g, item, y, x) : furnDrawRaw(g, item, y, x)}</g>`;
   }
-  return furnDrawRaw(g, item, x, y);
+  return q === 2 ? furnBack(g, item, x, y) : furnDrawRaw(g, item, x, y);
+}
+/**
+ * Tampak belakang (diputar 180° di petaknya): titik dicerminkan terhadap pusat petak, panel yang tadinya menghadap
+ * kamera (layar TV, pintu lemari, ...) jadi membelakangi kamera sehingga tidak digambar, dan balok-balok diurutkan
+ * ulang dari belakang ke depan. Hiasan lain (garis, lingkaran) digambar di atasnya.
+ */
+function furnBack(g: Ctx, item: ItemLike, x: number, y: number) {
+  const f = footprint(item);
+  const W = f.w, D = f.d;
+  const R = (u: number, v: number): [number, number] => [2 * x + W - u, 2 * y + D - v];
+  type B = { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; n: number; h: string };
+  const boxes: B[] = [];
+  const bg: Ctx = {
+    ...g,
+    back: true,
+    iso: (u: number, v: number) => { const [a, b] = R(u, v); return g.iso(a, b); },
+    box: (bx: number, by: number, z: number, bw: number, bd: number, h: number, c3: string[]) => {
+      const nx = 2 * x + W - bx - bw, ny = 2 * y + D - by - bd;
+      boxes.push({ x0: nx, x1: nx + bw, y0: ny, y1: ny + bd, z0: z, z1: z + h, n: boxes.length, h: g.box(nx, ny, z, bw, bd, h, c3) });
+      return '';
+    },
+    // panel bidang x / y yang menghadap kamera: setelah diputar menghadap dinding → tidak terlihat
+    quadX: () => '',
+    quadY: () => '',
+  } as Ctx;
+  const rest = furnDrawRaw(bg, item, x, y);
+  return `<g class="back">${sortBoxes(boxes).map((q) => q.h).join('')}${rest}</g>`;
+}
+/**
+ * Urutan gambar balok isometrik (belakang → depan): A sebelum B bila A di belakang B pada sumbu x atau y, atau di
+ * bawahnya (z). Bila tidak bisa diputuskan (balok saling menembus), pakai titik tengah lalu urutan aslinya.
+ */
+function sortBoxes<T extends { x0: number; x1: number; y0: number; y1: number; z0: number; z1: number; n: number }>(list: T[]): T[] {
+  const e = 1e-6;
+  const behind = (a: T, b: T) => a.x1 <= b.x0 + e || a.y1 <= b.y0 + e || a.z1 <= b.z0 + e;
+  const key = (a: T) => (a.x0 + a.x1) / 2 + (a.y0 + a.y1) / 2;
+  const cmp = (a: T, b: T) => key(a) - key(b) || a.z0 - b.z0 || a.n - b.n;
+  const left = [...list], out: T[] = [];
+  while (left.length) {
+    let pick = -1;
+    for (let i = 0; i < left.length; i++) {
+      const a = left[i];
+      const blocked = left.some((b, j) => j !== i && behind(b, a) && !behind(a, b));
+      if (!blocked && (pick < 0 || cmp(a, left[pick]) < 0)) pick = i;
+    }
+    if (pick < 0) pick = left.reduce((m, a, i) => (cmp(a, left[m]) < 0 ? i : m), 0);
+    out.push(left.splice(pick, 1)[0]);
+  }
+  return out;
 }
 function furnDrawRaw(g: Ctx, item: ItemLike, x: number, y: number) {
   const f = footprint(item);
@@ -2172,6 +2233,7 @@ const PREMIUM: Record<string, { label: string; colors: Record<string, string>; d
       o += g.box(x + 0.22, y + 0.2, 44, 0.56, 0.5, 34, C3(c.main));
       o += g.box(x + 0.22, y + 0.2, 78, 0.56, 0.5, 4, C3('#C0392B'));
       o += g.quadY(y + 0.7, x + 0.32, x + 0.68, 58, 72, '#2B2F4A', 1);
+      if (g.back) return o; // dari belakang: lampu, corong & cangkir di depan tidak terlihat
       const [px, py] = g.iso(x + 0.5, y + 0.7);
       o += `<circle cx="${f1(px - 8 * s)}" cy="${f1(py - 65 * s)}" r="${f1(3 * s)}" fill="#7FC4E8"/><circle cx="${f1(px + 8 * s)}" cy="${f1(py - 65 * s)}" r="${f1(3 * s)}" fill="#F2B632"/>`;
       o += `<rect x="${f1(px - 5 * s)}" y="${f1(py - 55 * s)}" width="${f1(10 * s)}" height="${f1(6 * s)}" fill="#3B3F55" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
@@ -2384,6 +2446,13 @@ const PREMIUM: Record<string, { label: string; colors: Record<string, string>; d
       const a0 = g.iso(x + 0.12, y + 0.12), a1 = g.iso(x + w - 0.12, y + 0.12), b0 = g.iso(x + 0.12, y + d - 0.12), b1 = g.iso(x + w - 0.12, y + d - 0.12);
       const r0 = up(g.iso(x + 0.12, y + d / 2), H), r1 = up(g.iso(x + w - 0.12, y + d / 2), H);
       let o = shadowE(...(g.iso(x + w / 2, y + d / 2) as [number, number]), (w + d) * 16 * s, (w + d) * 7 * s);
+      if (g.back) {
+        // tampak belakang: atap sisi lain & ujung tenda tanpa pintu, bendera & umbul-umbul tetap
+        o += g.poly([a0, a1, r1, r0], c.main);
+        o += g.poly([a0, b0, r0], shade(c.main, -0.15));
+        o += `<path d="M${f1(r1[0])} ${f1(r1[1])}v${f1(-22 * s)}" stroke="${INK}" stroke-width="${f1(2 * s)}"/><path d="M${f1(r1[0])} ${f1(r1[1] - 22 * s)}l${f1(-14 * s)} ${f1(5 * s)}l${f1(14 * s)} ${f1(5 * s)}Z" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.4 * s)}" stroke-linejoin="round"/>`;
+        return o;
+      }
       o += g.poly([b0, b1, r1, r0], c.main);
       for (const t of [0.33, 0.66]) { const p = [b0[0] + (b1[0] - b0[0]) * t, b0[1] + (b1[1] - b0[1]) * t], q = [r0[0] + (r1[0] - r0[0]) * t, r0[1] + (r1[1] - r0[1]) * t]; o += `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" stroke="${shade(c.main, -0.2)}" stroke-width="${f1(2 * s)}"/>`; }
       o += g.poly([a1, b1, r1], shade(c.main, -0.15));
@@ -2402,7 +2471,7 @@ const PREMIUM: Record<string, { label: string; colors: Record<string, string>; d
     draw(g, x, y, w, d, c) {
       const s = g.s, k = Math.SQRT2;
       const blobs = [[0.55, 0.6, 0.42], [1.0, 0.45, 0.5], [1.45, 0.65, 0.4], [0.75, 1.2, 0.48], [1.3, 1.25, 0.45], [1.0, 1.0, 0.5]].map(([u, v, r]) => [u * w / 2, v * d / 2, r * Math.min(w, d) / 2]);
-      const ell = (u: number, v: number, r: number, fill: string, grow = 0) => { const p = g.iso(x + u, y + v), t = (g.iso(1, 0)[0] - g.iso(0, 0)[0]); return `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="${f1(r * t * k + grow)}" ry="${f1((r * t * k + grow) / 2)}" fill="${fill}"/>`; };
+      const ell = (u: number, v: number, r: number, fill: string, grow = 0) => { const p = g.iso(x + u, y + v), t = Math.abs(g.iso(1, 0)[0] - g.iso(0, 0)[0]); return `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="${f1(r * t * k + grow)}" ry="${f1((r * t * k + grow) / 2)}" fill="${fill}"/>`; };
       let o = blobs.map(([u, v, r]) => ell(u, v, r, INK, 2.6 * s)).join('');
       o += blobs.map(([u, v, r]) => ell(u, v, r, c.accent, 0)).join('');
       o += blobs.map(([u, v, r]) => ell(u - 0.04, v - 0.04, r * 0.86, c.main, 0)).join('');

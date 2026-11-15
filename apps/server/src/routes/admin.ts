@@ -115,7 +115,7 @@ function cleanKindData(kind: string, v: any) {
       return { effects, ...(bool(d.cure) ? { cure: true } : {}) };
     }
     case 'furniture':
-      return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}), ...(bool(d.noRotate) ? { noRotate: true } : {}) };
+      return { w: num(d.w, 'Lebar', 1, 4, 1), d: num(d.d, 'Panjang', 1, 4, 1), ...(bool(d.flat) ? { flat: true } : {}), ...(bool(d.noRotate) ? { noRotate: true } : {}), ...(bool(d.noBack) ? { noBack: true } : {}) };
     case 'wear': {
       // outfit: nama set padu-padan (label di kartu toko), opsional
       const outfit = str(d.outfit, 'Set padu-padan', { max: 32, optional: true });

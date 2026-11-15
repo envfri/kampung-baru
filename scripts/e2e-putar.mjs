@@ -38,6 +38,8 @@ const closeSheets = async (p) => { for (let i = 0; i < 3; i++) { const x = p.loc
 const home = async (pl) => { await pl.p.goto(`${BASE}/?r=${Math.random().toString(36).slice(2)}`); await pl.p.waitForSelector('.dock', { timeout: 20000 }); await W(1200); await closeSheets(pl.p); };
 const sofaLay = async (pl) => { const me = await (await pl.ctx.request.get(BASE + '/api/me')).json(); return (me.rooms ?? [me.room])[0].layout.find((q) => q.i === 'sofa-santai'); };
 const rotated = (p, idx) => p.evaluate((i) => !!document.querySelector(`svg.room [data-i="${i}"] .rot`), idx);
+/** arah yang tergambar: 0 awal, 1 dicerminkan, 2 tampak belakang, 3 belakang dicerminkan */
+const dirOf = (p, idx) => p.evaluate((i) => { const g = document.querySelector(`svg.room [data-i="${i}"]`); return g ? (g.querySelector('.back') ? 2 : 0) + (g.querySelector('.rot') ? 1 : 0) : -1; }, idx);
 /** bar Atur: tombol tidak bertumpuk, di dalam layar, ≥ 40 px */
 async function barOk(p, tag) {
   const r = await p.evaluate(() => {
@@ -72,13 +74,25 @@ check(s1?.r === 1, `arah tersimpan di server (${JSON.stringify(s1)})`);
 await home(A);
 check(await rotated(A.p, 2), 'setelah muat ulang sofa tetap diputar');
 await A.p.screenshot({ path: `${OUT}/rumah-diputar-390.png` });
-// putar lagi → kembali ke arah awal (r hilang)
+// 4 arah: putar lagi → membelakangi kamera (2), lalu (3), lalu kembali ke awal (0)
 await A.p.click('.btn.act:has-text("Atur")'); await W(700);
 await A.p.locator('svg.room [data-i="2"]').first().click({ force: true }); await W(400);
 await A.p.click('.editbar .rotbtn'); await W(300);
-check(!(await rotated(A.p, 2)), 'Putar lagi → arah awal');
+check(await dirOf(A.p, 2) === 2, 'Putar ke-2 → sofa membelakangi kamera (tampak belakang)');
+await A.p.screenshot({ path: `${OUT}/atur-belakang-390.png` });
+await A.p.click('.editbar .btn:has-text("Selesai")'); await W(1200);
+const s1b = await sofaLay(A);
+check(s1b?.r === 2, `arah membelakangi kamera tersimpan (${JSON.stringify(s1b)})`);
+await home(A);
+check(await dirOf(A.p, 2) === 2, 'setelah muat ulang sofa tetap membelakangi kamera');
+await A.p.click('.btn.act:has-text("Atur")'); await W(700);
+await A.p.locator('svg.room [data-i="2"]').first().click({ force: true }); await W(400);
+await A.p.click('.editbar .rotbtn'); await W(300);
+check(await dirOf(A.p, 2) === 3, 'Putar ke-3 → belakang dicerminkan');
+await A.p.click('.editbar .rotbtn'); await W(300);
+check(await dirOf(A.p, 2) === 0, 'Putar ke-4 → kembali ke arah awal');
 await A.p.click('.editbar .btn:has-text("Batal")'); await W(500);
-check(await rotated(A.p, 2), 'Batal → kembali seperti yang tersimpan (diputar)');
+check(await dirOf(A.p, 2) === 2, 'Batal → kembali seperti yang tersimpan (membelakangi kamera)');
 
 /* ---------------- teman berkunjung melihat arah yang sama ---------------- */
 const F = await mk('Wajik', [390, 844], [{ i: 'kasur-rotan', x: 4, y: 0 }, { i: 'karpet-kawung', x: 2, y: 2 }], {});
@@ -88,7 +102,7 @@ await F.p.locator('.friend .btn:has-text("Kunjungi"), .friend .btn:has-text("Mai
 let visiting = false;
 for (let i = 0; i < 40 && !visiting; i++) { await W(500); visiting = (await F.p.locator('svg.room').count()) > 0 && (await F.p.evaluate(() => !!document.querySelector('.visit, .hbar'))); }
 await W(1500);
-check(visiting && (await F.p.evaluate(() => !!document.querySelector('svg.room .rot'))), 'teman berkunjung melihat sofa yang diputar');
+check(visiting && (await F.p.evaluate(() => !!document.querySelector('svg.room .back'))), 'teman berkunjung melihat sofa yang membelakangi kamera');
 await F.p.screenshot({ path: `${OUT}/kunjungan-diputar-390.png` });
 
 /* ---------------- tidak muat: pesan & tidak berubah (HP 320) ---------------- */
@@ -125,8 +139,8 @@ await barOk(C.p, 'desktop 1366');
 await C.p.keyboard.press('r'); await W(400);
 check(await rotated(C.p, 2), 'desktop: tombol R memutar sofa');
 await C.p.screenshot({ path: `${OUT}/atur-diputar-1366.png` });
-await C.p.keyboard.press('R'); await W(300);
-check(!(await rotated(C.p, 2)), 'desktop: R lagi → arah awal');
+for (let k = 0; k < 3; k++) { await C.p.keyboard.press('R'); await W(250); }
+check(await dirOf(C.p, 2) === 0, 'desktop: R 4× → arah awal');
 await C.p.click('.editbar .btn:has-text("Batal")'); await W(300);
 // di luar mode Atur, R tidak melakukan apa-apa
 await C.p.keyboard.press('r'); await W(300);
