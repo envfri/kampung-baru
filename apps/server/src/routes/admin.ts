@@ -3,7 +3,7 @@ import { forgetMute } from './square';
 import { checkCaturSettings } from '../lib/catur-game';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -555,6 +555,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (!(rm.xp >= 0 && rm.xp <= 20)) throw bad('invalid_settings', 'Ramai-ramai: XP tambahan harus 0–20.');
     checkCaturSettings(value, (msg) => { throw bad('invalid_settings', msg); });
     checkLudo(value.ludo);
+    checkAjakAlun(value.ajakAlun, (msg) => { throw bad('invalid_settings', msg); });
     const jp = value.jepret;
     if (!(Number.isInteger(jp.shareEventsPerDay) && jp.shareEventsPerDay >= 0 && jp.shareEventsPerDay <= 50)) throw bad('invalid_settings', 'Jepret: batas catatan bagikan per hari harus bilangan bulat 0–50.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);

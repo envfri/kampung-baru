@@ -135,6 +135,22 @@ export const DEFAULT_SETTINGS = {
   bareng: { longMult: 1.5 },
   /** Jepret & Bagikan ke Story: batas catatan bagikan per pemain per hari (untuk tugas, tanpa koin di luar tugas) */
   jepret: { shareEventsPerDay: 5 },
+  /** Pet ngajak ke Alun-alun (gelembung ajakan di rumah sendiri saat ada orang lain di alun-alun) */
+  ajakAlun: {
+    firstSec: 60,
+    gapMin: 15,
+    perDay: 4,
+    minPeople: 1,
+    ramaiFrom: 5,
+    lines: {
+      teman: ['Ke alun-alun yuk! {teman} lagi di sana.', '{teman} lagi di alun-alun, susul yuk!'],
+      kembangApi: ['Sebentar lagi ada kembang api! Nonton bareng yuk?', 'Kembang api {menit} menit lagi! Ke alun-alun yuk?'],
+      lomba: ['Lomba Mancing mulai {menit} menit lagi. Ikut yuk!'],
+      arak: ['Arak-arakan ondel-ondel mau lewat! Ikut yuk?'],
+      sedikit: ['Ada {jumlah} orang di alun-alun, samperin yuk?', 'Di alun-alun ada {jumlah} orang. Main ke sana yuk?'],
+      ramai: ['Alun-alun lagi ramai, {jumlah} orang! Main ke sana yuk?', 'Wah, alun-alun ramai banget! Ke sana yuk?'],
+    },
+  },
   premium: {
     bundleDiscount: 20,
     bonusMin: 3,
@@ -255,6 +271,7 @@ export const DEFAULT_SETTINGS = {
     catur: true,
     ludo: true,
     jepret: true,
+    ajakAlun: true,
   },
 };
 
@@ -277,6 +294,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   visit: 'Kunjungan bareng: pet ikut berkunjung & bermain dengan pet teman. together = aktifkan; maxLive = tamu yang tampil bersamaan di satu rumah (semua ruangan, selain tuan rumah); actsPerFriend = interaksi berhadiah per teman per hari (coins & xp untuk tamu, ceria untuk pet tamu, hostCeria untuk pet tuan rumah); freeChat = boleh mengetik bebas (disaring daftar kata terlarang, tautan & nomor ditolak), chatMax = panjang pesan, phrases = frasa siap pakai (satu baris satu frasa); coopPerDay/coopCoins/coopXp = hadiah Masak bareng, Lempar bola, Congklak & Catur (menang penuh, kalah 40%, seri 60%) & Ular Tangga Kampung (peringkat 100/60/40/20%; pemain yang bertahan dapat hadiah bila permainan selesai normal atau ia sudah melempar paling tidak 6 kali); photoPerDay = foto bareng per hari.',
   catur: 'Catur Kilat (main bareng 2 pemain, rumah & Pos Ronda alun-alun). baseMs = waktu awal tiap pemain (ms, 300000 = 5 menit), incMs = tambahan per langkah (ms), firstMoveMs = batas langkah pertama tiap pihak (lewat = permainan batal tanpa hadiah), idleMs = batas diam satu langkah (lewat = kalah waktu), idleWarnMs = peringatan diam, maxMs = batas lama permainan (lewat = remis), minPlies = paruh langkah minimal supaya ada hadiah (kurang = tanpa hadiah & tanpa jatah), drawOfferFromPly = tawar remis boleh mulai paruh langkah ke-, drawOffers = tawaran remis per pemain, promoAutoMs = pilihan promosi otomatis Menteri (ms), auto50 = remis otomatis setelah sekian paruh langkah tanpa makan / gerak pion (0 = mati).',
   jepret: 'Jepret & Bagikan ke Story: pemain memotret rumah, rumah teman, atau alun-alun (atau Foto bareng) lalu membagikannya sebagai gambar Story/Feed. Gambar dibuat di HP pemain (tanpa biaya server, tidak disimpan di server). shareEventsPerDay = batas catatan bagikan/simpan per pemain per hari (0–50) yang dihitung untuk tugas harian "Bagikan 1 foto"; tidak ada koin di luar hadiah tugas. Nyalakan/matikan di Fitur & login › jepret.',
+  ajakAlun: 'Pet ngajak ke Alun-alun: saat pemain di rumahnya sendiri dan ada orang lain di alun-alun, pet sesekali mengajak lewat gelembung bicara dengan tombol Ayo! (langsung jalan ke alun-alun) dan Nanti. Alasan dipilih otomatis: kembang api ≤ 5 menit lagi, Lomba Mancing ≤ 3 menit lagi, arak-arakan ≤ 2 menit lagi, teman sedang di sana, lalu keramaian. firstSec = jeda pertama setelah masuk rumah (detik, 5–600), gapMin = jeda antar ajakan (menit, 1–240), perDay = ajakan per hari (0–20), minPeople = paling sedikit orang lain di alun-alun (1–20), ramaiFrom = mulai sekian orang dipakai kalimat "ramai" (2–50). Pemain yang menekan Nanti 2 kali berturut-turut tidak diajak lagi hari itu; tidak mengajak bila baru pulang dari alun-alun (< 10 menit). lines = kalimat per alasan (satu baris satu kalimat, dipilih acak): {teman} = nama pet teman, {jumlah} = jumlah orang, {menit} = menit sampai acara, {pet} = nama pet pemain. Nyalakan/matikan di Fitur & login › ajakAlun.',
   bareng: 'Main bareng: longMult = pengali koin & XP untuk game panjang (Catur, Ludo) di atas hadiah main bareng biasa (Kunjungan bareng › coopCoins / coopXp). Jatah harian tetap sama.',
   account: 'Akun tamu & pindah perangkat. transferCodes = izinkan kode pindah perangkat (sekali pakai, berlaku transferMinutes menit). Ajakan "Simpan progres" untuk pemain tamu muncul setelah nudgeDays hari, atau saat pet mencapai Lv nudgeLevel, punya teman pertama, atau menang duel; bila ditunda muncul lagi setelah nudgeSnoozeDays hari.',
   duel: 'Duel dengan teman (Balap Bakiak, Gasing, Tangkap Layangan): main bareng langsung bila keduanya online, atau tantangan melawan bayangan. Hadiah koin dari sistem (tanpa taruhan) dibayar setelah kedua pemain main; perDay = batas duel per pemain per hari; tantangan kedaluwarsa setelah expireHours jam.',

@@ -792,9 +792,29 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     return { ok: true };
   });
 
-  /** Ketersediaan alun-alun untuk peta (jumlah orang). */
-  app.get('/api/square', auth, async () => {
+  /** Ketersediaan alun-alun untuk peta (jumlah orang) & ajakan pet di rumah: teman yang sedang di alun-alun (maks 3). */
+  app.get('/api/square', auth, async (req: any) => {
     const { open, max } = await settings();
-    return { enabled: open, max, squares: squareCounts(), show: squareShow(clock()) };
+    const uid: string = req.user!.id;
+    // jumlah orang lain (diri sendiri tidak dihitung, mis. baru pulang & belum kedaluwarsa)
+    const here = new Map<string, number>();
+    const now = Date.now();
+    for (const q of SQUARES.values()) for (const m of q.members.values()) if (fresh(m, now) && m.id !== uid) here.set(m.id, q.id);
+    const per = new Map<number, number>();
+    for (const id of here.values()) per.set(id, (per.get(id) ?? 0) + 1);
+    const squares = [...per.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => a.id - b.id);
+    let friends: { name: string; alun: number }[] = [];
+    const s = await getSettings(db);
+    if (open && here.size && s.features.ajakAlun !== false) {
+      // hanya teman yang tidak menyembunyikan status online (sama seperti daftar Teman)
+      const rows = await db.query<{ id: string; pet_name: string | null; display_name: string }>(
+        `select u.id, p.name as pet_name, u.display_name from friendships f join users u on u.id = f.friend_id left join pets p on p.user_id = u.id
+          where f.user_id = $1 and f.friend_id = any($2::uuid[]) and u.show_online and u.banned_at is null
+          order by u.last_seen_at desc nulls last limit 3`,
+        [uid, [...here.keys()]],
+      );
+      friends = rows.map((r) => ({ name: r.pet_name ?? r.display_name, alun: here.get(r.id) ?? 1 }));
+    }
+    return { enabled: open, max, squares, show: squareShow(clock()), friends };
   });
 }

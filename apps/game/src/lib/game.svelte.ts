@@ -69,6 +69,8 @@ export const G = $state({
   bath: null as null | { scrub: number; tool: 'sabun' | 'gayung'; rinsing: boolean },
   /** celetukan pet yang sedang tampil */
   speech: null as null | { text: string; n: number },
+  /** ajakan pet ke alun-alun yang sedang tampil (gelembung dengan tombol Ayo! / Nanti) */
+  ajak: null as null | { text: string; sub: string; alun: number; reason: string; down: boolean },
   /** duel yang sedang dibuka (ruang tunggu / sedang dimainkan) */
   duel: null as null | { id: string; game: string; them: any; autostart?: boolean; live?: boolean },
   /** navigasi bawah diredupkan (mis. sedang memancing) supaya tidak terpencet */

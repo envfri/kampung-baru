@@ -281,6 +281,7 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       weight: (s as any).weight,
       crumbs: (s as any).crumbs,
       speech: (s as any).speech,
+      ajakAlun: (s as any).ajakAlun,
       garden: s.garden,
       room: s.room,
       house: (s as any).house,

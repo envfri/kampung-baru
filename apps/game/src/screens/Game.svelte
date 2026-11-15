@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { G, run, post, fx, toast, item, refreshMe, startEdit, settings, serverNow, track, curRoom, isSleeping, setSleep, needsNow, movePlanRoom, autoPlan, savePlan, cancelPlan, planIssue, cutOffRooms } from '../lib/game.svelte';
   import FoodTray from '../components/FoodTray.svelte';
+  import AjakAlun from '../components/AjakAlun.svelte';
+  import { ajakOn, ajakLeftAlun } from '../lib/ajak.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -231,6 +233,16 @@
     : `top:calc(var(--safe-t) + ${G.view === 'visit' ? 118 + visitH + 8 : 186 + (roomH || 30) + 8}px + var(--hud-x, 0px))`);
   /** kartu ajakan (FriendPrompt, Tonton, ...) turun di bawah tombol Jepret di HP */
   const promptTop = $derived(jpPill && !wideDesk ? `--prompt-top:calc(${G.view === 'visit' ? 118 + visitH + 8 + 44 + 10 : 186 + (roomH || 30) + 8 + 44 + 10}px + var(--hud-x, 0px))` : '');
+  /* ---------- Pet ngajak ke Alun-alun: hanya di rumah sendiri & saat tidak sibuk ---------- */
+  const ajakQuiet = $derived(!!G.sheet || G.edit || !!G.plan || !!G.bath || G.feeding || !!G.feedDrag || !!G.jepret || !!JP.src || G.immersive || sleeping
+    || playingGame || longBoard || !!BG.card || !!BG.watching || H.members.length > 0 || !!G.confirm);
+  // pulang dari alun-alun: tidak langsung diajak ke sana lagi (dicatat terus selama di alun-alun, juga bila halaman dimuat ulang)
+  $effect(() => {
+    if (G.view !== 'alun') return;
+    ajakLeftAlun();
+    const t = setInterval(ajakLeftAlun, 30_000);
+    return () => { clearInterval(t); ajakLeftAlun(); };
+  });
   // tautan /#jepret (tugas "Bagikan 1 foto" › Ke sana): buka setelah layar rumah / alun-alun siap
   $effect(() => { if (JP.want && jpPill) { JP.want = false; setTimeout(() => { if (!G.jepret && jepretOn()) openJepret(); }, 450); } });
   $effect(() => { if (G.jepret && !['home', 'visit', 'alun'].includes(G.view)) { G.jepret = null; JP.src = null; } });
@@ -291,7 +303,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk)}<QuestChip side={guestBar && wideDesk} />{/if}
+    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk) && !G.ajak?.down}<QuestChip side={guestBar && wideDesk} />{/if}
     {#if sleeping}
       <div class="sleepbar">
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
@@ -396,6 +408,7 @@
       <span class="ic">{@html CAM_IC}</span>Jepret{#if wideDesk}<kbd>J</kbd>{/if}{#if !JP.seen}<em>BARU</em>{/if}
     </button>
   {/if}
+  {#if G.view === 'home' && ajakOn()}<AjakAlun quiet={ajakQuiet} />{/if}
   {#if G.jepret === 'frame'}<JepretMode wide={wideDesk} />{/if}
   {#if JP.src}<SharePreview wide={wideDesk} />{/if}
   {#key JP.flash}{#if JP.flash}<div class="jflash" aria-hidden="true"></div>{/if}{/key}

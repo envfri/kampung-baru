@@ -400,7 +400,8 @@
     idleTimer = setTimeout(wander, (reduced ? 2.5 : 1) * (2500 + Math.random() * 5000));
   }
   function wander() {
-    if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || document.hidden || G.sheet === 'feed' || myLudoSeat !== null) return scheduleIdle();
+    // G.ajak: pet berhenti untuk mengajak ke alun-alun (tombol Ayo!/Nanti tidak ikut bergerak)
+    if (!live || walking || hideMain || G.edit || G.plan || acting || menu || asleep || G.bath || G.feedDrag || G.ajak || document.hidden || G.sheet === 'feed' || myLudoSeat !== null) return scheduleIdle();
     const cx = Math.floor(live[0]), cy = Math.floor(live[1]);
     // jalan-jalan kecil di dalam ruangan yang sama
     const options = freeIn(roomAt(live)?.id).filter(([x, y]) => { const m = Math.abs(x - cx) + Math.abs(y - cy); return m > 0 && m <= 3; });
@@ -2052,7 +2053,7 @@
     clearInterval(talkTimer);
     const every = Math.max(10, Number(settings().speech?.everySec ?? 35));
     talkTimer = setInterval(() => {
-      if (mode !== 'home' || G.edit || G.sheet || document.hidden) return;
+      if (mode !== 'home' || G.edit || G.sheet || G.ajak || document.hidden) return;
       if (Math.random() < 0.7) sayLine(look?.chub && look.chub > 0.3 && Math.random() < 0.4 ? 'gembul' : mood);
     }, every * 1000);
   }
@@ -2388,7 +2389,7 @@
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
   {/each}
   {/if}
-  {#if bubble && G.speech && mode === 'home' && !G.jepret}
+  {#if bubble && G.speech && mode === 'home' && !G.jepret && !G.ajak}
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
   {#if menu && !G.jepret}

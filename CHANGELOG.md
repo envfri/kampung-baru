@@ -4,6 +4,21 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.39.0 · 2026-11-15 · Pet ngajak ke Alun-alun
+
+_Kalau ada orang di alun-alun, pet-mu sesekali mengajak ke sana, apalagi kalau ada temanmu atau sebentar lagi ada acara seru._
+
+### Baru
+
+- Saat kamu di rumah dan ada orang lain di alun-alun, pet-mu sesekali mengajak lewat gelembung bicara, misalnya "Ke alun-alun yuk! Wajik lagi di sana." Ketuk Ayo! dan pet-mu langsung jalan ke alun-alun tempat temanmu berada, atau ketuk Nanti. _(pemain)_
+- Ajakannya menyesuaikan yang sedang terjadi: kembang api sebentar lagi, Lomba Mancing atau arak-arakan ondel-ondel mau mulai, ada temanmu di sana, atau alun-alun sedang ramai. _(pemain)_
+
+### Perubahan
+
+- Pet tidak cerewet: paling cepat 1 menit setelah kamu masuk rumah, lalu paling sering tiap 15 menit dan paling banyak 4 kali sehari. Pet juga tidak mengajak saat kamu sibuk atau baru pulang dari alun-alun. Kalau kamu ketuk Nanti 2 kali berturut-turut, pet tidak mengajak lagi sampai besok. _(pemain)_
+- Admin: fitur bisa dinyalakan/dimatikan di features.ajakAlun; jeda, batas per hari, jumlah orang minimal, dan kalimat per alasan diatur di ajakAlun ({teman}, {jumlah}, {menit}, {pet}).
+- Teknis: GET /api/square sekarang menghitung orang lain saja (diri sendiri tidak) dan menyertakan maks 3 teman yang sedang di alun-alun (nama pet; teman yang menyembunyikan status online tidak ikut). Pilihan alasan & kalimat ada di shared/ajak.ts; jeda & batas dicatat di HP (kb-ajak). Catatan ajak_alun {reason, choice}. Uji: ajak.test.ts (9 uji) dan e2e-ajak (48 cek).
+
 ## 0.38.1 · 2026-11-14 · Nampan makanan bisa digeser di HP
 
 _Kalau makananmu banyak, nampan makanan sekarang bisa digeser ke samping untuk memilih makanan lain._
@@ -17,6 +32,8 @@ _Kalau makananmu banyak, nampan makanan sekarang bisa digeser ke samping untuk m
 
 - Nampan makanan bisa digeser ke samping di HP, walau jarimu mulai di atas makanan, jadi makanan di ujung kanan bisa dipilih. Geser ke samping untuk melihat makanan lain, seret ke atas untuk menyuapi pet, atau ketuk untuk langsung menyuapi. _(pemain)_
 - Seret makanan ke pet yang berdiri agak di samping tetap menyuapi, tidak malah menggeser nampan. Nampan juga masih meluncur sebentar setelah disentil. _(pemain)_
+
+Commit: [`26f28e8`](https://github.com/envfri/kampung-baru/commit/26f28e8), [`47dbee7`](https://github.com/envfri/kampung-baru/commit/47dbee7)
 
 ## 0.38.0 · 2026-11-14 · Jepret & Bagikan ke Story
 
