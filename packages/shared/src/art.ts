@@ -1387,6 +1387,26 @@ function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
         const px = p[0], py = p[1] - v;
         o += `<ellipse cx="${f1(px - 4.4)}" cy="${f1(py)}" rx="3.6" ry="2.6" fill="${c}"/><ellipse cx="${f1(px + 4.4)}" cy="${f1(py)}" rx="3.6" ry="2.6" fill="${c}"/><ellipse cx="${f1(px)}" cy="${f1(py - 4.4)}" rx="2.6" ry="3.6" fill="${c}"/><ellipse cx="${f1(px)}" cy="${f1(py + 4.4)}" rx="2.6" ry="3.6" fill="${c}"/><circle cx="${f1(px)}" cy="${f1(py)}" r="1.2" fill="${main}"/>`;
       }
+  } else if (wall.key === 'gedek') {
+    // anyaman bambu: petak bergantian bilah tegak & mendatar (satu path untuk isi, satu untuk garis)
+    const c = L ? wall.accent : shade(wall.accent, 0.25), k = Math.min(1, g.s);
+    const du = 0.3, dv = 13 * k, v0 = 26 * g.s, vTop = WH - 2;
+    let cells = '', lines = '', i = 0;
+    for (let u = a; u < b - 0.02; u += du, i++) {
+      const u1 = Math.min(b, u + du), p0 = at(u), p1 = at(u1);
+      let j = 0;
+      for (let v = v0; v < vTop - 1; v += dv, j++) {
+        const v1 = Math.min(vTop, v + dv);
+        if ((i + j) % 2) {
+          cells += `M${f1(p0[0])} ${f1(p0[1] - v)}L${f1(p1[0])} ${f1(p1[1] - v)}L${f1(p1[0])} ${f1(p1[1] - v1)}L${f1(p0[0])} ${f1(p0[1] - v1)}Z`;
+          for (const k of [0.25, 0.5, 0.75]) { const q = at(u + (u1 - u) * k); lines += `M${f1(q[0])} ${f1(q[1] - v)}V${f1(q[1] - v1)}`; }
+        } else for (const k of [0.33, 0.67]) { const vv = v + (v1 - v) * k; lines += `M${f1(p0[0])} ${f1(p0[1] - vv)}L${f1(p1[0])} ${f1(p1[1] - vv)}`; }
+      }
+    }
+    const t0 = at(a), t1 = at(b);
+    o += `<path d="${cells}" fill="${c}" fill-opacity=".3"/><path d="${lines}" stroke="${c}" stroke-width="${f1(1.2 * k)}" fill="none"/>`;
+    // reng bambu di bagian atas
+    o += `<path d="M${f1(t0[0])} ${f1(t0[1] - WH + 7)}L${f1(t1[0])} ${f1(t1[1] - WH + 7)}" stroke="${INK}" stroke-width="${f1(6 * k)}" stroke-linecap="round"/><path d="M${f1(t0[0])} ${f1(t0[1] - WH + 7)}L${f1(t1[0])} ${f1(t1[1] - WH + 7)}" stroke="${shade(main, -0.12)}" stroke-width="${f1(3.6 * k)}" stroke-linecap="round"/>`;
   } else if (wall.key === 'image' && wall.url) {
     // pola gambar upload diterapkan sebagai tekstur dinding
     const pid = 'wp' + Math.abs(hash(wall.url));
@@ -1434,6 +1454,8 @@ function paintingSVG(g: Ctx, W: number, photo = '', rid?: string) {
   return o + `<circle cx="${f1(sun[0])}" cy="${f1(sun[1])}" r="4" fill="#F2B632"/></g>`;
 }
 
+/** batu-batu lantai batu kali dalam satu petak: [u, v, jari-jari] (petak 0..1, tidak keluar petak) */
+const BATU_KALI = [[0.25, 0.25, 0.17], [0.7, 0.22, 0.15], [0.5, 0.55, 0.17], [0.21, 0.74, 0.14], [0.8, 0.72, 0.14], [0.5, 0.9, 0.07]];
 /** Petak-petak lantai (bisa diketuk) + garis tepi ruangan. */
 function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string, D = W) {
   const s = g.s;
@@ -1441,10 +1463,10 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
   let o = '';
   for (let i = 0; i < W; i++)
     for (let j = 0; j < D; j++) {
-      const solid = floor.key === 'teraso' || floor.key === 'karpet' || floor.key === 'terasoemas' || floor.key === 'pasir';
+      const solid = floor.key === 'teraso' || floor.key === 'karpet' || floor.key === 'terasoemas' || floor.key === 'pasir' || floor.key === 'papanjati' || floor.key === 'batukali';
       const fill = solid ? floor.main : floor.key === 'batutaman' ? ((i + j) % 2 ? floor.main : shade(floor.main, -0.05)) : (i + j) % 2 ? floor.main : floor.accent;
       const attrs = `class="${edit ? 'tile' : 'fl'}"${rattr} data-x="${i}" data-y="${j}"`;
-      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, floor.key === 'karpet' ? -0.06 : -0.22)}" stroke-width="1"/>`;
+      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, floor.key === 'karpet' || floor.key === 'batukali' ? -0.06 : -0.22)}" stroke-width="1"/>`;
       if (floor.key === 'teraso')
         for (const [fx, fy, k] of [[0.25, 0.3, 0], [0.7, 0.2, 1], [0.5, 0.65, 0], [0.2, 0.8, 1], [0.8, 0.75, 0]]) {
           const q = g.iso(i + ((fx + i * 0.13) % 1), j + ((fy + j * 0.17) % 1));
@@ -1467,6 +1489,30 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
       if ((floor.key === 'rumput' || floor.key === 'batutaman') && !edit && (i * 7 + j * 3) % 3 === 0 && (floor.key === 'rumput' || (i + j) % 2)) {
         const c = g.iso(i + 0.5, j + 0.5);
         o += `<path d="M${f1(c[0] - 5 * s)} ${f1(c[1] + 2 * s)}l${f1(2 * s)} ${f1(-7 * s)}M${f1(c[0])} ${f1(c[1] + 2 * s)}v${f1(-9 * s)}M${f1(c[0] + 5 * s)} ${f1(c[1] + 2 * s)}l${f1(-2 * s)} ${f1(-7 * s)}" stroke="#5E9E4A" stroke-width="${f1(1.6 * s)}" stroke-linecap="round" pointer-events="none"/>`;
+      }
+      if (floor.key === 'papanjati') {
+        // parket jati anyaman: 4 kotak kecil per petak, bilah bergantian arah
+        const q = (u: number, v: number) => g.iso(i + u, j + v);
+        const seg = (u0: number, v0: number, u1: number, v1: number) => { const p = q(u0, v0), r = q(u1, v1); return `M${f1(p[0])} ${f1(p[1])}L${f1(r[0])} ${f1(r[1])}`; };
+        let d = seg(0.5, 0, 0.5, 1) + seg(0, 0.5, 1, 0.5), cells = '';
+        for (const [a, b] of [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]]) {
+          const alongX = (a + b) % 1 === 0;
+          for (const k of [1 / 3, 2 / 3]) d += alongX ? seg(a, b + 0.5 * k, a + 0.5, b + 0.5 * k) : seg(a + 0.5 * k, b, a + 0.5 * k, b + 0.5);
+          if (!alongX) cells += `M${P([q(a, b), q(a + 0.5, b), q(a + 0.5, b + 0.5), q(a, b + 0.5)]).replace(/ /g, 'L')}Z`;
+        }
+        o += `<path d="${cells}" fill="${floor.accent}" fill-opacity=".22" pointer-events="none"/><path d="${d}" stroke="${floor.accent}" stroke-width="${f1(0.9 * s)}" fill="none" pointer-events="none"/>`;
+      }
+      if (floor.key === 'batukali') {
+        // batu kali bulat di atas adukan semen; tiap batu tetap di dalam petaknya
+        let d1 = '', d2 = '';
+        BATU_KALI.forEach(([u, v, r], k) => {
+          const jit = (((i * 7 + j * 13 + k * 5) % 7) / 7 - 0.5) * 0.04;
+          const c = g.iso(i + u + jit, j + v - jit), rx = r * (0.9 + jit * 2) * Math.SQRT2 * g.s * 32, ry = rx / 2;
+          const e = `M${f1(c[0] - rx)} ${f1(c[1])}a${f1(rx)} ${f1(ry)} 0 1 0 ${f1(2 * rx)} 0a${f1(rx)} ${f1(ry)} 0 1 0 ${f1(-2 * rx)} 0Z`;
+          if ((k + i * 2 + j) % 3) d1 += e; else d2 += e;
+        });
+        const sw = f1(Math.min(1, s));
+        o += `<path d="${d1}" fill="${floor.accent}" stroke="${shade(floor.accent, -0.2)}" stroke-width="${sw}" pointer-events="none"/><path d="${d2}" fill="${shade(floor.accent, 0.18)}" stroke="${shade(floor.accent, -0.2)}" stroke-width="${sw}" pointer-events="none"/>`;
       }
       if (floor.key === 'papan' && !edit) {
         const a = g.iso(i + 0.5, j), b = g.iso(i + 0.5, j + 1);
@@ -1959,8 +2005,8 @@ export function photoInner(members: { look: PetLook; wear: ItemLike[]; state?: P
 
 /* ================================================================== */
 /* Item premium (set bertema): Taman Malam, Keraton, Kafe Kopi,        */
-/* Pantai, Kamar Bintang. Kelas animasi: blink, flicker, swim, water,  */
-/* swing (CSS di Room.svelte).                                         */
+/* Pantai, Kamar Bintang, Dapur Nenek, Sanggar Seni, Spa Bali. Kelas   */
+/* animasi: blink, flicker, swim, water, swing (CSS di Room.svelte).    */
 /* ================================================================== */
 
 const glowC = (cx: number, cy: number, r: number, col = '#FFE7A0', op = 0.42, cls = 'glow') =>
@@ -1970,6 +2016,99 @@ const flame = (cx: number, cy: number, s: number, k = 1) =>
   `<g class="flicker" style="transform-origin:${f1(cx)}px ${f1(cy)}px"><path d="M${f1(cx)} ${f1(cy)}c${f1(-8 * s * k)} ${f1(-6 * s * k)} ${f1(-6 * s * k)} ${f1(-14 * s * k)} 0 ${f1(-22 * s * k)}c${f1(6 * s * k)} ${f1(8 * s * k)} ${f1(8 * s * k)} ${f1(16 * s * k)} 0 ${f1(22 * s * k)}Z" fill="#F2994A" stroke="${INK}" stroke-width="${f1(1.3 * s)}" stroke-linejoin="round"/><path d="M${f1(cx)} ${f1(cy - 2 * s)}c${f1(-4 * s * k)} ${f1(-4 * s * k)} ${f1(-3 * s * k)} ${f1(-8 * s * k)} 0 ${f1(-12 * s * k)}c${f1(3 * s * k)} ${f1(4 * s * k)} ${f1(4 * s * k)} ${f1(8 * s * k)} 0 ${f1(12 * s * k)}Z" fill="#FFE27A"/></g>`;
 const koi = (s: number, col: string) =>
   `<g><ellipse rx="${f1(9 * s)}" ry="${f1(4 * s)}" fill="${col}" stroke="${INK}" stroke-width="${f1(1.1 * s)}"/><path d="M${f1(-8 * s)} 0l${f1(-7 * s)} ${f1(-5 * s)}v${f1(10 * s)}Z" fill="${col}" stroke="${INK}" stroke-width="${f1(1.1 * s)}" stroke-linejoin="round"/><circle cx="${f1(2 * s)}" cy="${f1(-1 * s)}" r="${f1(2.2 * s)}" fill="#FFFFFF"/><circle cx="${f1(5 * s)}" cy="${f1(-1 * s)}" r="${f1(0.9 * s)}" fill="${INK}"/></g>`;
+
+/* ---------- bantuan gambar set premium 2: Dapur Nenek, Sanggar Seni, Spa Bali ---------- */
+type Pt = number[];
+/** titik petak (u, v) setinggi z px — lewat g.iso, jadi ikut dicerminkan pada tampak belakang */
+const at3 = (g: Ctx, u: number, v: number, z: number): Pt => { const p = g.iso(u, v); return [p[0], p[1] - z * g.s]; };
+/** jari-jari petak → setengah lebar elips di layar (lingkaran di lantai) */
+const rk = (g: Ctx) => Math.SQRT2 * 32 * g.s;
+const pathOf = (pts: Pt[]) => 'M' + P(pts).replace(/ /g, 'L');
+/** garis bertepi tinta (batang, tali, gagang): garis tinta lebar lalu warnanya */
+const inkLine = (pts: Pt[], colr: string, w: number, s: number) =>
+  `<polyline points="${P(pts)}" fill="none" stroke="${INK}" stroke-width="${f1((w + 2) * s)}" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${P(pts)}" fill="none" stroke="${colr}" stroke-width="${f1(w * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const thinLine = (pts: Pt[], colr: string, w: number, extra = '') => `<polyline points="${P(pts)}" fill="none" stroke="${colr}" stroke-width="${f1(w)}" stroke-linecap="round" stroke-linejoin="round"${extra}/>`;
+/** uap / asap tipis yang bergerak (kelas water) */
+const wisp = (x: number, y: number, s: number, h = 16, colr = '#FFFFFF', op = 0.85) =>
+  `<path class="water" d="M${f1(x)} ${f1(y)}q${f1(-4 * s)} ${f1((-h / 2) * s)} 0 ${f1(-h * s)}q${f1(4 * s)} ${f1((-h / 3) * s)} 0 ${f1((-h / 1.6) * s)}" fill="none" stroke="${colr}" stroke-width="${f1(2 * s)}" stroke-linecap="round" stroke-dasharray="${f1(4 * s)} ${f1(4 * s)}" opacity="${op}"/>`;
+/** bunga kamboja: lima kelopak putih berpusat kuning */
+function kambojaFlower(cx: number, cy: number, r: number, s: number, rot = 0) {
+  let o = '';
+  for (let k = 0; k < 5; k++) {
+    const a = rot + k * 72, rad = (a * Math.PI) / 180, px = cx + Math.cos(rad) * r * 0.5, py = cy + Math.sin(rad) * r * 0.5;
+    o += `<ellipse cx="${f1(px)}" cy="${f1(py)}" rx="${f1(r * 0.62)}" ry="${f1(r * 0.34)}" transform="rotate(${f1(a + 18)} ${f1(px)} ${f1(py)})" fill="#FFFDF7" stroke="${INK}" stroke-width="${f1(0.8 * s)}"/>`;
+  }
+  return o + `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r * 0.3)}" fill="#F7C548"/>`;
+}
+/** selimut cembung titik-titik layar (untuk badan kendang & batang pisang yang tidur) */
+function hull(pts: Pt[]) {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: Pt, a: Pt, b: Pt) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: Pt[] = [], hi: Pt[] = [];
+  for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return lo.slice(0, -1).concat(hi.slice(0, -1));
+}
+/**
+ * Prisma tegak beralas segi-banyak cembung (koordinat petak). Sisi yang menghadap kamera dipilih dari arah tepinya
+ * di layar, jadi benar juga untuk tampak belakang (titik dicerminkan lewat g.iso). Warna sisi seperti g.box.
+ */
+function prism(g: Ctx, base: number[][], z0: number, h: number, c3: string[], sw = 1.6) {
+  const lo = base.map(([u, v]) => at3(g, u, v, z0)), hi = base.map(([u, v]) => at3(g, u, v, z0 + h));
+  const n = lo.length, cx = lo.reduce((a, p) => a + p[0], 0) / n, cy = lo.reduce((a, p) => a + p[1], 0) / n;
+  let o = '';
+  for (let i = 0; i < n; i++) {
+    const a = lo[i], b = lo[(i + 1) % n];
+    let nx = b[1] - a[1], ny = a[0] - b[0];
+    if (nx * ((a[0] + b[0]) / 2 - cx) + ny * ((a[1] + b[1]) / 2 - cy) < 0) { nx = -nx; ny = -ny; }
+    if (ny > 1e-6) o += g.poly([a, b, hi[(i + 1) % n], hi[i]], nx < 0 ? c3[1] : c3[2], sw);
+  }
+  return o + g.poly(hi, c3[0], sw);
+}
+/**
+ * Tabung tegak beralas elips (sumbu x & y petak): sisi depan dua warna (kiri terang, kanan gelap) seperti balok.
+ * Hasil: gambar sisi, cincin atas, dan titik-titik busur depan (untuk bilah, simpai, ...).
+ */
+function ovalTub(g: Ctx, cu: number, cv: number, rx: number, ry: number, z0: number, h: number, c3: string[], sw = 1.6) {
+  const N = 40;
+  const ring = (z: number, ex = 0) => Array.from({ length: N }, (_, i) => { const a = (i / N) * 2 * Math.PI; return at3(g, cu + (rx - ex) * Math.cos(a), cv + (ry - ex) * Math.sin(a), z); });
+  const lo = ring(z0), hi = ring(z0 + h);
+  let iL = 0, iR = 0, iF = 0;
+  lo.forEach((p, i) => { if (p[0] < lo[iL][0]) iL = i; if (p[0] > lo[iR][0]) iR = i; if (p[1] > lo[iF][1]) iF = i; });
+  // busur depan iL → iF → iR (arah yang melewati titik terdepan)
+  const walk = (a: number, b: number, dir: number) => { const out = [a]; for (let i = a; i !== b; ) { i = (i + dir + N) % N; out.push(i); } return out; };
+  let arc = walk(iL, iR, 1);
+  if (!arc.includes(iF)) arc = walk(iL, iR, -1);
+  const k = arc.indexOf(iF), left = arc.slice(0, k + 1), right = arc.slice(k);
+  const face = (ids: number[], fill: string) => g.poly([...ids.map((i) => lo[i]), ...ids.slice().reverse().map((i) => hi[i])], fill, sw);
+  return { side: face(left, c3[1]) + face(right, c3[2]), top: g.poly(hi, c3[0], sw), ring, arc, lo, hi };
+}
+/** benda bulat bubut (gentong, pot, dandang): profil [[z px, jari-jari petak], ...] dari bawah ke atas */
+function lathe(g: Ctx, cu: number, cv: number, prof: number[][], fill: string, sw = 1.6) {
+  const [cx, cy] = g.iso(cu, cv), k = rk(g), s = g.s;
+  const L = prof.map(([z, r]) => [cx - r * k, cy - z * s]), R = prof.map(([z, r]) => [cx + r * k, cy - z * s]).reverse();
+  const r0 = prof[0][1] * k;
+  return `<path d="${pathOf(L)}L${P(R).replace(/ /g, 'L')}A${f1(r0)} ${f1(r0 / 2)} 0 0 1 ${f1(L[0][0])} ${f1(L[0][1])}Z" fill="${fill}" stroke="${INK}" stroke-width="${f1(sw * s)}" stroke-linejoin="round"/>`;
+}
+/** elips mendatar (lingkaran di bidang datar) setinggi z */
+const flatE = (g: Ctx, cu: number, cv: number, z: number, r: number, fill: string, sw = 1.4, extra = '') => {
+  const [cx, cy] = at3(g, cu, cv, z), R = r * rk(g);
+  return `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(R)}" ry="${f1(R / 2)}" fill="${fill}"${sw ? ` stroke="${INK}" stroke-width="${f1(sw * g.s)}"` : ''}${extra}/>`;
+};
+/** busur depan (setengah bawah) lingkaran mendatar: simpai, cincin hiasan */
+const frontArc = (g: Ctx, cu: number, cv: number, z: number, r: number, colr: string, w: number) => {
+  const [cx, cy] = at3(g, cu, cv, z), R = r * rk(g);
+  return `<path d="M${f1(cx - R)} ${f1(cy)}A${f1(R)} ${f1(R / 2)} 0 0 0 ${f1(cx + R)} ${f1(cy)}" fill="none" stroke="${colr}" stroke-width="${f1(w * g.s)}" stroke-linecap="round"/>`;
+};
+/** bidang tegak y = Y: (hx px ke arah x, vy px ke atas) dari titik (cu, v0) */
+const onY = (g: Ctx, Y: number, cu: number, v0 = 0) => (hx: number, vy: number) => at3(g, cu + hx / 32, Y, v0 + vy);
+/** bidang tegak x = X: (hx px ke arah y, vy px ke atas) */
+const onX = (g: Ctx, X: number, cu: number, v0 = 0) => (hx: number, vy: number) => at3(g, X, cu + hx / 32, v0 + vy);
+const discPts = (m: (a: number, b: number) => Pt, cx: number, cy: number, rx: number, ry = rx, n = 18) =>
+  Array.from({ length: n }, (_, i) => { const a = (i / n) * 2 * Math.PI; return m(cx + rx * Math.cos(a), cy + ry * Math.sin(a)); });
+/** wayang kulit (tokoh) menghadap +hx: titik-titik siluet dalam koordinat bidang (px) */
+const WAYANG_BODY = [[-4, 0], [-7, 13], [-5, 17], [-4, 29], [-6, 39], [-4, 45], [-7, 50], [-6, 56], [-2, 63], [2, 58], [3, 54], [9, 49], [3, 47], [2, 44], [5, 39], [4, 29], [7, 17], [9, 0]];
+const GUNUNGAN = [[-2, -6], [2, -6], [2, 6], [11, 9], [15, 20], [14, 34], [10, 46], [5, 56], [0, 66], [-5, 56], [-10, 46], [-14, 34], [-15, 20], [-11, 9], [-2, 6]];
 
 const PREMIUM: Record<string, { label: string; colors: Record<string, string>; draw: FurnFn }> = {
   /* ---------------- alun-alun: tempat game main bareng ---------------- */
@@ -2501,6 +2640,541 @@ const PREMIUM: Record<string, { label: string; colors: Record<string, string>; d
       return o;
     },
   },
+
+  /* ---------------- Dapur Nenek ---------------- */
+  tungku: {
+    label: 'Tungku tanah liat',
+    colors: { main: '#C66B3D', accent: '#3B3F55' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, top = 33;
+      let o = g.box(x + 0.08, y + 0.16, 0, w - 0.16, d - 0.32, 28, C3(c.main));
+      o += g.box(x + 0.04, y + 0.12, 28, w - 0.08, d - 0.24, 5, C3(shade(c.main, -0.1)));
+      // lubang api & kayu bakar di sisi depan (dari belakang tidak terlihat)
+      const Y = y + d - 0.16;
+      if (!g.back) for (const u0 of [x + 0.3, x + w - 0.72]) {
+        const arch: Pt[] = [at3(g, u0, Y, 2)];
+        for (let k = 0; k <= 8; k++) arch.push(at3(g, u0 + (0.42 * k) / 8, Y, 12 + 8 * Math.sin((Math.PI * k) / 8)));
+        arch.push(at3(g, u0 + 0.42, Y, 2));
+        o += g.poly(arch, '#2B1A14', 1.4);
+        const m = at3(g, u0 + 0.21, Y, 2);
+        o += `<ellipse cx="${f1(m[0])}" cy="${f1(m[1] - 2 * s)}" rx="${f1(9 * s)}" ry="${f1(3 * s)}" fill="#E0583F"/>` + flame(m[0], m[1] - 2 * s, s, 0.75);
+        o += inkLine([at3(g, u0 + 0.12, Y - 0.05, 5), at3(g, u0 + 0.05, Y + 0.13, 2)], '#8A5A36', 3, s) + inkLine([at3(g, u0 + 0.3, Y - 0.05, 6), at3(g, u0 + 0.37, Y + 0.12, 2.5)], '#A8743F', 3, s);
+      }
+      // wajan berisi gorengan
+      const pan = (cu: number, cv: number) => {
+        const [px, py] = at3(g, cu, cv, top), R = 13 * s;
+        let p = `<ellipse cx="${f1(px)}" cy="${f1(py)}" rx="${f1(R + 1.5 * s)}" ry="${f1(R / 2 + 1 * s)}" fill="#2B1A14"/>`;
+        p += `<path d="M${f1(px - R)} ${f1(py)}A${f1(R)} ${f1(R * 0.55)} 0 0 0 ${f1(px + R)} ${f1(py)}Z" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+        p += `<ellipse cx="${f1(px)}" cy="${f1(py)}" rx="${f1(R)}" ry="${f1(R / 2)}" fill="${shade(c.accent, 0.3)}" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/><ellipse cx="${f1(px)}" cy="${f1(py + 0.6 * s)}" rx="${f1(R - 2.6 * s)}" ry="${f1(R / 2 - 1.8 * s)}" fill="${c.accent}"/>`;
+        for (const [dx, dy, r] of [[-4, 0.5, -15], [3.5, 1.2, 10], [0, -1.8, 25]]) p += `<ellipse cx="${f1(px + dx * s)}" cy="${f1(py + dy * s)}" rx="${f1(4.4 * s)}" ry="${f1(2.2 * s)}" transform="rotate(${r} ${f1(px + dx * s)} ${f1(py + dy * s)})" fill="#E9B949" stroke="${INK}" stroke-width="${f1(0.9 * s)}"/>`;
+        p += inkLine([[px + 2 * s, py - 1 * s], [px + 15 * s, py - 13 * s]], '#B5703F', 2, s);
+        return p + wisp(px - 5 * s, py - 4 * s, s, 12, '#FFFFFF', 0.7);
+      };
+      // dandang & kukusan nasi
+      const dandang = (cu: number, cv: number) => {
+        const [px, py] = g.iso(cu, cv), k = rk(g);
+        let p = lathe(g, cu, cv, [[top - 2, 0.19], [top + 3, 0.23], [top + 15, 0.24], [top + 19, 0.19], [top + 23, 0.18], [top + 25, 0.22]], '#C9CED6');
+        p += frontArc(g, cu, cv, top + 9, 0.235, '#9AA3B2', 1.6);
+        p += flatE(g, cu, cv, top + 25, 0.22, '#AEB6C3');
+        // kerucut anyaman bambu
+        const r0 = 0.17 * k, r1 = 0.3 * k, zb = py - (top + 23) * s, zt = py - (top + 36) * s;
+        p += `<path d="M${f1(px - r0)} ${f1(zb)}L${f1(px - r1)} ${f1(zt)}A${f1(r1)} ${f1(r1 / 2)} 0 0 0 ${f1(px + r1)} ${f1(zt)}L${f1(px + r0)} ${f1(zb)}A${f1(r0)} ${f1(r0 / 2)} 0 0 1 ${f1(px - r0)} ${f1(zb)}Z" fill="#D9B26A" stroke="${INK}" stroke-width="${f1(1.4 * s)}" stroke-linejoin="round"/>`;
+        let hatch = '';
+        for (let t = -0.8; t <= 0.81; t += 0.4) hatch += `M${f1(px + t * r0)} ${f1(zb + 1 * s)}L${f1(px + t * r1 + 3 * s)} ${f1(zt + 2 * s)}M${f1(px + t * r0)} ${f1(zb + 1 * s)}L${f1(px + t * r1 - 3 * s)} ${f1(zt + 2 * s)}`;
+        p += `<path d="${hatch}" stroke="#B08A4A" stroke-width="${f1(0.9 * s)}"/>`;
+        p += `<ellipse cx="${f1(px)}" cy="${f1(zt)}" rx="${f1(r1)}" ry="${f1(r1 / 2)}" fill="#C9A35A" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+        // nasi mengepul
+        p += `<path d="M${f1(px - r1 + 3 * s)} ${f1(zt)}Q${f1(px - r1 + 4 * s)} ${f1(zt - 9 * s)} ${f1(px)} ${f1(zt - 10 * s)}Q${f1(px + r1 - 4 * s)} ${f1(zt - 9 * s)} ${f1(px + r1 - 3 * s)} ${f1(zt)}Z" fill="#FFFDF7" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/>`;
+        return p + wisp(px - 4 * s, zt - 11 * s, s, 14) + wisp(px + 5 * s, zt - 9 * s, s, 11);
+      };
+      return o + pan(x + 0.5, y + 0.5) + dandang(x + w - 0.5, y + 0.5);
+    },
+  },
+  rakpiring: {
+    label: 'Rak piring kayu',
+    colors: { main: '#B5703F', accent: '#4F9A6E' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, X = x + 0.58, y0 = y + 0.1, y1 = y + d - 0.1, H = 80;
+      let o = g.box(x + 0.06, y0, 0, 0.52, y1 - y0, H, C3(c.main));
+      o += g.box(x + 0.03, y0 - 0.03, H, 0.58, y1 - y0 + 0.06, 4, C3(shade(c.main, -0.15)));
+      if (g.back) {
+        // dari belakang: papan polos bersambung
+        for (const u of [0.3, 0.5, 0.7]) o += thinLine([at3(g, x + 0.06, y + u, 3), at3(g, x + 0.06, y + u, H - 3)], shade(c.main, -0.3), 1.2 * s);
+      } else {
+        const tiers = [[6, 28], [33, 52], [57, 75]];
+        for (const [a, b] of tiers) o += g.quadX(X, y0 + 0.06, y1 - 0.06, a, b, shade(c.main, -0.45), 1.2);
+        // piring berdiri
+        for (const u of [y0 + 0.33, y0 + 0.4, y0 + 0.47]) {
+          const m = onX(g, X - 0.02, u);
+          o += g.poly(discPts(m, 0, 17, 8.5), c.accent, 1.1) + g.poly(discPts(m, 0, 17, 6.4), '#FFFDF7', 0.8);
+        }
+        o += g.quadX(X, y0 + 0.06, y1 - 0.06, 11, 13.5, shade(c.main, 0.1), 1);
+        // cangkir blirik
+        for (const u of [y0 + 0.18, y0 + 0.37, y0 + 0.56]) {
+          const m = onX(g, X - 0.01, u);
+          o += g.poly([m(-4, 34), m(4, 34), m(4.5, 46), m(-4.5, 46)], '#F2F5EE', 1);
+          o += g.poly([m(-4.5, 44), m(4.5, 44), m(4.5, 46.5), m(-4.5, 46.5)], c.accent, 0.8);
+          o += `<circle cx="${f1(m(-1, 39)[0])}" cy="${f1(m(-1, 39)[1])}" r="${f1(0.9 * s)}" fill="${c.accent}"/><circle cx="${f1(m(2, 37)[0])}" cy="${f1(m(2, 37)[1])}" r="${f1(0.9 * s)}" fill="${c.accent}"/>`;
+          o += thinLine([m(-4.3, 43), m(-7.5, 42), m(-7.5, 37), m(-4.1, 36)], c.accent, 1.6 * s);
+        }
+        // mangkuk bertumpuk
+        for (const u of [y0 + 0.24, y0 + 0.54]) {
+          const m = onX(g, X - 0.01, u);
+          for (const v of [58, 63, 68]) o += g.poly([m(-8, v + 4), m(-6, v + 1), m(-3, v), m(3, v), m(6, v + 1), m(8, v + 4)], v === 68 ? '#FFFDF7' : shade('#FFFDF7', -0.06), 1) + thinLine([m(-8, v + 4), m(8, v + 4)], c.accent, 1.4 * s);
+        }
+      }
+      // di atas rak: teko blirik & cething nasi
+      const items: [number, number, string][] = [];
+      {
+        const cu = x + 0.32, cv = y + 0.3, [px, py] = at3(g, cu, cv, H + 4);
+        let t = lathe(g, cu, cv, [[H + 4, 0.1], [H + 8, 0.14], [H + 14, 0.13], [H + 18, 0.07], [H + 19, 0.08]], '#F2F5EE');
+        t += frontArc(g, cu, cv, H + 9, 0.14, c.accent, 1.6);
+        t += inkLine([[px + 0.12 * rk(g), py - 8 * s], [px + 0.2 * rk(g), py - 14 * s], [px + 0.24 * rk(g), py - 16 * s]], '#F2F5EE', 2.2, s);
+        t += `<path d="M${f1(px - 0.12 * rk(g))} ${f1(py - 12 * s)}q${f1(-5 * s)} ${f1(-1 * s)} ${f1(-4 * s)} ${f1(5 * s)}" fill="none" stroke="${INK}" stroke-width="${f1(1.6 * s)}"/>`;
+        t += flatE(g, cu, cv, H + 19, 0.08, c.accent, 1.1) + `<circle cx="${f1(px)}" cy="${f1(py - 17 * s)}" r="${f1(1.8 * s)}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(0.8 * s)}"/>`;
+        items.push([g.iso(cu, cv)[1], 0, t]);
+      }
+      {
+        const cu = x + 0.34, cv = y + 0.68;
+        let t = lathe(g, cu, cv, [[H + 4, 0.11], [H + 13, 0.16]], '#D9B26A');
+        const [px, py] = at3(g, cu, cv, H + 4), k = rk(g);
+        let hatch = '';
+        for (let i = -3; i <= 3; i++) hatch += `M${f1(px + i * 0.035 * k)} ${f1(py + 1 * s)}L${f1(px + i * 0.05 * k + 2 * s)} ${f1(py - 8 * s)}`;
+        t += `<path d="${hatch}" stroke="#B08A4A" stroke-width="${f1(0.9 * s)}"/>` + flatE(g, cu, cv, H + 13, 0.16, '#C9A35A', 1.2);
+        t += `<path d="M${f1(px - 0.13 * k)} ${f1(py - 13 * s)}Q${f1(px)} ${f1(py - 20 * s)} ${f1(px + 0.13 * k)} ${f1(py - 13 * s)}Z" fill="#FFFDF7" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
+        items.push([g.iso(cu, cv)[1], 1, t]);
+      }
+      return o + items.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((e) => e[2]).join('');
+    },
+  },
+  gentongair: {
+    label: 'Gentong air',
+    colors: { main: '#B5562F', accent: '#5B9BD1' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, cu = x + 0.5, cv = y + 0.5, [cx, cy] = g.iso(cu, cv), k = rk(g), H = 60;
+      let o = shadowE(cx, cy + 1 * s, 0.42 * k, 0.21 * k);
+      o += lathe(g, cu, cv, [[0, 0.2], [5, 0.27], [16, 0.35], [28, 0.385], [40, 0.355], [50, 0.28], [55, 0.22], [58, 0.255], [H, 0.26]], c.main);
+      o += frontArc(g, cu, cv, 21, 0.372, shade(c.main, -0.25), 2.2) + frontArc(g, cu, cv, 37, 0.362, shade(c.main, -0.25), 2.2);
+      for (let i = -3; i <= 3; i++) {
+        const a = (i / 3.6) * (Math.PI / 2), r = 0.38 * k;
+        o += `<circle cx="${f1(cx + Math.sin(a) * r)}" cy="${f1(cy - 29 * s + Math.cos(a) * r * 0.5)}" r="${f1(1.6 * s)}" fill="${shade(c.main, 0.35)}"/>`;
+      }
+      o += `<path d="M${f1(cx - 0.3 * k)} ${f1(cy - 46 * s)}Q${f1(cx - 0.38 * k)} ${f1(cy - 30 * s)} ${f1(cx - 0.28 * k)} ${f1(cy - 12 * s)}" fill="none" stroke="#FFFFFF" stroke-width="${f1(3 * s)}" stroke-linecap="round" opacity=".3"/>`;
+      o += flatE(g, cu, cv, H, 0.26, shade(c.main, 0.12), 1.6) + flatE(g, cu, cv, H + 0.4, 0.205, c.accent, 1.2);
+      o += `<ellipse cx="${f1(cx - 4 * s)}" cy="${f1(cy - (H + 1) * s)}" rx="${f1(4 * s)}" ry="${f1(1.2 * s)}" fill="#FFFFFF" opacity=".7"/>`;
+      // gayung batok bersandar di bibir gentong
+      const bx = cx + 0.16 * k, by = cy - (H + 1) * s;
+      o += inkLine([[bx - 1 * s, by - 1 * s], [cx - 0.3 * k, by - 15 * s]], '#C8955A', 2.4, s);
+      o += `<path d="M${f1(bx - 7 * s)} ${f1(by - 1 * s)}A${f1(7 * s)} ${f1(5 * s)} 0 0 0 ${f1(bx + 7 * s)} ${f1(by - 1 * s)}Z" fill="#6B4428" stroke="${INK}" stroke-width="${f1(1.3 * s)}"/><ellipse cx="${f1(bx)}" cy="${f1(by - 1 * s)}" rx="${f1(7 * s)}" ry="${f1(2.6 * s)}" fill="#8A5A36" stroke="${INK}" stroke-width="${f1(1.3 * s)}"/>`;
+      return o;
+    },
+  },
+  mejamakan: {
+    label: 'Meja makan & bangku panjang',
+    colors: { main: '#9C6B45', accent: '#D9B26A' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, wood = C3(c.main), dark = C3(shade(c.main, -0.18)), top = 30;
+      let o = '';
+      for (const [a, b] of [[0.12, 0.1], [w - 0.22, 0.1], [0.12, 0.38], [w - 0.22, 0.38]]) o += g.box(x + a, y + b, 0, 0.1, 0.1, 26, dark);
+      o += g.box(x + 0.06, y + 0.06, 26, w - 0.12, 0.46, 4, wood);
+      for (const a of [0.16, w - 0.26]) o += g.box(x + a, y + 0.64, 0, 0.1, 0.22, 14, dark);
+      o += g.box(x + 0.08, y + 0.6, 14, w - 0.16, 0.3, 4, wood);
+      // isi meja: tudung saji, piring tempe, kendi, cangkir (diurutkan dari belakang ke depan)
+      const L: [number, string][] = [];
+      const add = (cu: number, cv: number, h: string) => L.push([g.iso(cu, cv)[1], h]);
+      {
+        const cu = x + 0.6, cv = y + 0.3, [px, py] = at3(g, cu, cv, top), R = 0.24 * rk(g), H = 17 * s;
+        let t = `<path d="M${f1(px - R)} ${f1(py)}Q${f1(px - R)} ${f1(py - H * 1.15)} ${f1(px)} ${f1(py - H)}Q${f1(px + R)} ${f1(py - H * 1.15)} ${f1(px + R)} ${f1(py)}A${f1(R)} ${f1(R / 2)} 0 0 1 ${f1(px - R)} ${f1(py)}Z" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(1.5 * s)}" stroke-linejoin="round"/>`;
+        t += `<path d="M${f1(px - R * 0.97)} ${f1(py - H * 0.25)}Q${f1(px)} ${f1(py - H * 0.25 + R * 0.42)} ${f1(px + R * 0.97)} ${f1(py - H * 0.25)}" fill="none" stroke="#C0392B" stroke-width="${f1(2.6 * s)}"/>`;
+        t += `<path d="M${f1(px - R * 0.82)} ${f1(py - H * 0.58)}Q${f1(px)} ${f1(py - H * 0.58 + R * 0.34)} ${f1(px + R * 0.82)} ${f1(py - H * 0.58)}" fill="none" stroke="#3FA06A" stroke-width="${f1(2.2 * s)}"/>`;
+        let wv = '';
+        for (let i = -2; i <= 2; i++) wv += `M${f1(px + i * R * 0.32)} ${f1(py - H * 0.92 + Math.abs(i) * 1.2 * s)}l${f1(1.5 * s)} ${f1(H * 0.5)}`;
+        t += `<path d="${wv}" stroke="#B08A4A" stroke-width="${f1(0.9 * s)}"/><circle cx="${f1(px)}" cy="${f1(py - H - 1.5 * s)}" r="${f1(2.4 * s)}" fill="#C0392B" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
+        add(cu, cv, t);
+      }
+      {
+        const cu = x + 1.06, cv = y + 0.36, [px, py] = at3(g, cu, cv, top);
+        let t = flatE(g, cu, cv, top, 0.15, '#FFFDF7', 1.3) + `<ellipse cx="${f1(px)}" cy="${f1(py)}" rx="${f1(0.11 * rk(g))}" ry="${f1(0.055 * rk(g))}" fill="none" stroke="${shade('#4F9A6E', 0)}" stroke-width="${f1(1 * s)}"/>`;
+        for (const [dx, dy] of [[-3, 0], [3, -1], [0, 1.5]]) t += `<rect x="${f1(px + dx * s - 3 * s)}" y="${f1(py + dy * s - 3 * s)}" width="${f1(6 * s)}" height="${f1(3.4 * s)}" rx="${f1(0.8 * s)}" transform="rotate(-12 ${f1(px + dx * s)} ${f1(py + dy * s)})" fill="#D9A441" stroke="${INK}" stroke-width="${f1(0.8 * s)}"/>`;
+        add(cu, cv, t);
+      }
+      {
+        const cu = x + 1.42, cv = y + 0.24, [px, py] = at3(g, cu, cv, top), k = rk(g);
+        let t = inkLine([[px + 0.1 * k, py - 9 * s], [px + 0.2 * k, py - 15 * s]], '#B5562F', 2.6, s);
+        t += lathe(g, cu, cv, [[top, 0.08], [top + 3, 0.13], [top + 8, 0.15], [top + 13, 0.12], [top + 16, 0.05], [top + 22, 0.04], [top + 23, 0.06]], '#B5562F');
+        t += frontArc(g, cu, cv, top + 8, 0.15, '#D98A5E', 1.4);
+        add(cu, cv, t);
+      }
+      for (const [cu, cv] of [[x + 1.68, y + 0.3], [x + 1.62, y + 0.44]]) {
+        let t = lathe(g, cu, cv, [[top, 0.05], [top + 7, 0.06]], '#F2F5EE', 1.2) + flatE(g, cu, cv, top + 7, 0.06, '#4F9A6E', 1);
+        add(cu, cv, t);
+      }
+      return o + L.sort((a, b) => a[0] - b[0]).map((e) => e[1]).join('');
+    },
+  },
+  petromaks: {
+    label: 'Lampu petromaks',
+    colors: { main: '#C9CED6', accent: '#FFF6D0' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, wood = C3('#8A5A36');
+      let o = '';
+      for (const [a, b] of [[0.27, 0.27], [0.65, 0.27], [0.27, 0.65], [0.65, 0.65]]) o += g.box(x + a, y + b, 0, 0.08, 0.08, 16, wood);
+      o += g.box(x + 0.22, y + 0.22, 16, 0.56, 0.56, 4, wood);
+      const cu = x + 0.5, cv = y + 0.5, [cx, cy] = g.iso(cu, cv), z = 20, k = rk(g);
+      const Y = (v: number) => cy - (z + v) * s;
+      o += glowC(cx, Y(26), 30 * s, '#FFE7A0', 0.42, 'blink');
+      // tangki & pompa
+      o += lathe(g, cu, cv, [[z, 0.18], [z + 3, 0.25], [z + 9, 0.26], [z + 12, 0.18]], c.main);
+      o += frontArc(g, cu, cv, z + 6, 0.255, shade(c.main, -0.3), 1.4);
+      o += inkLine([[cx + 0.25 * k, Y(7)], [cx + 0.35 * k, Y(9)]], c.main, 1.6, s) + `<circle cx="${f1(cx + 0.36 * k)}" cy="${f1(Y(9))}" r="${f1(2.6 * s)}" fill="#C0392B" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
+      o += `<circle cx="${f1(cx - 0.27 * k)}" cy="${f1(Y(6))}" r="${f1(2.4 * s)}" fill="${shade(c.main, -0.35)}" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
+      // kaca, kaos lampu menyala, rangka
+      o += `<path d="M${f1(cx - 7 * s)} ${f1(Y(12))}Q${f1(cx - 11 * s)} ${f1(Y(23))} ${f1(cx - 7 * s)} ${f1(Y(34))}H${f1(cx + 7 * s)}Q${f1(cx + 11 * s)} ${f1(Y(23))} ${f1(cx + 7 * s)} ${f1(Y(12))}Z" fill="${c.accent}" fill-opacity=".9" stroke="${INK}" stroke-width="${f1(1.4 * s)}"/>`;
+      o += `<ellipse class="blink" cx="${f1(cx)}" cy="${f1(Y(22))}" rx="${f1(6 * s)}" ry="${f1(7.5 * s)}" fill="#FFFFFF" fill-opacity=".8"/><ellipse cx="${f1(cx)}" cy="${f1(Y(22))}" rx="${f1(3.6 * s)}" ry="${f1(4.8 * s)}" fill="#FFFDF2" stroke="#F2C14E" stroke-width="${f1(1 * s)}"/>`;
+      o += thinLine([[cx - 9 * s, Y(12)], [cx - 9 * s, Y(35)]], INK, 1.6 * s) + thinLine([[cx + 9 * s, Y(12)], [cx + 9 * s, Y(35)]], INK, 1.6 * s);
+      // tudung & pegangan
+      o += `<path d="M${f1(cx - 13 * s)} ${f1(Y(34))}Q${f1(cx)} ${f1(Y(30))} ${f1(cx + 13 * s)} ${f1(Y(34))}L${f1(cx + 5 * s)} ${f1(Y(42))}H${f1(cx - 5 * s)}Z" fill="${c.main}" stroke="${INK}" stroke-width="${f1(1.4 * s)}" stroke-linejoin="round"/>`;
+      o += `<rect x="${f1(cx - 4 * s)}" y="${f1(Y(46))}" width="${f1(8 * s)}" height="${f1(4.5 * s)}" rx="${f1(1 * s)}" fill="${shade(c.main, -0.15)}" stroke="${INK}" stroke-width="${f1(1.1 * s)}"/>`;
+      o += `<path d="M${f1(cx - 9 * s)} ${f1(Y(39))}Q${f1(cx - 10 * s)} ${f1(Y(55))} ${f1(cx)} ${f1(Y(55))}Q${f1(cx + 10 * s)} ${f1(Y(55))} ${f1(cx + 9 * s)} ${f1(Y(39))}" fill="none" stroke="${INK}" stroke-width="${f1(2.6 * s)}" stroke-linecap="round"/><path d="M${f1(cx - 9 * s)} ${f1(Y(39))}Q${f1(cx - 10 * s)} ${f1(Y(55))} ${f1(cx)} ${f1(Y(55))}Q${f1(cx + 10 * s)} ${f1(Y(55))} ${f1(cx + 9 * s)} ${f1(Y(39))}" fill="none" stroke="${c.main}" stroke-width="${f1(1.2 * s)}" stroke-linecap="round"/>`;
+      return o;
+    },
+  },
+
+  /* ---------------- Sanggar Seni ---------------- */
+  rakangklung: {
+    label: 'Rak angklung',
+    colors: { main: '#E2BE6E', accent: '#7A4A2A' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, wood = C3(c.accent), Y = y + 0.5, H = 96;
+      let o = '';
+      for (const px of [x + 0.08, x + w - 0.2]) o += g.box(px - 0.05, y + 0.22, 0, 0.22, 0.56, 6, wood) + g.box(px, Y - 0.06, 6, 0.12, 0.12, H - 6, wood);
+      const ang = (cu: number, k: number, ribbon: string) => {
+        const m = onY(g, Y, cu), hw = 5 * k, b0 = 24, top = b0 + 52 * k, col = c.main;
+        let a = thinLine([m(0, top), m(0, H - 2)], INK, 1.1 * s);
+        const tube = (hx: number, tw: number, tt: number) =>
+          g.poly([m(hx - tw, b0 + 2), m(hx + tw, b0 + 2), m(hx + tw, tt - 9 * k), m(hx + tw * 0.25, tt), m(hx - tw * 0.25, tt), m(hx - tw, tt - 9 * k)], col, 1.2) +
+          thinLine([m(hx - tw, b0 + (tt - b0) * 0.45), m(hx + tw, b0 + (tt - b0) * 0.45)], shade(col, -0.32), 1 * s);
+        a += tube(-2.3 * k, 2 * k, b0 + 43 * k) + tube(2.3 * k, 1.8 * k, b0 + 32 * k);
+        a += inkLine([m(-hw, b0 - 2), m(-hw, top)], col, 1.6, s) + inkLine([m(hw, b0 - 2), m(hw, top)], col, 1.6, s);
+        a += inkLine([m(-hw - 1, top - 1), m(hw + 1, top - 1)], col, 1.6, s) + inkLine([m(-hw, b0 + 25 * k), m(hw, b0 + 25 * k)], col, 1.4, s);
+        a += g.poly([m(-hw - 2, b0 - 3), m(hw + 2, b0 - 3), m(hw + 2, b0 + 3.5), m(-hw - 2, b0 + 3.5)], shade(col, -0.12), 1.2);
+        return a + g.poly([m(-3, top + 1), m(3, top + 1), m(0, top - 5)], ribbon, 1);
+      };
+      const ks = [0.95, 0.84, 0.74, 0.64], ribbons = ['#E0583F', '#3F7FBF', '#3FA06A', '#9A6FC0'];
+      let cu = x + 0.22;
+      ks.forEach((k, i) => { const hw = (5 * k + 2) / 32; cu += hw; o += ang(cu, k, ribbons[i]); cu += hw + 0.02; });
+      o += g.box(x + 0.06, Y - 0.06, H, w - 0.12, 0.12, 7, wood);
+      for (const px of [x + 0.08, x + w - 0.08]) { const [fx, fy] = at3(g, px, Y, H + 7); o += `<circle cx="${f1(fx)}" cy="${f1(fy - 2 * s)}" r="${f1(3.4 * s)}" fill="#E9B949" stroke="${INK}" stroke-width="${f1(1.1 * s)}"/>`; }
+      return o;
+    },
+  },
+  kecapi: {
+    label: 'Kecapi',
+    colors: { main: '#8A5A36', accent: '#E9B949' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, z0 = 6, h = 12, top = z0 + h;
+      let o = '';
+      for (const [a, b] of [[0.34, 0.34], [w - 0.44, 0.34], [0.34, 0.56], [w - 0.44, 0.56]]) o += g.box(x + a, y + b, 0, 0.1, 0.1, z0, C3(shade(c.main, -0.3)));
+      const oct = (m: number) => [[0.1 + m, 0.4 + m * 0.4], [0.3 + m * 0.6, 0.26 + m], [w - 0.32 - m * 0.6, 0.26 + m], [w - 0.08 - m, 0.38 + m * 0.4], [w - 0.08 - m, 0.62 - m * 0.4], [w - 0.32 - m * 0.6, 0.74 - m], [0.3 + m * 0.6, 0.74 - m], [0.1 + m, 0.6 - m * 0.4]].map(([u, v]) => [x + u, y + v]);
+      o += prism(g, oct(0), z0, h, C3(c.main));
+      o += g.poly(oct(0.07).map(([u, v]) => at3(g, u, v, top)), shade(c.main, 0.42), 1.1);
+      // ukiran emas di kedua ujung
+      for (const [u, dir] of [[x + 0.2, -1], [x + w - 0.2, 1]] as [number, number][]) {
+        const [px, py] = at3(g, u, y + 0.5, top);
+        const curl = `M${f1(px - dir * 5 * s)} ${f1(py + 1 * s)}Q${f1(px - dir * 6 * s)} ${f1(py - 9 * s)} ${f1(px + dir * 1 * s)} ${f1(py - 10 * s)}Q${f1(px + dir * 7 * s)} ${f1(py - 9 * s)} ${f1(px + dir * 5 * s)} ${f1(py - 4 * s)}Q${f1(px + dir * 2 * s)} ${f1(py - 1 * s)} ${f1(px)} ${f1(py - 5 * s)}`;
+        o += `<path d="${curl}" fill="none" stroke="${INK}" stroke-width="${f1(4 * s)}" stroke-linecap="round"/><path d="${curl}" fill="none" stroke="${c.accent}" stroke-width="${f1(2.2 * s)}" stroke-linecap="round"/>`;
+      }
+      // senar, kuda-kuda (susu), pasak penyetem
+      const N = 9;
+      let strings = '', bridges = '', pegs = '';
+      for (let i = 0; i < N; i++) {
+        const v = y + 0.37 + (0.26 * i) / (N - 1);
+        const a = at3(g, x + 0.4, v, top + 1.5), b = at3(g, x + w - 0.36, v, top + 1.5);
+        strings += `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}`;
+        const p = at3(g, x + 0.7 + (0.62 * i) / (N - 1), v, top);
+        bridges += `M${f1(p[0] - 2.4 * s)} ${f1(p[1] + 0.6 * s)}L${f1(p[0])} ${f1(p[1] - 3.2 * s)}L${f1(p[0] + 2.4 * s)} ${f1(p[1] + 0.6 * s)}Z`;
+        const q = at3(g, x + w - 0.34, v, top + 1.5);
+        pegs += `M${f1(q[0] + 1.6 * s)} ${f1(q[1])}a${f1(1.6 * s)} ${f1(1.6 * s)} 0 1 0 ${f1(-3.2 * s)} 0a${f1(1.6 * s)} ${f1(1.6 * s)} 0 1 0 ${f1(3.2 * s)} 0Z`;
+      }
+      o += `<path d="${bridges}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(0.8 * s)}" stroke-linejoin="round"/>`;
+      o += `<path d="${strings}" stroke="#4A3524" stroke-width="${f1(0.9 * s)}"/>`;
+      return o + `<path d="${pegs}" fill="${c.accent}" stroke="${INK}" stroke-width="${f1(0.7 * s)}"/>`;
+    },
+  },
+  kelir: {
+    label: 'Kelir wayang mini',
+    colors: { main: '#7A2E2E', accent: '#FFF4D6' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, wood = C3('#6B4A2B'), Yb = y + 0.36, Y = y + 0.46, H = 104;
+      const u0 = x + 0.2, u1 = x + w - 0.2, v0 = 26, v1 = 98;
+      let o = '';
+      for (const px of [x + 0.08, x + w - 0.2]) o += g.box(px - 0.04, y + 0.2, 0, 0.2, 0.42, 6, wood) + g.box(px, Yb, 6, 0.12, 0.1, H - 6, wood);
+      o += g.box(x + 0.04, Yb, H, w - 0.08, 0.1, 6, wood);
+      const Q = (u: number, v: number, YY = Y) => at3(g, u, YY, v);
+      const fig = (m0: (a: number, b: number) => Pt, dir: number, fill: string, stroke: boolean, k = 0.62) => {
+        const m = (a: number, b: number) => m0(a * k, b * k);
+        const sw = stroke ? ` stroke="${INK}" stroke-width="${f1(1.1 * s)}" stroke-linejoin="round"` : '';
+        let f = `<polygon points="${P(WAYANG_BODY.map(([a, b]) => m(a * dir, b)))}" fill="${fill}"${sw}/>`;
+        const arm = [m(2 * dir, 40), m(13 * dir, 27), m(18 * dir, 31)], stick = [m(18 * dir, 31), m(20 * dir, 2)];
+        f += stroke ? inkLine(arm, fill, 1.6, s) + thinLine(stick, '#5A381F', 1.2 * s) + thinLine([m(0, 0), m(0, -10)], '#5A381F', 1.6 * s) : thinLine(arm, fill, 2.2 * s) + thinLine(stick, fill, 1 * s);
+        if (stroke) f += `<polygon points="${P([m(-6 * dir, 56), m(-2 * dir, 63), m(2 * dir, 58), m(-1 * dir, 57)])}" fill="#E9B949"${sw}/><circle cx="${f1(m(2 * dir, 51)[0])}" cy="${f1(m(2 * dir, 51)[1])}" r="${f1(0.9 * s)}" fill="${INK}"/>` + thinLine([m(-4 * dir, 29), m(4 * dir, 29)], '#E9B949', 1.6 * s);
+        return f;
+      };
+      const gun = (m0: (a: number, b: number) => Pt, fill: string, stroke: boolean, k = 0.85) => {
+        const m = (a: number, b: number) => m0(a * k, b * k);
+        const sw = stroke ? ` stroke="${INK}" stroke-width="${f1(1.2 * s)}" stroke-linejoin="round"` : '';
+        let f = `<polygon points="${P(GUNUNGAN.map(([a, b]) => m(a, b)))}" fill="${fill}"${sw}/>`;
+        if (!stroke) return f;
+        f += `<polygon points="${P(GUNUNGAN.filter(([, b]) => b > 6).map(([a, b]) => m(a * 0.72, 8 + (b - 8) * 0.82)))}" fill="#C0392B"/>`;
+        f += thinLine([m(0, 12), m(0, 54)], '#5A381F', 1.6 * s) + thinLine([m(0, 40), m(-7, 47)], '#3FA06A', 1.6 * s) + thinLine([m(0, 34), m(7, 42)], '#3FA06A', 1.6 * s) + thinLine([m(0, 26), m(-8, 32)], '#3FA06A', 1.6 * s);
+        return f + `<polygon points="${P([m(-4, 8), m(4, 8), m(4, 16), m(0, 19), m(-4, 16)])}" fill="#3B2F2F"/>`;
+      };
+      const gedebog = () => g.box(x + 0.2, y + 0.56, 0, w - 0.4, 0.2, 12, C3('#9BB061'));
+      if (g.back) {
+        o += gedebog();
+        // sisi bayangan: layar diterangi blencong dari balik kelir, wayang tampak sebagai bayangan
+        const ua = u0 + 0.1;
+        o += g.poly([Q(ua, v0), Q(u1, v0), Q(u1, v1), Q(ua, v1)], '#FFE6AE', 1.4);
+        o += g.poly([Q(ua, v1 - 7), Q(u1, v1 - 7), Q(u1, v1), Q(ua, v1)], c.main, 1.1) + g.poly([Q(ua, v0), Q(u1, v0), Q(u1, v0 + 7), Q(ua, v0 + 7)], '#3B2F2F', 1.1);
+        o += `<polygon class="blink" points="${P(discPts(onY(g, Y, (ua + u1) / 2), 0, 62, 20, 24, 24))}" fill="#FFF6D6" fill-opacity=".75"/>`;
+        o += `<g opacity=".6">${gun(onY(g, Y, x + w / 2, 33), '#3B2F2F', false, 0.92)}${fig(onY(g, Y, x + 0.5, 33), 1, '#3B2F2F', false, 0.72)}${fig(onY(g, Y, x + w - 0.5, 33), -1, '#3B2F2F', false, 0.72)}</g>`;
+        return o;
+      }
+      o += g.quadY(Y, u0, u1, v0, v1, c.accent, 1.4);
+      o += g.quadY(Y, u0, u1, v1 - 7, v1, c.main, 1.1) + g.quadY(Y, u0, u1, v0, v0 + 7, '#3B2F2F', 1.1);
+      o += `<polygon points="${P(discPts(onY(g, Y, (u0 + u1) / 2), 0, 66, 20, 22, 24))}" fill="#FFE7A0" fill-opacity=".45"/>`;
+      // wayang tertancap di batang pisang (gedebog)
+      const Yp = y + 0.64;
+      o += gun(onY(g, Yp, x + w / 2, 12), '#E9B949', true);
+      o += fig(onY(g, Yp, x + 0.5, 12), 1, '#3F5E8F', true) + fig(onY(g, Yp, x + w - 0.5, 12), -1, '#8E2A1E', true);
+      o += gedebog();
+      // blencong menggantung
+      const [hx, hy] = at3(g, x + w / 2, y + 0.46, H), [lx, ly] = at3(g, x + w / 2, y + 0.66, 86);
+      o += thinLine([[hx, hy], [lx, ly - 3 * s]], INK, 1.1 * s) + glowC(lx, ly - 5 * s, 12 * s, '#FFD27A', 0.45, 'blink');
+      o += `<path d="M${f1(lx - 6 * s)} ${f1(ly - 2 * s)}Q${f1(lx)} ${f1(ly + 3 * s)} ${f1(lx + 6 * s)} ${f1(ly - 2 * s)}L${f1(lx + 9 * s)} ${f1(ly - 6 * s)}L${f1(lx + 4.5 * s)} ${f1(ly - 4 * s)}Q${f1(lx)} ${f1(ly - 1.5 * s)} ${f1(lx - 4.5 * s)} ${f1(ly - 4 * s)}Z" fill="#B07A3A" stroke="${INK}" stroke-width="${f1(1.1 * s)}" stroke-linejoin="round"/>`;
+      return o + flame(lx - 3 * s, ly - 4 * s, s, 0.4);
+    },
+  },
+  membatik: {
+    label: 'Meja membatik',
+    colors: { main: '#F7EBCF', accent: '#2F3E6E' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, wood = C3('#8A5A36'), Yb = y + 0.3, H = 60, u0 = x + 0.22, u1 = x + 1.3, um = u0 + (u1 - u0) * 0.6;
+      let o = '';
+      for (const px of [x + 0.1, x + 1.34]) o += g.box(px - 0.05, y + 0.14, 0, 0.18, 0.34, 5, wood) + g.box(px, Yb, 5, 0.08, 0.08, H - 5, wood);
+      o += g.box(x + 0.06, Yb, H, 1.4, 0.08, 5, wood);
+      const Yf = y + 0.4, Yk = y + 0.27;
+      const cloth = (YY: number, vb: number) => {
+        const pts: Pt[] = [at3(g, u0, YY, H + 4), at3(g, u1, YY, H + 4)];
+        for (let k = 0; k <= 8; k++) { const u = u1 - ((u1 - u0) * k) / 8; pts.push(at3(g, u, YY, vb + 2.5 * Math.sin(k * 1.7))); }
+        return g.poly(pts, c.main, 1.3);
+      };
+      // tungku kecil (anglo), wajan malam, canting
+      const anglo = () => {
+        const cu = x + 1.66, cv = y + 0.66, [px, py] = at3(g, cu, cv, 15), k = rk(g);
+        let a = lathe(g, cu, cv, [[0, 0.12], [3, 0.15], [10, 0.16], [13, 0.13], [14, 0.145]], '#C66B3D');
+        a += `<circle cx="${f1(px - 0.08 * k)}" cy="${f1(py + 6 * s)}" r="${f1(1.6 * s)}" fill="#F2994A"/>`;
+        a += flatE(g, cu, cv, 15, 0.15, '#3B3F55', 1.3) + flatE(g, cu, cv, 15.3, 0.11, '#7A4A1E', 0) + `<ellipse cx="${f1(px - 2 * s)}" cy="${f1(py - 0.5 * s)}" rx="${f1(2.6 * s)}" ry="${f1(0.9 * s)}" fill="#C08A4A"/>`;
+        a += inkLine([[px + 2 * s, py - 1 * s], [px + 15 * s, py - 15 * s]], '#C9A35A', 1.8, s) + `<circle cx="${f1(px + 1.5 * s)}" cy="${f1(py - 0.5 * s)}" r="${f1(2.2 * s)}" fill="#C77B3A" stroke="${INK}" stroke-width="${f1(0.9 * s)}"/>`;
+        return a + wisp(px - 4 * s, py - 2 * s, s, 10, '#FFFFFF', 0.6);
+      };
+      if (g.back) {
+        // dari belakang: anglo di balik kain; yang terlihat sisi belakang kain (motif tembus samar)
+        let faint = '';
+        for (let ua = u0 + 0.06; ua + 0.2 < u1 - 0.02; ua += 0.13) { const a = at3(g, ua, Yk, 34), b = at3(g, ua + 0.18, Yk, 60); faint += `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}`; }
+        return o + anglo() + cloth(Yf, 16) + cloth(Yk, 30) + `<path d="${faint}" stroke="${c.accent}" stroke-width="${f1(2.4 * s)}" stroke-linecap="round" opacity=".22"/>`;
+      }
+      o += cloth(Yf, 16);
+      // bagian kiri sudah dibatik (dasar sogan, parang biru), kanan masih garis pensil
+      const wash: Pt[] = [at3(g, u0, Yf, 62), at3(g, um, Yf, 62)];
+      for (let k = 0; k <= 4; k++) { const u = um - ((um - u0) * k) / 4; wash.push(at3(g, u, Yf, 20 + 2.5 * Math.sin((8 - k) * 1.7))); }
+      o += g.poly(wash, '#E2BC86', 0);
+      let band = '', pencil = '', dots = '';
+      for (let ua = u0 - 0.1; ua < u1 - 0.06; ua += 0.13) {
+        const pts: Pt[] = [];
+        for (let k = 0; k <= 6; k++) { const f = k / 6, u = ua + 0.24 * f; if (u >= u0 + 0.01 && u <= u1 - 0.01) pts.push(at3(g, u, Yf, 22 + 36 * f + Math.sin(f * Math.PI * 3) * 1.5)); }
+        if (pts.length < 2) continue;
+        const seg = pathOf(pts);
+        if (ua + 0.12 < um) { band += seg; for (const f of [0.3, 0.7]) { const u = ua + 0.24 * f + 0.06; if (u < um - 0.02 && u > u0) { const p = at3(g, u, Yf, 22 + 36 * f); dots += `M${f1(p[0])} ${f1(p[1])}h0.1`; } } } else pencil += seg;
+      }
+      o += `<path d="${band}" fill="none" stroke="${c.accent}" stroke-width="${f1(2.6 * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      o += `<path d="${dots}" stroke="#FFFDF7" stroke-width="${f1(2 * s)}" stroke-linecap="round"/><path d="${pencil}" fill="none" stroke="#9A9384" stroke-width="${f1(0.9 * s)}" stroke-dasharray="${f1(3 * s)} ${f1(2 * s)}"/>`;
+
+      // dingklik
+      o += g.box(x + 0.54, y + 0.64, 0, 0.06, 0.22, 8, wood) + g.box(x + 0.82, y + 0.64, 0, 0.06, 0.22, 8, wood) + g.box(x + 0.5, y + 0.62, 8, 0.42, 0.26, 3, C3('#B5703F'));
+      return o + anglo();
+    },
+  },
+  gendang: {
+    label: 'Kendang',
+    colors: { main: '#8A4B2A', accent: '#F3E3B5' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, v = y + 0.5, zc = 22, ua = x + 0.08, ub = x + 0.92;
+      const rad = (t: number) => 7 + 3 * t + 3.5 * Math.sin(Math.PI * t);
+      let o = '';
+      for (const u of [x + 0.22, x + 0.68]) o += g.box(u, y + 0.3, 0, 0.1, 0.4, 13, C3('#5A381F'));
+      const pt = (t: number, a: number, dr = 0) => { const r = rad(t) + dr, u = ua + (ub - ua) * t; return at3(g, u, v + (r * Math.cos(a)) / 32, zc + r * Math.sin(a)); };
+      const ring = (t: number, dr = 0, n = 24) => Array.from({ length: n }, (_, j) => pt(t, (j / n) * 2 * Math.PI, dr));
+      const all: Pt[] = [];
+      for (let i = 0; i <= 10; i++) all.push(...ring(i / 10));
+      o += g.poly(hull(all), c.main, 1.8);
+      // sisi yang terlihat: dari belakang, sisi yang lain
+      const vis = (a: number) => (g.back ? -Math.cos(a) : Math.cos(a)) + Math.sin(a);
+      const visArc = (t: number, dr = 0) => { const out: Pt[] = []; for (let j = 0; j <= 32; j++) { const a = (j / 32) * 2 * Math.PI - Math.PI / 4 + (g.back ? Math.PI / 2 : 0); if (vis(a) > -0.05) out.push(pt(t, a, dr)); } return out; };
+      // tali kendang (zig-zag)
+      const ac = g.back ? (3 * Math.PI) / 4 : Math.PI / 4, lace: Pt[] = [];
+      for (let k = 0; k <= 10; k++) lace.push(pt(k % 2 ? 0.88 : 0.12, ac - 1.25 + k * 0.25, 0.3));
+      o += inkLine(lace, c.accent, 1, s);
+      o += thinLine(visArc(0.05, 0.4), '#3B2A20', 2.6 * s) + thinLine(visArc(0.95, 0.4), '#3B2A20', 2.6 * s);
+      // muka kendang yang menghadap kamera
+      const th = g.back ? 0 : 1;
+      o += g.poly(ring(th, 0.6, 28), shade(c.main, -0.3), 1.6) + g.poly(ring(th, -1.6, 28), c.accent, 1.2);
+      return o;
+    },
+  },
+
+  /* ---------------- Spa Bali ---------------- */
+  bakkayu: {
+    label: 'Bak berendam kayu',
+    colors: { main: '#B5703F', accent: '#8FD3E8' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, cu = x + w / 2, cv = y + d / 2, rx = w / 2 - 0.1, ry = d / 2 - 0.1, H = 28;
+      const t = ovalTub(g, cu, cv, rx, ry, 0, H, C3(c.main));
+      let o = shadowE(...(g.iso(cu, cv) as [number, number]), 34 * s, 17 * s) + t.side;
+      // bilah kayu & simpai
+      let staves = '';
+      t.arc.forEach((i, k) => { if (k % 3 === 1) staves += `M${f1(t.lo[i][0])} ${f1(t.lo[i][1])}L${f1(t.hi[i][0])} ${f1(t.hi[i][1])}`; });
+      o += `<path d="${staves}" stroke="${shade(c.main, -0.3)}" stroke-width="${f1(1 * s)}"/>`;
+      for (const z of [6, H - 7]) { const r = t.ring(z); o += thinLine(t.arc.map((i) => r[i]), INK, 4 * s) + thinLine(t.arc.map((i) => r[i]), '#7A8094', 2.2 * s); }
+      o += t.top;
+      // air kembang
+      const water = t.ring(H - 1, 0.07);
+      o += g.poly(water, c.accent, 1.2);
+      const W = (a: number, b: number) => at3(g, cu + a * rx, cv + b * ry, H - 1);
+      for (const [a, b] of [[-0.45, -0.1], [0.25, 0.3]]) { const p = W(a, b); o += `<path d="M${f1(p[0] - 7 * s)} ${f1(p[1])}q${f1(7 * s)} ${f1(3 * s)} ${f1(14 * s)} 0" fill="none" stroke="#FFFFFF" stroke-width="${f1(1.4 * s)}" opacity=".8"/>`; }
+      [[-0.2, -0.25, 0], [0.4, -0.2, 20], [-0.55, 0.25, 40], [0.05, 0.2, 60], [0.62, 0.15, 10]].forEach(([a, b, r]) => { const p = W(a, b); o += `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="${f1(2.6 * s)}" ry="${f1(1.5 * s)}" transform="rotate(${r} ${f1(p[0])} ${f1(p[1])})" fill="#F28BA0" stroke="${INK}" stroke-width="${f1(0.6 * s)}"/>`; });
+      for (const [a, b, r] of [[-0.05, -0.05, 7], [0.48, 0.02, 6]]) { const p = W(a, b); o += kambojaFlower(p[0], p[1] - 1 * s, r * s, s, 10); }
+      // handuk gulung di bibir bak
+      const hp = at3(g, cu - rx + 0.12, cv - 0.05, H + 1);
+      o += `<rect x="${f1(hp[0] - 9 * s)}" y="${f1(hp[1] - 5 * s)}" width="${f1(18 * s)}" height="${f1(8 * s)}" rx="${f1(4 * s)}" transform="rotate(-26 ${f1(hp[0])} ${f1(hp[1])})" fill="#FFFDF7" stroke="${INK}" stroke-width="${f1(1.2 * s)}"/>`;
+      const m = at3(g, cu, cv, H + 4);
+      return o + wisp(m[0] - 12 * s, m[1], s, 14) + wisp(m[0] + 6 * s, m[1] - 2 * s, s, 18) + wisp(m[0] + 20 * s, m[1] + 2 * s, s, 12);
+    },
+  },
+  pancuran: {
+    label: 'Pancuran batu',
+    colors: { main: '#9C9A86', accent: '#8FD3E8' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, stone = C3(c.main), Y = y + 0.38;
+      let o = g.box(x + 0.12, y + 0.14, 0, 0.76, 0.24, 80, stone);
+      o += g.box(x + 0.15, y + 0.16, 80, 0.7, 0.2, 6, C3(shade(c.main, 0.1))) + g.box(x + 0.28, y + 0.19, 86, 0.44, 0.14, 7, C3(shade(c.main, 0.16)));
+      const [fx, fy] = at3(g, x + 0.5, y + 0.26, 93);
+      o += `<path d="M${f1(fx - 6 * s)} ${f1(fy + 1 * s)}Q${f1(fx - 7 * s)} ${f1(fy - 8 * s)} ${f1(fx)} ${f1(fy - 15 * s)}Q${f1(fx + 7 * s)} ${f1(fy - 8 * s)} ${f1(fx + 6 * s)} ${f1(fy + 1 * s)}Z" fill="${shade(c.main, 0.2)}" stroke="${INK}" stroke-width="${f1(1.3 * s)}" stroke-linejoin="round"/>`;
+      const moss = (pts: [number, number, number][]) => pts.map(([u, v, z]) => { const p = at3(g, u, v, z); return `<ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="${f1(5 * s)}" ry="${f1(2.4 * s)}" fill="#6FA35A" stroke="${INK}" stroke-width="${f1(0.8 * s)}"/>`; }).join('');
+      if (g.back) {
+        // sisi belakang: susunan batu polos berlumut
+        const m = onY(g, y + 0.14, x + 0.5);
+        let seams = '';
+        for (const v of [27, 54]) seams += `M${P([m(-12, v), m(12, v)]).replace(' ', 'L')}`;
+        for (const [hx, v0, v1] of [[-6, 0, 27], [10, 27, 54], [-12, 54, 80]]) seams += `M${P([m(hx, v0), m(hx, v1)]).replace(' ', 'L')}`;
+        o += `<path d="${seams}" stroke="${shade(c.main, -0.3)}" stroke-width="${f1(1.2 * s)}" fill="none"/>`;
+        return o + g.box(x + 0.16, y + 0.46, 0, 0.68, 0.44, 18, C3(shade(c.main, 0.05))) + moss([[x + 0.3, y + 0.14, 3], [x + 0.7, y + 0.14, 4]]);
+      }
+      o += g.quadY(Y, x + 0.2, x + 0.8, 26, 74, shade(c.main, -0.1), 1.2);
+      // ukiran bunga & sulur
+      const m = onY(g, Y, x + 0.5, 0);
+      let rel = '';
+      for (let k = 0; k < 6; k++) { const a = (k / 6) * 2 * Math.PI; rel += `<polygon points="${P(discPts(m, Math.cos(a) * 4.4, 64 + Math.sin(a) * 4.4, 2.8, 2.8, 8))}" fill="${shade(c.main, 0.12)}"/>`; }
+      rel += `<polygon points="${P(discPts(m, 0, 64, 2.4, 2.4, 8))}" fill="${shade(c.main, -0.25)}"/>`;
+      rel += `<path d="M${P([m(-7, 32), m(-3, 42), m(-7, 50)]).replace(/ /g, 'L')}M${P([m(7, 32), m(3, 42), m(7, 50)]).replace(/ /g, 'L')}" fill="none" stroke="${shade(c.main, 0.15)}" stroke-width="${f1(2 * s)}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      o += rel;
+      o += g.box(x + 0.16, y + 0.46, 0, 0.68, 0.44, 18, C3(shade(c.main, 0.05)));
+      o += g.poly([at3(g, x + 0.22, y + 0.52, 16.5), at3(g, x + 0.78, y + 0.52, 16.5), at3(g, x + 0.78, y + 0.84, 16.5), at3(g, x + 0.22, y + 0.84, 16.5)], c.accent, 1.1);
+      const fl = at3(g, x + 0.66, y + 0.74, 17);
+      o += kambojaFlower(fl[0], fl[1], 5.5 * s, s, 30);
+      // pancuran bambu & air jatuh
+      const a = at3(g, x + 0.5, Y - 0.02, 56), b = at3(g, x + 0.5, Y + 0.16, 54.5), e = at3(g, x + 0.5, y + 0.62, 16.5);
+      o += inkLine([a, b], '#C9A35A', 4.4, s) + `<ellipse cx="${f1(b[0])}" cy="${f1(b[1])}" rx="${f1(2.6 * s)}" ry="${f1(3 * s)}" fill="#6B4A2B" stroke="${INK}" stroke-width="${f1(1 * s)}"/>`;
+      const fall = `M${f1(b[0])} ${f1(b[1] + 1 * s)}Q${f1(b[0] - 3 * s)} ${f1(b[1] + 8 * s)} ${f1(e[0])} ${f1(e[1])}`;
+      o += `<path d="${fall}" fill="none" stroke="#DFF3FB" stroke-width="${f1(4 * s)}" stroke-linecap="round" opacity=".85"/><path class="water" d="${fall}" fill="none" stroke="#FFFFFF" stroke-width="${f1(1.6 * s)}" stroke-linecap="round" stroke-dasharray="${f1(4 * s)} ${f1(4 * s)}"/>`;
+      o += `<ellipse cx="${f1(e[0])}" cy="${f1(e[1])}" rx="${f1(7 * s)}" ry="${f1(2.4 * s)}" fill="none" stroke="#FFFFFF" stroke-width="${f1(1.2 * s)}" opacity=".9"/>`;
+      return o + moss([[x + 0.2, y + 0.9, 17], [x + 0.84, y + 0.6, 17.5]]);
+    },
+  },
+  kamboja: {
+    label: 'Pot kamboja',
+    colors: { main: '#4F9A5A', accent: '#B9B3A4' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, [cx, cy] = g.iso(x + 0.5, y + 0.5);
+      let o = g.box(x + 0.3, y + 0.3, 0, 0.4, 0.4, 16, C3(c.accent)) + g.box(x + 0.26, y + 0.26, 16, 0.48, 0.48, 4, C3(shade(c.accent, 0.1)));
+      o += g.poly([at3(g, x + 0.32, y + 0.32, 20), at3(g, x + 0.68, y + 0.32, 20), at3(g, x + 0.68, y + 0.68, 20), at3(g, x + 0.32, y + 0.68, 20)], '#5A3A22', 1);
+      const B = (dx: number, dy: number): Pt => [cx + dx * s, cy + dy * s], bark = '#9C8A78';
+      o += inkLine([B(0, -21), B(-1, -40), B(-3, -52)], bark, 5, s);
+      o += inkLine([B(-1, -40), B(-13, -55), B(-21, -70)], bark, 3.4, s) + inkLine([B(-3, -52), B(3, -68), B(5, -84)], bark, 3.2, s);
+      o += inkLine([B(-1, -45), B(12, -57), B(21, -66)], bark, 3, s) + inkLine([B(-13, -55), B(-26, -60)], bark, 2.4, s);
+      o += `<g class="canopy">`;
+      const tips: [number, number, number][] = [[-26, -60, 0], [-21, -70, 1], [21, -66, 2], [5, -84, 3]];
+      for (const [tx, ty, i] of tips) {
+        const [px, py] = B(tx, ty);
+        [-160, -120, -80, -40, 0].forEach((a, k) => {
+          const rad = (a * Math.PI) / 180, lx = px + Math.cos(rad) * 8 * s, ly = py + Math.sin(rad) * 7 * s;
+          o += `<ellipse cx="${f1(lx)}" cy="${f1(ly)}" rx="${f1(9 * s)}" ry="${f1(3.4 * s)}" transform="rotate(${a} ${f1(lx)} ${f1(ly)})" fill="${(k + i) % 2 ? shade(c.main, -0.16) : c.main}" stroke="${INK}" stroke-width="${f1(1.1 * s)}"/>`;
+        });
+        o += kambojaFlower(px - 2 * s, py - 3 * s, 6 * s, s, i * 20) + kambojaFlower(px + 5 * s, py + 1 * s, 5 * s, s, 40 + i * 13);
+      }
+      return o + `</g>`;
+    },
+  },
+  rakhanduk: {
+    label: 'Rak handuk bambu',
+    colors: { main: '#C9A35A', accent: '#3E8E7E' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, H = 96;
+      const rail = (u: number, t: number): Pt => { const a = at3(g, u, y + 0.74, 0), b = at3(g, u, y + 0.22, H); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+      let o = shadowE(...(g.iso(x + 0.5, y + 0.7) as [number, number]), 22 * s, 6 * s);
+      for (const u of [x + 0.2, x + 0.8]) {
+        o += inkLine([rail(u, 0), rail(u, 1.03)], c.main, 4, s);
+        for (const t of [0.31, 0.53, 0.75, 0.97]) { const p = rail(u, t); o += thinLine([[p[0] - 2.4 * s, p[1]], [p[0] + 2.4 * s, p[1]]], shade(c.main, -0.35), 1.2 * s); }
+      }
+      // anak tangga & handuk, dari belakang ke depan (tampak belakang: tangga condong ke arah kamera)
+      const towels: Record<number, [number, number, number, string, string]> = { 0.86: [0.1, 0.72, 26, '#FFFDF7', c.accent], 0.64: [0.26, 0.9, 22, c.accent, '#FFFDF7'], 0.42: [0.12, 0.7, 20, '#EBCBA6', '#C0392B'] };
+      const steps = [0.2, 0.42, 0.64, 0.86].map((t) => ({ t, k: g.iso(x + 0.5, y + 0.74 - 0.52 * t)[1] - t * H * s }));
+      for (const { t } of steps.sort((a, b) => a.k - b.k)) {
+        o += inkLine([rail(x + 0.2, t), rail(x + 0.8, t)], shade(c.main, -0.05), 2.6, s);
+        const tw = towels[t];
+        if (!tw) continue;
+        const [a0, a1, len, col, stripe] = tw;
+        const p = rail(x + 0.2 + 0.6 * a0, t), q = rail(x + 0.2 + 0.6 * a1, t);
+        o += `<path d="M${f1(p[0])} ${f1(p[1] + len * s)}V${f1(p[1])}Q${f1((p[0] + q[0]) / 2)} ${f1((p[1] + q[1]) / 2 - 5 * s)} ${f1(q[0])} ${f1(q[1])}V${f1(q[1] + len * s)}Z" fill="${col}" stroke="${INK}" stroke-width="${f1(1.3 * s)}" stroke-linejoin="round"/>`;
+        o += `<path d="M${f1(p[0])} ${f1(p[1] + (len - 5) * s)}L${f1(q[0])} ${f1(q[1] + (len - 5) * s)}M${f1(p[0])} ${f1(p[1] + (len - 8) * s)}L${f1(q[0])} ${f1(q[1] + (len - 8) * s)}" stroke="${stripe}" stroke-width="${f1(1.4 * s)}"/>`;
+      }
+      return o;
+    },
+  },
+  lilinaroma: {
+    label: 'Lilin aroma',
+    colors: { main: '#8C8A78', accent: '#FFF1D0' },
+    draw(g, x, y, w, d, c) {
+      const s = g.s, top = 14;
+      let o = g.box(x + 0.18, y + 0.22, 0, 0.64, 0.56, 11, C3(c.main)) + g.box(x + 0.12, y + 0.16, 11, 0.76, 0.68, 3, C3(shade(c.main, 0.12)));
+      if (!g.back) o += g.quadY(y + 0.78, x + 0.3, x + 0.7, 3, 8, shade(c.main, -0.22), 1) + g.quadX(x + 0.82, y + 0.34, y + 0.66, 3, 8, shade(c.main, -0.32), 1);
+      const L: [number, string][] = [];
+      const add = (cu: number, cv: number, h: string) => L.push([g.iso(cu, cv)[1], h]);
+      for (const [u, v, r, h] of [[0.34, 0.36, 0.085, 22], [0.54, 0.3, 0.075, 15], [0.68, 0.48, 0.08, 10]]) {
+        const cu = x + u, cv = y + v, t = ovalTub(g, cu, cv, r, r, top, h, C3(c.accent), 1.2), [px, py] = at3(g, cu, cv, top + h);
+        add(cu, cv, glowC(px, py - 7 * s, 12 * s, '#FFE7A0', 0.4, 'blink') + t.side + t.top + thinLine([[px, py], [px, py - 3 * s]], INK, 1 * s) + flame(px, py - 2 * s, s, 0.55));
+      }
+      {
+        const cu = x + 0.38, cv = y + 0.64, [px, py] = at3(g, cu, cv, top + 5);
+        add(cu, cv, lathe(g, cu, cv, [[top, 0.08], [top + 5, 0.14]], '#E8E2D6', 1.2) + flatE(g, cu, cv, top + 5, 0.14, '#E8E2D6', 1.2) + flatE(g, cu, cv, top + 5.2, 0.105, '#8FD3E8', 0) + kambojaFlower(px, py, 5.2 * s, s, 15));
+      }
+      for (const [u, v, col] of [[0.24, 0.5, '#B9B3A4'], [0.56, 0.74, '#A8A293'], [0.62, 0.66, '#CFC9BA']] as [number, number, string][]) {
+        const [px, py] = at3(g, x + u, y + v, top);
+        add(x + u, y + v, `<ellipse cx="${f1(px)}" cy="${f1(py - 1 * s)}" rx="${f1(3.4 * s)}" ry="${f1(2.2 * s)}" fill="${col}" stroke="${INK}" stroke-width="${f1(0.8 * s)}"/>`);
+      }
+      return o + L.sort((a, b) => a[0] - b[0]).map((e) => e[1]).join('');
+    },
+  },
 };
 Object.assign(FURN, PREMIUM);
 
@@ -2511,11 +3185,14 @@ export type IsoCtx = Ctx;
 Object.assign(WALLS, {
   langit: { label: 'Langit malam', colors: { main: '#2B3A6B', accent: '#F7C548' } },
   kawung: { label: 'Batik kawung', colors: { main: '#F3E3B5', accent: '#8A5A36' } },
+  gedek: { label: 'Anyaman bambu (gedek)', colors: { main: '#DDBF85', accent: '#A9844C' } },
 });
 Object.assign(FLOORS, {
   terasoemas: { label: 'Teraso emas', colors: { main: '#F1E9D8', accent: '#D9A441' } },
   pasir: { label: 'Pasir pantai', colors: { main: '#F0D9A8', accent: '#E2C48C' } },
   batutaman: { label: 'Batu taman', colors: { main: '#8CC56E', accent: '#B9B3A4' } },
+  papanjati: { label: 'Parket jati', colors: { main: '#A4693E', accent: '#7A4526' } },
+  batukali: { label: 'Batu kali', colors: { main: '#D3CAB6', accent: '#ABA597' } },
 });
 
 /* ------------------------------------------------------------------ */

@@ -39,9 +39,24 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.42.0',
+    date: '2026-11-15',
+    title: 'Set premium baru: Dapur Nenek, Sanggar Seni, Spa Bali',
+    summary: 'Tiga set perabot premium baru di Toko Mutiara, lengkap dengan suasana khasnya dan perabot yang bisa dipakai pet.',
+    items: [
+      { kind: 'baru', text: 'Set Dapur Nenek: tungku tanah liat, rak piring kayu, gentong air, meja makan dan bangku panjang, lampu petromaks, plus dinding anyaman bambu. Suasananya: bara hangat dan asap tungku.', player: true },
+      { kind: 'baru', text: 'Set Sanggar Seni: rak angklung, kecapi, kelir wayang mini, meja membatik, kendang, plus lantai parket jati. Suasananya: lampu sorot dan nada beterbangan. Putar kelir ke belakang untuk melihat bayangan wayangnya!', player: true },
+      { kind: 'baru', text: 'Set Spa Bali: bak berendam kayu, pancuran batu, pot kamboja, rak handuk bambu, lilin aroma, plus lantai batu kali. Suasananya: uap wangi dan bunga kamboja.', player: true },
+      { kind: 'baru', text: 'Perabot baru bisa dipakai pet: menggoreng pisang di tungku, makan bareng di meja makan, main angklung, kecapi, dan kendang, menonton wayang, membatik, berendam, menyiram kamboja, dan lainnya.', player: true },
+      { kind: 'ubah', text: 'Semua perabot baru bisa diputar 4 arah. Beli satuan atau sekaligus lewat tab Set di Toko Mutiara (paket hemat 20%).', player: true },
+      { kind: 'ubah', text: 'Teknis: paket konten 17 (seed-premium2, penanda pack_premium2, tidak menimpa ubahan admin) menambah 15 mebel + 1 dinding + 2 lantai, 3 set & 15 aktivitas. Efek suasana pindah ke premiumMoodSVG() (shared/premium.ts) dan dipakai Room.svelte. Uji: premium2.test.ts (7), e2e-premium2.' },
+    ],
+  },
+  {
     version: '0.41.0',
     date: '2026-11-15',
     title: 'Putar perabot 4 arah',
+    commits: ['2d784f2'],
     summary: 'Perabot sekarang bisa diputar ke 4 arah, termasuk membelakangi kamera.',
     items: [
       { kind: 'baru', text: 'Tombol Putar sekarang memutar perabot seperempat putaran tiap ketukan, jadi ada 4 arah: menghadap kiri, menghadap kanan, dan membelakangi kamera dari dua sisi. Sofa bisa menghadap TV di sisi mana pun. Di komputer, tekan R.', player: true },

@@ -2,7 +2,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, PREMIUM_SET_BY_KEY, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, premiumMoodSVG, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
@@ -2148,36 +2148,10 @@
     }
     return out;
   });
+  /** efek suasana & labelnya (gambar di @kb/shared, sama dengan pratinjau desain) */
   function moodSvg(key: string, r: { gx: number; gy: number; size: number; outdoor?: boolean }) {
     const at = (u: number, v: number, up = 0) => { const p = houseIso(r.gx + u * r.size, r.gy + v * r.size); return [p[0], p[1] - up]; };
-    const fl = [at(0, 0), at(1, 0), at(1, 1), at(0, 1)].map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' ');
-    const fr = (k: number, m: number) => ((k * m) % 1 + 1) % 1;
-    const pts = (n: number, hi: number) => Array.from({ length: n }, (_, k) => at(0.1 + fr(k, 0.618) * 0.8, 0.1 + fr(k, 0.382) * 0.8, 12 + fr(k, 0.271) * hi));
-    const blink = (k: number) => `class="blink" style="animation-delay:-${((k * 0.37) % 1.7).toFixed(2)}s"`;
-    let o = '';
-    if (key === 'tamanmalam') {
-      o += `<polygon points="${fl}" fill="#2B3A6B" fill-opacity=".16"/>`;
-      pts(9, 70).forEach(([x, y], k) => (o += `<g ${blink(k)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#EFFF7A" fill-opacity=".28"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4" fill="#EFFF7A"/></g>`));
-    } else if (key === 'keraton') {
-      o += `<polygon points="${fl}" fill="#FFD27A" fill-opacity=".12"/>`;
-      pts(7, HOUSE_WALL_H * 0.7).forEach(([x, y], k) => (o += `<path ${blink(k)} transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" d="M0 -6L1.6 -1.6 6 0 1.6 1.6 0 6-1.6 1.6-6 0-1.6-1.6Z" fill="#FFE27A"/>`));
-    } else if (key === 'kafe') {
-      o += `<polygon points="${fl}" fill="#F2994A" fill-opacity=".1"/>`;
-      pts(4, 40).forEach(([x, y], k) => (o += `<circle ${blink(k)} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="22" fill="#FFE7A0" fill-opacity=".16"/>`));
-    } else if (key === 'pantai') {
-      const top = at(0, 0, HOUSE_WALL_H);
-      for (let k = 0; k < 4; k++) { const a = at(0.15 + k * 0.2, 1), b = at(0.3 + k * 0.2, 1); o += `<polygon points="${(top[0] + 30 + k * 26).toFixed(1)},${top[1].toFixed(1)} ${a[0].toFixed(1)},${a[1].toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}" fill="#FFF6C8" fill-opacity=".13"/>`; }
-    } else if (key === 'bintang') {
-      o += `<polygon points="${fl}" fill="#1B2350" fill-opacity=".14"/>`;
-      pts(12, HOUSE_WALL_H * 0.8).forEach(([x, y], k) => (o += `<circle ${blink(k)} cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(1.6 + (k % 3) * 0.7).toFixed(1)}" fill="#FFF6C8"/>`));
-    }
-    // label suasana di atas sudut belakang ruangan
-    const set = PREMIUM_SET_BY_KEY[key];
-    const lb = at(0.5, 0, r.outdoor ? 34 : HOUSE_WALL_H + 14);
-    const text = `✦ Suasana ${set?.name.replace(/^Set /, '') ?? key}`;
-    const w = text.length * 6.4 + 18;
-    o += `<g class="mood-label" transform="translate(${lb[0].toFixed(1)} ${lb[1].toFixed(1)})"><rect x="${(-w / 2).toFixed(1)}" y="-11" width="${w.toFixed(1)}" height="20" rx="10" fill="${set?.color ?? '#2B2F4A'}" stroke="#2B2F4A" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g>`;
-    return o;
+    return premiumMoodSVG(key, at, { wallH: HOUSE_WALL_H, outdoor: r.outdoor });
   }
 
   /* ---------------- pohon tidak menutupi: kanopi tembus pandang bila ada pet / benda di belakangnya ---------------- */

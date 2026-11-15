@@ -4,6 +4,22 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.42.0 · 2026-11-15 · Set premium baru: Dapur Nenek, Sanggar Seni, Spa Bali
+
+_Tiga set perabot premium baru di Toko Mutiara, lengkap dengan suasana khasnya dan perabot yang bisa dipakai pet._
+
+### Baru
+
+- Set Dapur Nenek: tungku tanah liat, rak piring kayu, gentong air, meja makan dan bangku panjang, lampu petromaks, plus dinding anyaman bambu. Suasananya: bara hangat dan asap tungku. _(pemain)_
+- Set Sanggar Seni: rak angklung, kecapi, kelir wayang mini, meja membatik, kendang, plus lantai parket jati. Suasananya: lampu sorot dan nada beterbangan. Putar kelir ke belakang untuk melihat bayangan wayangnya! _(pemain)_
+- Set Spa Bali: bak berendam kayu, pancuran batu, pot kamboja, rak handuk bambu, lilin aroma, plus lantai batu kali. Suasananya: uap wangi dan bunga kamboja. _(pemain)_
+- Perabot baru bisa dipakai pet: menggoreng pisang di tungku, makan bareng di meja makan, main angklung, kecapi, dan kendang, menonton wayang, membatik, berendam, menyiram kamboja, dan lainnya. _(pemain)_
+
+### Perubahan
+
+- Semua perabot baru bisa diputar 4 arah. Beli satuan atau sekaligus lewat tab Set di Toko Mutiara (paket hemat 20%). _(pemain)_
+- Teknis: paket konten 17 (seed-premium2, penanda pack_premium2, tidak menimpa ubahan admin) menambah 15 mebel + 1 dinding + 2 lantai, 3 set & 15 aktivitas. Efek suasana pindah ke premiumMoodSVG() (shared/premium.ts) dan dipakai Room.svelte. Uji: premium2.test.ts (7), e2e-premium2.
+
 ## 0.41.0 · 2026-11-15 · Putar perabot 4 arah
 
 _Perabot sekarang bisa diputar ke 4 arah, termasuk membelakangi kamera._
@@ -17,6 +33,8 @@ _Perabot sekarang bisa diputar ke 4 arah, termasuk membelakangi kamera._
 - Dari belakang, sisi depan perabot tidak terlihat: layar TV, pintu lemari, pintu oven, dan papan menu tersembunyi, sedangkan sandaran sofa, sandaran kursi, dan kepala kasur ada di depan. _(pemain)_
 - Perabot dari gambar unggahan admin tetap 2 arah. Admin bisa membatasi perabot lain ke 2 arah lewat pilihan "Tanpa tampak belakang" di editor barang.
 - Teknis: r 0–3 (0 tidak disimpan; r: 1 dari v0.40.0 tetap sama). Tampak belakang dibuat otomatis (furnBack): titik dicerminkan terhadap pusat petak, panel depan (quadX/quadY) tidak digambar, balok diurutkan ulang (sortBoxes: belakang/bawah dulu). Penyesuaian gambar: lemari, kulkas, mesin kopi, tenda, karpet awan. Uji: putar.test.ts, e2e-putar.
+
+Commit: [`2d784f2`](https://github.com/envfri/kampung-baru/commit/2d784f2)
 
 ## 0.40.0 · 2026-11-15 · Putar perabot
 
