@@ -39,9 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.39.1',
+    date: '2026-11-15',
+    title: 'Alun-alun pindah ke dekat Rumahku',
+    summary: 'Di peta kampung, Alun-alun dan Lapangan Lomba bertukar tempat: Alun-alun sekarang di samping Kebun, dekat Rumahku.',
+    items: [
+      { kind: 'ubah', text: 'Alun-alun pindah ke kiri bawah peta, di samping Kebun dan dekat Rumahku, jadi di HP langsung kelihatan tanpa menggeser peta. Lapangan Lomba pindah ke ujung kanan.', player: true },
+      { kind: 'ubah', text: 'Teknis: paket konten 16 menukar letak di tabel locations hanya bila keduanya masih di letak bawaan (letak buatan admin tidak disentuh) dan menaikkan versi katalog. Uji: peta.test.ts (tidak menimpa jalan / tempat lain).' },
+    ],
+  },
+  {
     version: '0.39.0',
     date: '2026-11-15',
     title: 'Pet ngajak ke Alun-alun',
+    commits: ['cef3914'],
     summary: 'Kalau ada orang di alun-alun, pet-mu sesekali mengajak ke sana, apalagi kalau ada temanmu atau sebentar lagi ada acara seru.',
     items: [
       { kind: 'baru', text: 'Saat kamu di rumah dan ada orang lain di alun-alun, pet-mu sesekali mengajak lewat gelembung bicara, misalnya "Ke alun-alun yuk! Wajik lagi di sana." Ketuk Ayo! dan pet-mu langsung jalan ke alun-alun tempat temanmu berada, atau ketuk Nanti.', player: true },

@@ -4,6 +4,15 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.39.1 · 2026-11-15 · Alun-alun pindah ke dekat Rumahku
+
+_Di peta kampung, Alun-alun dan Lapangan Lomba bertukar tempat: Alun-alun sekarang di samping Kebun, dekat Rumahku._
+
+### Perubahan
+
+- Alun-alun pindah ke kiri bawah peta, di samping Kebun dan dekat Rumahku, jadi di HP langsung kelihatan tanpa menggeser peta. Lapangan Lomba pindah ke ujung kanan. _(pemain)_
+- Teknis: paket konten 16 menukar letak di tabel locations hanya bila keduanya masih di letak bawaan (letak buatan admin tidak disentuh) dan menaikkan versi katalog. Uji: peta.test.ts (tidak menimpa jalan / tempat lain).
+
 ## 0.39.0 · 2026-11-15 · Pet ngajak ke Alun-alun
 
 _Kalau ada orang di alun-alun, pet-mu sesekali mengajak ke sana, apalagi kalau ada temanmu atau sebentar lagi ada acara seru._
@@ -18,6 +27,8 @@ _Kalau ada orang di alun-alun, pet-mu sesekali mengajak ke sana, apalagi kalau a
 - Pet tidak cerewet: paling cepat 1 menit setelah kamu masuk rumah, lalu paling sering tiap 15 menit dan paling banyak 4 kali sehari. Pet juga tidak mengajak saat kamu sibuk atau baru pulang dari alun-alun. Kalau kamu ketuk Nanti 2 kali berturut-turut, pet tidak mengajak lagi sampai besok. _(pemain)_
 - Admin: fitur bisa dinyalakan/dimatikan di features.ajakAlun; jeda, batas per hari, jumlah orang minimal, dan kalimat per alasan diatur di ajakAlun ({teman}, {jumlah}, {menit}, {pet}).
 - Teknis: GET /api/square sekarang menghitung orang lain saja (diri sendiri tidak) dan menyertakan maks 3 teman yang sedang di alun-alun (nama pet; teman yang menyembunyikan status online tidak ikut). Pilihan alasan & kalimat ada di shared/ajak.ts; jeda & batas dicatat di HP (kb-ajak). Catatan ajak_alun {reason, choice}. Uji: ajak.test.ts (9 uji) dan e2e-ajak (48 cek).
+
+Commit: [`cef3914`](https://github.com/envfri/kampung-baru/commit/cef3914)
 
 ## 0.38.1 · 2026-11-14 · Nampan makanan bisa digeser di HP
 
