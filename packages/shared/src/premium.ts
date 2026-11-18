@@ -109,11 +109,11 @@ export function premiumMoodSVG(key: string, at: (u: number, v: number, up?: numb
       s += `<g ${blink(k)} transform="translate(${n1(x)} ${n1(y)})">${f}<circle r="1.6" fill="#F7C548"/></g>`;
     });
   }
-  // label suasana di atas sudut belakang ruangan
+  // label suasana di atas sudut belakang ruangan (isi dibungkus .mood-shift: game boleh menggesernya bila tertutup HUD)
   const set = PREMIUM_SET_BY_KEY[key];
   const lb = at(0.5, 0, o.outdoor ? 34 : o.wallH + 14);
   const text = `✦ Suasana ${set?.name.replace(/^Set /, '') ?? key}`;
   const w = text.length * 6.4 + 18;
-  s += `<g class="mood-label" transform="translate(${n1(lb[0])} ${n1(lb[1])})"><rect x="${n1(-w / 2)}" y="-11" width="${n1(w)}" height="20" rx="10" fill="${set?.color ?? INK}" stroke="${INK}" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g>`;
+  s += `<g class="mood-label" transform="translate(${n1(lb[0])} ${n1(lb[1])})"><g class="mood-shift"><rect x="${n1(-w / 2)}" y="-11" width="${n1(w)}" height="20" rx="10" fill="${set?.color ?? INK}" stroke="${INK}" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g></g>`;
   return s;
 }

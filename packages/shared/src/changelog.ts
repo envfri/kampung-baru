@@ -39,9 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.42.1',
+    date: '2026-11-18',
+    title: 'Label suasana tidak tertutup banner',
+    summary: 'Di HP kecil, label "Suasana" set premium tidak lagi tertutup banner event.',
+    items: [
+      { kind: 'perbaikan', text: 'Di HP kecil, label "✦ Suasana …" set premium tidak lagi tertutup banner event atau tombol di atas ruangan. Labelnya otomatis turun tepat di bawahnya.', player: true },
+      { kind: 'ubah', text: 'Teknis: isi label dibungkus .mood-shift (premiumMoodSVG); Room.svelte menggesernya turun bila bertumpuk dengan .event / .roombar / .jbtn / .needs / .hud (dicek tiap 300 ms).' },
+    ],
+  },
+  {
     version: '0.42.0',
     date: '2026-11-15',
     title: 'Set premium baru: Dapur Nenek, Sanggar Seni, Spa Bali',
+    commits: ['a1bd514'],
     summary: 'Tiga set perabot premium baru di Toko Mutiara, lengkap dengan suasana khasnya dan perabot yang bisa dipakai pet.',
     items: [
       { kind: 'baru', text: 'Set Dapur Nenek: tungku tanah liat, rak piring kayu, gentong air, meja makan dan bangku panjang, lampu petromaks, plus dinding anyaman bambu. Suasananya: bara hangat dan asap tungku.', player: true },

@@ -4,6 +4,18 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.42.1 · 2026-11-18 · Label suasana tidak tertutup banner
+
+_Di HP kecil, label "Suasana" set premium tidak lagi tertutup banner event._
+
+### Perubahan
+
+- Teknis: isi label dibungkus .mood-shift (premiumMoodSVG); Room.svelte menggesernya turun bila bertumpuk dengan .event / .roombar / .jbtn / .needs / .hud (dicek tiap 300 ms).
+
+### Perbaikan
+
+- Di HP kecil, label "✦ Suasana …" set premium tidak lagi tertutup banner event atau tombol di atas ruangan. Labelnya otomatis turun tepat di bawahnya. _(pemain)_
+
 ## 0.42.0 · 2026-11-15 · Set premium baru: Dapur Nenek, Sanggar Seni, Spa Bali
 
 _Tiga set perabot premium baru di Toko Mutiara, lengkap dengan suasana khasnya dan perabot yang bisa dipakai pet._
@@ -19,6 +31,8 @@ _Tiga set perabot premium baru di Toko Mutiara, lengkap dengan suasana khasnya d
 
 - Semua perabot baru bisa diputar 4 arah. Beli satuan atau sekaligus lewat tab Set di Toko Mutiara (paket hemat 20%). _(pemain)_
 - Teknis: paket konten 17 (seed-premium2, penanda pack_premium2, tidak menimpa ubahan admin) menambah 15 mebel + 1 dinding + 2 lantai, 3 set & 15 aktivitas. Efek suasana pindah ke premiumMoodSVG() (shared/premium.ts) dan dipakai Room.svelte. Uji: premium2.test.ts (7), e2e-premium2.
+
+Commit: [`a1bd514`](https://github.com/envfri/kampung-baru/commit/a1bd514)
 
 ## 0.41.0 · 2026-11-15 · Putar perabot 4 arah
 

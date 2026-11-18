@@ -2148,6 +2148,30 @@
     }
     return out;
   });
+  // label suasana tertutup HUD (banner event, deret ruangan, tombol Jepret, kebutuhan) di HP kecil: geser turun tepat di bawahnya
+  $effect(() => {
+    if (!moodHtml) return;
+    const t = setInterval(() => {
+      const labels = svgEl?.querySelectorAll<SVGGElement>('.mood-label .mood-shift');
+      if (!labels?.length || document.hidden) return;
+      const k = Math.abs(svgEl!.getScreenCTM()?.d ?? 1) || 1;
+      const obs = [...document.querySelectorAll('.event, .roombar, .jbtn, .needs, .hud')].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.height);
+      labels.forEach((g) => {
+        const cur = Number(g.dataset.dy ?? 0);
+        const r = g.getBoundingClientRect();
+        const top = r.top - cur * k, bottom = r.bottom - cur * k;
+        let dy = 0;
+        for (let pass = 0; pass < 4; pass++) {
+          const hit = obs.find((o) => o.left < r.right && o.right > r.left && o.top < bottom + dy && o.bottom > top + dy);
+          if (!hit) break;
+          dy = hit.bottom + 4 - top;
+        }
+        const u = Math.min(dy, 170) / k;
+        if (Math.abs(u - cur) > 0.5) { g.setAttribute('transform', `translate(0 ${u.toFixed(1)})`); g.dataset.dy = u.toFixed(1); }
+      });
+    }, 300);
+    return () => clearInterval(t);
+  });
   /** efek suasana & labelnya (gambar di @kb/shared, sama dengan pratinjau desain) */
   function moodSvg(key: string, r: { gx: number; gy: number; size: number; outdoor?: boolean }) {
     const at = (u: number, v: number, up = 0) => { const p = houseIso(r.gx + u * r.size, r.gy + v * r.size); return [p[0], p[1] - up]; };
