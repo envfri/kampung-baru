@@ -4,6 +4,19 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.43.1 · 2026-11-18 · Nampan makanan tidak tertutup kartu tamu
+
+_Saat ada teman berkunjung, nampan makanan dan bar tidur tidak lagi tertutup kartu tamu._
+
+### Perubahan
+
+- Teknis: HouseBar menerima lift (px), FoodTray & bar tidur punya posisi .side di desktop. Uji baru: e2e-tamu (HP 390/320 & desktop 1366: nampan, bar mandi, bar tidur vs kartu tamu).
+
+### Perbaikan
+
+- Saat ada teman di rumahmu, nampan makanan tidak lagi tertutup kartu tamu. Di HP, kartu tamu disembunyikan sementara selama nampan terbuka dan muncul lagi setelah nampan ditutup. Di komputer, nampan bergeser ke kiri panel tamu. _(pemain)_
+- Saat pet tidur dan ada tamu, kartu tamu naik ke atas bar tidur di HP, atau bar tidur bergeser ke kiri panel tamu di komputer, jadi tombol "Nyalakan lampu & bangunkan" tetap terlihat dan bisa diketuk. _(pemain)_
+
 ## 0.43.0 · 2026-11-18 · Barang baru di 3 toko & Edisi Spesial Toko Mutiara
 
 _Makanan baru di Pasar Pagi, perabot baru di Mebel Jati, barang halaman di Toko Bangunan, dan Edisi Spesial bergerak di Toko Mutiara._
@@ -21,6 +34,8 @@ _Makanan baru di Pasar Pagi, perabot baru di Mebel Jati, barang halaman di Toko 
 
 - Admin: barang bisa ditandai Edisi Spesial (centang, filter & chip di halaman Barang). Batas jual memakai "Berhenti dijual" yang sudah ada: kartu toko menampilkan hitung mundur dan server menolak pembelian setelahnya.
 - Teknis: paket konten 18 (seed-toko3, pack_toko3) & 19 (seed-edisi1, pack_edisi1), tidak menimpa ubahan admin. Efek Edisi Spesial = SVG + CSS (kelas ed-*, tanpa JS per frame). Kurangi animasi: lib/motion.ts (kb-motion) memasang <html class="reduce-motion">; tiap aturan @media (prefers-reduced-motion) punya kembaran :root.reduce-motion. Uji: toko3.test.ts, edisi1.test.ts, e2e-toko3, e2e-edisi1.
+
+Commit: [`0956d23`](https://github.com/envfri/kampung-baru/commit/0956d23), [`927c102`](https://github.com/envfri/kampung-baru/commit/927c102)
 
 ## 0.42.1 · 2026-11-18 · Label suasana tidak tertutup banner
 

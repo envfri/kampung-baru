@@ -9,7 +9,8 @@
   import { itemIcon, PHOTO_POSES } from '@kb/shared';
   import { sfx } from '../lib/sfx';
 
-  let { mode }: { mode: 'visit' | 'home' } = $props();
+  /** lift: jarak bawah kartu (px di atas tepi aman), mis. di atas bar tidur di HP; 0 = posisi biasa */
+  let { mode, lift = 0 }: { mode: 'visit' | 'home'; lift?: number } = $props();
   let pop = $state<null | 'emote' | 'photo' | 'play' | 'snack'>(null);
   let text = $state('');
   let chatting = $state(false);
@@ -74,7 +75,7 @@
   });
 </script>
 
-<div class="hbar" class:home={mode === 'home'} class:open={!!pop} bind:this={barEl} style={popMax ? `--pop-max:${popMax}px` : ''}>
+<div class="hbar" class:home={mode === 'home'} class:open={!!pop} bind:this={barEl} style="{popMax ? `--pop-max:${popMax}px;` : ''}{lift ? `bottom:calc(var(--safe-b) + ${lift}px);` : ''}">
   <p class="status" class:live={!!host || here.length > 0}>{#if here.length}<i class="dot"></i>{/if}{status}</p>
 
   {#if mode === 'visit' && together.on}

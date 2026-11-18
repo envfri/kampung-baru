@@ -1,4 +1,6 @@
 <script lang="ts">
+  /** desktop dengan panel tamu di kanan bawah: nampan digeser ke kiri panel itu (tidak saling menutupi) */
+  let { side = false }: { side?: boolean } = $props();
   import { reducedMotion } from '../lib/motion';
   // Nampan makanan: seret makanan ke mulut pet (atau ketuk untuk langsung menyuapi).
   import { itemIcon } from '@kb/shared';
@@ -106,7 +108,7 @@
 </script>
 
 <svelte:window onpointermove={move} onpointerup={up} onpointercancel={cancel} />
-<div class="tray" role="region" aria-label="Nampan makanan">
+<div class="tray" class:side role="region" aria-label="Nampan makanan">
   <div class="head">
     <b>Seret makanan ke mulut {G.me.pet.name}</b>
     <button class="btn sm" onclick={() => (G.feeding = false)}>Tutup</button>
@@ -153,5 +155,9 @@
   .empty { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; }
   .ghost { position: fixed; z-index: 60; width: 64px; height: 54px; transform: translate(-50%, -70%) rotate(-8deg); pointer-events: none; filter: drop-shadow(0 4px 0 rgba(43,47,74,.25)); }
   .ghost :global(svg) { width: 100%; height: 100%; }
-  @media (min-width: 900px) and (min-aspect-ratio: 1/1) { .tray { bottom: calc(var(--safe-b) + 96px); } }
+  @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    .tray { bottom: calc(var(--safe-b) + 96px); }
+    /* panel tamu: kanan max(150, aman) lebar 340 → nampan berakhir 8 px di kirinya */
+    .tray.side { left: auto; right: calc(max(150px, var(--safe-r)) + 348px); transform: none; width: min(560px, calc(100vw - 660px)); }
+  }
 </style>

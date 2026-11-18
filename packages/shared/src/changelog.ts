@@ -39,7 +39,19 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.43.1',
+    date: '2026-11-18',
+    title: 'Nampan makanan tidak tertutup kartu tamu',
+    summary: 'Saat ada teman berkunjung, nampan makanan dan bar tidur tidak lagi tertutup kartu tamu.',
+    items: [
+      { kind: 'perbaikan', text: 'Saat ada teman di rumahmu, nampan makanan tidak lagi tertutup kartu tamu. Di HP, kartu tamu disembunyikan sementara selama nampan terbuka dan muncul lagi setelah nampan ditutup. Di komputer, nampan bergeser ke kiri panel tamu.', player: true },
+      { kind: 'perbaikan', text: 'Saat pet tidur dan ada tamu, kartu tamu naik ke atas bar tidur di HP, atau bar tidur bergeser ke kiri panel tamu di komputer, jadi tombol "Nyalakan lampu & bangunkan" tetap terlihat dan bisa diketuk.', player: true },
+      { kind: 'ubah', text: 'Teknis: HouseBar menerima lift (px), FoodTray & bar tidur punya posisi .side di desktop. Uji baru: e2e-tamu (HP 390/320 & desktop 1366: nampan, bar mandi, bar tidur vs kartu tamu).' },
+    ],
+  },
+  {
     version: '0.43.0',
+    commits: ['0956d23', '927c102'],
     date: '2026-11-18',
     title: 'Barang baru di 3 toko & Edisi Spesial Toko Mutiara',
     summary: 'Makanan baru di Pasar Pagi, perabot baru di Mebel Jati, barang halaman di Toko Bangunan, dan Edisi Spesial bergerak di Toko Mutiara.',

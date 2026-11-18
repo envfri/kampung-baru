@@ -222,6 +222,8 @@
   /** sekali saja di alun-alun: mau menerima ajakan berteman? (di HP bar alun-alun disembunyikan dulu supaya tidak tertutup) */
   const friendPrompt = $derived(G.view === 'alun' && H.live && !G.me.user.friend_prompt_at && !G.me.user.friend_requests);
   /** panel tamu di rumah sendiri tampil (di HP menempati bagian bawah layar) */
+  /** tinggi bar tidur (HP): kartu tamu diletakkan di atasnya */
+  let sleepH = $state(0);
   const guestBar = $derived(G.view === 'home' && !G.edit && !G.bath && !G.plan && !playingGame && !BG.card && (H.members.length > 0 || H.elsewhere.some((e) => !e.host)));
   /* ---------- Jepret (foto pemandangan): pil kamera di kolom kamera, kiri di bawah deret ruangan / kartu rumah teman ---------- */
   const visitCard = $derived(G.view === 'visit' && !!G.visit && !playingGame && !longBoard);
@@ -316,7 +318,7 @@
     {/if}
     {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk) && !G.ajak?.down}<QuestChip side={guestBar && wideDesk} />{/if}
     {#if sleeping}
-      <div class="sleepbar">
+      <div class="sleepbar" class:side={guestBar && wideDesk} bind:offsetHeight={sleepH}>
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
         <button class="btn hot" disabled={G.busy} onclick={() => setSleep(false)}>{@html I.sleep} Nyalakan lampu & bangunkan</button>
       </div>
@@ -331,7 +333,7 @@
         </div>
       </div>
     {:else}
-      {#if G.feeding}<FoodTray />{/if}
+      {#if G.feeding}<FoodTray side={guestBar && wideDesk} />{/if}
       <div class="acts" class:hide={(BG.card || longBoard) && !wideDesk}>
         {#each ACTS as a}
           {@const cd = G.now && cdLeft(a.k)}
@@ -383,7 +385,8 @@
     </div>
   {/if}
 
-  {#if guestBar && !G.jepret}<HouseBar mode="home" />{/if}
+  <!-- HP: nampan makanan terbuka → kartu tamu disembunyikan sementara (seperti saat mandi); pet tidur → kartu naik di atas bar tidur -->
+  {#if guestBar && !G.jepret && !(G.feeding && !wideDesk)}<HouseBar mode="home" lift={sleeping && !wideDesk && sleepH ? 86 + sleepH + 8 : 0} />{/if}
   {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card && !G.jepret}<HouseBar mode="visit" />{/if}
   {#if (G.view === 'home' || G.view === 'visit') && !G.jepret}<CoopPanel /><PhotoPreview />{/if}
   {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive && !G.jepret}<CamPanel />{/if}
@@ -526,6 +529,8 @@
   }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     .acts { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); flex-direction: column; }
+    /* panel tamu di kanan bawah: bar tidur di kirinya (tidak saling menutupi) */
+    .sleepbar.side { left: auto; right: calc(max(150px, var(--safe-r)) + 348px); transform: none; width: min(520px, calc(100vw - 660px)); }
     .act { flex-direction: row; width: auto; min-width: 116px; justify-content: flex-start; gap: 8px; padding: 6px 12px; font-size: 15px; min-height: 46px; }
     .event { top: calc(var(--safe-t) + 14px); right: auto; left: 50%; transform: translateX(-50%); max-width: 46vw; }
     .roombar { top: calc(var(--safe-t) + 52px); left: 50%; transform: translateX(-50%); max-width: 46vw; }
