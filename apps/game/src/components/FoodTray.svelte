@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '../lib/motion';
   // Nampan makanan: seret makanan ke mulut pet (atau ketuk untuk langsung menyuapi).
   import { itemIcon } from '@kb/shared';
   import { G, item, effText, run, post, fx, toast, goTo } from '../lib/game.svelte';
@@ -36,7 +37,7 @@
   /** luncuran setelah jari dilepas (kecepatan px/ms, melambat sendiri) */
   function slide(v: number) {
     cancelAnimationFrame(glide);
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (reducedMotion()) return;
     let last = performance.now();
     const step = (now: number) => {
       const l = listEl; if (!l) return;

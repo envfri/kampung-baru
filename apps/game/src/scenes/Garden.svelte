@@ -216,4 +216,7 @@
   }
   @media (max-width: 359px) { .bar .w { display: none; } .bar { gap: 6px; } .bar .btn { padding-left: 10px; padding-right: 10px; } }
   @media (prefers-reduced-motion: reduce) { .plot.sprout, .plot :global(.twinkle), .bubble { animation: none; } .conf { display: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .plot.sprout, :global(:root.reduce-motion) .plot :global(.twinkle), :global(:root.reduce-motion) .bubble { animation: none; }
+  :global(:root.reduce-motion) .conf { display: none; }
 </style>

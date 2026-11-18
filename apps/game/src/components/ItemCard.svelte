@@ -1,12 +1,15 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { itemIcon } from '@kb/shared';
+  import { itemIcon, isEdisi, EDISI_SPESIAL } from '@kb/shared';
   let { it, sub = '', badge = '', tried = false, children }: { it: any; sub?: string; badge?: string; tried?: boolean; children?: Snippet } = $props();
+  // Edisi Spesial: pita khusus & pratinjau bergerak (kelas .edfx menyalakan animasi ed-* di app.css)
+  const ed = $derived(isEdisi(it));
 </script>
 
-<div class="card" class:tried>
+<div class="card" class:tried class:edisi={ed}>
+  {#if ed}<span class="ribbon">{EDISI_SPESIAL.badge}</span>{/if}
   {#if badge}<span class="badge">{badge}</span>{/if}
-  <div class="ic">{@html itemIcon(it)}</div>
+  <div class="ic" class:edfx={ed}>{@html itemIcon(it)}</div>
   <div class="name">{it.name}</div>
   <div class="sub">{sub}</div>
   {#if children}{@render children()}{/if}
@@ -21,4 +24,9 @@
   .name { font-weight: 800; font-size: 14.5px; line-height: 1.12; }
   .sub { font-size: 12.5px; font-weight: 600; color: var(--muted); line-height: 1.2; min-height: 15px; }
   .badge { position: absolute; top: -8px; right: -6px; background: var(--low); color: #fff; border: 2px solid var(--ink); border-radius: 10px; font-size: 11.5px; font-weight: 800; padding: 0 6px; z-index: 1; }
+  /* Edisi Spesial: bingkai emas, panggung pratinjau lebih tinggi (efeknya terlihat bergerak) */
+  .card.edisi { background: linear-gradient(180deg, #FFF6DC, var(--card) 55%); box-shadow: inset 0 0 0 2px #F2C94C; padding-top: 12px; }
+  .card.edisi .ic { height: 88px; background: radial-gradient(120% 90% at 50% 30%, #FFFFFF 0%, #ECE5FB 62%, #DCD3F5 100%); box-shadow: inset 0 0 0 1.5px #CBBDF0; }
+  .card.edisi .ic :global(svg) { height: 82px; }
+  .ribbon { position: absolute; top: -9px; left: -6px; z-index: 1; background: #2B3A6B; color: #FFE27A; border: 2px solid var(--ink); border-radius: 10px; font-size: 10.5px; font-weight: 800; padding: 0 6px; line-height: 16px; white-space: nowrap; }
 </style>

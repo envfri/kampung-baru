@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '../lib/motion';
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
@@ -130,9 +131,10 @@
   let arrived: (() => void) | null = null;
   let bedSpot: [number, number] | null = null;
   const SPEED = 1.3; // petak per detik
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** animasi dikurangi (pengaturan HP atau Pengaturan › Kurangi animasi): dibaca tiap kali, jadi langsung berlaku */
+  const reduced = () => reducedMotion();
   const tileOf = (p: [number, number]) => `${Math.floor(p[0])},${Math.floor(p[1])}`;
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, reduced ? Math.min(ms, 400) : ms));
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, reduced() ? Math.min(ms, 400) : ms));
   const petRoomId = $derived(roomAt(pos)?.id ?? '');
   const liftPx = (l: number) => (l * HOUSE_T) / 32;
 
@@ -397,7 +399,7 @@
   function scheduleIdle() {
     clearTimeout(idleTimer);
     // animasi dikurangi: pet tetap jalan-jalan sendiri, tapi lebih jarang
-    idleTimer = setTimeout(wander, (reduced ? 2.5 : 1) * (2500 + Math.random() * 5000));
+    idleTimer = setTimeout(wander, (reduced() ? 2.5 : 1) * (2500 + Math.random() * 5000));
   }
   function wander() {
     // G.ajak: pet berhenti untuk mengajak ke alun-alun (tombol Ayo!/Nanti tidak ikut bergerak)
@@ -501,7 +503,7 @@
   /** gerak kamera halus; lite = ±30 fps (mode santai, supaya ringan) */
   function aim(t: { x: number; y: number; k: number }, instant = false, dur = 520, lite = false) {
     cancelAnimationFrame(camRaf);
-    if (instant || reduced || !camReady) { cam = t; camReady = true; return; }
+    if (instant || reduced() || !camReady) { cam = t; camReady = true; return; }
     const from = { ...cam }, t0 = performance.now();
     let lastF = 0;
     const step = (now: number) => {
@@ -1558,7 +1560,7 @@
     if (!square) return;
     let raf = 0, lastT = performance.now(), acc = 0;
     // ±15 fps (animasi dikurangi: ±2 fps); berhenti saat tab tersembunyi
-    const every = reduced ? 500 : 66;
+    const every = reduced() ? 500 : 66;
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop);
       acc += t - lastT; lastT = t;
@@ -1995,7 +1997,7 @@
     else if (m === 'room') aim(fit(houseBounds(plan, focusId), true), false, 700);
   }
   $effect(() => {
-    if (square || reduced) return;
+    if (square || reduced()) return;
     const t = setInterval(() => {
       const idle = performance.now() - idleSince;
       const ok = G.santai && wide && !document.hidden && !G.sheet && !G.jepret && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free';
@@ -2428,6 +2430,9 @@
   @keyframes cloud { to { transform: translateX(calc(100vw + 460px)); } }
   @media (max-width: 700px) { .sky .orb { width: 56px; height: 56px; top: 16%; } .sky .hills { height: 30%; } }
   @media (prefers-reduced-motion: reduce) { .sky .cloud { animation: none; left: 24%; } .sky .cloud.c2 { left: 64%; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .sky .cloud { animation: none; left: 24%; }
+  :global(:root.reduce-motion) .sky .cloud.c2 { left: 64%; }
   /* lihat dari sisi seberang: seluruh gambar dicermin, tulisan dibalik lagi supaya tetap terbaca */
   .room.mirror { transform: scaleX(-1); }
   .room.mirror :global(text) { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
@@ -2514,4 +2519,9 @@
   .menu .nm { font-weight: 800; flex: 1 1 auto; min-width: 0; }
   .menu .ef { flex: 0 1 44%; min-width: 0; font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; line-height: 1.15; }
   @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob), .room :global(.ondel-jalan), .room :global(.pose-wahana .pet-bob), .room :global(.pose-arak .pet-bob), .room :global(.riak) { animation: none; } .room :global(.ngakak) { animation: none; opacity: 1; } .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); } .bubble { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .room.walking :global(.pet-bob), :global(:root.reduce-motion) .room :global(.water), :global(:root.reduce-motion) .room :global(.ride), :global(:root.reduce-motion) .room :global(.swing), :global(:root.reduce-motion) .room :global(.blink), :global(:root.reduce-motion) .room :global(.flicker), :global(:root.reduce-motion) .room :global(.swim), :global(:root.reduce-motion) .room :global(.npc .pet-bob), :global(:root.reduce-motion) .room :global(.pose-joget .pet-bob), :global(:root.reduce-motion) .room :global(.ondel-jalan), :global(:root.reduce-motion) .room :global(.pose-wahana .pet-bob), :global(:root.reduce-motion) .room :global(.pose-arak .pet-bob), :global(:root.reduce-motion) .room :global(.riak) { animation: none; }
+  :global(:root.reduce-motion) .room :global(.ngakak) { animation: none; opacity: 1; }
+  :global(:root.reduce-motion) .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); }
+  :global(:root.reduce-motion) .bubble { animation: none; }
 </style>

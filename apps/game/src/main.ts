@@ -1,8 +1,10 @@
 import './app.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { applyMotion } from './lib/motion';
 import { G } from './lib/game.svelte';
 
+applyMotion();
 const app = mount(App, { target: document.getElementById('app')! });
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

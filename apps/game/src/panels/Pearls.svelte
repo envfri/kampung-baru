@@ -230,6 +230,8 @@
   .dot { width: 10px; height: 10px; border-radius: 50%; background: #1E7A4C; animation: pulse 1.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .25; transform: scale(.7); } }
   @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .dot { animation: none; }
   .steps { margin: 0; padding-left: 22px; text-align: left; font-weight: 600; font-size: 14px; display: flex; flex-direction: column; gap: 4px; max-width: 360px; }
   .acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
   .acts .btn { text-decoration: none; color: inherit; }

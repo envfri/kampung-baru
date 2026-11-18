@@ -4,6 +4,24 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.43.0 · 2026-11-18 · Barang baru di 3 toko & Edisi Spesial Toko Mutiara
+
+_Makanan baru di Pasar Pagi, perabot baru di Mebel Jati, barang halaman di Toko Bangunan, dan Edisi Spesial bergerak di Toko Mutiara._
+
+### Baru
+
+- Pasar Pagi punya 8 makanan baru: gado-gado, soto ayam, nasi uduk, onde-onde, pisang molen, es buah, serabi, dan wedang ronde. _(pemain)_
+- Mebel Jati punya 8 perabot baru: kursi goyang rotan, meja belajar, cermin berdiri, jam bandul yang berayun, lemari kaca pajangan, kipas angin berdiri yang berputar, radio tua, dan dipan kayu. Ada juga dinding lis kayu, dinding kembang kecil, dan lantai tegel kembang. _(pemain)_
+- Toko Bangunan punya 9 barang halaman: saung bambu, sumur timba, kolam ikan dengan ikan berenang, pot kembang sepatu, lampu taman joglo, batu pijakan, kurungan ayam, jemuran bambu, dan pagar bambu. Ada juga lantai kerikil dan bata merah. _(pemain)_
+- Toko Mutiara punya tab baru ✦ Edisi Spesial berisi barang yang bergerak di rumahmu: pohon tabebuya dengan kelopak berguguran, akuarium ubur-ubur bercahaya, kincir angin bambu, air mancur kristal, gramofon antik, lampu lava pelangi, teleskop bintang, wayang golek menari, dinding aurora, dan lantai kolam kaca dengan ikan berenang. _(pemain)_
+- Banyak aktivitas baru untuk pet: duduk di kursi goyang, belajar di meja, dengar radio, ngaso di saung, timba sumur, kasih makan ikan dan ayam, tangkap kelopak tabebuya, putar gramofon, jadi dalang wayang golek, dan lainnya. Semua perabot baru bisa diputar 4 arah. _(pemain)_
+- Pengaturan › Aplikasi › Kurangi animasi: efek bergerak di rumah dan toko jadi diam, cocok untuk HP yang lambat. Kalau HP-mu sudah diatur untuk mengurangi animasi, efeknya juga otomatis diam. _(pemain)_
+
+### Perubahan
+
+- Admin: barang bisa ditandai Edisi Spesial (centang, filter & chip di halaman Barang). Batas jual memakai "Berhenti dijual" yang sudah ada: kartu toko menampilkan hitung mundur dan server menolak pembelian setelahnya.
+- Teknis: paket konten 18 (seed-toko3, pack_toko3) & 19 (seed-edisi1, pack_edisi1), tidak menimpa ubahan admin. Efek Edisi Spesial = SVG + CSS (kelas ed-*, tanpa JS per frame). Kurangi animasi: lib/motion.ts (kb-motion) memasang <html class="reduce-motion">; tiap aturan @media (prefers-reduced-motion) punya kembaran :root.reduce-motion. Uji: toko3.test.ts, edisi1.test.ts, e2e-toko3, e2e-edisi1.
+
 ## 0.42.1 · 2026-11-18 · Label suasana tidak tertutup banner
 
 _Di HP kecil, label "Suasana" set premium tidak lagi tertutup banner event._
@@ -15,6 +33,8 @@ _Di HP kecil, label "Suasana" set premium tidak lagi tertutup banner event._
 ### Perbaikan
 
 - Di HP kecil, label "✦ Suasana …" set premium tidak lagi tertutup banner event atau tombol di atas ruangan. Labelnya otomatis turun tepat di bawahnya. _(pemain)_
+
+Commit: [`2b1861c`](https://github.com/envfri/kampung-baru/commit/2b1861c)
 
 ## 0.42.0 · 2026-11-15 · Set premium baru: Dapur Nenek, Sanggar Seni, Spa Bali
 

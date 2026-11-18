@@ -61,6 +61,8 @@
   .banner.bad { color: #FFFDF7; }
   @keyframes bannerIn { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .banner { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .banner { animation: none; }
   .card { position: absolute; z-index: 8; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 86px); width: min(420px, calc(100vw - 20px)); background: var(--paper); border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
   h2 { margin: 0; font-size: 24px; font-weight: 800; }
   h2.win { color: #1E7A4C; }

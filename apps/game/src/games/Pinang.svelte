@@ -118,6 +118,8 @@
   .cheer { animation: cheer .35s ease-in-out infinite alternate; }
   @keyframes cheer { from { translate: 0 0; } to { translate: 0 -10px; } }
   @media (prefers-reduced-motion: reduce) { .cheer { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .cheer { animation: none; }
   @keyframes slipShake { from { translate: -3px 0; } to { translate: 3px 0; } }
   .pads { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); bottom: calc(var(--safe-b) + 20px); display: flex; }
   .pad { flex: 1; min-height: 96px; font-size: 24px; touch-action: none; }

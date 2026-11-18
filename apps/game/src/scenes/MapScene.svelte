@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '../lib/motion';
   // Peta kampung: pet berjalan menyusuri jalan ke tempat yang diketuk (toko, kebun, kolam, ...), lalu masuk.
   import { onDestroy, onMount, untrack } from 'svelte';
   import { renderMap, renderPet, MAP_VIEWBOX } from '@kb/shared';
@@ -37,7 +38,7 @@
 
   const ROAD = 240; // jalan utama di peta (lihat renderMap)
   const SPEED = 240; // satuan peta per detik
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = reducedMotion();
 
   /** titik masuk: bangunan di atas jalan → depan pintunya; tempat di bawah jalan → tepi atasnya. */
   function door(l: any): [number, number] {
@@ -197,4 +198,6 @@
   .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); margin: 0; background: rgba(255,253,247,.92); border: 2px solid var(--ink); border-radius: 12px; padding: 3px 10px; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center; width: max-content; max-width: calc(100vw - 24px); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { .map { min-width: 0; } }
   @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .walker.walking .pet-bob { animation: none; }
 </style>

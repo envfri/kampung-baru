@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '../../lib/motion';
   // Alur mancing bertahap (±12–25 dtk): lempar (bar kekuatan) → ulur & tunggu (bayangan ikan) → ngicip/sambar
   // → tarik-ulur (tegangan & jarak) → kartu hasil. Semua hasil diputuskan server lewat `api`; komponen ini hanya
   // menampilkan petunjuk dari server, jadi bisa dipakai ulang (mis. Lomba Mancing alun-alun) dengan api lain.
@@ -24,7 +25,7 @@
   const wantSky = (() => { try { const v = new URLSearchParams(location.search).get('langit'); return ['pagi', 'siang', 'sore', 'malam'].includes(v ?? '') ? (v as SkyTime) : null; } catch { return null; } })();
   const nowSky = () => wantSky ?? skyAt(serverNow());
   let sky = $state<SkyTime>(nowSky());
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = reducedMotion();
 
   /* ---------- lempar: jarum bolak-balik 1,1 dtk sekali jalan ---------- */
   const ZONES: { k: Dist; w: number; hint: string; bg: string }[] = [
@@ -509,4 +510,6 @@
   @media (prefers-reduced-motion: reduce) {
     .pond :global(.swim), .pond :global(.bob.float), .pond :global(.reel.spin), .pond :global(.fly), .pond :global(.mist), .pond :global(.jk), .pond :global(.rays) { animation: none; }
   }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .pond :global(.swim), :global(:root.reduce-motion) .pond :global(.bob.float), :global(:root.reduce-motion) .pond :global(.reel.spin), :global(:root.reduce-motion) .pond :global(.fly), :global(:root.reduce-motion) .pond :global(.mist), :global(:root.reduce-motion) .pond :global(.jk), :global(:root.reduce-motion) .pond :global(.rays) { animation: none; }
 </style>

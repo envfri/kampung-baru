@@ -180,4 +180,7 @@
     .stage { height: 250px; }
   }
   @media (prefers-reduced-motion: reduce) { .rays :global(.spin), .burst i, .art.shake { animation: none; } .burst i { transform: translate(var(--x), var(--y)); } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .rays :global(.spin), :global(:root.reduce-motion) .burst i, :global(:root.reduce-motion) .art.shake { animation: none; }
+  :global(:root.reduce-motion) .burst i { transform: translate(var(--x), var(--y)); }
 </style>

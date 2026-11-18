@@ -6,6 +6,7 @@ export * from './art-toko3';
 export * from './house';
 export * from './square';
 export * from './art-alun';
+export * from './art-edisi';
 export * from './quests';
 export * from './activities';
 export * from './events';

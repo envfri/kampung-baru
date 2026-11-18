@@ -87,4 +87,6 @@
   .go:active { transform: translateY(2px); box-shadow: none; }
   @keyframes in { from { opacity: 0; margin-top: 6px; } to { opacity: 1; margin-top: 0; } }
   @media (prefers-reduced-motion: reduce) { .ajak.ready { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .ajak.ready { animation: none; }
 </style>

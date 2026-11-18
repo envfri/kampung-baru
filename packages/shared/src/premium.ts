@@ -117,3 +117,39 @@ export function premiumMoodSVG(key: string, at: (u: number, v: number, up?: numb
   s += `<g class="mood-label" transform="translate(${n1(lb[0])} ${n1(lb[1])})"><g class="mood-shift"><rect x="${n1(-w / 2)}" y="-11" width="${n1(w)}" height="20" rx="10" fill="${set?.color ?? INK}" stroke="${INK}" stroke-width="1.6"/><text y="4" text-anchor="middle" font-size="11.5" font-weight="800" fill="#FFF4C2" style="font-family:var(--font)">${text}</text></g></g>`;
   return s;
 }
+
+/* ---------------- Edisi Spesial (paket konten 19) ---------------- */
+/**
+ * Barang Edisi Spesial: item dengan data.edisi (nomor edisi ≥ 1). Tampil di tab "✦ Edisi Spesial" Toko Mutiara
+ * dengan pratinjau bergerak; di ruangan efeknya dianimasikan CSS (kelas ed-*). Dibeli satuan (bukan paket).
+ * Batas waktu jual memakai jadwal jual item yang sudah ada (available_from / available_to, diatur admin per item).
+ */
+export const EDISI_SPESIAL = {
+  name: 'Edisi Spesial',
+  badge: '✦ Edisi Spesial',
+  desc: 'Barang istimewa yang hidup di rumahmu: kelopak berguguran, ubur-ubur bercahaya, kincir berputar, dan lainnya. Dibeli satuan dengan Mutiara.',
+};
+export const isEdisi = (it?: { data?: any } | null) => Number(it?.data?.edisi) > 0;
+/** efek tiap bentuk Edisi Spesial (kunci art), untuk kartu toko */
+export const EDISI_EFEK: Record<string, string> = {
+  tabebuya: 'Kelopak berguguran',
+  akuariumubur: 'Ubur-ubur bercahaya',
+  kincir: 'Baling-baling berputar',
+  airmancurkristal: 'Air memancar berkilau',
+  gramofon: 'Not musik melayang',
+  lampulava: 'Lava berganti warna',
+  teleskop: 'Bintang berkelip',
+  wayanggolek: 'Wayang menari',
+  aurora: 'Aurora berganti warna',
+  kolamkaca: 'Ikan berenang',
+};
+/** Sisa waktu dijual, teks pendek ("Sisa 3 hari", "Sisa 5 jam", "Sisa 12 mnt"); '' bila tanpa batas atau sudah lewat. */
+export function sisaWaktu(until: string | number | Date | null | undefined, now = Date.now()) {
+  if (until === null || until === undefined || until === '') return '';
+  const ms = new Date(until).getTime() - now;
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  const h = Math.floor(ms / 3_600_000);
+  if (h >= 48) return `Sisa ${Math.floor(h / 24)} hari`;
+  if (h >= 1) return `Sisa ${h} jam`;
+  return `Sisa ${Math.max(1, Math.ceil(ms / 60_000))} mnt`;
+}

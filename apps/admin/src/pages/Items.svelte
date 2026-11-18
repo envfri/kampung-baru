@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS, FISH_TIERS, FISH_TIER_KEYS } from '@kb/shared';
+  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS, FISH_TIERS, FISH_TIER_KEYS, isEdisi, EDISI_SPESIAL } from '@kb/shared';
   import { api } from '../lib/api';
   import { A, can, err, toast, ask, num, dt, toLocal, fromLocal, setQuery } from '../lib/store.svelte';
   import { type FDef, readFilters, isActive } from '../lib/filters';
@@ -29,6 +29,7 @@
     { key: 'status', label: 'Status', all: 'Semua', options: [['on', 'Aktif'], ['off', 'Nonaktif']] },
     { key: 'cur', label: 'Harga', all: 'Semua', options: [['coin', 'Pakai koin'], ['pearl', 'Pakai Mutiara'], ['free', 'Gratis / 0']] },
     { key: 'set', label: 'Set premium', all: 'Semua', options: [['any', 'Semua set premium'], ...PREMIUM_SETS.map((s): [string, string] => [s.key, s.name]), ['none', 'Bukan set']] },
+    { key: 'edisi', label: 'Edisi Spesial', all: 'Semua', options: [['yes', 'Edisi Spesial'], ['no', 'Bukan Edisi Spesial']] },
     { key: 'event', label: 'Event', all: 'Semua', options: [['any', 'Item event'], ['-', 'Bukan item event'], ...events.map((e): [string, string] => [e.id, e.name])] },
   ]);
   let q = $state(A.query.q ?? '');
@@ -51,6 +52,7 @@
     if (v.cur === 'free' && (i.price_coin > 0 || i.price_pearl > 0)) return false;
     if (v.set && (v.set === 'any' ? !i.data?.set : v.set === 'none' ? !!i.data?.set : i.data?.set !== v.set)) return false;
     if (v.event && (v.event === 'any' ? !i.event_id : v.event === '-' ? !!i.event_id : i.event_id !== v.event)) return false;
+    if (v.edisi && (v.edisi === 'yes') !== isEdisi(i)) return false;
     return true;
   }
   const shown = $derived.by(() => {
@@ -79,7 +81,7 @@
     { key: 'price_pearl', label: 'Mutiara', num: true, sort: true, text: (r) => r.price_pearl, html: (r) => (r.price_pearl ? num(r.price_pearl) : '<span class="muted">—</span>') },
     { key: 'sell_coin', label: 'Harga jual', num: true, sort: true, off: true, text: (r) => r.sell_coin, html: (r) => (r.sell_coin ? num(r.sell_coin) : '<span class="muted">—</span>') },
     { key: 'event', label: 'Event', sort: true, text: (r) => eventName(r.event_id), html: (r) => (r.event_id ? `<span class="chip warn">${esc(eventName(r.event_id))}</span>` : '') },
-    { key: 'set', label: 'Set premium', sort: true, off: true, snip: true, text: (r) => setOf(r)?.name ?? '' },
+    { key: 'set', label: 'Set premium', sort: true, off: true, snip: true, text: (r) => setOf(r)?.name ?? (isEdisi(r) ? EDISI_SPESIAL.name : '') },
     { key: 'owned', label: 'Dimiliki', num: true, sort: true, text: (r) => r.owned, html: (r) => num(r.owned) },
     { key: 'sort', label: 'Urutan', num: true, sort: true, off: true, text: (r) => r.sort },
     { key: 'avail', label: 'Jadwal jual', off: true, text: (r) => [r.available_from, r.available_to].filter(Boolean).join(' – '),
@@ -138,6 +140,7 @@
     if (f.kind === 'fish') { f.data.time ??= {}; f.data.tier ??= 'biasa'; }
     if (f.kind === 'material' && Number(f.data.fishWeight) > 0) f.data.find ??= 'junk';
     f.data.set ??= '';
+    f.data.edisi ??= false;
     form = f; snap = norm(f);
     setArg(row ? row.id : '');
     // isian pilihan bisa menormalkan nilai saat tampil; ambil patokan "belum berubah" sesudahnya
@@ -148,19 +151,20 @@
   const norm = (v: unknown) => JSON.stringify(v, (_k, x) => (x === '' || x === null || x === false ? undefined : x));
   const dirty = $derived(!!form && editable && norm(form) !== snap);
   function changeKind(k: string) {
-    const set = form.data?.set ?? '';
+    const set = form.data?.set ?? '', edisi = form.data?.edisi ?? false;
     form.kind = k;
     const b = A.me?.builtins?.[k]?.[0];
     form.art = { type: 'builtin', key: b?.key ?? 'kotak', colors: { ...(b?.colors ?? {}) } };
     form.data = k === 'food' ? { effects: { kenyang: 10 } } : k === 'furniture' ? { w: 1, d: 1 } : k === 'wear' ? { slot: b?.slot ?? 'head' } : k === 'seed' ? { growMinutes: 30, yieldItem: 'tomat', yieldQty: 3 } : k === 'room' ? { size: 6, theme: b?.key === 'luar' ? 'luar' : 'dalam' } : k === 'fish' ? { tier: 'biasa', pull: 1, time: {} } : k === 'material' ? { find: 'junk' } : {};
     form.data.set = set;
+    form.data.edisi = edisi;
   }
   async function save() {
     if (busy) return;
     busy = true;
     try {
-      const { set, ...rest } = form.data ?? {};
-      const data = set ? { ...rest, set } : rest;
+      const { set, edisi, ...rest } = form.data ?? {};
+      const data = { ...rest, ...(set ? { set } : {}), ...(edisi ? { edisi: typeof edisi === 'number' ? edisi : 1 } : {}) };
       const body = { ...form, data, available_from: fromLocal(form.available_from), available_to: fromLocal(form.available_to), shop: form.shop || null, event_id: form.event_id || null };
       if (creating) await api.post('/api/admin/items', body); else await api.put(`/api/admin/items/${form.id}`, body);
       toast(creating ? `${form.name} ditambahkan. Pemain melihatnya dalam ±15 detik.` : 'Item tersimpan. Pemain melihat perubahan dalam ±15 detik.');
@@ -231,7 +235,7 @@
     {#if k === 'who'}
       <div class="who"><span class="thumb">{@html itemIcon(r)}</span><span class="nm"><b>{r.name}</b><small class="mono">{r.id}</small></span></div>
     {:else if k === 'set'}
-      {#if setOf(r)}<span class="setchip" style="--c:{setOf(r)?.color}">{setOf(r)?.name.replace(/^Set /, '')}</span>{/if}
+      {#if setOf(r)}<span class="setchip" style="--c:{setOf(r)?.color}">{setOf(r)?.name.replace(/^Set /, '')}</span>{:else if isEdisi(r)}<span class="setchip" style="--c:#2B3A6B">{EDISI_SPESIAL.badge}</span>{/if}
     {/if}
   {/snippet}
   {#snippet bulk(ids)}
@@ -251,6 +255,7 @@
             <span class="chip blue">{KIND[form.kind]}</span>
             {#if form.active}<span class="chip">Aktif</span>{:else}<span class="chip mute">Nonaktif</span>{/if}
             {#if setOf(form)}<span class="setchip" style="--c:{setOf(form)?.color}">{setOf(form)?.name}</span>{/if}
+            {#if form.data?.edisi}<span class="setchip" style="--c:#2B3A6B">{EDISI_SPESIAL.badge}</span>{/if}
             {#if form.event_id}<span class="chip warn">{eventName(form.event_id)}</span>{/if}
             {#if !creating}<span class="mono">{form.id}</span><Copy text={form.id} label="ID disalin" />{/if}
             {#if dirty}<span class="chip warn">Belum disimpan</span>{/if}
@@ -280,6 +285,7 @@
             <label>Berhenti dijual<input type="datetime-local" bind:value={form.available_to} /></label>
             <label>Set premium<select bind:value={form.data.set}><option value="">Bukan set</option>{#each PREMIUM_SETS as s}<option value={s.key}>{s.name}</option>{/each}</select><span class="help">3+ item set yang sama di satu ruangan memberi suasana khusus.</span></label>
           </div>
+          <label class="inline"><input type="checkbox" bind:checked={form.data.edisi} />{EDISI_SPESIAL.badge}: tampil di tab khusus Toko Mutiara dengan lencana & pratinjau bergerak. Isi "Berhenti dijual" untuk hitung mundur (Sisa 3 hari) di kartunya.</label>
           <span class="help">Item event hanya dijual selama event berjalan. Item Mutiara sebaiknya kosmetik saja.</span>
         </fieldset>
         <fieldset disabled={!editable}>

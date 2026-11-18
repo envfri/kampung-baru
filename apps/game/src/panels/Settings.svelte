@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { lessMotionPref, setLessMotion } from '../lib/motion';
+  let lessMotion = $state(lessMotionPref());
   import { unhide } from '../lib/house.svelte';
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
@@ -214,6 +216,7 @@
     <h3>Aplikasi</h3>
     <label class="tg"><input type="checkbox" checked={prefs.sound} onchange={() => toggle('sound')} /> Suara</label>
     <label class="tg"><input type="checkbox" checked={prefs.haptics} onchange={() => toggle('haptics')} /> Getar</label>
+    <label class="tg"><input type="checkbox" checked={lessMotion} onchange={() => { lessMotion = !lessMotion; setLessMotion(lessMotion); }} /> Kurangi animasi (efek bergerak di rumah & toko diam, cocok untuk HP yang lambat)</label>
     {#if !standalone}
       {#if installEvt}<button class="btn hot" onclick={install}>Pasang di layar utama</button>
       {:else if ios}<p class="muted">Pasang di iPhone: ketuk tombol <b>Bagikan</b> di Safari, lalu <b>Tambah ke Layar Utama</b>.</p>

@@ -112,6 +112,55 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
   .pet .look { transition: none; }
   .fx-up { animation-duration: .01s; }
 }
+/* Pengaturan › Kurangi animasi (pilihan di game) */
+:root.reduce-motion .pet-bob, :root.reduce-motion .eyes, :root.reduce-motion .pet-hop.go, :root.reduce-motion .furn.sel, :root.reduce-motion .pet[class*='pose-'] .pet-bob, :root.reduce-motion .pm-capek .m-base, :root.reduce-motion .pm-capek .m-yawn { animation: none; }
+:root.reduce-motion .pet .look { transition: none; }
+:root.reduce-motion .fx-up { animation-duration: .01s; }
+
+/* ---------- Edisi Spesial (Toko Mutiara, paket konten 19): efek bergerak mebel, dinding & lantai ----------
+   svg.room = ruangan game, .edfx = pratinjau di kartu toko / Tas. Hanya transform, opacity (dan fill lampu lava):
+   tanpa JS per frame. Browser tidak menggambar animasi saat tab tersembunyi. prefers-reduced-motion → diam: gambar
+   dasarnya sudah satu frame yang pas (sama seperti di foto Jepret, yang tidak membawa CSS). Jarak dalam px lokal
+   (gambar efek ada di dalam <g scale(petak)>), titik putar = titik asal lokal (0 0). */
+:is(svg.room, .edfx) .ed-fall { animation: ed-fall 6.2s linear infinite; }
+:is(svg.room, .edfx) .ed-flutter { animation: ed-flutter 1.5s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-bob { animation: ed-bob 2.6s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-glow { animation: ed-glow 2.2s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-spin { animation: ed-spin 2.4s linear infinite; }
+:is(svg.room, .edfx) .ed-rise { animation: ed-rise 3.4s ease-out infinite; }
+:is(svg.room, .edfx) .ed-flow { animation: ed-flow .7s linear infinite; }
+:is(svg.room, .edfx) .ed-ripple { animation: ed-ripple 1.6s ease-out infinite; }
+:is(svg.room, .edfx) .ed-twinkle { animation: ed-twinkle 1.7s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-shoot { animation: ed-shoot 5.5s ease-in infinite; }
+:is(svg.room, .edfx) .ed-blob { animation: ed-lava 6s ease-in-out infinite alternate, ed-hue 10s linear infinite; }
+:is(svg.room, .edfx) .ed-halo { animation: ed-halo 2.8s ease-in-out infinite alternate, ed-hue 10s linear infinite; }
+:is(svg.room, .edfx) .ed-sway { animation: ed-sway 1.9s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-wave { animation: ed-wave 1s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-aurora { animation: ed-aurora 7s ease-in-out infinite alternate; }
+:is(svg.room, .edfx) .ed-aurora2 { animation-duration: 9.5s; animation-direction: alternate-reverse; }
+:is(svg.room, .edfx) .ed-swim { animation: ed-swim 14s linear infinite; }
+@keyframes ed-fall { 0% { translate: 0 calc(-1 * var(--up, 30px)); opacity: 0; } 12%, 84% { opacity: 1; } 100% { translate: 0 var(--down, 30px); opacity: 0; } }
+@keyframes ed-flutter { from { translate: -5px 0; rotate: -40deg; } to { translate: 5px 0; rotate: 40deg; } }
+@keyframes ed-bob { from { translate: 0 3px; scale: 1 .94; } to { translate: 0 -5px; scale: .96 1.04; } }
+@keyframes ed-glow { from { opacity: .18; } to { opacity: .62; } }
+@keyframes ed-halo { from { opacity: .16; } to { opacity: .42; } }
+@keyframes ed-spin { to { rotate: 360deg; } }
+@keyframes ed-rise { 0% { translate: 0 6px; opacity: 0; } 18%, 70% { opacity: 1; } 100% { translate: 0 calc(-1 * var(--rise, 26px)); opacity: 0; } }
+@keyframes ed-flow { to { stroke-dashoffset: -10; } }
+@keyframes ed-ripple { from { scale: .35; opacity: .95; } to { scale: 1.25; opacity: 0; } }
+@keyframes ed-twinkle { from { scale: .45; opacity: .5; } to { scale: 1.1; opacity: 1; } }
+@keyframes ed-shoot { 0%, 60% { translate: 18px -9px; opacity: 0; } 66% { opacity: 1; } 86%, 100% { translate: -22px 11px; opacity: 0; } }
+@keyframes ed-lava { from { translate: 0 0; scale: 1 1; } to { translate: 0 calc(-1 * var(--rise, 14px)); scale: .88 1.12; } }
+@keyframes ed-hue { 0%, 100% { fill: #FF7AB6; } 20% { fill: #FFB347; } 40% { fill: #F7E05A; } 60% { fill: #7FE0C0; } 80% { fill: #8FB8FF; } }
+@keyframes ed-sway { from { rotate: -7deg; } to { rotate: 7deg; } }
+@keyframes ed-wave { from { rotate: -14deg; } to { rotate: 18deg; } }
+@keyframes ed-aurora { from { opacity: .2; translate: 0 4px; } to { opacity: .72; translate: 0 -5px; } }
+@keyframes ed-swim { 0% { translate: calc(-1 * var(--tx, 40px)) calc(-1 * var(--ty, 20px)); opacity: 0; } 8%, 92% { opacity: 1; } 100% { translate: var(--tx, 40px) var(--ty, 20px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(svg.room, .edfx) :is(.ed-fall, .ed-flutter, .ed-bob, .ed-glow, .ed-spin, .ed-rise, .ed-flow, .ed-ripple, .ed-twinkle, .ed-shoot, .ed-blob, .ed-halo, .ed-sway, .ed-wave, .ed-aurora, .ed-swim) { animation: none; }
+}
+/* Pengaturan › Kurangi animasi (pilihan di game) */
+:root.reduce-motion :is(svg.room, .edfx) :is(.ed-fall, .ed-flutter, .ed-bob, .ed-glow, .ed-spin, .ed-rise, .ed-flow, .ed-ripple, .ed-twinkle, .ed-shoot, .ed-blob, .ed-halo, .ed-sway, .ed-wave, .ed-aurora, .ed-swim) { animation: none; }
 
 /* mini-game Balai Main (Bakiak, Gasing, Layangan, Panjat Pinang) */
 .game-bg { position: absolute; inset: 0; background: #BFE3F5; touch-action: none; }

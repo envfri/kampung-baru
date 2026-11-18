@@ -142,4 +142,8 @@
     .about li { font-size: 14.5px; } .about li b { font-size: 17px; }
   }
   @media (prefers-reduced-motion: reduce) { .cloud, .scene :global(.hop) { animation: none; } .cloud { left: 30%; } .c2 { left: 70%; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .cloud, :global(:root.reduce-motion) .scene :global(.hop) { animation: none; }
+  :global(:root.reduce-motion) .cloud { left: 30%; }
+  :global(:root.reduce-motion) .c2 { left: 70%; }
 </style>

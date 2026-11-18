@@ -111,4 +111,6 @@
   .pads { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 24px)); bottom: calc(var(--safe-b) + 20px); display: flex; }
   .pad { flex: 1; min-height: 88px; font-size: 22px; touch-action: none; }
   @media (prefers-reduced-motion: reduce) { .gs.spin { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .gs.spin { animation: none; }
 </style>

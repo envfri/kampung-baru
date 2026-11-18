@@ -156,4 +156,6 @@
   @keyframes hop { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
   @keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .pet .svg, .dots i { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .pet .svg, :global(:root.reduce-motion) .dots i { animation: none; }
 </style>

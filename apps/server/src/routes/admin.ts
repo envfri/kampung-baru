@@ -102,6 +102,11 @@ function cleanItemData(kind: string, v: any) {
     if (!PREMIUM_SET_BY_KEY[String(set)]) throw bad('invalid_set', 'Set premium tidak dikenal.');
     out.set = String(set);
   }
+  // Edisi Spesial (tab khusus Toko Mutiara + efek bergerak): nomor edisi 1–99; centang di admin = true → edisi 1
+  const ed = v && typeof v === 'object' ? v.edisi : undefined;
+  if (ed !== undefined && ed !== null && ed !== '' && ed !== false && ed !== 0 && ed !== '0') {
+    out.edisi = ed === true || ed === 'true' ? 1 : int(Math.round(Number(ed)), 'Edisi Spesial', { min: 1, max: 99 });
+  }
   return out;
 }
 function cleanKindData(kind: string, v: any) {
@@ -357,6 +362,8 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
       int(b.sell_coin, 'Harga jual', { min: 0, max: 1_000_000, def: 0 }), shop, J(cleanArt(b.art)), J(data), eventId,
       isoDate(b.available_from, 'Mulai dijual', true), isoDate(b.available_to, 'Selesai dijual', true), bool(b.active, true), int(b.sort, 'Urutan', { min: -100000, max: 100000, def: 0 }),
     ];
+    // jadwal jual: "Berhenti dijual" harus sesudah "Mulai dijual" (dipakai juga untuk hitung mundur Edisi Spesial)
+    if (vals[11] && vals[12] && (vals[12] as Date).getTime() <= (vals[11] as Date).getTime()) throw bad('invalid_schedule', 'Berhenti dijual harus sesudah Mulai dijual.');
     if (creating) {
       if (await db.one('select 1 from items where id = $1', [id])) throw bad('exists', 'ID item sudah dipakai.');
       await db.query(

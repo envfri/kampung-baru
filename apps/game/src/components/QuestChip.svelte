@@ -43,4 +43,6 @@
   }
   @keyframes nudge2 { 0%, 100% { transform: none; } 50% { transform: translateY(-3px); } }
   @media (prefers-reduced-motion: reduce) { .chip.ready { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .chip.ready { animation: none; }
 </style>

@@ -416,6 +416,10 @@
   .btns { display: flex; gap: 8px; }
   .btns .btn { flex: 1; min-height: 42px; }
   @media (prefers-reduced-motion: reduce) { .pc.mv, .pc.pop, .ghost, .ghost.mv, .spark, .chk, .stamp { animation: none; } .ghost { opacity: 0; } .stamp { opacity: 0; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .pc.mv, :global(:root.reduce-motion) .pc.pop, :global(:root.reduce-motion) .ghost, :global(:root.reduce-motion) .ghost.mv, :global(:root.reduce-motion) .spark, :global(:root.reduce-motion) .chk, :global(:root.reduce-motion) .stamp { animation: none; }
+  :global(:root.reduce-motion) .ghost { opacity: 0; }
+  :global(:root.reduce-motion) .stamp { opacity: 0; }
   /* desktop: papan di kiri setinggi layar, panel kanan berisi pemain, daftar langkah, status & tombol (selesai: hasil) */
   @media (min-width: 900px) and (min-height: 520px) {
     .cwrap, .cwrap.fin { top: calc(var(--safe-t) + 84px); bottom: calc(var(--safe-b) + 88px); align-items: center; }

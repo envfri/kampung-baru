@@ -80,8 +80,9 @@ function G(c: Iso) {
     const Q = (xx: number, v: number) => { const p = iso(xx, y); return [p[0], p[1] - v * s]; };
     return poly([Q(x0, v0), Q(x1, v0), Q(x1, v1), Q(x0, v1)], fill, sw);
   };
-  /** back: digambar sebagai tampak belakang (perabot diputar 180°) — hiasan di sisi depan boleh dilewati */
-  return { s, iso, poly, box, quadX, quadY, back: false as boolean };
+  /** back: digambar sebagai tampak belakang (perabot diputar 180°) — hiasan di sisi depan boleh dilewati;
+   *  flip: digambar di dalam cermin (putar 1× / 3×) — tanda yang tidak boleh terbalik (not musik) bisa dicermin balik */
+  return { s, iso, poly, box, quadX, quadY, back: false as boolean, flip: false as boolean };
 }
 type Ctx = ReturnType<typeof G>;
 
@@ -1192,8 +1193,8 @@ export function petSpot(layout: Placed[], items: Record<string, ItemLike>, size 
 function furnDraw(g: Ctx, item: ItemLike, x: number, y: number, r = 0) {
   const q = rotOf(item, r);
   if (q % 2) {
-    const X0 = g.iso(0, 0)[0];
-    return `<g class="rot" transform="translate(${f1(2 * X0)} 0) scale(-1 1)">${q === 3 ? furnBack(g, item, y, x) : furnDrawRaw(g, item, y, x)}</g>`;
+    const X0 = g.iso(0, 0)[0], gf: Ctx = { ...g, flip: true };
+    return `<g class="rot" transform="translate(${f1(2 * X0)} 0) scale(-1 1)">${q === 3 ? furnBack(gf, item, y, x) : furnDrawRaw(gf, item, y, x)}</g>`;
   }
   return q === 2 ? furnBack(g, item, x, y) : furnDrawRaw(g, item, x, y);
 }
@@ -1326,6 +1327,26 @@ export const ROOM_SPOTS = {
 } as const;
 export type RoomSpot = keyof typeof ROOM_SPOTS;
 
+/**
+ * Dinding Aurora (Edisi Spesial): bintang kecil + dua pita cahaya bergelombang (hijau & ungu) yang bergantian terang
+ * pelan (kelas ed-aurora, CSS game). Gelombang memakai u mutlak, jadi bentang yang terpotong pintu tetap menyambung.
+ */
+function auroraRun(at: (u: number) => number[], a: number, b: number, L: boolean, accent: string) {
+  const n = Math.max(2, Math.ceil((b - a) / 0.12));
+  const edge = (v: number, amp: number, fq: number, ph: number) =>
+    Array.from({ length: n + 1 }, (_, i) => { const u = a + ((b - a) * i) / n, p = at(u); return [p[0], p[1] - v - amp * Math.sin(u * fq + ph)]; });
+  const band = (v: number, th: number, amp: number, fq: number, ph: number) => P([...edge(v + th / 2, amp, fq, ph), ...edge(v - th / 2, amp * 0.6, fq, ph + 0.7).reverse()]);
+  let stars = '';
+  for (let u = a + 0.2, i = 0; u < b - 0.1; u += 0.38, i++) {
+    const p = at(u), v = 44 + ((i * 41) % 96), r = 1 + (i % 3) * 0.45;
+    stars += `M${f1(p[0] - r)} ${f1(p[1] - v)}a${f1(r)} ${f1(r)} 0 1 0 ${f1(2 * r)} 0a${f1(r)} ${f1(r)} 0 1 0 ${f1(-2 * r)} 0Z`;
+  }
+  const c1 = L ? accent : shade(accent, 0.25), c2 = L ? '#C79BFF' : '#D9BCFF';
+  return (stars ? `<path d="${stars}" fill="#FFF6D8" opacity=".75"/>` : '')
+    + `<polygon class="ed-aurora" points="${band(108, 24, 10, 2.2, 0)}" fill="${c1}" opacity=".5"/>`
+    + `<polygon class="ed-aurora ed-aurora2" points="${band(86, 16, 8, 1.7, 1.9)}" fill="${c2}" opacity=".38"/>`;
+}
+
 /** Satu bentang dinding tinggi berwallpaper (u = a..b) beserta motif & plint bawahnya. */
 function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
   const WH = WALL_H;
@@ -1407,6 +1428,8 @@ function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
     o += `<path d="${cells}" fill="${c}" fill-opacity=".3"/><path d="${lines}" stroke="${c}" stroke-width="${f1(1.2 * k)}" fill="none"/>`;
     // reng bambu di bagian atas
     o += `<path d="M${f1(t0[0])} ${f1(t0[1] - WH + 7)}L${f1(t1[0])} ${f1(t1[1] - WH + 7)}" stroke="${INK}" stroke-width="${f1(6 * k)}" stroke-linecap="round"/><path d="M${f1(t0[0])} ${f1(t0[1] - WH + 7)}L${f1(t1[0])} ${f1(t1[1] - WH + 7)}" stroke="${shade(main, -0.12)}" stroke-width="${f1(3.6 * k)}" stroke-linecap="round"/>`;
+  } else if (wall.key === 'aurora') {
+    o += auroraRun(at, a, b, L, wall.accent);
   } else if (wall.key === 'image' && wall.url) {
     // pola gambar upload diterapkan sebagai tekstur dinding
     const pid = 'wp' + Math.abs(hash(wall.url));
@@ -1464,10 +1487,12 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
   let o = '';
   for (let i = 0; i < W; i++)
     for (let j = 0; j < D; j++) {
-      const solid = floor.key === 'teraso' || floor.key === 'karpet' || floor.key === 'terasoemas' || floor.key === 'pasir' || floor.key === 'papanjati' || floor.key === 'batukali';
+      const solid = floor.key === 'teraso' || floor.key === 'karpet' || floor.key === 'terasoemas' || floor.key === 'pasir' || floor.key === 'papanjati' || floor.key === 'batukali' || floor.key === 'kolamkaca';
       const fill = solid ? floor.main : floor.key === 'batutaman' ? ((i + j) % 2 ? floor.main : shade(floor.main, -0.05)) : (i + j) % 2 ? floor.main : floor.accent;
       const attrs = `class="${edit ? 'tile' : 'fl'}"${rattr} data-x="${i}" data-y="${j}"`;
-      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" stroke="${shade(floor.main, floor.key === 'karpet' || floor.key === 'batukali' ? -0.06 : -0.22)}" stroke-width="1"/>`;
+      // kolam kaca: bingkai kaca terang di antara panel
+      const edge = floor.key === 'kolamkaca' ? `stroke="${floor.accent}" stroke-width="${f1(Math.max(1.2, 1.8 * Math.min(1, s)))}"` : `stroke="${shade(floor.main, floor.key === 'karpet' || floor.key === 'batukali' ? -0.06 : -0.22)}" stroke-width="1"`;
+      o += `<polygon ${attrs} points="${P([g.iso(i, j), g.iso(i + 1, j), g.iso(i + 1, j + 1), g.iso(i, j + 1)])}" fill="${fill}" ${edge}/>`;
       if (floor.key === 'teraso')
         for (const [fx, fy, k] of [[0.25, 0.3, 0], [0.7, 0.2, 1], [0.5, 0.65, 0], [0.2, 0.8, 1], [0.8, 0.75, 0]]) {
           const q = g.iso(i + ((fx + i * 0.13) % 1), j + ((fy + j * 0.17) % 1));
@@ -1521,8 +1546,47 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
       }
       o += toko3Floor(g, floor, i, j, edit);
     }
+  if (floor.key === 'kolamkaca' && !edit) o += kolamKaca(g, W, D, floor);
   o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, D), g.iso(0, D)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
   return o;
+}
+
+/**
+ * Lantai Kolam Kaca (Edisi Spesial): riak cahaya di air, batu dasar kolam, beberapa ikan berenang di bawah kaca
+ * (kelas ed-swim: bergeser sepanjang satu jalur lurus, --tx/--ty = setengah jalur di layar), lalu kilau kaca di atasnya.
+ * Satu kelompok per ruangan (bukan per petak) supaya ringan; tidak menangkap ketukan.
+ */
+function kolamKaca(g: Ctx, W: number, D: number, floor: FloorC) {
+  const s = g.s;
+  let caus = '', glint = '', peb = '';
+  for (let i = 0; i < W; i++)
+    for (let j = 0; j < D; j++) {
+      const a = g.iso(i + 0.18, j + 0.62), m = g.iso(i + 0.42, j + 0.38), b = g.iso(i + 0.78, j + 0.58);
+      caus += `M${f1(a[0])} ${f1(a[1])}Q${f1(m[0])} ${f1(m[1])} ${f1(b[0])} ${f1(b[1])}`;
+      // kilau kaca: satu garis miring pendek di sudut petak (tidak di semua petak)
+      if ((i * 3 + j * 5) % 4 === 0) { const p = g.iso(i + 0.12, j + 0.42), q = g.iso(i + 0.12, j + 0.16); glint += `M${f1(p[0])} ${f1(p[1])}L${f1(q[0])} ${f1(q[1])}`; }
+      // batu kecil di dasar kolam
+      if ((i * 7 + j * 3) % 5 === 1) {
+        const c = g.iso(i + 0.66, j + 0.7), r = 3.4 * s;
+        peb += `M${f1(c[0] - r)} ${f1(c[1])}a${f1(r)} ${f1(r / 2)} 0 1 0 ${f1(2 * r)} 0a${f1(r)} ${f1(r / 2)} 0 1 0 ${f1(-2 * r)} 0Z`;
+      }
+    }
+  let o = `<g pointer-events="none"><path d="${caus}" fill="none" stroke="${shade(floor.main, 0.38)}" stroke-width="${f1(1.3 * Math.min(1, s))}" stroke-linecap="round" opacity=".8"/>`;
+  if (peb) o += `<path d="${peb}" fill="${shade(floor.main, -0.12)}"/>`;
+  const n = Math.max(2, Math.min(5, Math.round((W * D) / 8)));
+  const cols = ['#F2994A', '#FFFDF7', '#E0583F', '#F7C548', '#FFFDF7'];
+  for (let k = 0; k < n; k++) {
+    const alongU = k % 2 === 0, len = alongU ? W : D, other = alongU ? D : W;
+    const lane = 0.6 + ((k * 0.618 + 0.21) % 1) * Math.max(0.01, other - 1.2);
+    const dir = (k >> 1) % 2 ? -1 : 1;
+    const p0 = alongU ? g.iso(0.3, lane) : g.iso(lane, 0.3), p1 = alongU ? g.iso(len - 0.3, lane) : g.iso(lane, len - 0.3);
+    const tx = ((p1[0] - p0[0]) / 2) * dir, ty = ((p1[1] - p0[1]) / 2) * dir;
+    const k2 = s * 1.25, F = alongU ? [k2 * dir, (k2 / 2) * dir] : [-k2 * dir, (k2 / 2) * dir], S = alongU ? [-k2, k2 / 2] : [k2, k2 / 2];
+    const m = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2], dur = 11 + k * 1.7 + len * 0.6;
+    o += `<g transform="translate(${f1(m[0])} ${f1(m[1])})"><g class="ed-swim" style="--tx:${f1(tx)}px;--ty:${f1(ty)}px;animation-duration:${f1(dur)}s;animation-delay:-${f1((k * 3.7) % dur)}s">`
+      + `<g transform="matrix(${[F[0], F[1], S[0], S[1]].map((v) => Math.round(v * 100) / 100).join(' ')} 0 0)" opacity=".88">${koi(1, cols[k % cols.length])}</g></g></g>`;
+  }
+  return o + (glint ? `<path d="${glint}" stroke="#FFFFFF" stroke-width="${f1(1.8 * Math.min(1, s))}" stroke-linecap="round" opacity=".75"/>` : '') + `</g>`;
 }
 
 function roomShadow(g: Ctx, W: number, DD = W) {
@@ -3185,6 +3249,9 @@ export type IsoCtx = Ctx;
 /** bantuan gambar isometrik untuk modul gambar lain (mis. art-toko3.ts) */
 export { C3, f1, at3, rk, pathOf, inkLine, thinLine, wisp, hull, prism, ovalTub, lathe, flatE, frontArc, onY, onX, discPts, glowC, shadowE, flame, sortBoxes };
 
+/** alat gambar isometrik bersama (dipakai modul gambar lain, mis. art-edisi.ts); semua titik lewat g.iso → ikut tampak belakang */
+export const ISO_KIT = { C3, f1, at3, rk, pathOf, inkLine, thinLine, prism, ovalTub, lathe, flatE, frontArc, onY, onX, discPts, hull, glowC, shadowE, koi };
+
 /** Dinding & lantai premium (pola digambar di wallRun / floorSVG) */
 Object.assign(WALLS, {
   langit: { label: 'Langit malam', colors: { main: '#2B3A6B', accent: '#F7C548' } },
@@ -3294,6 +3361,9 @@ function toko3Floor(g: Ctx, floor: FloorC, i: number, j: number, edit: boolean) 
   }
   return o + `<path d="${dark}" fill="${shade(floor.main, -0.1)}"${pe}/><path d="${ln}" stroke="${floor.accent}" stroke-width="${f1(1.3 * Math.min(1, s))}"${pe}/>`;
 }
+/** Dinding & lantai Edisi Spesial (efek bergerak: kelas ed-* dianimasikan CSS game) */
+Object.assign(WALLS, { aurora: { label: 'Aurora (bergerak)', colors: { main: '#25336A', accent: '#7FE8C0' } } });
+Object.assign(FLOORS, { kolamkaca: { label: 'Kolam kaca (ikan berenang)', colors: { main: '#4C9BC8', accent: '#DDF0F8' } } });
 
 /* ------------------------------------------------------------------ */
 /* Pekarangan: rumah berdiri di atas pulau rumput (diorama)             */

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { reducedMotion } from '../../lib/motion';
   // Papan Ludo (2–4 pemain): papan 15×15 diputar supaya kandangmu di kiri bawah, tiap kandang menampilkan pet pemiliknya.
   // Bidak yang bisa jalan menyala (ketuk untuk jalan), bidak berjalan kotak demi kotak, yang dimakan terbang pulang ke kandang.
   // Kepala bidak beda bentuk per warna (bulat, kotak, belah ketupat, segitiga) supaya tidak hanya dibedakan warnanya.
@@ -104,7 +105,7 @@
   // papan ditutup (keluar / selesai): animasi yang masih berjalan berhenti
   onDestroy(() => { gen++; });
   const wait = (ms: number, my: number) => new Promise<boolean>((r) => setTimeout(() => r(my === gen), ms));
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = reducedMotion();
   async function animate(last: any, my: number) {
     playing = true; actor = last.by;
     const frames = last.pick ? [{ kind: 'roll', r: 0, ms: 700 }] : ludoFrames(last, { dice: !!last.dice, wait: !!last.dice && last.token !== null, stepMs: L.cfg?.stepMs });
@@ -459,6 +460,9 @@
     .tok, .tok.fly, .tok.home { transition: none; }
     .hopper, .hopper.arc, .pick .glow, .die.spin svg, .burst { animation: none; }
   }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .tok, :global(:root.reduce-motion) .tok.fly, :global(:root.reduce-motion) .tok.home { transition: none; }
+  :global(:root.reduce-motion) .hopper, :global(:root.reduce-motion) .hopper.arc, :global(:root.reduce-motion) .pick .glow, :global(:root.reduce-motion) .die.spin svg, :global(:root.reduce-motion) .burst { animation: none; }
   /* desktop: papan setinggi layar di kiri, pemain + keterangan + dadu (atau hasil) di panel kanan */
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) and (min-height: 520px) {
     .lw, .lw.done { --bs: min(calc(100dvh - var(--safe-t) - var(--safe-b) - 214px), calc(100vw - 440px), 820px); top: 8px; bottom: 0; margin: auto; width: fit-content; max-height: none; overflow: visible; display: grid; grid-template-columns: var(--bs) 300px; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px 18px; padding: 14px 18px; border-radius: 24px; }

@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import ItemCard from '../components/ItemCard.svelte';
   import { G, canBuy, effText, fmt, owned, hasItem, run, post, toast, switchRoom, settings, serverNow, fx, item as itemOf } from '../lib/game.svelte';
-  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice, growText } from '@kb/shared';
+  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice, growText, isEdisi, EDISI_SPESIAL, EDISI_EFEK, sisaWaktu } from '@kb/shared';
   import { api } from '../lib/api';
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -41,12 +41,15 @@
   const slots = $derived(wearShop ? SLOT_ORDER.filter((s) => all.some((i) => slotOf(i) === s)) : []);
   const newIn = (s: string) => all.filter((i) => slotOf(i) === s && isNew(i)).length;
   const anyNew = $derived(all.some(isNew));
-  let cat = $state('');
+  // Edisi Spesial (Toko Mutiara): barang dengan efek bergerak, tab sendiri; terbuka langsung bila ada yang baru
+  const edisi = $derived(loc?.kind === 'pearl' ? all.filter(isEdisi) : []);
+  let cat = $state((G.catalog?.items ?? []).some((i) => i.shop === G.shopId && isEdisi(i) && isNew(i) && canBuy(i)) ? 'edisi' : '');
   // koleksi baju baru: tab Baju langsung terbuka
   let slot = $state((G.catalog?.items ?? []).some((i) => i.shop === G.shopId && i.kind === 'wear' && slotOf(i) === 'body' && isNew(i)) ? 'body' : '');
   let confirm = $state('');
   const list = $derived.by(() => {
     if (cat === 'set') return [];
+    if (cat === 'edisi') return edisi;
     const l = all.filter((i) => (!cat || i.kind === cat) && (!wearShop || !slot || slotOf(i) === slot));
     // Butik: koleksi baru tampil lebih dulu
     return wearShop ? [...l].sort((a, b) => Number(isNew(b)) - Number(isNew(a))) : l;
@@ -77,6 +80,12 @@
   function sub(it: any) {
     if (it.kind === 'food') return (it.data?.cure ? 'Menyembuhkan · ' : '') + effText(it.data?.effects);
     const setName = PREMIUM_SET_BY_KEY[it.data?.set]?.name;
+    // Edisi Spesial: ukuran / jenis + efeknya
+    if (isEdisi(it)) {
+      const ef = EDISI_EFEK[it.art?.key] ?? 'Efek bergerak';
+      if (it.kind === 'furniture') { const f = footprint(it); return `${f.w}×${f.d} · ✦ ${ef}`; }
+      return `${it.kind === 'floor' ? 'Lantai' : it.kind === 'wallpaper' ? 'Dinding' : KIND_LABEL[it.kind] ?? ''} · ✦ ${ef}`;
+    }
     if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}${setName ? ` · ${setName}` : ''}`; }
     if ((it.kind === 'wallpaper' || it.kind === 'floor') && setName) return `${it.kind === 'floor' ? 'Lantai' : 'Dinding'} · ${setName}`;
     if (it.kind === 'seed') return seedLock(it) ? `Terbuka di Lv ${seedLock(it)}` : `Panen dalam ${growText(Number(it.data?.growMinutes) || 1)}`;
@@ -98,6 +107,7 @@
     if (!r) return;
     sfx.coin();
     if (it.kind === 'room') { sfx.level(); toast(`${it.name} sudah dibangun! Ketuk Lihat untuk masuk.`, 'good'); }
+    else if (isEdisi(it)) { sfx.level(); toast(`✦ ${it.name} masuk Tas. ${it.kind === 'furniture' ? 'Pasang lewat Atur' : 'Pakai dari Tas'} untuk melihat efeknya!`, 'good'); }
     else toast(`${it.name} masuk Tas`, 'good');
   }
   async function sell(it: any) {
@@ -164,8 +174,10 @@
   const shelfIds = $derived.by(() => {
     // Butik: rak atas memajang aksesori (baru lebih dulu); rak bawah diganti manekin
     if (wearShop) return all.filter((i) => slotOf(i) !== 'body').sort((a, b) => Number(isNew(b)) - Number(isNew(a))).slice(0, 5).map((i) => i.id).join(' ');
+    // Toko Mutiara: barang Edisi Spesial dipajang lebih dulu (bergerak di etalase)
+    const pool = edisi.length ? [...edisi, ...all.filter((i) => !isEdisi(i))] : all;
     // saat mencoba, rak bawah kiri dipakai pet
-    return all.slice(0, triedItems.length ? 5 : SLOTS.length).map((i) => i.id).join(' ');
+    return pool.slice(0, triedItems.length ? 5 : SLOTS.length).map((i) => i.id).join(' ');
   });
   const shelf = $derived(shelfIds.split(' ').map((id) => itemOf(id)).filter(Boolean).map(shelfIcon).join(''));
   /** dua manekin memajang baju, bergiliran setiap hari (baru lebih dulu) */
@@ -184,7 +196,7 @@
 
 <div class="shop" class:wide={wearShop} style="--body:{body};--roof:{roof};--roofdk:{shade(roof, -0.25)}">
   <div class="front">
-    <svg class="scene" viewBox="0 0 400 260" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Di dalam {loc?.name}">
+    <svg class="scene" class:edfx={edisi.length > 0} viewBox="0 0 400 260" preserveAspectRatio="xMidYMax meet" role="img" aria-label="Di dalam {loc?.name}">
       <rect x="0" y="0" width="400" height="260" fill="var(--body)" />
       <rect x="0" y="196" width="400" height="64" fill={shade(body, -0.18)} />
       <!-- rak barang -->
@@ -265,6 +277,7 @@
       {:else if cats.length > 1}
         <div class="tabbar" role="tablist">
           <button role="tab" aria-selected={!cat} class:on={!cat} onclick={() => (cat = '')}>Semua</button>
+          {#if edisi.length}<button role="tab" class="edtab" aria-selected={cat === 'edisi'} class:on={cat === 'edisi'} onclick={() => (cat = 'edisi')}>{EDISI_SPESIAL.badge}{#if edisi.some(isNew)}<i class="nb">Baru!</i>{/if}</button>{/if}
           {#if sets.length}<button role="tab" aria-selected={cat === 'set'} class:on={cat === 'set'} onclick={() => (cat = 'set')}>Set ✦</button>{/if}
           {#each cats as k}<button role="tab" aria-selected={cat === k} class:on={cat === k} onclick={() => (cat = k)}>{KIND_LABEL[k] ?? k}</button>{/each}
         </div>
@@ -272,6 +285,13 @@
       {#if wearShop && !triedItems.length}
         {@const n = list.filter(isNew).length}
         <p class="hint">{n ? `${n} ${slot === 'body' ? 'baju' : 'barang'} baru! ` : ''}Ketuk <b>Coba</b> untuk melihatnya di {G.me.pet.name} sebelum membeli.</p>
+      {/if}
+      {#if cat === 'edisi'}
+        <div class="edban" role="note">
+          <svg class="edstars edfx" viewBox="0 0 120 40" aria-hidden="true">{#each [[14, 12, 5, 0], [40, 28, 3.6, 0.5], [70, 10, 4.4, 1], [96, 26, 3.2, 0.3], [110, 9, 2.8, 0.8]] as [x, y, r, d]}<g transform="translate({x} {y})"><g class="ed-twinkle" style="animation-delay:-{d}s"><path d="M0 {-r}Q{r * 0.18} {-r * 0.18} {r} 0Q{r * 0.18} {r * 0.18} 0 {r}Q{-r * 0.18} {r * 0.18} {-r} 0Q{-r * 0.18} {-r * 0.18} 0 {-r}Z" fill="#FFE27A" /></g></g>{/each}</svg>
+          <b>{EDISI_SPESIAL.badge}</b>
+          <p>{EDISI_SPESIAL.desc}</p>
+        </div>
       {/if}
       {#if cat === 'set'}
         <p class="hint">Paket berisi semua item set yang belum kamu punya, hemat {settings().premium?.bundleDiscount ?? 20}%. Pasang {settings().premium?.bonusMin ?? 3} item atau lebih dari set yang sama di satu ruangan untuk efek suasana.</p>
@@ -297,7 +317,9 @@
         {#each list as it (it.id)}
           {@const mine = it.kind === 'room' ? ownRoom(it.id) : null}
           {@const on = it.kind === 'wear' && tried[slotOf(it)] === it.id}
+          {@const left = isEdisi(it) ? sisaWaktu(it.available_to, nowMin * 60_000) : ''}
           <ItemCard {it} sub={sub(it)} tried={on} badge={it.event_id && eventIds.has(it.event_id) ? 'Event' : mine ? 'Punya' : owned(it.id) ? `×${owned(it.id)}` : isNew(it) ? 'Baru' : ''}>
+            {#if left}<span class="cd" title="Edisi terbatas">⏳ {left}</span>{/if}
             <div class="acts">
               {#if it.kind === 'wear'}
                 <button class="btn sm try" class:on aria-pressed={on} onclick={() => tryOn(it)}>{#if on}✓ Dicoba{:else}{@html I.hanger}Coba{/if}</button>
@@ -414,6 +436,8 @@
   .twinkle:nth-of-type(2n) { animation-delay: -.8s; }
   @keyframes twinkle { 50% { opacity: .35; transform: scale(.7); } }
   @media (prefers-reduced-motion: reduce) { .twinkle { animation: none; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .twinkle { animation: none; }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     .shop { flex-direction: row; }
     .front { flex: 1; height: auto; padding: calc(var(--safe-t) + 96px) 0 96px; }
@@ -425,6 +449,14 @@
     .wide .acts { gap: 5px; }
     .wide .acts .btn.sm { padding: 4px 8px; }
   }
+  /* Edisi Spesial: tab bercahaya emas, spanduk malam berbintang, hitung mundur */
+  .tabbar > button.edtab { position: relative; background: #2B3A6B; color: #FFE27A; }
+  .tabbar > button.edtab.on { background: #FFE27A; color: #2B3A6B; box-shadow: inset 0 0 0 2px #2B3A6B; }
+  .edban { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; border: 2.5px solid var(--ink); border-radius: 16px; padding: 8px 12px 10px; background: linear-gradient(120deg, #22305E, #3B3F8C 60%, #6A3D7A); color: #FFFDF7; box-shadow: 0 3px 0 var(--ink); }
+  .edban b { position: relative; font-size: 17px; font-weight: 800; color: #FFE27A; }
+  .edban p { position: relative; margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .edstars { position: absolute; right: 6px; top: 4px; width: 120px; height: 40px; opacity: .9; pointer-events: none; }
+  .cd { font-size: 12px; font-weight: 800; color: #8E2A1E; background: #FFE9D6; border: 1.5px solid #E0583F; border-radius: 999px; padding: 0 8px; }
   .expand { display: flex; flex-direction: column; gap: 6px; background: #FFF4D6; border: 2px solid var(--ink); border-radius: 14px; padding: 8px 10px; margin-bottom: 8px; }
   .expand b { font-size: 15px; }
 </style>

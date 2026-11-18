@@ -508,7 +508,10 @@
   .jbtn kbd { font: 800 11.5px var(--font); border: 1.5px solid var(--ink); border-radius: 6px; padding: 0 5px; background: var(--soft); margin-left: 2px; }
   .jflash { position: fixed; inset: 0; z-index: 60; background: #FFFDF7; pointer-events: none; animation: jflash .34s ease-out forwards; }
   @keyframes jflash { 0% { opacity: .95; } 100% { opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .jflash { animation: jfade .5s ease-out forwards; } @keyframes jfade { 0% { opacity: .5; } 100% { opacity: 0; } } }
+  @keyframes jfade { 0% { opacity: .5; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .jflash { animation: jfade .5s ease-out forwards; } }
+  /* Pengaturan › Kurangi animasi (pilihan di game) */
+  :global(:root.reduce-motion) .jflash { animation: jfade .5s ease-out forwards; }
   .offline { position: absolute; z-index: 30; top: calc(var(--safe-t) + 4px); left: 50%; transform: translateX(-50%); background: #A93A27; color: #fff; font-weight: 700; font-size: 13px; border-radius: 10px; padding: 3px 10px; white-space: nowrap; }
   /* layar sempit: tombol kamera cukup ikon supaya tidak menabrak label event */
   @media (max-width: 480px) {
