@@ -1413,6 +1413,7 @@ function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
     o += `<defs><pattern id="${pid}" width="48" height="48" patternUnits="userSpaceOnUse"><image href="${esc(wall.url)}" width="48" height="48"/></pattern></defs>`;
     o += `<polygon points="${P([P0, P1, up(P1, WH), up(P0, WH)])}" fill="url(#${pid})" opacity="${L ? '.9' : '.75'}"/>`;
   }
+  o += toko3Wall(g, side, a, b, wall, main);
   o += L ? g.quadX(0, a, b, 0, 26, shade(wall.main, -0.14)) : g.quadY(0, a, b, 0, 26, shade(main, -0.14));
   return o;
 }
@@ -1518,6 +1519,7 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
         const a = g.iso(i + 0.5, j), b = g.iso(i + 0.5, j + 1);
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
       }
+      o += toko3Floor(g, floor, i, j, edit);
     }
   o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, D), g.iso(0, D)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
   return o;
@@ -3180,6 +3182,8 @@ Object.assign(FURN, PREMIUM);
 
 /** konteks gambar isometrik (untuk modul gambar lain, mis. art-alun.ts) */
 export type IsoCtx = Ctx;
+/** bantuan gambar isometrik untuk modul gambar lain (mis. art-toko3.ts) */
+export { C3, f1, at3, rk, pathOf, inkLine, thinLine, wisp, hull, prism, ovalTub, lathe, flatE, frontArc, onY, onX, discPts, glowC, shadowE, flame, sortBoxes };
 
 /** Dinding & lantai premium (pola digambar di wallRun / floorSVG) */
 Object.assign(WALLS, {
@@ -3194,6 +3198,102 @@ Object.assign(FLOORS, {
   papanjati: { label: 'Parket jati', colors: { main: '#A4693E', accent: '#7A4526' } },
   batukali: { label: 'Batu kali', colors: { main: '#D3CAB6', accent: '#ABA597' } },
 });
+/** Dinding & lantai toko koin (paket konten 18: Mebel Jati & Toko Bangunan; pola digambar di wallRun / floorSVG) */
+Object.assign(WALLS, {
+  lambri: { label: 'Lis kayu (lambrisering)', colors: { main: '#F4E6C8', accent: '#A0673C' } },
+  kembang: { label: 'Kembang kecil', colors: { main: '#FBEADB', accent: '#E07A8C' } },
+});
+Object.assign(FLOORS, {
+  tegelkembang: { label: 'Tegel kembang', colors: { main: '#EADFC8', accent: '#B5523B' } },
+  kerikil: { label: 'Kerikil', colors: { main: '#D2CBBB', accent: '#A69C88' } },
+  batamerah: { label: 'Bata merah', colors: { main: '#C4674A', accent: '#EBDCC2' } },
+});
+/** pola dinding toko koin (dipanggil wallRun untuk tiap bentang; dinding lain: kosong) */
+function toko3Wall(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC, main: string) {
+  const L = side === 'L', WH = WALL_H;
+  const at = (u: number) => onWall(g, side, u);
+  const up = (p: number[], v: number) => [p[0], p[1] - v];
+  let o = '';
+  if (wall.key === 'lambri') {
+    // lambrisering: papan kayu tegak di bagian bawah dinding, lis di atasnya, garis lis tipis dekat plafon
+    const wood = L ? wall.accent : shade(wall.accent, 0.16), v0 = 24, v1 = 72;
+    const p0 = at(a), p1 = at(b);
+    o += `<polygon points="${P([up(p0, v0), up(p1, v0), up(p1, v1), up(p0, v1)])}" fill="${wood}"/>`;
+    let ln = '';
+    for (let u = Math.ceil(a * 4 + 0.001) / 4; u < b - 0.001; u += 0.25) { const p = at(u); ln += `M${f1(p[0])} ${f1(p[1] - v0)}V${f1(p[1] - v1 + 2)}`; }
+    o += `<path d="${ln}" stroke="${shade(wood, -0.24)}" stroke-width="1.4"/>`;
+    o += `<polygon points="${P([up(p0, v1 - 3), up(p1, v1 - 3), up(p1, v1 + 4), up(p0, v1 + 4)])}" fill="${shade(wood, -0.1)}" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>`;
+    o += `<line x1="${f1(p0[0])}" y1="${f1(p0[1] - WH + 16)}" x2="${f1(p1[0])}" y2="${f1(p1[1] - WH + 16)}" stroke="${shade(main, -0.12)}" stroke-width="2.4"/>`;
+  } else if (wall.key === 'kembang') {
+    // kembang kecil empat kelopak berdaun, baris berselang-seling
+    const fc = L ? wall.accent : shade(wall.accent, 0.22), lc = L ? '#8DBF7E' : shade('#8DBF7E', 0.25), mid = L ? '#F7C548' : shade('#F7C548', 0.25);
+    let petals = '', leaves = '', dots = '', row = 0;
+    const circ = (cx: number, cy: number, r: number) => `M${f1(cx - r)} ${f1(cy)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+    for (let v = 44; v < WH - 12; v += 26, row++)
+      for (let u = a + 0.28 + (row % 2) * 0.3; u < b - 0.12; u += 0.6) {
+        const p = at(u), px = p[0], py = p[1] - v;
+        leaves += `M${f1(px + 2)} ${f1(py + 3)}q5 0 7 5q-5 1 -7 -5Z`;
+        for (const [dx, dy] of [[-2.6, 0], [2.6, 0], [0, -2.6], [0, 2.6]]) petals += circ(px + dx, py + dy, 2.3);
+        dots += circ(px, py, 1);
+      }
+    o += `<path d="${leaves}" fill="${lc}"/><path d="${petals}" fill="${fc}"/><path d="${dots}" fill="${mid}"/>`;
+  }
+  return o;
+}
+/** pola lantai toko koin untuk petak (i, j): digambar di atas petak dasar, tidak menangkap ketukan */
+function toko3Floor(g: Ctx, floor: FloorC, i: number, j: number, edit: boolean) {
+  const k = floor.key;
+  if (k !== 'tegelkembang' && k !== 'kerikil' && k !== 'batamerah') return '';
+  const s = g.s, q = (u: number, v: number) => g.iso(i + u, j + v);
+  const tile = P([q(0, 0), q(1, 0), q(1, 1), q(0, 1)]);
+  const poly = (pts: number[][]) => `M${P(pts).replace(/ /g, 'L')}Z`;
+  const ell = (c: number[], rx: number) => `M${f1(c[0] - rx)} ${f1(c[1])}a${f1(rx)} ${f1(rx / 2)} 0 1 0 ${f1(2 * rx)} 0a${f1(rx)} ${f1(rx / 2)} 0 1 0 ${f1(-2 * rx)} 0Z`;
+  const pe = ' pointer-events="none"';
+  if (k === 'tegelkembang') {
+    // tegel semen bermotif: kembang empat kelopak di tengah, seperempat lingkaran di sudut (jadi bulatan bersama tetangga)
+    let o = `<polygon points="${tile}" fill="${floor.main}" stroke="${shade(floor.main, -0.22)}" stroke-width="1"${pe}/>`;
+    let corners = '', petals = '';
+    for (const [cu, cv] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
+      const pts: number[][] = [q(cu, cv)];
+      for (let t = 0; t <= 6; t++) { const a = (Math.PI / 2) * (t / 6), du = cu ? -1 : 1, dv = cv ? -1 : 1; pts.push(q(cu + du * 0.2 * Math.cos(a), cv + dv * 0.2 * Math.sin(a))); }
+      corners += poly(pts);
+    }
+    for (const [du, dv] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+      const tip = q(0.5 + du * 0.3, 0.5 + dv * 0.3), sideA = q(0.5 + du * 0.13 - dv * 0.08, 0.5 + dv * 0.13 + du * 0.08), sideB = q(0.5 + du * 0.13 + dv * 0.08, 0.5 + dv * 0.13 - du * 0.08);
+      petals += poly([q(0.5, 0.5), sideA, tip, sideB]);
+    }
+    const sw = f1(Math.min(1, s) * 0.9);
+    o += `<path d="${corners}" fill="#4E8378" stroke="${INK}" stroke-opacity=".35" stroke-width="${sw}"${pe}/>`;
+    o += `<path d="${poly([q(0.12, 0.12), q(0.88, 0.12), q(0.88, 0.88), q(0.12, 0.88)])}" fill="none" stroke="${shade(floor.main, -0.16)}" stroke-width="${sw}"${pe}/>`;
+    o += `<path d="${petals}" fill="${floor.accent}" stroke="${INK}" stroke-opacity=".35" stroke-width="${sw}"${pe}/>`;
+    return o + `<path d="${ell(q(0.5, 0.5), 3.2 * s)}" fill="#F2C14E"${pe}/>`;
+  }
+  if (k === 'kerikil') {
+    // kerikil: batu kecil acak (tetap per petak) di atas tanah berpasir
+    let o = `<polygon points="${tile}" fill="${floor.main}" stroke="${shade(floor.main, -0.06)}" stroke-width="1"${pe}/>`;
+    const d: string[] = ['', '', '', ''];
+    for (let n = 0; n < 11; n++) {
+      const fr = (t: number) => { const v = Math.sin(t) * 43758.5453; return v - Math.floor(v); };
+      const h = fr(i * 12.9898 + j * 78.233 + n * 37.719), h2 = fr(i * 39.346 + j * 11.135 + n * 83.155);
+      const u = 0.1 + 0.8 * h, v = 0.1 + 0.8 * h2;
+      d[n % 4] += ell(q(u, v), (1.8 + ((n * 7) % 5) * 0.45) * s);
+    }
+    const cols = [floor.accent, shade(floor.accent, 0.3), shade(floor.main, -0.16), '#F4F0E6'];
+    return o + d.map((p, n) => `<path d="${p}" fill="${cols[n]}"${pe}/>`).join('');
+  }
+  // bata merah susun memanjang: 4 baris per petak, sambungan berselang
+  let o = `<polygon points="${tile}" fill="${floor.main}" stroke="${floor.accent}" stroke-width="${f1(1.3 * Math.min(1, s))}"${pe}/>`;
+  const seg = (u0: number, v0: number, u1: number, v1: number) => { const a = q(u0, v0), b = q(u1, v1); return `M${f1(a[0])} ${f1(a[1])}L${f1(b[0])} ${f1(b[1])}`; };
+  let ln = '', dark = '';
+  for (let r = 0; r < 4; r++) {
+    const v0 = r / 4, v1 = (r + 1) / 4;
+    if (r) ln += seg(0, v0, 1, v0);
+    const joints = (r + j) % 2 ? [0.25, 0.75] : [0.5];
+    for (const u of joints) ln += seg(u, v0, u, v1);
+    if ((i * 3 + j * 5 + r) % 4 === 0) { const [u0, u1] = joints.length === 1 ? [0.5, 1] : [0.25, 0.75]; dark += poly([q(u0, v0), q(u1, v0), q(u1, v1), q(u0, v1)]); }
+  }
+  return o + `<path d="${dark}" fill="${shade(floor.main, -0.1)}"${pe}/><path d="${ln}" stroke="${floor.accent}" stroke-width="${f1(1.3 * Math.min(1, s))}"${pe}/>`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Pekarangan: rumah berdiri di atas pulau rumput (diorama)             */

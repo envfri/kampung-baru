@@ -32,6 +32,7 @@
     "test:e2e:ajak": "node scripts/e2e-ajak.mjs",
     "test:e2e:putar": "node scripts/e2e-putar.mjs",
     "test:e2e:premium2": "node scripts/e2e-premium2.mjs",
+    "test:e2e:toko3": "node scripts/e2e-toko3.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",

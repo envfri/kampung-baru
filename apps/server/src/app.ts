@@ -14,6 +14,7 @@ import { seedPackV14 } from './db/seed-alun';
 import { seedPackV15 } from './db/seed-jepret';
 import { seedPackV16 } from './db/seed-peta';
 import { seedPackV17 } from './db/seed-premium2';
+import { seedPackV18 } from './db/seed-toko3';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -83,6 +84,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV15(db)) app.log.info('Paket konten 15 (Jepret & Bagikan: tugas harian Bagikan 1 foto) ditambahkan');
   if (await seedPackV16(db)) app.log.info('Paket konten 16: letak Alun-alun & Lapangan Lomba di peta ditukar');
   if (await seedPackV17(db)) app.log.info('Paket konten 17 (set premium Dapur Nenek, Sanggar Seni, Spa Bali) ditambahkan');
+  if (await seedPackV18(db)) app.log.info('Paket konten 18 (barang baru Pasar Pagi, Mebel Jati, Toko Bangunan) ditambahkan');
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
