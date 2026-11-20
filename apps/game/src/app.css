@@ -169,3 +169,34 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .game-bg .top span { display: flex; align-items: center; gap: 4px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 800; font-size: 17px; box-shadow: 0 2px 0 var(--ink); }
 .game-bg .flash { font: 800 26px var(--font); fill: #1E7A4C; stroke: #FFFDF7; stroke-width: 4px; paint-order: stroke; animation: fxUp .8s ease-out forwards; }
 .game-bg .flash.bad { fill: #A93A27; }
+
+/* ---------- Paket konten 20 (perabot dapur, kamar mandi, taman): pose aktivitas baru ayun, sikat, cuci ----------
+   Selektor :is(.pet, .opet) supaya pet lain di ruangan (tamu / pet sendiri saat berkunjung) ikut berpose bila kelas
+   pose-nya terpasang. Properti pet ada di art-perabot3.ts: p-ayun (penanda), p-sikat & p-busa, p-cuci.
+   ayun: pet (.pet-hop, di luar pembalik arah pet) dan tali + dudukan Ayunan Kayu (.ayk-ayun, di belakang pet) berayun
+   bersama dari titik tengah palang: titik putar pet 0, −109 px lokal (PERABOT3_AYUN.pivot), titik putar tali di
+   style mebelnya. Keduanya mulai bersamaan saat pose dipasang, jadi seirama; mebel yang dicerminkan (.rot, putar 1×/3×)
+   memakai arah kebalikan supaya ayunannya searah di layar. Hanya berlaku bila penanda p-ayun ada (:has), jadi pose ayun
+   di alun-alun (tanpa penanda, diatur Room.svelte) tidak berubah; svg.room menaikkan spesifisitasnya di atas aturan itu. */
+svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) > .pet-hop { transform-box: view-box; transform-origin: 0px -109px; animation: p3-ayun 1.5s ease-in-out infinite alternate; }
+svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) .pet-bob { animation: sitbob 2s ease-in-out infinite; }
+svg.room:has(:is(.pet, .opet).pose-ayun .p-ayun) .ayk-ayun { transform-box: view-box; animation: p3-ayun 1.5s ease-in-out infinite alternate; }
+svg.room:has(:is(.pet, .opet).pose-ayun .p-ayun) .rot .ayk-ayun { animation-direction: alternate-reverse; }
+:is(.pet, .opet).pose-sikat .pet-bob { animation: p3-sikat .8s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-sikat .p-sikat { animation: p3-gosok .2s linear infinite alternate; }
+:is(.pet, .opet).pose-sikat .p-busa { transform-box: fill-box; transform-origin: center; animation: p3-busa .7s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-cuci .pet-bob { animation: p3-cuci .7s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-cuci .p-cuci { transform-box: fill-box; transform-origin: center; animation: p3-spons .35s ease-in-out infinite alternate; }
+@keyframes p3-ayun { from { transform: rotate(-13deg); } to { transform: rotate(13deg); } }
+@keyframes p3-sikat { from { transform: rotate(-3deg) scale(1.02, .98); } to { transform: rotate(3deg) scale(.99, 1.01); } }
+@keyframes p3-gosok { from { transform: translate(-3px, 2px); } to { transform: translate(3px, -2px); } }
+@keyframes p3-busa { from { transform: scale(.85); } to { transform: scale(1.1); } }
+@keyframes p3-cuci { from { transform: rotate(-4deg) translateY(0); } to { transform: rotate(3deg) translateY(-3px); } }
+@keyframes p3-spons { from { transform: translate(-4px, 2px) rotate(-6deg); } to { transform: translate(4px, -2px) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) {
+  svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) > .pet-hop, svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) .pet-bob, svg.room:has(:is(.pet, .opet).pose-ayun .p-ayun) .ayk-ayun,
+  :is(.pet, .opet).pose-sikat :is(.pet-bob, .p-sikat, .p-busa), :is(.pet, .opet).pose-cuci :is(.pet-bob, .p-cuci) { animation: none; }
+}
+/* Pengaturan › Kurangi animasi (pilihan di game) */
+:root.reduce-motion svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) > .pet-hop, :root.reduce-motion svg.room :is(.pet, .opet).pose-ayun:has(.p-ayun) .pet-bob, :root.reduce-motion svg.room:has(:is(.pet, .opet).pose-ayun .p-ayun) .ayk-ayun,
+:root.reduce-motion :is(.pet, .opet).pose-sikat :is(.pet-bob, .p-sikat, .p-busa), :root.reduce-motion :is(.pet, .opet).pose-cuci :is(.pet-bob, .p-cuci) { animation: none; }

@@ -1287,6 +1287,11 @@ function floorColors(item?: ItemLike | null, fallback: ArtSpec = DEFAULT_FLOOR) 
 type WallC = ReturnType<typeof wallColors>;
 type FloorC = ReturnType<typeof floorColors>;
 const WALL_H = 150;
+/** pola dinding & lantai yang didaftarkan modul lain (lihat registerSurfaces) */
+export type WallPattern = (g: Ctx, side: 'L' | 'R', a: number, b: number, wall: { key: string; main: string; accent: string }, main: string) => string;
+export type FloorPattern = (g: Ctx, floor: { key: string; main: string; accent: string }, i: number, j: number, edit: boolean) => string;
+const WALL_PATTERNS: WallPattern[] = [];
+const FLOOR_PATTERNS: FloorPattern[] = [];
 /** titik pada dinding belakang: L = bidang x = 0 (sepanjang y), R = bidang y = 0 (sepanjang x) */
 const onWall = (g: Ctx, side: 'L' | 'R', u: number) => (side === 'L' ? g.iso(0, u) : g.iso(u, 0));
 
@@ -1437,6 +1442,7 @@ function wallRun(g: Ctx, side: 'L' | 'R', a: number, b: number, wall: WallC) {
     o += `<polygon points="${P([P0, P1, up(P1, WH), up(P0, WH)])}" fill="url(#${pid})" opacity="${L ? '.9' : '.75'}"/>`;
   }
   o += toko3Wall(g, side, a, b, wall, main);
+  for (const fn of WALL_PATTERNS) o += fn(g, side, a, b, wall, main);
   o += L ? g.quadX(0, a, b, 0, 26, shade(wall.main, -0.14)) : g.quadY(0, a, b, 0, 26, shade(main, -0.14));
   return o;
 }
@@ -1545,6 +1551,7 @@ function floorSVG(g: Ctx, W: number, floor: FloorC, edit: boolean, rid?: string,
         o += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${shade(floor.main, -0.12)}" stroke-width="1" pointer-events="none"/>`;
       }
       o += toko3Floor(g, floor, i, j, edit);
+      for (const fn of FLOOR_PATTERNS) o += fn(g, floor, i, j, edit);
     }
   if (floor.key === 'kolamkaca' && !edit) o += kolamKaca(g, W, D, floor);
   o += `<polygon points="${P([g.iso(0, 0), g.iso(W, 0), g.iso(W, D), g.iso(0, D)])}" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round" pointer-events="none"/>`;
@@ -3361,6 +3368,24 @@ function toko3Floor(g: Ctx, floor: FloorC, i: number, j: number, edit: boolean) 
   }
   return o + `<path d="${dark}" fill="${shade(floor.main, -0.1)}"${pe}/><path d="${ln}" stroke="${floor.accent}" stroke-width="${f1(1.3 * Math.min(1, s))}"${pe}/>`;
 }
+/**
+ * Pola dinding & lantai dari modul gambar lain (mis. art-perabot3.ts): bentuknya didaftarkan ke WALLS / FLOORS, lalu
+ * fungsi polanya dipanggil wallRun untuk tiap bentang dinding dan floorSVG untuk tiap petak (bentuk lain: kosong).
+ */
+export function registerSurfaces(
+  walls: Record<string, { label: string; colors: Record<string, string> }>,
+  floors: Record<string, { label: string; colors: Record<string, string> }>,
+  wall?: WallPattern,
+  floor?: FloorPattern,
+) {
+  Object.assign(WALLS, walls);
+  Object.assign(FLOORS, floors);
+  if (wall) WALL_PATTERNS.push(wall);
+  if (floor) FLOOR_PATTERNS.push(floor);
+}
+/** titik dinding belakang (L: bidang x = 0, R: bidang y = 0) & tinggi dinding, untuk pola dinding di modul lain */
+export const WALL_KIT = { onWall, WALL_H };
+
 /** Dinding & lantai Edisi Spesial (efek bergerak: kelas ed-* dianimasikan CSS game) */
 Object.assign(WALLS, { aurora: { label: 'Aurora (bergerak)', colors: { main: '#25336A', accent: '#7FE8C0' } } });
 Object.assign(FLOORS, { kolamkaca: { label: 'Kolam kaca (ikan berenang)', colors: { main: '#4C9BC8', accent: '#DDF0F8' } } });
