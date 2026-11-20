@@ -958,3 +958,6 @@ registerArt(FOOD, { ...MEBEL, ...BANGUNAN });
 
 /** bentuk mebel baru per toko (untuk uji & galeri) */
 export const TOKO3_ART = { mebel: Object.keys(MEBEL), bangunan: Object.keys(BANGUNAN), pasar: Object.keys(FOOD) };
+
+/** alat gambar "scene" (bagian diurutkan sendiri, benar dari depan & belakang) untuk modul mebel lain (art-perabot3.ts) */
+export const SCENE_KIT = { scene, faces, rect, circ };

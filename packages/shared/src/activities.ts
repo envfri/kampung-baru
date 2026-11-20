@@ -17,6 +17,11 @@ export const ACTIVITY_ANIMS: Record<string, { label: string; on: boolean; lift: 
   gowes: { label: 'Bersepeda statis (naik ke mebel)', on: true, lift: 20, fx: 'drops', ms: 3000 },
   musik: { label: 'Main musik (di dekatnya)', on: false, lift: 0, fx: 'notes', ms: 2800 },
   kopi: { label: 'Bikin & minum kopi (di dekatnya)', on: false, lift: 0, fx: 'steam', prop: 'cangkir', ms: 2800 },
+  // paket konten 20: pet berayun bersama tali & dudukan Ayunan Kayu dari palangnya (properti ayun = penanda untuk CSS);
+  // lift = tinggi dudukan Ayunan Kayu (PERABOT3_AYUN.seat)
+  ayun: { label: 'Main ayunan (naik ke dudukan ayunan)', on: true, lift: 24, fx: 'hearts', prop: 'ayun', ms: 3200 },
+  sikat: { label: 'Sikat gigi (di dekatnya)', on: false, lift: 0, fx: 'bubbles', prop: 'sikat', ms: 2600 },
+  cuci: { label: 'Mencuci / menggosok dengan spons (di dekatnya)', on: false, lift: 0, fx: 'bubbles', prop: 'cuci', ms: 2800 },
 };
 
 /** Efek aktivitas: empat kebutuhan + berat badan (negatif = menurunkan berat). */
