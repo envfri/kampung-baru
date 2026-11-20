@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
-  import { petSVG, renderPhoto } from '@kb/shared';
+  import { petSVG, renderPhoto, ACTIVITY_SPOTS } from '@kb/shared';
   import PhotoPreview from '../components/PhotoPreview.svelte';
   import { G, item, wearItems, run, toast, fail, track, goTo } from '../lib/game.svelte';
   import { H } from '../lib/house.svelte';
@@ -23,6 +23,9 @@
   async function loadAlbum() { tab = 'album'; try { album = await api.get('/api/photos'); } catch (e) { fail(e); album = { photos: [], featured: null }; } }
   $effect(() => { if (tab === 'book' && book === null) loadBook(); if (tab === 'album' && album === null) loadAlbum(); });
   const BOOK: Record<string, string> = { sapa: 'menyapa', peluk: 'memeluk', camilan: 'memberi camilan untuk', kejar: 'main kejar-kejaran dengan', duduk: 'duduk santai bareng' };
+  /** buku tamu "perabot": tamu memakai perabot / jendela / lukisan di rumahmu */
+  const bookPlace = (id: string | null) => (id?.startsWith('spot:') ? (ACTIVITY_SPOTS[id.slice(5)] ?? 'jendela').toLowerCase() : item(id ?? '')?.name ?? 'perabotmu');
+  const bookAct = (id: string | null) => { const a = (G.catalog?.activities ?? []).find((x: any) => x.id === id); return a ? ` (${a.name})` : ''; };
   const photoSvg = (p: any) => renderPhoto(p.members.filter((m: any) => m.pet).map((m: any) => ({ look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state })), p.pose, item(p.scene?.wall), item(p.scene?.floor), p.scene?.theme);
   const whereText = (f: any) => (f.where === 'home' ? 'di rumah' : f.where === 'visit' ? (f.at ? `main ke rumah ${f.at}` : 'sedang berkunjung') : f.where === 'alun' ? `di Alun-alun${f.alun > 1 ? ` ${f.alun}` : ''}` : 'di kampung');
   /** susul teman ke alun-alun yang sama (bila masih muat) */
@@ -166,7 +169,7 @@
       {/each}
     </div>
   {:else if tab === 'book'}
-    <p class="visitors">Teman yang main ke rumahmu dan apa yang mereka lakukan dengan {G.me.pet.name}.</p>
+    <p class="visitors">Teman yang main ke rumahmu: apa yang mereka lakukan dengan {G.me.pet.name} dan perabot yang mereka pakai.</p>
     {#if book === null}<p class="muted">Memuat…</p>
     {:else if !book.length}<p class="muted">Belum ada tamu. Bagikan kode temanmu supaya teman bisa main ke rumahmu!</p>{/if}
     <div class="list">
@@ -175,7 +178,11 @@
           <span class="ava">{@html petSVG({ color: e.color ?? '#F2EEE3', ear: e.ear ?? 'tunas', pattern: e.pattern, eyes: e.eyes, tail: e.tail }, wearItems(e.wear))}</span>
           <div class="info">
             <b>{e.name}</b>
-            <span>{e.pet_name ?? 'Pet-nya'} {BOOK[e.kind] ?? 'main dengan'} {G.me.pet.name}{e.item_id ? ` (${item(e.item_id)?.name ?? 'camilan'})` : ''}</span>
+            {#if e.kind === 'perabot'}
+              <span>{e.pet_name ?? 'Pet-nya'} memakai {bookPlace(e.item_id)}{bookAct(e.activity_id)}</span>
+            {:else}
+              <span>{e.pet_name ?? 'Pet-nya'} {BOOK[e.kind] ?? 'main dengan'} {G.me.pet.name}{e.item_id ? ` (${item(e.item_id)?.name ?? 'camilan'})` : ''}</span>
+            {/if}
             <em>{ago(new Date(e.created_at).toISOString())}</em>
           </div>
         </div>

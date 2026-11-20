@@ -97,10 +97,10 @@
   let blocks = $state<any[] | null>(null);
   async function loadBlocks() { try { blocks = (await api.get('/api/blocks')).blocks; } catch (e) { fail(e); } }
   async function unblock(b: any) { try { await api.del(`/api/blocks/${b.id}`); unhide(b.id); toast(`Blokir ${b.name} dibuka.`); loadBlocks(); } catch (e) { fail(e); } }
-  async function privacy(k: 'showOnline' | 'liveVisits' | 'friendRequests', v: boolean) {
+  async function privacy(k: 'showOnline' | 'liveVisits' | 'facilityVisits' | 'friendRequests', v: boolean) {
     try {
       const r = await api.post('/api/me/privacy', { [k]: v });
-      G.me.user.show_online = r.showOnline; G.me.user.live_visits = r.liveVisits; G.me.user.friend_requests = r.friendRequests;
+      G.me.user.show_online = r.showOnline; G.me.user.live_visits = r.liveVisits; G.me.user.facility_visits = r.facilityVisits; G.me.user.friend_requests = r.friendRequests;
       toast('Disimpan', 'good');
     } catch (e) { fail(e); }
   }
@@ -151,8 +151,9 @@
     <h3>Teman & tamu</h3>
     <label class="tg"><input type="checkbox" checked={G.me.user.show_online !== false} onchange={(e) => privacy('showOnline', (e.target as HTMLInputElement).checked)} /> Tampilkan status online ke teman</label>
     <label class="tg"><input type="checkbox" checked={G.me.user.live_visits !== false} onchange={(e) => privacy('liveVisits', (e.target as HTMLInputElement).checked)} /> Teman bisa langsung main bareng di rumahku</label>
+    <label class="tg"><input type="checkbox" checked={G.me.user.facility_visits !== false} onchange={(e) => privacy('facilityVisits', (e.target as HTMLInputElement).checked)} /> Teman boleh memakai perabot di rumahku</label>
     <label class="tg"><input type="checkbox" checked={!!G.me.user.friend_requests} onchange={(e) => privacy('friendRequests', (e.target as HTMLInputElement).checked)} /> Terima ajakan berteman dari orang yang kutemui di alun-alun atau rumah teman</label>
-    <p class="muted small">Bila dimatikan, teman tetap bisa berkunjung dan main dengan pet-mu, tapi tidak tampil bersamaan secara langsung.</p>
+    <p class="muted small">Bila main bareng dimatikan, teman tetap bisa berkunjung dan main dengan pet-mu, tapi tidak tampil bersamaan secara langsung. Bila perabot boleh dipakai, pet teman bisa ikut duduk di sofa, berendam, rebahan, dan lainnya, dan kamu dapat tip koin.</p>
     {#if blocks === null}<button class="link" onclick={loadBlocks}>Pemain yang diblokir</button>
     {:else}
       {#if !blocks.length}<p class="muted small">Belum ada pemain yang diblokir.</p>{/if}

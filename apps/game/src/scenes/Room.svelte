@@ -7,8 +7,8 @@
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
-  import { api } from '../lib/api';
-  import { G, items, item, wearItems, run, post, fx, toast, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
+  import { api, ApiError, rid } from '../lib/api';
+  import { G, items, item, wearItems, run, post, fx, toast, fail, merge, activeDecor, curRoom, effText, petLook, isSleeping, setSleep, sayLine, settings, serverNow, movePlanRoom, setMirror } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
   import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
   import { JP, type JepretSnap, type JepretPet } from '../lib/jepret.svelte';
@@ -272,7 +272,8 @@
   const markupCache = new Map<string, { k: string; h: string }>();
   function compMarkup(c: Comp) {
     // naik bianglala: depan gondola menutupi badan; ikut arak-arakan: bawa bendera
-    const prop = c.ride ? (c.ride.kind === 'bianglala' ? `gondola${c.ride.seat}` : c.ride.kind === 'arak' ? 'bendera' : c.ride.kind === 'kolam' ? (c.ride.seat <= 3 ? 'joran' : 'joran2') : undefined) : undefined;
+    // beraktivitas di perabot (rumah): properti dari ACTIVITY_ANIMS (penyiram, buku, tali, cangkir, ...)
+    const prop = c.ride ? (c.ride.kind === 'bianglala' ? `gondola${c.ride.seat}` : c.ride.kind === 'arak' ? 'bendera' : c.ride.kind === 'kolam' ? (c.ride.seat <= 3 ? 'joran' : 'joran2') : undefined) : c.prop;
     const k = JSON.stringify([c.look?.color, c.look?.ear, c.look?.pattern, c.look?.eyes, c.look?.tail, c.wear?.map((w: any) => w.id), c.state, c.flip, prop]);
     const hit = markupCache.get(c.id);
     if (hit && hit.k === k) return hit.h;
@@ -286,7 +287,7 @@
     if (mainMarkup && pos) out.push({ key: 'pet', d: rideD ?? pos[0] + pos[1] + 0.01, h: mainMarkup, behind: rideBehind, pet: { cls: `pet${pose?.pose ? ' pose-' + pose.pose : ''}`, tf: rideTf ?? tf(pos, pose?.lift ?? 0) } });
     if (!(mode === 'home' && (G.edit || G.plan)))
       for (const c of comps.values())
-        out.push({ key: 'o:' + c.id, d: c.rideD ?? c.live[0] + c.live[1] + 0.005, h: compMarkup(c), behind: !!c.rideBehind, pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: c.rideTf ?? tf(c.live), o: c.id } });
+        out.push({ key: 'o:' + c.id, d: c.rideD ?? c.live[0] + c.live[1] + 0.005, h: compMarkup(c), behind: !!c.rideBehind, pet: { cls: `opet${c.pose ? ' pose-' + c.pose : ''}`, tf: c.rideTf ?? tf(c.live, compLift(c)), o: c.id } });
     return out;
   });
   /** ondel-ondel penyambut tidak tampil di tempat jaganya selama berjalan (ke gerbang, arak-arakan, pulang) */
@@ -704,6 +705,8 @@
 
   /* ---------------- pet lain di rumah: tamu yang sedang live & pet sendiri saat berkunjung ---------------- */
   type Comp = { id: string; name: string; look: any; wear: any[]; state?: any; live: [number, number]; tile: string; path: [number, number][]; speed: number; flip: boolean; pose?: string; target: string; self?: boolean;
+    /** beraktivitas di perabot: naik ke atas mebel (lift), properti yang dibawa, efek yang muncul berkala */
+    lift?: number; prop?: string; fxKind?: string; fxN?: number;
     /** sedang naik wahana alun-alun (dari sinkron): posisi dihitung dari jadwal wahana */
     ride?: { kind: RideKind | 'kolam' | 'catur'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean };
   const SELF = '__me';
@@ -713,10 +716,12 @@
   let compRaf = 0, compLast = 0;
   let selfBusy = false;
 
+  /** naik ke atas mebel hanya setelah sampai (saat berjalan ke sana tetap di lantai) */
+  const compLift = (c: Comp) => (c.path.length ? 0 : c.lift ?? 0);
   function placeComp(c: Comp) {
     const el = svgEl?.querySelector(`[data-o="${c.id}"]`) as SVGGElement | null;
     if (!el) return;
-    el.setAttribute('transform', c.rideTf ?? tf(c.live));
+    el.setAttribute('transform', c.rideTf ?? tf(c.live, compLift(c)));
     el.querySelector('.pet-face')?.setAttribute('transform', c.flip ? 'scale(-1 1)' : '');
     el.classList.toggle('moving', c.path.length > 0);
   }
@@ -746,8 +751,8 @@
     if (!moving) for (const c of comps.values()) placeComp(c);
   }
   function compGo() { if (!compRaf) { compLast = performance.now(); compRaf = requestAnimationFrame(compTick); } }
-  function compWalk(c: Comp, goals: [number, number][], sp = 1.6) {
-    const p = routeFrom(c.live, goals);
+  function compWalk(c: Comp, goals: [number, number][], sp = 1.6, pre?: [number, number][] | null) {
+    const p = pre ?? routeFrom(c.live, goals);
     if (!p || !p.length) return Promise.resolve(false);
     c.path = p; c.speed = Math.max(sp, p.length / 4);
     compGo();
@@ -816,8 +821,12 @@
         if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
         else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
         const rd = rideOf(m.act);
-        const pz = m.act === 'duduk' || rd?.kind === 'catur' ? 'duduk' : m.act === 'joget' ? 'joget' : rd ? (rd.kind === 'arak' ? 'arak' : rd.kind === 'kolam' ? 'mancing' : 'wahana') : undefined;
-        if (pz !== c.pose) { c.pose = pz; changed = true; }
+        // di rumah: pose aktivitas apa pun dari ACTIVITY_ANIMS (tidur, duduk, mandi, siram, ...) beserta properti & efeknya;
+        // naik ke mebel (lift) hanya bila posisinya memang di atas mebel (duduk bareng pet teman tetap di lantai)
+        const an = !square && !rd && m.act && Object.hasOwn(ACTIVITY_ANIMS, m.act) ? ACTIVITY_ANIMS[m.act] : null;
+        const pz = an ? m.act! : m.act === 'duduk' || rd?.kind === 'catur' ? 'duduk' : m.act === 'joget' ? 'joget' : rd ? (rd.kind === 'arak' ? 'arak' : rd.kind === 'kolam' ? 'mancing' : 'wahana') : undefined;
+        const lift = an?.on && blocked.has(tileOf(tgt)) ? an.lift : 0;
+        if (pz !== c.pose || lift !== (c.lift ?? 0) || an?.prop !== c.prop) { c.pose = pz; c.lift = lift; c.prop = an?.prop; c.fxKind = an?.fx; c.fxN = 0; changed = true; }
         if ((rd ? `${rd.kind}:${rd.seat}` : '') !== (c.ride ? `${c.ride.kind}:${c.ride.seat}` : '')) { c.ride = rd ?? undefined; c.rideTf = undefined; c.rideD = undefined; c.rideBehind = undefined; c.path = []; if (rd?.kind === 'kolam') c.flip = rd.seat <= 3; if (rd?.kind === 'catur') c.flip = rd.seat === 2; changed = true; }
         const tk = `${tgt[0].toFixed(2)},${tgt[1].toFixed(2)}`;
         // naik bianglala / kereta: posisinya dari jadwal wahana, bukan dari sinkron (sesudahnya berjalan dari posisi terakhir)
@@ -827,9 +836,11 @@
           const d = Math.hypot(tgt[0] - c.live[0], tgt[1] - c.live[1]);
           if (d > 16) { c.live = [...tgt]; c.path = []; c.tile = tileOf(tgt); changed = true; }
           else if (d > 1.5) {
-            // jauh: jalan menyusuri jalur (tidak menembus benda), cukup cepat supaya sampai sebelum sinkron berikutnya
-            const route = routeFrom(c.live, [[Math.floor(tgt[0]), Math.floor(tgt[1])]]);
-            c.path = route && route.length ? [...route.slice(0, -1), tgt] : [tgt];
+            // jauh: jalan menyusuri jalur (tidak menembus benda), cukup cepat supaya sampai sebelum sinkron berikutnya;
+            // tujuan di atas mebel (sedang memakai perabot): jalan ke sebelahnya dulu, baru naik
+            const tx = Math.floor(tgt[0]), ty = Math.floor(tgt[1]), onTop = blocked.has(`${tx},${ty}`);
+            const route = routeFrom(c.live, onTop ? [[tx + 1, ty], [tx - 1, ty], [tx, ty + 1], [tx, ty - 1]] : [[tx, ty]]);
+            c.path = route && route.length ? [...(onTop ? route : route.slice(0, -1)), tgt] : [tgt];
             const len = c.path.reduce((acc, q, i) => acc + Math.hypot(q[0] - (i ? c.path[i - 1][0] : c.live[0]), q[1] - (i ? c.path[i - 1][1] : c.live[1])), 0);
             c.speed = Math.max(1.7, len / 1.1);
             compGo();
@@ -870,6 +881,20 @@
     const rep = setInterval(reportPos, 200);
     return () => { clearInterval(selfWander); clearInterval(rep); clearInterval(sweep); cancelAnimationFrame(compRaf); };
   });
+  // pet lain yang sedang memakai perabot (tamu, atau tuan rumah di rumahnya): efek aktivitasnya muncul berkala
+  onMount(() => {
+    const t = setInterval(() => {
+      if (document.hidden || G.jepret) return;
+      for (const c of comps.values()) {
+        if (c.self || !c.fxKind || c.path.length || c.ride) continue;
+        c.fxN = (c.fxN ?? 0) + 1;
+        // tidur: Zzz lebih jarang (seperti dengkur pet sendiri)
+        if (c.pose === 'tidur' && c.fxN % 2 === 0) continue;
+        fxAtComp(c.id, c.fxKind, false);
+      }
+    }, 1300);
+    return () => clearInterval(t);
+  });
   function reportPos() {
       const me = comps.get(SELF);
       const at = mode === 'visit' ? me?.live : live;
@@ -879,7 +904,12 @@
       H.pos.x = +(at[0] - (r?.gx ?? 0)).toFixed(2);
       H.pos.y = +(at[1] - (r?.gy ?? 0)).toFixed(2);
       if (mode === 'visit' && me) { H.pos.flip = me.flip; H.pos.act = me.pose ?? (me.path.length ? 'jalan' : H.pos.act === 'jalan' ? null : H.pos.act); }
-      else { H.pos.flip = flip; H.pos.act = pose?.pose === 'duduk' || pose?.pose === 'naik' || pose?.pose === 'ayun' || pose?.pose === 'wahana' ? 'duduk' : pose?.pose === 'joget' ? 'joget' : pose?.pose === 'lihat' ? 'lihat' : walking ? 'jalan' : null; }
+      else {
+        H.pos.flip = flip;
+        const pp = pose?.pose;
+        // rumah sendiri: pose aktivitas apa pun (tidur, duduk, berendam, ...) terlihat oleh tamu; alun-alun tetap memakai pose lamanya
+        H.pos.act = !square && pp && Object.hasOwn(ACTIVITY_ANIMS, pp) ? pp : pp === 'duduk' || pp === 'naik' || pp === 'ayun' || pp === 'wahana' ? 'duduk' : pp === 'joget' ? 'joget' : pp === 'lihat' ? 'lihat' : walking ? 'jalan' : null;
+      }
   }
   // masuk rumah live (tamu: rumah teman; tuan rumah: rumah sendiri)
   let entered = '';
@@ -1094,7 +1124,8 @@
   /* ---------------- aktivitas di rumah ---------------- */
 
   type Target = { room: string; index?: number; spot?: RoomSpot };
-  let menu = $state<null | { x: number; y: number; title: string; acts: any[]; target: Target }>(null);
+  /** sub: baris kecil di atas judul (berkunjung: "Perabot <nama teman>") */
+  let menu = $state<null | { x: number; y: number; title: string; sub?: string; acts: any[]; target: Target }>(null);
   const SLEEP_ACT = { id: '__sleep', name: 'Tidur sampai segar', effects: {}, cooldown_sec: 0, note: 'Matikan lampu' };
   const placedAt = (t: Target) => layoutOf(roomOf(t.room))[t.index ?? -1];
 
@@ -1128,9 +1159,9 @@
       });
     }
     const acts = list.filter((a: any) => activityFits(a.targets, it as any));
-    // kasur & lampu: matikan lampu untuk tidur sungguhan
+    // kasur & lampu: matikan lampu untuk tidur sungguhan (hanya di rumah sendiri; di rumah teman cukup rebahan)
     const key = it?.art?.type === 'builtin' ? it.art.key : '';
-    return key === 'kasur' || key === 'lampu' ? [SLEEP_ACT, ...acts] : acts;
+    return mode === 'home' && (key === 'kasur' || key === 'lampu') ? [SLEEP_ACT, ...acts] : acts;
   }
 
   function goalsFor(t: Target): { goals: [number, number][]; center: [number, number] | null; faceTo: [number, number] | null; flipTo: boolean | null } {
@@ -1151,21 +1182,56 @@
   }
 
   function openMenu(e: MouseEvent, t: Target) {
-    if (acting) return;
+    if (mode === 'visit' ? selfBusy : acting) return;
     // Papan Lomba Mancing: papan skor / hasil / jadwal
     if (square && itemOf(placedAt(t)?.i)?.art?.key === 'papanlomba') { sfx.tap(); ALUN.board = true; return; }
     const acts = activitiesFor(t);
     const title = t.spot ? ACTIVITY_SPOTS[t.spot] : itemOf(placedAt(t)?.i)?.name ?? 'Mebel';
     if (!acts.length) {
-      // belum ada aktivitas untuk mebel ini: pet tetap menghampirinya
+      // belum ada aktivitas untuk mebel ini: pet tetap menghampirinya (saat berkunjung: pet sendiri)
       const g = goalsFor(t);
+      if (mode === 'visit') { const me = comps.get(SELF); if (me && g.goals.length) { sfx.tap(); compWalk(me, g.goals); } return; }
       const p = routeToAny(g.goals);
       if (p) { sfx.tap(); walkPath(p).then(() => !acting && scheduleIdle()); }
       return;
     }
+    // rumah teman: perabotnya hanya bisa dipakai bila admin & tuan rumah mengizinkan
+    if (mode === 'visit' && G.visit?.facility && !G.visit.facility.on) { sfx.error(); toast(facilityOff(G.visit.facility.reason), 'error'); return; }
     sfx.tap();
     const r = wrapEl!.getBoundingClientRect();
-    menu = { x: e.clientX - r.left, y: e.clientY - r.top, title, acts, target: t };
+    const sub = mode === 'visit' ? `${t.spot ? 'Rumah' : 'Perabot'} ${G.visit?.owner?.display_name ?? 'teman'}` : undefined;
+    menu = { x: e.clientX - r.left, y: e.clientY - r.top, title, sub, acts, target: t };
+  }
+  const facilityOff = (why?: string | null) => (why === 'host' ? 'Tuan rumah belum mengizinkan perabotnya dipakai.' : 'Perabot rumah teman sedang tidak bisa dipakai.');
+  const targetName = (t: Target) => (t.spot ? ACTIVITY_SPOTS[t.spot] : itemOf(placedAt(t)?.i)?.name ?? 'Perabot');
+  /**
+   * Pet lain yang sedang di atas perabot ini (tidur, duduk, berendam, ...) menurut layar ini, mis. pet tuan rumah yang tidur di
+   * kasurnya atau tamu lain yang sedang berendam. Server tetap memeriksa (satu pet per perabot); ini supaya tidak perlu jalan dulu.
+   */
+  function occupantOf(t: Target, except: string): string | null {
+    if (t.spot) return null;
+    const p = placedAt(t), r = plan.byId.get(t.room), it = itemOf(p?.i);
+    if (!p || !r || !it) return null;
+    const f = footprint(it, p.r);
+    const x0 = r.gx + p.x, y0 = r.gy + p.y;
+    const inside = (q: [number, number] | null | undefined) => !!q && q[0] >= x0 && q[0] <= x0 + f.w && q[1] >= y0 && q[1] <= y0 + f.d;
+    const onTop = (k?: string) => !!k && Object.hasOwn(ACTIVITY_ANIMS, k) && ACTIVITY_ANIMS[k].on;
+    for (const c of comps.values()) if (c.id !== except && onTop(c.pose) && !c.path.length && inside(c.live)) return c.look?.name ?? c.name;
+    // saat berkunjung pet utama = pet tuan rumah (mis. tidur di kasur saat tuan rumah tidak online)
+    if (mode === 'visit' && !hideMain && onTop(pose?.pose) && inside(live)) return petData?.name ?? null;
+    return null;
+  }
+  /** perkiraan lama berjalan (ms) di jalur ini, dikirim ke server supaya perabot ditandai dipakai selama jalan + aktivitas */
+  const etaMs = (p: [number, number][] | null | undefined, minSpeed: number, div: number) => (p?.length ? Math.round((p.length / Math.max(minSpeed, p.length / div)) * 1000) : 0);
+  /** denah rumah teman di layar sudah usang (perabot dipindah): muat ulang dari server */
+  async function refreshVisit() {
+    const id = G.visit?.owner?.id;
+    if (!id) return;
+    try {
+      const v = await api.get(`/api/visit/${id}`);
+      if (G.visit?.owner?.id !== id) return;
+      G.visit.rooms = v.rooms; G.visit.room = v.room; G.visit.facility = v.facility;
+    } catch { /* tetap memakai denah lama */ }
   }
 
   const cdLeft = (id: string) => Math.max(0, Math.ceil(((G.cool['act:' + id] ?? 0) - G.now) / 1000));
@@ -1173,18 +1239,22 @@
 
   async function doActivity(a: any, t: Target) {
     if (square) return doSquareAct(a, t);
+    if (mode === 'visit') return doVisitActivity(a, t);
     menu = null;
     if (acting || G.busy) return;
     if (a.id === '__sleep') { await setSleep(true); return; }
     if ((a.min_level ?? 1) > G.me.pet.level) { sfx.error(); toast(`Terbuka di Lv ${a.min_level}.`, 'error'); return; }
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
+    // tamu yang sedang memakai perabot ini (satu pet per perabot)
+    const by = anim.on ? occupantOf(t, '') : null;
+    if (by) { sfx.error(); toast(`${targetName(t)} sedang dipakai ${by}.`, 'error'); return; }
     const g = goalsFor(t);
     acting = true;
     clearTimeout(idleTimer);
     // permintaan ke server berjalan bersamaan dengan pet berjalan, supaya terasa cepat
     const gen = planGen;
-    const req = run(() => post('/api/activity', { activityId: a.id, roomId: t.room || undefined, ...(t.spot ? { spot: t.spot } : { index: t.index }) }));
     const p = routeToAny(g.goals);
+    const req = run(() => post('/api/activity', { activityId: a.id, roomId: t.room || undefined, ...(t.spot ? { spot: t.spot } : { index: t.index, itemId: placedAt(t)?.i }), etaMs: etaMs(p, SPEED, 4.5) }));
     if (p) await walkPath(p);
     const r: any = await req;
     // denah berubah selama berjalan (ruangan diperluas / denah diatur): koordinat tujuan sudah usang
@@ -1210,6 +1280,102 @@
     if (res.levelUp) { sfx.level(); toast(`Naik ke Lv ${res.levelUp}!`, 'good'); }
     acting = false;
     scheduleIdle();
+  }
+
+  /* ---------------- berkunjung: pet sendiri memakai perabot teman ---------------- */
+
+  // kunjungan pertama sejak fitur ini ada: beri tahu bahwa perabot teman bisa ikut dipakai (sekali per perangkat)
+  onMount(() => {
+    if (mode !== 'visit') return;
+    const t = setTimeout(() => {
+      if (!G.visit?.facility?.on || G.jepret) return;
+      try { if (localStorage.getItem('kb-fas-tip')) return; localStorage.setItem('kb-fas-tip', '1'); } catch { return; }
+      toast(`Ketuk perabot di rumah ${G.visit.owner?.display_name ?? 'teman'} supaya ${G.me?.pet?.name ?? 'pet-mu'} ikut memakainya!`, 'info', 4200);
+    }, 2200);
+    return () => clearTimeout(t);
+  });
+
+  const NEED_LABEL: Record<string, string> = { kenyang: 'Kenyang', bersih: 'Bersih', ceria: 'Ceria', energi: 'Energi' };
+  /** hasil aktivitas di rumah teman (kebutuhan tidak tampil saat berkunjung): "Mochi berendam. +45 Bersih, +4 Ceria · +3 koin" */
+  function visitResult(res: any, a: any) {
+    const eff = Object.entries(res?.gained ?? {}).filter(([, v]) => v).map(([k, v]) => `${(v as number) > 0 ? '+' : ''}${v} ${NEED_LABEL[k] ?? k}`).join(', ');
+    const bits = [eff, res?.coins ? `+${res.coins} koin` : '', res?.item ? `dapat ${item(res.item)?.name ?? 'barang'}` : ''].filter(Boolean).join(' · ');
+    return `${res?.message ?? a.name}${bits ? ` ${bits}` : ''}`;
+  }
+  function visitActError(e: unknown, a: any) {
+    const code = e instanceof ApiError ? e.code : '';
+    // cooldown dari rumah sendiri (atau HP lain): tampilkan sisa waktunya di menu
+    if (code === 'cooldown' && e instanceof ApiError && e.data?.retryInSec) G.cool['act:' + a.id] = Date.now() + e.data.retryInSec * 1000;
+    if ((code === 'facility_host_off' || code === 'facility_off') && G.visit) G.visit.facility = { on: false, reason: code === 'facility_host_off' ? 'host' : 'admin' };
+    if (code === 'furniture_moved') { sfx.error(); toast('Perabot sudah dipindah.', 'error'); void refreshVisit(); return; }
+    fail(e);
+  }
+
+  /**
+   * Berkunjung: pet sendiri (bukan pet tuan rumah) berjalan ke perabot teman lalu memakainya seperti di rumah sendiri.
+   * Efeknya ke pet sendiri; cooldown & batas harian sama dengan di rumah. Pose (naik ke mebel, properti) terlihat semua
+   * yang ada di rumah ini lewat sinkron.
+   */
+  async function doVisitActivity(a: any, t: Target) {
+    menu = null;
+    const me = comps.get(SELF), v = G.visit;
+    if (mode !== 'visit' || !me || !v || selfBusy || G.busy) return;
+    if ((a.min_level ?? 1) > G.me.pet.level) { sfx.error(); toast(`Terbuka di Lv ${a.min_level}.`, 'error'); return; }
+    const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
+    const by = anim.on ? occupantOf(t, SELF) : null;
+    if (by) { sfx.error(); toast(`${targetName(t)} sedang dipakai ${by}.`, 'error'); return; }
+    const g = goalsFor(t);
+    const gen = planGen, owner = v.owner.id;
+    const gone = () => gen !== planGen || !alive || G.visit?.owner?.id !== owner || comps.get(SELF) !== me;
+    selfBusy = true;
+    const route = routeFrom(me.live, g.goals);
+    // permintaan & pet berjalan bersamaan (terasa cepat); bila ditolak pet berhenti di tempat
+    G.busy = true;
+    let r: any = null, err: unknown = null;
+    const req = api.post(`/api/visit/${owner}/activity`, {
+      requestId: rid(), activityId: a.id, roomId: t.room || undefined,
+      ...(t.spot ? { spot: t.spot } : { index: t.index, itemId: placedAt(t)?.i }), etaMs: etaMs(route, 1.6, 4),
+    }).then((x) => { r = x; merge(x); }, (e) => { err = e; }).finally(() => { G.busy = false; });
+    const walk = route?.length ? compWalk(me, g.goals, 1.6, route) : Promise.resolve(false);
+    await req;
+    if (err || !r) {
+      me.path = []; me.tile = tileOf(me.live); compVer++;
+      queueMicrotask(() => placeComp(me));
+      selfBusy = false;
+      visitActError(err, a);
+      return;
+    }
+    G.cool['act:' + a.id] = Date.now() + (r.result?.cooldownSec ?? a.cooldown_sec ?? 0) * 1000;
+    await walk;
+    if (gone()) { selfBusy = false; return; }
+    const standAt: [number, number] = [...me.live];
+    if (g.faceTo) { const sx = (g.faceTo[0] - me.live[0]) - (g.faceTo[1] - me.live[1]); if (Math.abs(sx) > 0.01) me.flip = sx < 0; }
+    if (g.flipTo !== null) me.flip = g.flipTo;
+    const up = anim.on && !!g.center;
+    if (up) { me.live = [...g.center!]; me.tile = tileOf(me.live); }
+    me.pose = a.anim; me.lift = up ? anim.lift : 0; me.prop = anim.prop;
+    H.pos.act = a.anim;
+    compVer++;
+    queueMicrotask(() => placeComp(me));
+    const beats = Math.max(1, Math.round(anim.ms / 800));
+    for (let i = 0; i < beats; i++) {
+      fxAtComp(SELF, anim.fx, false);
+      if (i === 0) (a.anim === 'tidur' ? sfx.tap : sfx.pop)();
+      await sleep(anim.ms / beats);
+      if (gone()) break;
+    }
+    me.pose = undefined; me.lift = 0; me.prop = undefined;
+    H.pos.act = null;
+    if (up) { me.live = standAt; me.tile = tileOf(standAt); }
+    if (G.me?.pet) { me.look = G.me.pet; me.state = petLook(G.me.pet); me.wear = wearItems(G.me.pet.wear); }
+    compVer++;
+    queueMicrotask(() => placeComp(me));
+    selfBusy = false;
+    if (gone()) return;
+    const res = r.result ?? {};
+    toast(visitResult(res, a), 'good', 3800);
+    if (res.coins) sfx.coin();
+    if (res.levelUp) setTimeout(() => { sfx.level(); toast(`Naik ke Lv ${res.levelUp}!`, 'good'); }, 2600);
   }
 
   /* ---------------- alun-alun: main di benda, joget, panggung ---------------- */
@@ -1936,6 +2102,13 @@
       const sp = t.closest('.spot') as SVGElement | null;
       if (sp && sp.dataset.spot && sp.dataset.spot in ROOM_SPOTS) return openMenu(e, { room: sp.dataset.r ?? '', spot: sp.dataset.spot as RoomSpot });
     }
+    // berkunjung: perabot, jendela & lukisan teman dipakai pet sendiri (menu yang sama seperti di rumah)
+    if (mode === 'visit') {
+      const f = t.closest('.furn') as SVGElement | null;
+      if (f) return openMenu(e, { room: f.dataset.r ?? '', index: Number(f.dataset.i) });
+      const sp = t.closest('.spot') as SVGElement | null;
+      if (sp && sp.dataset.spot && sp.dataset.spot in ROOM_SPOTS) return openMenu(e, { room: sp.dataset.r ?? '', spot: sp.dataset.spot as RoomSpot });
+    }
     // ketuk lantai: pet berjalan ke sana, juga ke ruangan lain lewat pintu (saat berkunjung: pet sendiri)
     const fl = t.closest('.fl') as SVGElement | null;
     const at = fl ? tileAt(fl) : null;
@@ -2124,8 +2297,68 @@
     spawn(+m[1], +m[2] - 74, G.fxKind);
   });
 
+  /** tinggi isi menu aktivitas (diukur setelah tampil) untuk menempatkannya saat berkunjung */
+  let menuEl: HTMLDivElement | undefined = $state();
+  let menuNat = $state(0);
+  $effect(() => { void menu; const el = menuEl; if (el) untrack(() => { menuNat = el.scrollHeight; }); });
+  /**
+   * Berkunjung: menu tidak boleh tertutup (atau menutupi) kartu rumah teman, bar kunjungan, toast, HUD & dock.
+   * Dicari ruang kosong setinggi menu di kolom tempat jari mengetuk (dekat ketukan); bila tidak ada di mana pun,
+   * menu memakai ruang kosong tertinggi dan isinya digulir.
+   */
+  function visitMenuBox(m: NonNullable<typeof menu>) {
+    const wr = wrapEl!.getBoundingClientRect();
+    const w = wrapEl!.clientWidth, h = wrapEl!.clientHeight, MW = 240, gap = 6;
+    const need = menuNat || 46 + 50 * m.acts.length;
+    const obs = [...document.querySelectorAll('.hud, .hud > *, .visit, .hbar, .toast, .dock, .cam[role="toolbar"], .jbtn, .event')]
+      .filter((el) => !el.closest('.roomwrap')).map((el) => ({ el, r: el.getBoundingClientRect() })).filter(({ r }) => r.width > 0 && r.height > 0)
+      // toast bisa muncul kapan saja (selebar 2 baris pesan panjang): sisakan tempatnya walau sedang tersembunyi / pesannya pendek
+      .map(({ el, r }) => {
+        if (!el.classList.contains('toast')) return { l: r.left - wr.left, t: r.top - wr.top, r: r.right - wr.left, b: r.bottom - wr.top };
+        const cx = (r.left + r.right) / 2, half = Math.max(r.width / 2, Math.min(innerWidth * 0.46, 220));
+        return { l: cx - half - wr.left, t: r.top - wr.top, r: cx + half - wr.left, b: Math.max(r.bottom, r.top + 64) - wr.top };
+      });
+    const fitIn = (left: number) => {
+      const spans = obs.filter((o) => o.l < left + MW + gap && o.r > left - gap).map((o) => [o.t - gap, o.b + gap]).sort((a, b) => a[0] - b[0]);
+      const free: [number, number][] = [];
+      let y = 8;
+      for (const [a, b] of spans) { if (a > y) free.push([y, a]); y = Math.max(y, b); }
+      if (h - 8 > y) free.push([y, h - 8]);
+      return free;
+    };
+    const dist = (iv: [number, number]) => (m.y < iv[0] ? iv[0] - m.y : m.y > iv[1] ? m.y - iv[1] : 0);
+    const pref = Math.max(8, Math.min(w - 8 - MW, m.x - MW / 2));
+    let best: { left: number; iv: [number, number]; d: number } | null = null, tallest: { left: number; iv: [number, number] } | null = null;
+    for (const left of [pref, 8, Math.max(8, (w - MW) / 2), Math.max(8, w - 8 - MW)]) {
+      for (const iv of fitIn(left)) {
+        if (!tallest || iv[1] - iv[0] > tallest.iv[1] - tallest.iv[0]) tallest = { left, iv };
+        // geser ke samping hanya bila di kolom ketukan tidak ada ruang
+        const d = dist(iv) + (left === pref ? 0 : 400 + Math.abs(left - pref));
+        if (iv[1] - iv[0] >= need && (!best || d < best.d)) best = { left, iv, d };
+      }
+    }
+    if (!best) return tallest ? { left: tallest.left, top: tallest.iv[0], max: Math.max(80, tallest.iv[1] - tallest.iv[0]), cramped: true } : { left: pref, top: 8, max: h - 16, cramped: true };
+    const [a, b] = best.iv;
+    const below = m.y + 18, above = m.y - 18 - need;
+    const top = below >= a && below + need <= b && m.y <= h * 0.55 ? below : above >= a && above + need <= b ? above : Math.max(a, Math.min(b - need, m.y - need / 2));
+    return { left: best.left, top, max: 0, cramped: false };
+  }
+  /** naik setiap bar kunjungan disembunyikan / muncul lagi: letak menu dihitung ulang */
+  let menuTick = $state(0);
+  // HP kecil: menu tidak muat di antara kartu rumah teman & bar kunjungan → bar disembunyikan selama menu terbuka
+  $effect(() => {
+    const m = menu, nat = menuNat;
+    void vw; void vh;
+    untrack(() => {
+      if (!m || mode !== 'visit') { if (G.fasMenu) { G.fasMenu = false; } return; }
+      if (G.fasMenu || wide || !wrapEl || !nat) return;
+      if (visitMenuBox(m).cramped) { G.fasMenu = true; requestAnimationFrame(() => requestAnimationFrame(() => menuTick++)); }
+    });
+  });
+  onDestroy(() => { if (mode === 'visit') G.fasMenu = false; });
   const menuStyle = $derived.by(() => {
     if (!menu || !wrapEl) return '';
+    if (mode === 'visit') { void menuNat; void vw; void vh; void menuTick; void G.fasMenu; const bx = visitMenuBox(menu); return `left:${bx.left}px;top:${bx.top}px${bx.max ? `;max-height:${bx.max}px;overflow-y:auto` : ''}`; }
     const w = wrapEl.clientWidth, h = wrapEl.clientHeight;
     // tidak menimpa HUD atas, tombol aksi kanan (desktop) & bar bawah (aksi / alun-alun / tamu)
     const i = insets(), minTop = wide ? 92 : 100;
@@ -2345,10 +2578,10 @@
 </script>
 
 <svelte:window onkeydown={key} onpointermove={onPointer} onpointerup={onUp} onpointercancel={onUp} />
-<div class="roomwrap" class:alun={square} class:sky={!square || nightSq} data-sky={square ? skyTime(hm.h) : sky} bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh}>
+<div class="roomwrap" class:alun={square} class:sky={!square || nightSq} data-sky={square ? skyTime(hm.h) : sky} bind:this={wrapEl} bind:clientWidth={vw} bind:clientHeight={vh} onscroll={() => { if (wrapEl && (wrapEl.scrollLeft || wrapEl.scrollTop)) { wrapEl.scrollLeft = 0; wrapEl.scrollTop = 0; } }}>
   {#if !square}<div class="hills" aria-hidden="true"></div><div class="orb" aria-hidden="true"></div><div class="cloud c1" aria-hidden="true"></div><div class="cloud c2" aria-hidden="true"></div>{:else if nightSq}<div class="orb" aria-hidden="true"></div>{/if}
   {#if fireworks}<div class="fwk" aria-hidden="true">{#each FW as f}<svg class="fwb" viewBox="-70 -70 140 140" style="left:{f.l}%;top:{f.t}%;width:{f.r * 2.8}px;animation-delay:{f.d}s">{@html f.h}</svg>{/each}</div>{/if}
-  <svg bind:this={svgEl} class="room" class:mirror={mirrored} class:walking class:acting={!!pose} class:home={homeLive} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
+  <svg bind:this={svgEl} class="room" class:mirror={mirrored} class:walking class:acting={!!pose} class:home={homeLive} class:fasilitas={mode === 'visit' && G.visit?.facility?.on !== false} class:bathing={mode === 'home' && !!G.bath} class:soap={G.bath?.tool === 'sabun'} class:scoop={G.bath?.tool === 'gayung'}
     class:mangap={mouthOpen || chewing} class:chew={chewing} class:asleep class:editing={mode === 'home' && G.edit}
     {viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={label} onclick={click} onpointerdown={down}>
     {#if square}{@html groundHtml}{/if}
@@ -2393,7 +2626,8 @@
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
   {#if menu && !G.jepret}
-    <div class="menu" style={menuStyle} role="menu" aria-label="Aktivitas {menu.title}">
+    <div class="menu" style={menuStyle} role="menu" aria-label="Aktivitas {menu.title}{menu.sub ? ` (${menu.sub})` : ''}" bind:this={menuEl}>
+      {#if menu.sub}<small class="own">{menu.sub}</small>{/if}
       <b>{menu.title}</b>
       {#each menu.acts as a (a.id)}
         {@const cd = cdLeft(a.id)}
@@ -2408,7 +2642,8 @@
 </div>
 
 <style>
-  .roomwrap { position: absolute; inset: 0; overflow: hidden; }
+  /* clip: bukan wadah gulir (fokus tombol / label nama di tepi layar tidak bisa menggeser isi rumah); hidden untuk browser lama */
+  .roomwrap { position: absolute; inset: 0; overflow: hidden; overflow: clip; }
   /* langit di belakang pekarangan: gradasi + bukit + matahari/bulan + 2 awan (CSS saja, tanpa gambar) */
   .roomwrap.sky { --s1: #A9DDF5; --s2: #CDEBF6; --s3: #E4F4EA; --h1: #B9DDB0; --h2: #A6D29B; --orb: #FFF1C2; --glow: rgba(255, 236, 170, .5); --cl: .9;
     background: linear-gradient(180deg, var(--s1) 0%, var(--s2) 58%, var(--s3) 100%); }
@@ -2441,8 +2676,8 @@
   .room.soap { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='32'%3E%3Crect x='3' y='6' width='34' height='20' rx='9' fill='%23F7A8C4' stroke='%232B2F4A' stroke-width='2.5'/%3E%3Ccircle cx='30' cy='8' r='4' fill='%23DDF3FF' stroke='%232B2F4A' stroke-width='1.5'/%3E%3C/svg%3E") 20 16, pointer; }
   .room.scoop { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='36'%3E%3Cpath d='M4 10h22l-3 18H7Z' fill='%237FC4E8' stroke='%232B2F4A' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M25 14h11' stroke='%232B2F4A' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E") 16 18, pointer; }
   .room :global(.fl) { cursor: pointer; }
-  .room.home :global(.furn), .room.home :global(.spot), .room.home :global(.crumb) { cursor: pointer; }
-  .room.home :global(.furn:hover), .room.home :global(.spot:hover) { filter: brightness(1.06); }
+  .room.home :global(.furn), .room.home :global(.spot), .room.home :global(.crumb), .room.fasilitas :global(.furn), .room.fasilitas :global(.spot) { cursor: pointer; }
+  .room.home :global(.furn:hover), .room.home :global(.spot:hover), .room.fasilitas :global(.furn:hover), .room.fasilitas :global(.spot:hover) { filter: brightness(1.06); }
   .room :global(.dim) { opacity: .4; }
   .room.editing :global(.dim) { cursor: pointer; }
   .room :global(.crumb) { animation: crumbIn .4s ease-out; }
@@ -2455,7 +2690,7 @@
   .room :global(.npc.pose-tampil .pet-bob) { animation: tampil 0.9s ease-in-out infinite alternate; }
   .room :global(.pose-joget .pet-bob) { animation: joget 0.45s ease-in-out infinite alternate; }
   .room :global(.pet.pose-naik .pet-bob) { animation: ride 1.6s ease-in-out infinite alternate; }
-  .room :global(.pet.pose-ayun .pet-bob) { animation: swingpet 2.2s ease-in-out infinite alternate; }
+  .room :global(:is(.pet, .opet).pose-ayun .pet-bob) { animation: swingpet 2.2s ease-in-out infinite alternate; }
   .room :global(.dove) { animation: ride 1.2s ease-in-out infinite alternate; }
   .room :global(.blink) { animation: blink 1.7s ease-in-out infinite alternate; }
   .room :global(.flicker) { animation: flicker .45s ease-in-out infinite alternate; }
@@ -2515,13 +2750,15 @@
   @keyframes talk { 0% { opacity: 0; transform: translate(-50%, calc(-100% - 2px)) scale(.8); } 8%, 88% { opacity: 1; transform: translate(-50%, calc(-100% - 10px)) scale(1); } 100% { opacity: 0; transform: translate(-50%, calc(-100% - 14px)); } }
   .menu { position: absolute; z-index: 20; width: 240px; display: flex; flex-direction: column; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 16px; box-shadow: 0 4px 0 var(--ink); padding: 8px; animation: pop .18s ease-out; }
   .menu b { font-size: 15px; padding: 0 4px; }
+  .menu .own { font-size: 12px; font-weight: 800; color: var(--muted); padding: 0 4px; margin-bottom: -6px; letter-spacing: .01em; }
   .menu .btn { justify-content: space-between; width: 100%; gap: 8px; text-align: left; }
   .menu .nm { font-weight: 800; flex: 1 1 auto; min-width: 0; }
   .menu .ef { flex: 0 1 44%; min-width: 0; font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; line-height: 1.15; }
-  @media (prefers-reduced-motion: reduce) { .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob), .room :global(.ondel-jalan), .room :global(.pose-wahana .pet-bob), .room :global(.pose-arak .pet-bob), .room :global(.riak) { animation: none; } .room :global(.ngakak) { animation: none; opacity: 1; } .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); } .bubble { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .room :global(:is(.pet, .opet)[class*='pose-'] .pet-bob), .menu { animation: none; } .room.walking :global(.pet-bob), .room :global(.water), .room :global(.ride), .room :global(.swing), .room :global(.blink), .room :global(.flicker), .room :global(.swim), .room :global(.npc .pet-bob), .room :global(.pose-joget .pet-bob), .room :global(.ondel-jalan), .room :global(.pose-wahana .pet-bob), .room :global(.pose-arak .pet-bob), .room :global(.riak) { animation: none; } .room :global(.ngakak) { animation: none; opacity: 1; } .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); } .bubble { animation: none; } }
   /* Pengaturan › Kurangi animasi (pilihan di game) */
   :global(:root.reduce-motion) .room.walking :global(.pet-bob), :global(:root.reduce-motion) .room :global(.water), :global(:root.reduce-motion) .room :global(.ride), :global(:root.reduce-motion) .room :global(.swing), :global(:root.reduce-motion) .room :global(.blink), :global(:root.reduce-motion) .room :global(.flicker), :global(:root.reduce-motion) .room :global(.swim), :global(:root.reduce-motion) .room :global(.npc .pet-bob), :global(:root.reduce-motion) .room :global(.pose-joget .pet-bob), :global(:root.reduce-motion) .room :global(.ondel-jalan), :global(:root.reduce-motion) .room :global(.pose-wahana .pet-bob), :global(:root.reduce-motion) .room :global(.pose-arak .pet-bob), :global(:root.reduce-motion) .room :global(.riak) { animation: none; }
   :global(:root.reduce-motion) .room :global(.ngakak) { animation: none; opacity: 1; }
   :global(:root.reduce-motion) .fwb { animation: none; opacity: .9; transform: translate(-50%, -50%) scale(1); }
   :global(:root.reduce-motion) .bubble { animation: none; }
+  :global(:root.reduce-motion) .room :global(:is(.pet, .opet)[class*='pose-'] .pet-bob), :global(:root.reduce-motion) .menu { animation: none; }
 </style>

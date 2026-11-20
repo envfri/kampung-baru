@@ -5,15 +5,16 @@
 //  - main bareng di rumah: Masak bareng & Lempar bola; foto bareng masuk album semua yang ada di foto.
 import type { FastifyInstance } from 'fastify';
 import { randomInt, randomUUID } from 'node:crypto';
-import { applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from '@kb/shared';
+import { ACTIVITY_ANIMS, ACTIVITY_SPOTS, applyNeedDelta, mulberry32, NEED_KEYS, petLookState, type Needs } from '@kb/shared';
 import type { Db } from '../db/index';
-import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, notFound, track } from '../lib/core';
+import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, forbidden, getCatalog, getSettings, HttpError, notFound, track } from '../lib/core';
 import { takePings } from '../lib/pings';
 import { barengViews } from './bareng';
 import { requireUser } from '../lib/auth';
 import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
-import { grantXp, patch } from './game';
+import { grantXp, once, patch, useActivity } from './game';
+import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { forgetBlocks } from './square';
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -23,6 +24,10 @@ const PRESENCE_MS = 90_000;
 export const VISIT_ACTS = ['sapa', 'peluk', 'camilan', 'kejar', 'duduk'] as const;
 export const EMOTES = ['lambai', 'tawa', 'hati', 'kaget'] as const;
 const ACTS_LIVE = new Set(['jalan', 'duduk', 'sapa', 'peluk', 'kejar', 'makan', 'lompat']);
+/** pose yang boleh dikirim lewat sinkron rumah: aksi kunjungan di atas + semua animasi aktivitas (ACTIVITY_ANIMS, termasuk yang baru) */
+export const liveAct = (v: unknown) => (typeof v === 'string' && (ACTS_LIVE.has(v) || Object.hasOwn(ACTIVITY_ANIMS, v)) ? v : null);
+/** buku tamu dari pemakaian perabot: paling banyak sekian catatan per tamu per rumah per hari (tidak bisa dibanjiri) */
+const FAS_BOOK_CAP = 10;
 /** bahan Masak bareng & hidangannya (hidangan = item makanan yang dibagikan bila berhasil) */
 export const COOK_INGREDIENTS = ['bawang', 'cabai', 'telur', 'tomat', 'kecap', 'garam', 'nasi', 'daun'] as const;
 const DISHES = ['pisang-goreng', 'bakso', 'sate', 'martabak', 'klepon'];
@@ -223,7 +228,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     }
     if (m) {
       m.roomId = roomId; m.x = num(b.x); m.y = num(b.y); m.flip = !!b.flip; m.seenAt = Date.now();
-      m.act = typeof b.act === 'string' && ACTS_LIVE.has(b.act) ? b.act : null;
+      m.act = liveAct(b.act);
       if (typeof b.emote === 'string' && (EMOTES as readonly string[]).includes(b.emote) && Date.now() - m.emoteAt > 600) {
         m.emoteAt = Date.now();
         push(h, { kind: 'emote', from: uid, emote: b.emote });
@@ -367,6 +372,70 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const aksi: Record<string, string> = { sapa: 'menyapa', peluk: 'memeluk', camilan: `memberi ${res.itemName ?? 'camilan'} untuk`, kejar: 'main kejar-kejaran dengan', duduk: 'duduk santai bareng' };
     if (ok) void notifyEvent(db, hostId, 'visit_play', { teman: u.display_name, pet: res.hostName, aksi: aksi[kind] }, { log: req.log, url: '/#bukutamu' });
     return { ok: true, kind, rewarded: res.rewarded, coins: res.coins, xp: res.xp, levelUp: res.levelUp, left: res.left, hostPet: res.hostPet, ...res.out };
+  });
+
+  /* ---------------- fasilitas rumah teman: tamu memakai perabot tuan rumah ---------------- */
+
+  /**
+   * Pet tamu memakai perabot / jendela / lukisan di rumah teman, seperti di rumah sendiri (efek, XP, koin & hadiah untuk pet
+   * tamu; cooldown & batas harian sama dengan di rumah). Tuan rumah tidak perlu online; ia dapat catatan buku tamu,
+   * notifikasi (maks. sekali per tamu per jam) dan tip koin (dibatasi per hari).
+   */
+  app.post('/api/visit/:id/activity', auth, async (req: any) => {
+    const u = req.user!;
+    const hostId = await enter(req);
+    if (hostId === u.id) throw bad('own_house', 'Ini rumahmu sendiri. Ketuk perabotnya langsung, ya.');
+    assertNotKicked(hostId, u.id);
+    const b = obj(req.body, 'body');
+    const id = str(b.activityId, 'Aktivitas', { max: 48 })!;
+    const roomId = b.roomId === undefined || b.roomId === null || b.roomId === '' ? null : String(b.roomId);
+    if (roomId !== null && !UUID.test(roomId)) throw bad('invalid_room', 'Ruangan tidak valid.');
+    const spot = b.spot !== undefined && b.spot !== null ? oneOf(b.spot, 'Bagian ruangan', Object.keys(ACTIVITY_SPOTS)) : null;
+    const index = spot ? -1 : int(b.index, 'Mebel', { min: 0, max: 500 });
+    // denah di layar tamu bisa usang: id perabot yang diketuk wajib ikut, dicocokkan dengan susunan sekarang
+    const itemId = spot ? undefined : str(b.itemId, 'Perabot', { max: 64 })!;
+    const [s, cat]: [any, any] = await Promise.all([getSettings(db), getCatalog(db)]);
+    const fac = s.visit?.facility ?? {};
+    if (!s.visit?.together || fac.on === false) throw new HttpError(403, 'facility_off', 'Perabot rumah teman sedang tidak bisa dipakai.');
+    const host = await db.one<{ facility_visits: boolean; pet_name: string | null }>(
+      `select u.facility_visits, p.name as pet_name from users u left join pets p on p.user_id = u.id where u.id = $1 and u.banned_at is null`, [hostId]);
+    if (!host) throw notFound('Rumah tidak ditemukan.');
+    if (host.facility_visits === false) throw new HttpError(403, 'facility_host_off', 'Tuan rumah belum mengizinkan perabotnya dipakai.');
+    const act = cat.activities.find((a: any) => a.id === id && a.active);
+    if (!act) throw bad('invalid_activity', 'Aktivitas ini sedang tidak tersedia.');
+    const tipEach = Math.max(0, Math.round(Number(fac.hostCoins) || 0)), tipMax = Math.max(0, Math.round(Number(fac.hostMaxPerDay) || 0));
+    let done: { target: string; pet: string; tip: number } | null = null, mine: unknown = null;
+    const res = await once(db, u.id, reqId(b.requestId), async (t) => {
+      const r = await useActivity(t, u.id, act, { ownerId: hostId, roomId, index, spot, itemId }, { s, cat, etaMs: b.etaMs, host: hostId });
+      // buku tamu tuan rumah: "<pet> memakai <perabot>"
+      if ((await counter(t, u.id, `fas_book:${hostId}`)) < FAS_BOOK_CAP) {
+        await bumpCounter(t, u.id, `fas_book:${hostId}`, FAS_BOOK_CAP);
+        await t.query(`insert into visit_acts (host_id, visitor_id, kind, item_id, rewarded, activity_id) values ($1,$2,'perabot',$3,true,$4)`,
+          [hostId, u.id, r.itemId ?? `spot:${spot}`, act.id]);
+      }
+      // tip koin untuk tuan rumah (batas per tuan rumah per hari, dari semua tamu)
+      let tip = 0;
+      if (tipEach > 0 && tipMax > 0 && (await counter(t, hostId, 'fas_tip')) < tipMax) {
+        await bumpCounter(t, hostId, 'fas_tip', tipMax);
+        await credit(t, hostId, 'coin', tipEach, 'facility_tip', u.id);
+        tip = tipEach;
+      }
+      done = { target: r.target, pet: r.pet.name, tip };
+      return (mine = { ok: true, result: r.result, hostTip: tip, ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])) });
+    });
+    // hanya permintaan yang benar-benar dijalankan sekarang (bukan ulangan requestId yang sama): kabari rumah live & tuan rumah
+    const d = res === mine ? (done as { target: string; pet: string; tip: number } | null) : null;
+    if (d) {
+      const h = HOUSES.get(hostId);
+      if (h) push(h, { kind: 'fasilitas', from: u.id, name: u.display_name, pet: d.pet, item: d.target, tip: d.tip });
+      const ok = await db.one(
+        `insert into cooldowns (user_id, key, until) values ($1, $2, now() + interval '1 hour')
+         on conflict (user_id, key) do update set until = excluded.until where cooldowns.until < now() returning 1 as ok`,
+        [hostId, `notif_vplay:${u.id}`],
+      );
+      if (ok) void notifyEvent(db, hostId, 'visit_play', host.pet_name ? { teman: u.display_name, pet: host.pet_name, aksi: `memakai ${d.target}, ditemani` } : { teman: u.display_name, pet: 'rumahmu', aksi: `memakai ${d.target} di` }, { log: req.log, url: '/#bukutamu' });
+    }
+    return res;
   });
 
   /* ---------------- main bareng di rumah ---------------- */
@@ -674,7 +743,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const uid = req.user!.id;
     const [rows, me] = await Promise.all([
       db.query<any>(
-        `select a.kind, a.item_id, a.created_at, u.id as visitor_id, u.display_name as name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear
+        `select a.kind, a.item_id, a.activity_id, a.created_at, u.id as visitor_id, u.display_name as name, p.name as pet_name, p.color, p.ear, p.pattern, p.eyes, p.tail, p.wear
            from visit_acts a join users u on u.id = a.visitor_id left join pets p on p.user_id = a.visitor_id
           where a.host_id = $1 order by a.created_at desc limit 50`, [uid]),
       db.one<{ guestbook_seen_at: Date }>(`select guestbook_seen_at from users where id = $1`, [uid]),
@@ -696,13 +765,14 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const b = req.body ?? {};
     if (typeof b.showOnline === 'boolean') await db.query(`update users set show_online = $2 where id = $1`, [uid, b.showOnline]);
     if (typeof b.liveVisits === 'boolean') { await db.query(`update users set live_visits = $2 where id = $1`, [uid, b.liveVisits]); HOSTPREF.delete(uid); }
+    if (typeof b.facilityVisits === 'boolean') await db.query(`update users set facility_visits = $2 where id = $1`, [uid, b.facilityVisits]);
     // menjawab "Mau punya teman baru?" (Ya / Nanti) atau mengubahnya di Pengaturan: ajakan sekali itu tidak muncul lagi
     if (typeof b.friendRequests === 'boolean') await db.query(`update users set friend_requests = $2, friend_prompt_at = coalesce(friend_prompt_at, now()) where id = $1`, [uid, b.friendRequests]);
     if (b.friendPrompt === 'later') await db.query(`update users set friend_prompt_at = coalesce(friend_prompt_at, now()) where id = $1`, [uid]);
     if (b.showOnline === false) PRESENCE.delete(uid);
-    const r = await db.one<{ show_online: boolean; live_visits: boolean; friend_requests: boolean; friend_prompt_at: string | null }>(
-      `select show_online, live_visits, friend_requests, friend_prompt_at from users where id = $1`, [uid]);
-    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true, friendRequests: r?.friend_requests ?? false, friendPromptAt: r?.friend_prompt_at ?? null };
+    const r = await db.one<{ show_online: boolean; live_visits: boolean; facility_visits: boolean; friend_requests: boolean; friend_prompt_at: string | null }>(
+      `select show_online, live_visits, facility_visits, friend_requests, friend_prompt_at from users where id = $1`, [uid]);
+    return { ok: true, showOnline: r?.show_online ?? true, liveVisits: r?.live_visits ?? true, facilityVisits: r?.facility_visits ?? true, friendRequests: r?.friend_requests ?? false, friendPromptAt: r?.friend_prompt_at ?? null };
   });
 }
 

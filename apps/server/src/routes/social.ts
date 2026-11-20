@@ -214,7 +214,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     if (id !== req.user!.id && !(await isFriend(req.user!.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     const [owner, pet, rooms, visited, likes, photo, book, used] = await Promise.all([
-      db.one<any>(`select id, display_name, live_visits, show_online, last_seen_at from users where id = $1 and banned_at is null`, [id]),
+      db.one<any>(`select id, display_name, live_visits, facility_visits, show_online, last_seen_at from users where id = $1 and banned_at is null`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
       loadRooms(db, id, cat, s, false),
       db.one(`select 1 from visits where visitor_id = $1 and host_id = $2 and day = $3`, [req.user!.id, id, today()]),
@@ -234,6 +234,8 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
       photo: photo ? { id: photo.id, pose: photo.pose, members: photo.members, scene: photo.scene } : null,
       guestbook: book.map((b: any) => ({ ...b, created_at: new Date(b.created_at).getTime() })),
       together: { on: !!sv.visit?.together, live: owner.live_visits !== false, online: !!online, left: Math.max(0, (sv.visit?.actsPerFriend ?? 0) - (used?.count ?? 0)), phrases: sv.visit?.phrases ?? [], freeChat: !!sv.visit?.freeChat },
+      // perabot rumah ini boleh dipakai pet tamu? (admin: Kunjungan bareng › together & facility; tuan rumah: Pengaturan)
+      facility: !sv.visit?.together || sv.visit?.facility?.on === false ? { on: false, reason: 'admin' } : owner.facility_visits === false ? { on: false, reason: 'host' } : { on: true, reason: null },
     };
   });
 

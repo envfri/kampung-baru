@@ -64,6 +64,8 @@ export const G = $state({
   confirm: null as null | { title: string; text: string; yes: string; no: string; danger?: boolean; resolve: (ok: boolean) => void },
   /** rawat dengan sentuhan: nampan makanan, mode mandi (gosok sabun → bilas) */
   feeding: false,
+  /** HP: menu perabot di rumah teman butuh ruang → bar kunjungan disembunyikan sementara (seperti saat nampan makanan terbuka) */
+  fasMenu: false,
   feedDrag: null as null | { x: number; y: number; id: string },
   chewing: 0,
   bath: null as null | { scrub: number; tool: 'sabun' | 'gayung'; rinsing: boolean },

@@ -137,7 +137,7 @@ function handle(e: any) {
   const mine = e.from === H.me;
   const square = H.hostId === SQUARE;
   // sinkron pertama berisi kejadian ±1 menit terakhir: tidak diputar ulang
-  if (!seq && ['say', 'emote', 'act', 'photo'].includes(e.kind)) return;
+  if (!seq && ['say', 'emote', 'act', 'photo', 'fasilitas'].includes(e.kind)) return;
   // di alun-alun orang datang & pergi terus: tidak perlu diberitahu satu per satu
   if (square && (e.kind === 'join' || e.kind === 'leave')) return;
   switch (e.kind) {
@@ -147,6 +147,14 @@ function handle(e: any) {
     case 'emote': if (!mine) bubble(e.from, { emote: e.emote }, 2600); break;
     case 'act': if (!mine && !H.hidden.includes(e.from)) bubble(e.from, { text: ACT_SAY[e.act] ?? 'Main yuk!' }, 3000); break;
     case 'kick': if (e.target !== H.me && seq) toast(`${e.name} diantar pulang.`); break;
+    // tuan rumah: pet tamu memakai perabotnya (tip koin masuk dompet)
+    case 'fasilitas':
+      if (!mine && H.hostId === G.me?.user?.id) {
+        toast(`${e.pet ?? e.name} memakai ${e.item} di rumahmu${e.tip ? ` · +${e.tip} koin` : ''}`, 'good');
+        // tip sudah masuk di server: cukup tambahkan di dompet yang tampil (tanpa memuat ulang semua keadaan)
+        if (e.tip && G.me?.wallet) { G.me.wallet.coin += Number(e.tip) || 0; sfx.coin(); }
+      }
+      break;
     case 'coop_start': if (!mine && seq) { sfx.pop(); H.coopSeen = ''; } break;
     case 'coop_join': if (!mine && seq && H.coop?.starter === H.me) sfx.pop(); break;
     case 'coop_go': if (seq && H.coop?.players?.some((p: any) => p.id === H.me)) { sfx.level(); toast(e.game === 'masak' ? 'Ayo masak bareng!' : 'Ayo lempar bola!', 'good'); } break;
