@@ -39,7 +39,27 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.45.0',
+    date: '2026-11-20',
+    title: 'Kerja Sambilan',
+    summary: 'Pet-mu bisa kerja paruh waktu di tempat-tempat kampung selama 1, 3 atau 8 jam, lalu pulang membawa gaji, XP, kadang barang bonus, dan cerita lucu.',
+    items: [
+      { kind: 'baru', text: 'Papan Lowongan di peta kampung: pilih tempat kerja untuk pet-mu. Ada jaga warung di Pasar Pagi, bantu panen di Kebun, bersihkan kolam di Kolam Pancing (Lv 2), amplas & pernis di Mebel Jati (Lv 3), lipat & jahit di Butik Benang (Lv 4), dan ronda malam di Pos Ronda (Lv 6).', player: true },
+      { kind: 'baru', text: 'Pilih 1 jam (20 koin), 3 jam (50 koin) atau 8 jam (110 koin). Ronda malam selalu 8 jam dengan gaji 150 koin, dan hanya bisa dimulai pukul 19.00–23.00. Paling banyak 12 jam kerja sehari.', player: true },
+      { kind: 'baru', text: 'Selama kerja, kebutuhan pet tidak turun dan pet tidak bisa sakit karena ditinggal. Saat pulang, energi dan kenyang berkurang sekali sesuai lama kerja (bantu panen dan bersihkan kolam juga bikin kotor). Syarat berangkat: energi dan kenyang paling sedikit 25, tidak sakit, tidak tidur.', player: true },
+      { kind: 'baru', text: 'Pet berjalan ke tempat kerjanya di peta dan tampil berseragam dengan hitung mundur. Di rumah ada catatan di pintu dengan jam pulang, dan kamu bisa menekan Panggil pulang kapan saja (gaji dan XP dibayar sebanding lama kerja, tanpa barang bonus).', player: true },
+      { kind: 'baru', text: 'Saat waktunya habis kamu dapat notifikasi "sudah pulang kerja". Pet menunggu di rumah memegang amplop. Buka kartu Terima gaji untuk melihat cerita lucunya, koin, XP, dan kadang barang bonus dari tempat kerja.', player: true },
+      { kind: 'baru', text: 'Pangkat per tempat kerja: Magang, Karyawan (5 shift), Senior (15), Kepala (40). Setiap pangkat menambah gaji 10%. Saat jadi Karyawan, pet dapat seragam gratis tempat itu (8 pakaian baru yang tidak dijual di toko).', player: true },
+      { kind: 'baru', text: 'Selama pet kerja, kamu tetap bisa belanja, atur rumah, ganti baju, berkebun, mengerjakan tugas, mengirim hadiah, dan Jepret. Merawat pet, memakai perabot, berkunjung, alun-alun, mancing, mini-game dan duel menunggu pet pulang (atau panggil pulang dulu).', player: true },
+      { kind: 'baru', text: 'Teman yang berkunjung saat pet-mu kerja melihat catatan di pintu. Mereka tetap boleh memakai perabotmu. Daftar Teman menunjukkan "Sedang kerja di …".', player: true },
+      { kind: 'baru', text: 'Tugas harian baru "Kerja sambilan", lencana Pekerja Keras I–III dan Kepala. Pet yang belum pernah kerja akan mengajak sekali ke Papan Lowongan.', player: true },
+      { kind: 'ubah', text: 'Admin: pengaturan Ekonomi & fitur › Kerja sambilan (nyala/mati, lama kerja dalam menit, gaji, XP, biaya kebutuhan, syarat, batas harian, pangkat, jendela ronda, level/bonus per tempat, cerita). Jenis lokasi baru jobs & ronda, jenis notifikasi kerja_done.' },
+      { kind: 'ubah', text: 'Teknis: migrasi 029 (pet_jobs, pet_job_progress, pets.work_until/work_cost/work_job), paket konten 21 (pack_kerja: 8 seragam, 2 tempat peta, tugas & lencana), GET /api/kerja, POST /api/kerja/start|recall|claim, satu pemeriksa server assertNotWorking. Uji baru: kerja.test.ts, e2e-kerja.' },
+    ],
+  },
+  {
     version: '0.44.1',
+    commits: ['48b22d7'],
     date: '2026-11-20',
     title: 'Rumah teman terlihat jelas di HP kecil',
     summary: 'Saat berkunjung di HP berlayar pendek, ruangan teman tidak lagi tertutup kartu rumah teman dan bar kunjungan.',
