@@ -1,6 +1,7 @@
 // Uji tamu di rumah: kartu tamu (HouseBar) tidak menutupi nampan makanan, bar mandi, atau bar tidur (HP 390 & 320,
 // desktop 1366). HP: nampan terbuka → kartu tamu disembunyikan sementara, pet tidur → kartu tamu di atas bar tidur;
-// desktop: nampan & bar tidur di kiri panel tamu.
+// desktop: nampan & bar tidur di kiri panel tamu. Berkunjung di HP pendek (320×568 … 375×667): ruangan tetap terlihat
+// di antara kartu rumah teman & bar kunjungan.
 // Jalankan server dulu (npm run build && npm start), lalu: BASE_URL=http://localhost:8787 node scripts/e2e-tamu.mjs
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -54,6 +55,38 @@ for (const vp of [[390, 844], [320, 640], [1366, 768]]) {
   ok(!sb.hit, `${tag}: bar tidur tidak bertumpuk dengan kartu tamu ${JSON.stringify(sb)}`);
   await host.p.screenshot({ path: `${OUT}tidur-${tag}.png` });
   await host.ctx.close(); await guest.ctx.close();
+}
+// berkunjung di HP pendek: kartu rumah teman diringkas & bar kunjungan dirapatkan, ruangan (perabot & pet) tetap terlihat di antaranya
+{
+  const host = await mk('Muci', [390, 844]);
+  await host.p.goto(BASE + '/'); await host.p.waitForSelector('.dock'); await W(1000); await closeSheets(host.p);
+  for (const vp of [[320, 568], [320, 640], [360, 640], [375, 667], [390, 844]]) {
+    const tag = vp.join('x');
+    const guest = await mk('Almirah', vp);
+    await guest.ctx.request.post(BASE + '/api/friends', { data: { code: host.code } });
+    await guest.p.goto(BASE + '/?r=t#friends'); await guest.p.waitForSelector('.friend', { timeout: 20000 }); await W(500);
+    await guest.p.locator('.friend .btn:has-text("Main bareng"), .friend .btn:has-text("Kunjungi")').first().click();
+    await guest.p.waitForSelector('.visit', { timeout: 15000 }); await W(3500);
+    const m = await guest.p.evaluate(() => {
+      const r = (s) => document.querySelector(s)?.getBoundingClientRect();
+      const card = r('.visit'), bar = r('.hbar:not(.home)'), hud = r('.hud');
+      const mid = (e) => { const x = e.getBoundingClientRect(); return x.width ? x.top + x.height / 2 : null; };
+      const inGap = (els) => els.map(mid).filter((y) => y !== null).every((y) => y > card.bottom && y < bar.top);
+      const row = document.querySelector('.visit .row');
+      return {
+        gap: Math.round(bar.top - card.bottom), hudOk: card.top >= hud.bottom - 1,
+        furn: inGap([...document.querySelectorAll('svg.room .furn')]), pets: inGap([...document.querySelectorAll('svg.room .opet, svg.room .pet')]),
+        rowFits: row.scrollWidth <= row.clientWidth + 1, barFits: [...document.querySelectorAll('.hbar .social, .hbar .acts')].every((e) => e.scrollWidth <= e.clientWidth + 1),
+        btns: [...document.querySelectorAll('.visit .row .btn, .hbar .btn')].every((e) => { const x = e.getBoundingClientRect(); return x.left >= 0 && x.right <= innerWidth && x.height >= 34; }),
+      };
+    });
+    ok(m.gap >= 150, `kunjungan ${tag}: ruangan terlihat di antara kartu & bar (${m.gap} px)`);
+    ok(m.furn && m.pets, `kunjungan ${tag}: semua perabot & pet di ruang yang terlihat ${JSON.stringify({ furn: m.furn, pets: m.pets })}`);
+    ok(m.hudOk && m.rowFits && m.barFits && m.btns, `kunjungan ${tag}: kartu di bawah HUD, tombol muat & cukup besar ${JSON.stringify(m)}`);
+    await guest.p.screenshot({ path: `${OUT}kunjungan-${tag}.png` });
+    await guest.ctx.close();
+  }
+  await host.ctx.close();
 }
 await b.close();
 console.log(fail ? `\n${fail} GAGAL` : '\nSemua lulus');

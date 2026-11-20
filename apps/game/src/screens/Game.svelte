@@ -228,15 +228,18 @@
   /* ---------- Jepret (foto pemandangan): pil kamera di kolom kamera, kiri di bawah deret ruangan / kartu rumah teman ---------- */
   const visitCard = $derived(G.view === 'visit' && !!G.visit && !playingGame && !longBoard);
   let visitH = $state(0), roomH = $state(30);
+  /** HP berlayar pendek (≤ 760 px): kartu rumah teman diringkas & naik, supaya ruangan tetap terlihat di antara kartu dan bar kunjungan */
+  const compactVisit = $derived(!wideDesk && winH <= 760);
+  const visitTop = $derived(compactVisit ? 92 : 118);
   /** tombol Jepret tampil di tempat tombol kamera tampil (rumah, rumah teman, alun-alun); tidak saat atur, mandi, mancing, mini-game & papan */
   const jpPill = $derived(jepretOn() && !G.jepret && !JP.src && !G.immersive && !G.edit && !G.plan && !G.bath && !ALUN.fishing && !playingGame && !longBoard && !BG.watching
     && (G.view === 'home' || (G.view === 'visit' && !!G.visit) || G.view === 'alun') && !(friendPrompt && !wideDesk) && !(G.view === 'visit' && !wideDesk && !visitH));
   /** HP: 8 px di bawah deret ruangan/kamera (tinggi ±30 px) atau kartu rumah teman; desktop: di atas panel kamera (alun-alun: pojok sendiri) */
   const jpStyle = $derived(wideDesk
     ? `bottom:calc(var(--safe-b) + ${G.view === 'alun' ? 14 : 68}px)`
-    : `top:calc(var(--safe-t) + ${G.view === 'visit' ? 118 + visitH + 8 : 186 + (roomH || 30) + 8}px + var(--hud-x, 0px))`);
+    : `top:calc(var(--safe-t) + ${G.view === 'visit' ? visitTop + visitH + 8 : 186 + (roomH || 30) + 8}px + var(--hud-x, 0px))`);
   /** kartu ajakan (FriendPrompt, Tonton, ...) turun di bawah tombol Jepret di HP */
-  const promptTop = $derived(jpPill && !wideDesk ? `--prompt-top:calc(${G.view === 'visit' ? 118 + visitH + 8 + 44 + 10 : 186 + (roomH || 30) + 8 + 44 + 10}px + var(--hud-x, 0px))` : '');
+  const promptTop = $derived(jpPill && !wideDesk ? `--prompt-top:calc(${G.view === 'visit' ? visitTop + visitH + 8 + 44 + 10 : 186 + (roomH || 30) + 8 + 44 + 10}px + var(--hud-x, 0px))` : '');
   /* ---------- Pet ngajak ke Alun-alun: hanya di rumah sendiri & saat tidak sibuk ---------- */
   const ajakQuiet = $derived(!!G.sheet || G.edit || !!G.plan || !!G.bath || G.feeding || !!G.feedDrag || !!G.jepret || !!JP.src || G.immersive || sleeping
     || playingGame || longBoard || !!BG.card || !!BG.watching || H.members.length > 0 || !!G.confirm);
@@ -404,16 +407,24 @@
   {#if friendPrompt && !G.jepret}<FriendPrompt />{/if}
 
   {#if visitCard && !G.jepret}
-    <div class="visit" bind:offsetHeight={visitH}>
+    <!-- HP pendek (compact): judul satu baris, tombol satu baris berlabel pendek (label panjang tetap untuk pembaca layar) -->
+    <div class="visit" class:compact={compactVisit} bind:offsetHeight={visitH}>
       <div class="whorow">
-        <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0]}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
+        <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0] && !compactVisit}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
         {#if !wideDesk && (visitRooms.length > 1 || G.cam !== 'room')}{@render camBtn()}{/if}
       </div>
       <div class="row">
-        <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
-        <button class="btn sm" class:on={G.visit.likes?.liked} disabled={G.busy} onclick={likeHouse} aria-label="Suka rumah ini">♥ {G.visit.likes?.liked ? 'Disukai' : 'Suka'}{G.visit.likes?.count ? ` · ${G.visit.likes.count}` : ''}</button>
-        <button class="btn sm" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: G.visit.owner.id, name: G.visit.owner.display_name }; }}>{@html I.gift} Hadiah</button>
-        <button class="btn sm" onclick={() => { G.view = 'home'; G.visit = null; }}>Pulang</button>
+        {#if compactVisit}
+          <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit} aria-label={G.visit.claimed ? 'Hadiah kunjungan sudah diambil' : `Ambil ${settings().social?.visitCoins ?? 20} koin hadiah kunjungan`}>{G.visit.claimed ? '✓ Diambil' : `+${settings().social?.visitCoins ?? 20} koin`}</button>
+          <button class="btn sm" class:on={G.visit.likes?.liked} disabled={G.busy} onclick={likeHouse} aria-label={G.visit.likes?.liked ? 'Rumah ini sudah kamu sukai' : 'Suka rumah ini'}>♥{G.visit.likes?.count ? ` ${G.visit.likes.count}` : ' Suka'}</button>
+          <button class="btn sm ic" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: G.visit.owner.id, name: G.visit.owner.display_name }; }} aria-label="Kirim hadiah" title="Kirim hadiah">{@html I.gift}</button>
+          <button class="btn sm" onclick={() => { G.view = 'home'; G.visit = null; }}>Pulang</button>
+        {:else}
+          <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit}>{G.visit.claimed ? 'Hadiah sudah diambil' : `Ambil +${settings().social?.visitCoins ?? 20} koin`}</button>
+          <button class="btn sm" class:on={G.visit.likes?.liked} disabled={G.busy} onclick={likeHouse} aria-label="Suka rumah ini">♥ {G.visit.likes?.liked ? 'Disukai' : 'Suka'}{G.visit.likes?.count ? ` · ${G.visit.likes.count}` : ''}</button>
+          <button class="btn sm" onclick={() => { G.sheet = 'gift'; G.sheetArg = { to: G.visit.owner.id, name: G.visit.owner.display_name }; }}>{@html I.gift} Hadiah</button>
+          <button class="btn sm" onclick={() => { G.view = 'home'; G.visit = null; }}>Pulang</button>
+        {/if}
       </div>
     </div>
   {/if}
@@ -488,6 +499,17 @@
   .meter i { display: block; height: 100%; background: #9FD3EC; transition: width .15s; }
   .editbar, .visit { position: absolute; z-index: 15; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 12px); width: min(560px, calc(100vw - 20px)); background: var(--paper); border: 2.5px solid var(--ink); border-radius: 18px; box-shadow: 0 4px 0 var(--ink); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
   .visit { top: calc(var(--safe-t) + 118px + var(--hud-x, 0px)); bottom: auto; flex-direction: column; }
+  /* HP pendek: kartu ringkas (±80 px, sebelumnya ±150 px) tepat di bawah HUD */
+  .visit.compact { top: calc(var(--safe-t) + 92px + var(--hud-x, 0px)); padding: 7px 10px; gap: 6px; }
+  .visit.compact .whorow { align-items: center; }
+  .visit.compact .who { flex: 1 1 auto; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; }
+  .visit.compact .who b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+  .visit.compact .who span { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 2 auto; min-width: 0; }
+  .visit.compact .row { flex-wrap: nowrap; justify-content: stretch; }
+  .visit.compact .row .btn { flex: 1 1 auto; min-height: 36px; padding: 3px 8px; white-space: nowrap; }
+  .visit.compact .row .btn.ic { flex: 0 0 auto; padding: 3px 10px; }
+  .visit.compact .row .btn.ic :global(svg) { width: 18px; height: 18px; }
+  .visit.compact :global(.cambtn span) { display: none; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
   .planbar .warn, .editbar .warn { color: #A93A27; font-size: 13.5px; }
   .rotbtn { display: inline-flex; align-items: center; gap: 4px; }

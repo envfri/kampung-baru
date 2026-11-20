@@ -4,6 +4,19 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.44.1 · 2026-11-20 · Rumah teman terlihat jelas di HP kecil
+
+_Saat berkunjung di HP berlayar pendek, ruangan teman tidak lagi tertutup kartu rumah teman dan bar kunjungan._
+
+### Perubahan
+
+- Teknis: kartu kunjungan .visit.compact & HouseBar rapat di (max-width: 899px) and (max-height: 760px); Room mengukur tepi kamera kunjungan dari kartu & bar (visitPad). Uji e2e-tamu ditambah 320×568, 320×640, 360×640, 375×667, 390×844.
+
+### Perbaikan
+
+- Berkunjung di HP kecil (layar pendek): kartu rumah teman dibuat ringkas (judul satu baris, tombol satu baris) dan bar kunjungan dirapatkan, jadi ruangan, perabot dan pet teman terlihat jelas di antaranya. Di HP 320 × 568 ruang yang terlihat naik dari ±20 px menjadi ±190 px. _(pemain)_
+- Kamera rumah teman di HP membingkai ruangan tepat di antara kartu rumah teman dan bar kunjungan, juga saat obrolan dibuka. _(pemain)_
+
 ## 0.44.0 · 2026-11-20 · Pakai perabot di rumah teman + barang dapur, kamar mandi & taman
 
 _Saat berkunjung, pet-mu bisa ikut memakai perabot teman. Ada 29 barang baru untuk dapur, kamar mandi dan taman, plus 3 gerakan baru._
@@ -28,6 +41,8 @@ _Saat berkunjung, pet-mu bisa ikut memakai perabot teman. Ada 29 barang baru unt
 
 - Pet yang sedang jalan-jalan sendiri tepat di samping perabot kini berhenti dulu sebelum beraktivitas, jadi gerakannya tidak tertimpa langkah. _(pemain)_
 - Label nama pet tidak lagi bergeser dari petnya saat ruangan sempat tergulir oleh tombol. _(pemain)_
+
+Commit: [`b688137`](https://github.com/envfri/kampung-baru/commit/b688137)
 
 ## 0.43.1 · 2026-11-18 · Nampan makanan tidak tertutup kartu tamu
 

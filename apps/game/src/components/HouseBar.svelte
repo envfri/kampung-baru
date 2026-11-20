@@ -84,7 +84,7 @@
         <button class="btn act" disabled={G.busy} onclick={() => (k === 'camilan' ? toggle('snack') : act(k))}>{@html ACT_ICON[k]}<span>{l}</span></button>
       {/each}
     </div>
-    <p class="left">Main berhadiah tersisa hari ini: <b>{together.left}</b></p>
+    <p class="left"><span class="lg">Main berhadiah tersisa hari ini:</span><span class="sm">Sisa berhadiah:</span> <b>{together.left}</b></p>
   {/if}
 
   {#if chatting}
@@ -180,6 +180,24 @@
   .pop small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
   .em { flex: 1 1 70px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); padding: 6px 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
   .em :global(svg) { width: 34px; height: 34px; }
+  .left .sm { display: none; }
+  /* HP berlayar pendek (≤ 760 px): bar lebih rapat supaya ruangan rumah teman tetap terlihat di atasnya
+     (tombol sosial satu baris, tombol main lebih pendek, sisa main berhadiah di baris status) */
+  @media (max-width: 899px) and (max-height: 760px) {
+    .hbar { padding: 6px 8px; gap: 5px; }
+    .hbar:not(.home) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 6px; }
+    .hbar:not(.home) > * { grid-column: 1 / -1; }
+    .hbar:not(.home) > .status { grid-column: 1; grid-row: 1; }
+    .hbar:not(.home) > .left { grid-column: 2; grid-row: 1; align-self: center; margin: 0; white-space: nowrap; }
+    .hbar:not(.home) > .pop { grid-column: auto; }
+    .status { font-size: 12.5px; line-height: 1.25; }
+    .act { min-height: 44px; padding: 3px 1px; font-size: 11.5px; }
+    .act :global(svg) { width: 20px; height: 20px; }
+    .left .lg { display: none; }
+    .left .sm { display: inline; }
+    .social { flex-wrap: nowrap; gap: 5px; }
+    .social .btn { flex: 1 1 auto; min-height: 34px; padding: 3px 6px; font-size: 13px; white-space: nowrap; }
+  }
   @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
     /* layar lebar: bar di sisi kanan supaya lantai ruangan tidak tertutup */
     .hbar { left: auto; right: max(14px, var(--safe-r)); transform: none; bottom: calc(var(--safe-b) + 96px); width: 300px; }

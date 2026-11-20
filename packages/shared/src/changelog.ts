@@ -39,7 +39,19 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.44.1',
+    date: '2026-11-20',
+    title: 'Rumah teman terlihat jelas di HP kecil',
+    summary: 'Saat berkunjung di HP berlayar pendek, ruangan teman tidak lagi tertutup kartu rumah teman dan bar kunjungan.',
+    items: [
+      { kind: 'perbaikan', text: 'Berkunjung di HP kecil (layar pendek): kartu rumah teman dibuat ringkas (judul satu baris, tombol satu baris) dan bar kunjungan dirapatkan, jadi ruangan, perabot dan pet teman terlihat jelas di antaranya. Di HP 320 × 568 ruang yang terlihat naik dari ±20 px menjadi ±190 px.', player: true },
+      { kind: 'perbaikan', text: 'Kamera rumah teman di HP membingkai ruangan tepat di antara kartu rumah teman dan bar kunjungan, juga saat obrolan dibuka.', player: true },
+      { kind: 'ubah', text: 'Teknis: kartu kunjungan .visit.compact & HouseBar rapat di (max-width: 899px) and (max-height: 760px); Room mengukur tepi kamera kunjungan dari kartu & bar (visitPad). Uji e2e-tamu ditambah 320×568, 320×640, 360×640, 375×667, 390×844.' },
+    ],
+  },
+  {
     version: '0.44.0',
+    commits: ['b688137'],
     date: '2026-11-20',
     title: 'Pakai perabot di rumah teman + barang dapur, kamar mandi & taman',
     summary: 'Saat berkunjung, pet-mu bisa ikut memakai perabot teman. Ada 29 barang baru untuk dapur, kamar mandi dan taman, plus 3 gerakan baru.',

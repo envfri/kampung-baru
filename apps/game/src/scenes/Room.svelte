@@ -477,9 +477,31 @@
     // desktop: bawah = dock + kartu tugas, kanan = tombol aksi (+ panel tamu), supaya rumah tidak tertutup menu
     if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 150, l: 24, r: guestBar ? 520 : 170 };
     if (vw > vh) return { t: 64, b: 84, l: 16, r: 16 };
-    if (mode === 'visit') return { t: Math.min(vh * 0.3, 270), b: Math.min(vh * 0.27, 250), l: 8, r: 8 };
+    // berkunjung di HP: ruang di antara kartu rumah teman (atas) dan bar kunjungan (bawah), diukur dari layar
+    if (mode === 'visit') return visitPad ? { t: visitPad.t, b: visitPad.b, l: 8, r: 8 } : { t: Math.min(vh * 0.3, 270), b: Math.min(vh * 0.27, 250), l: 8, r: 8 };
     return { t: Math.min(vh * 0.26, 225), b: guestBar ? Math.min(vh * 0.42, 390) : G.edit ? Math.min(vh * 0.27, 240) : Math.min(vh * 0.25, 230), l: 8, r: 8 };
   }
+  /** berkunjung di HP: tepi atas/bawah kamera = bawah kartu rumah teman & atas bar kunjungan (atau dock), dalam px ruangan.
+   *  Diukur ulang berkala (kartu/bar bisa berubah tinggi: obrolan dibuka, hadiah diambil); tidak saat menu perabot,
+   *  Jepret, atau layar penuh (bar disembunyikan sementara: kamera tidak ikut melompat). */
+  let visitPad = $state<{ t: number; b: number } | null>(null);
+  $effect(() => {
+    if (mode !== 'visit' || wide || !wrapEl) { visitPad = null; return; }
+    const measure = () => {
+      if (!wrapEl || G.fasMenu || G.jepret || G.immersive || document.hidden) return;
+      const box = wrapEl.getBoundingClientRect();
+      const card = document.querySelector('.visit')?.getBoundingClientRect();
+      const bar = document.querySelector('.hbar:not(.home)')?.getBoundingClientRect() ?? document.querySelector('.dock')?.getBoundingClientRect();
+      if (!box.height || !card?.height || !bar?.height) return;
+      const t = Math.max(40, Math.round(card.bottom - box.top + 10)), b = Math.max(40, Math.round(box.bottom - bar.top + 10));
+      // ruang tersisa sangat sempit (mis. obrolan terbuka di HP pendek): bingkai sebelumnya dipertahankan
+      if (box.height - t - b < 70) return;
+      if (!visitPad || Math.abs(visitPad.t - t) > 6 || Math.abs(visitPad.b - b) > 6) visitPad = { t, b };
+    };
+    const t0 = setTimeout(measure, 60);
+    const id = setInterval(measure, 700);
+    return () => { clearTimeout(t0); clearInterval(id); };
+  });
   function fitRaw(b: { x: number; y: number; w: number; h: number }) {
     const i = insets();
     const k = Math.min(Math.max(60, vw - i.l - i.r) / b.w, Math.max(60, vh - i.t - i.b) / b.h);
@@ -521,7 +543,7 @@
     const m = G.cam, f = focusId, w = vw, h = vh, pl = planning;
     // saat mengatur denah kamera tidak ikut bergeser setiap ruangan dipindah
     if (!pl) void planSig;
-    void editId; void guestBar;
+    void editId; void guestBar; void visitPad;
     if (!w || !h) return;
     untrack(() => {
       if (!plan.rooms.length) return;
