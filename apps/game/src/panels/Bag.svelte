@@ -4,6 +4,7 @@
   import { G, item, effText, run, post, fx, toast, startEdit, draftAvail, items, curRoom, goTo } from '../lib/game.svelte';
   import { api } from '../lib/api';
   import { fits } from '@kb/shared';
+  import { petFree } from '../lib/kerja.svelte';
   import { sfx } from '../lib/sfx';
 
   const TABS = [
@@ -25,6 +26,8 @@
   );
 
   async function feed(id: string) {
+    // pet sedang kerja sambilan: pesan ramah + Panggil pulang (server juga menolak)
+    if (!petFree('Makan')) return;
     fx('food');
     const r: any = await run(() => post('/api/action', { type: 'makan', itemId: id }));
     if (r) { sfx.eat(); fx('hearts'); toast(`${G.me.pet.name} makan ${item(id)?.name}`, 'good'); if (r.result?.levelUp) { sfx.level(); toast(`Naik ke Lv ${r.result.levelUp}!`, 'good'); } }

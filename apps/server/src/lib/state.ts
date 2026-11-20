@@ -1,8 +1,9 @@
-import { GAMES, NEW_ITEM_DAYS, chubOf, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
+import { GAMES, NEW_ITEM_DAYS, applyNeedDelta, chubOf, decayNeeds, kerjaCostScaled, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { maskPhone } from './klikflow';
 import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog, type CatalogItem } from './core';
 import { questSummary } from './quests';
+import { kerjaState } from './kerja';
 
 export const J = (v: unknown) => JSON.stringify(v ?? null);
 
@@ -10,6 +11,8 @@ export interface PetRow {
   user_id: string; name: string; color: string; ear: string; wear: Record<string, string>;
   level: number; xp: number; kenyang: number; bersih: number; ceria: number; energi: number; needs_at: Date;
   sleep_from: Date | null; sick_at: Date | null; weight: number; crumbs_at: Date;
+  /** Kerja Sambilan: kebutuhan dibekukan sampai work_until, lalu work_cost (negatif) dikenakan sekali */
+  work_until?: Date | null; work_cost?: Partial<Needs> | null; work_job?: string | null;
 }
 
 const ms = (d: Date | null | undefined) => (d ? new Date(d).getTime() : 0);
@@ -21,7 +24,13 @@ export function petWakeAt(p: PetRow, s: Settings) {
   return p.sleep_from ? wakeAt(p.energi, ms(p.needs_at), sleepRule(s)) : 0;
 }
 
+/** Sedang kerja sambilan (waktu kerjanya belum habis): kebutuhan tidak turun, pet tidak bisa sakit karena dibiarkan. */
+export const isWorking = (p: Pick<PetRow, 'work_until'> | null | undefined, now = Date.now()) => !!p?.work_until && ms(p.work_until) > now;
+
 export function currentNeeds(p: PetRow, s: Settings, now = Date.now()): Needs {
+  // kerja sambilan: beku selama kerja; setelah waktunya habis biaya dikenakan sekali lalu turun normal lagi
+  const until = ms(p.work_until);
+  if (until) return now < until ? stored(p) : decayNeeds(applyNeedDelta(stored(p), p.work_cost ?? {}), until, now, s.needs.decayPerHour);
   return needsWithSleep(stored(p), ms(p.needs_at), now, s.needs.decayPerHour, p.sleep_from ? sleepRule(s) : null);
 }
 export const currentWeight = (p: PetRow, s: Settings, now = Date.now()) => weightNow(p.weight ?? 0, ms(p.needs_at), now, (s as any).weight);
@@ -30,8 +39,12 @@ export const currentWeight = (p: PetRow, s: Settings, now = Date.now()) => weigh
 export function isSick(p: PetRow, s: Settings, now = Date.now()) {
   if (p.sick_at) return true;
   if (p.sleep_from && petWakeAt(p, s) > now) return false;
-  return sickOnset(currentNeeds(p, s, Math.max(ms(p.needs_at), petWakeAt(p, s))), Math.max(ms(p.needs_at), petWakeAt(p, s)), s.needs.decayPerHour, (s as any).health) <= now;
+  if (isWorking(p, now)) return false;
+  const from = settleFrom(p, s);
+  return sickOnset(currentNeeds(p, s, from), from, s.needs.decayPerHour, (s as any).health) <= now;
 }
+/** sejak kapan kebutuhan turun biasa lagi (setelah bangun tidur / pulang kerja) */
+const settleFrom = (p: PetRow, s: Settings) => Math.max(ms(p.needs_at), petWakeAt(p, s), ms(p.work_until));
 export const isAsleep = (p: PetRow, s: Settings, now = Date.now()) => !!p.sleep_from && petWakeAt(p, s) > now;
 
 /** Remah & bulu rontok di lantai saat ini. */
@@ -52,17 +65,34 @@ export async function lockPet(db: Db, userId: string) {
 }
 
 export async function settlePet(db: Db, p: PetRow, s: Settings, now = Date.now()) {
+  // pulang kerja sambilan: biaya kebutuhan dikenakan sekali pada saat waktu kerja habis
+  if (p.work_until && ms(p.work_until) <= now) await endWork(db, p, s, ms(p.work_until));
   if (p.sleep_from) {
     const wake = petWakeAt(p, s);
     if (wake <= now) await wakePet(db, p, s, wake);
   }
   if (!p.sick_at && isSick(p, s, now)) {
-    const from = Math.max(ms(p.needs_at), petWakeAt(p, s));
+    const from = settleFrom(p, s);
     const onset = Math.min(now, sickOnset(currentNeeds(p, s, from), from, s.needs.decayPerHour, (s as any).health));
     await db.query(`update pets set sick_at = $2 where user_id = $1`, [p.user_id, new Date(onset)]);
     p.sick_at = new Date(onset);
   }
   return p;
+}
+
+/**
+ * Selesai kerja sambilan (waktunya habis, atau dipanggil pulang pada `at` dengan `frac` = bagian waktu yang dijalani):
+ * kebutuhan yang dibekukan dikurangi biaya kerja (sebanding `frac`), lalu turun biasa lagi mulai `at`.
+ */
+export async function endWork(db: Db, p: PetRow, s: Settings, at = Date.now(), frac = 1) {
+  const n = applyNeedDelta(stored(p), kerjaCostScaled(p.work_cost, frac));
+  const w = currentWeight(p, s, at);
+  await db.query(
+    `update pets set kenyang = $2, bersih = $3, ceria = $4, energi = $5, weight = $6, needs_at = $7, work_until = null, work_cost = null, work_job = null where user_id = $1`,
+    [p.user_id, n.kenyang, n.bersih, n.ceria, n.energi, w, new Date(at)],
+  );
+  Object.assign(p, n, { weight: w, needs_at: new Date(at), work_until: null, work_cost: null, work_job: null });
+  return n;
 }
 
 /** Bangunkan pet: simpan kebutuhan saat bangun, catat tidur (untuk lencana) bila cukup lama. */
@@ -117,6 +147,8 @@ export function petView(p: PetRow, s: Settings) {
     sick: isSick(p, s, now),
     weight, chub: Math.round(chubOf(weight, (s as any).weight) * 100) / 100,
     crumbsAt: ms(p.crumbs_at),
+    // kerja sambilan: kebutuhan beku sampai `until`, lalu `cost` dikenakan (client menghitung tampilannya)
+    work: isWorking(p, now) ? { until: ms(p.work_until), job: p.work_job ?? null, cost: p.work_cost ?? {} } : null,
   };
 }
 
@@ -224,6 +256,8 @@ export async function playerState(db: Db, userId: string) {
     photo: photo ?? null,
     /** ikan rahasia yang sudah terbuka (tidak ada di katalog umum) */
     revealed: await revealedItems(db, userId, cat),
+    /** kerja sambilan: shift yang sedang berjalan / menunggu gaji diterima, jam kerja hari ini */
+    kerja: await kerjaState(db, userId, s),
   };
 }
 
@@ -282,6 +316,8 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       crumbs: (s as any).crumbs,
       speech: (s as any).speech,
       ajakAlun: (s as any).ajakAlun,
+      // kerja sambilan: angka papan lowongan dimuat lewat GET /api/kerja; di sini cukup nyala/mati & syarat
+      kerja: (() => { const k = (s as any).kerja ?? {}; return { on: k.on !== false, minEnergi: k.minEnergi, minKenyang: k.minKenyang, ronda: { fromHour: k.ronda?.fromHour, toHour: k.ronda?.toHour } }; })(),
       garden: s.garden,
       room: s.room,
       house: (s as any).house,

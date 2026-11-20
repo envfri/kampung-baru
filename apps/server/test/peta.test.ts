@@ -1,5 +1,5 @@
 // Peta kampung: letak Alun-alun & Lapangan Lomba ditukar (paket konten 16) tanpa menimpa jalan / tempat lain,
-// dan letak yang sudah diubah admin tidak disentuh.
+// dan letak yang sudah diubah admin tidak disentuh. Paket 21: Papan Lowongan & Pos Ronda juga tidak menimpa apa pun.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/config';
@@ -25,6 +25,9 @@ function box(l: { kind: string; x: number; y: number; style?: any }): [number, n
   if (l.kind === 'race') return [x - 82, y - 106, x + 82, y + 14];
   if (l.kind === 'garden') return [x - 57, y - 84, x + 43, y + 14];
   if (l.kind === 'pond') return [x - 78, y - 86, x + 78, y + 14];
+  // Papan Lowongan (jobBoardSVG + label lebar) & Pos Ronda (posRondaSVG + label), lihat art-kerja.ts
+  if (l.kind === 'jobs') return [x - 75, y - 100, x + 75, y + 14];
+  if (l.kind === 'ronda') return [x - 58, y - 96, x + 58, y + 14];
   const w = Number(l.style?.w ?? 100);
   return [x - w / 2 - 6, y - 100, x + w / 2 + 6, y + 14];
 }
@@ -76,4 +79,30 @@ test('paket 16: letak lama ditukar sekali & katalog dimuat ulang; letak buatan a
   L = await locs();
   assert.equal(L.find((l) => l.id === 'alun')!.x, 999);
   assert.equal(L.find((l) => l.id === 'lapangan')!.x, 304);
+});
+
+test('peta: Papan Lowongan & Pos Ronda (paket 21) tidak menimpa jalan, tempat lain, atau labelnya', async () => {
+  // uji paket 16 di atas meninggalkan letak buatan admin: kembalikan letak bawaan sekarang
+  await db.query(`update locations set x = $1, y = $2 where id = 'alun'`, [PETA_TUKAR.alun.to.x, PETA_TUKAR.alun.to.y]);
+  await db.query(`update locations set x = $1, y = $2 where id = 'lapangan'`, [PETA_TUKAR.lapangan.to.x, PETA_TUKAR.lapangan.to.y]);
+  invalidateCaches();
+  const L = await locs();
+  /** label (pil) tiap tempat: lebar dari panjang nama (lihat pill() di art.ts); bangunan & papan lowongan di bawah kaki, lainnya di (x, y) */
+  const pillBox = (l: { kind: string; name?: string; x: number; y: number }) => {
+    const w = String(l.name ?? '').length * 8.2 + 26, top = ['shop', 'pearl', 'social', 'games', 'home', 'jobs'].includes(l.kind) ? l.y + 12 : l.y;
+    return [l.x - w / 2, top, l.x + w / 2, top + 25];
+  };
+  for (const id of ['lowongan', 'ronda']) {
+    const me = L.find((l) => l.id === id)!;
+    assert.ok(me, `${id} ada di peta`);
+    const b = box(me);
+    for (const r of ROADS) assert.ok(!hit(b, r), `${id} menimpa jalan ${JSON.stringify(r)} (${JSON.stringify(b)})`);
+    for (const o of L) if (o.id !== id) {
+      assert.ok(!hit(b, box(o)), `${id} menimpa ${o.id}`);
+      assert.ok(!hit(pillBox(me as any), pillBox(o as any)), `label ${id} menimpa label ${o.id}`);
+    }
+    assert.ok(b[0] >= 0 && b[2] <= 1260 && b[1] >= -40, `${id} di dalam peta`);
+  }
+  // papan lowongan di tepi jalan (deret toko), pos ronda di deret bawah
+  assert.ok(L.find((l) => l.id === 'lowongan')!.y < 240 && L.find((l) => l.id === 'ronda')!.y > 260);
 });

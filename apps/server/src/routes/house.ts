@@ -11,11 +11,12 @@ import { addItem, bad, bumpCounter, checkChat, coinMultiplier, counter, credit, 
 import { takePings } from '../lib/pings';
 import { barengViews } from './bareng';
 import { requireUser } from '../lib/auth';
-import { currentNeeds, isAsleep, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
+import { currentNeeds, isAsleep, isWorking, loadRooms, lockPet, petView, roomMeta, savePet } from '../lib/state';
 import { notifyEvent } from '../lib/notify';
 import { grantXp, once, patch, useActivity } from './game';
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { forgetBlocks } from './square';
+import { assertNotWorking, assertNotWorkingFast, jobInfo } from '../lib/kerja';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 // HP yang sedang sibuk / sinyal lemah bisa telat beberapa kali sinkron: jangan langsung dianggap pulang
@@ -33,7 +34,7 @@ export const COOK_INGREDIENTS = ['bawang', 'cabai', 'telur', 'tomat', 'kecap', '
 const DISHES = ['pisang-goreng', 'bakso', 'sate', 'martabak', 'klepon'];
 const COOK_STEPS = 6, BALL_GOAL = 15, BALL_OK = 5, COOP_MS = 60_000, INVITE_MS = 15_000, COOP_MAX = 5;
 
-type Member = { id: string; name: string; pet: any; roomId: string; x: number; y: number; flip: boolean; act: string | null; seenAt: number; joinedAt: number; petAt: number; host: boolean; emoteAt: number };
+type Member = { id: string; name: string; pet: any; roomId: string; x: number; y: number; flip: boolean; act: string | null; seenAt: number; joinedAt: number; petAt: number; host: boolean; emoteAt: number; away?: boolean };
 type Ev = { seq: number; at: number; kind: string; from?: string; [k: string]: unknown };
 type Coop = {
   id: string; hostId: string; game: 'masak' | 'bola'; roomId: string; players: string[]; names: Record<string, string>;
@@ -137,6 +138,12 @@ export function guestsAt(hostId: string) {
   return n;
 }
 
+/** pet tuan rumah sedang kerja sambilan: tidak ada di rumah, jadi tidak bisa diajak main (perabotnya tetap boleh dipakai) */
+function hostWorking(host: { name: string; work_until?: Date | string | null; work_job?: string | null }) {
+  const j = jobInfo(host.work_job);
+  return bad('host_working', `${host.name} sedang ${j.doing} di ${j.place}. Main bareng lagi setelah ${host.name} pulang, ya. Perabotnya tetap boleh dipakai.`, { kerja: { job: host.work_job ?? null, until: host.work_until ? new Date(host.work_until).getTime() : 0 } });
+}
+
 export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db }) {
   const auth = { preHandler: requireUser(db) };
   const fast = { ...auth, config: { rateLimit: { max: 400, timeWindow: '1 minute' } } };
@@ -171,12 +178,13 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
   async function memberInfo(uid: string) {
     const s = await getSettings(db);
     const r = await db.one<any>(`select u.display_name, p.* from users u left join pets p on p.user_id = u.id where u.id = $1`, [uid]);
-    if (!r?.name) return { name: r?.display_name ?? 'Teman', pet: null };
+    if (!r?.name) return { name: r?.display_name ?? 'Teman', pet: null, away: false };
     const v = petView({ ...r, user_id: uid }, s);
-    return { name: r.display_name, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
+    // pet sedang kerja sambilan: pemiliknya tetap di rumah (obrolan), tapi petnya tidak tampil di rumah itu
+    return { name: r.display_name, away: isWorking(r), pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
   }
   // posisi dikirim per ruangan (roomId + x, y di dalamnya); layar rumah memetakannya ke denah rumah tersambung
-  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: m.roomId, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host });
+  const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: m.roomId, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host, ...(m.away ? { away: true } : {}) });
 
   /** id & ukuran ruangan tuan rumah (cache ±1 menit per rumah) */
   async function hostRooms(hostId: string, h: House) {
@@ -200,6 +208,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const since = Math.max(0, Number(b.since) || 0);
     const kickedUntil = h.kicked.get(uid);
     if (kickedUntil && kickedUntil > Date.now()) return { live: false, reason: 'kicked' };
+    // tamu yang petnya sedang kerja sambilan tidak bisa berkunjung (pemeriksa yang sama, disimpan sebentar karena sinkron sering)
+    if (uid !== hostId) { try { await assertNotWorkingFast(db, uid, 'Berkunjung'); } catch (e: any) { return { live: false, reason: 'working', message: e?.message }; } }
     prune(h);
     await settleCoop(hostId, h, s);
     // posisi dikirim per ruangan: ruangan harus milik tuan rumah, posisi dibatasi ukuran ruangan itu
@@ -220,7 +230,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
         if (again) m = again;
         else if (uid !== hostId && guestsNow >= s.visit.maxLive) full = true;
         else {
-        m = { id: uid, name: info.name, pet: info.pet, roomId, x: num(b.x), y: num(b.y), flip: !!b.flip, act: null, seenAt: Date.now(), joinedAt: Date.now(), petAt: Date.now(), host: uid === hostId, emoteAt: 0 };
+        m = { id: uid, name: info.name, pet: info.pet, roomId, x: num(b.x), y: num(b.y), flip: !!b.flip, act: null, seenAt: Date.now(), joinedAt: Date.now(), petAt: Date.now(), host: uid === hostId, emoteAt: 0, away: info.away };
         h.members.set(uid, m);
         push(h, { kind: 'join', from: uid, name: m.name, host: m.host });
         }
@@ -234,7 +244,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
         push(h, { kind: 'emote', from: uid, emote: b.emote });
       }
       // segarkan data pet (pakaian, wajah) tiap ±1 menit
-      if (Date.now() - m.petAt > 45_000) { m.petAt = Date.now(); const info = await memberInfo(uid); m.pet = info.pet; m.name = info.name; }
+      if (Date.now() - m.petAt > 45_000) { m.petAt = Date.now(); const info = await memberInfo(uid); m.pet = info.pet; m.name = info.name; m.away = info.away; }
       HOUSE_SEEN.set(uid, { host: hostId, at: Date.now() });
     }
     PRESENCE.set(uid, { at: Date.now(), where: uid === hostId ? 'home' : 'visit', host: hostId });
@@ -314,6 +324,10 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     assertNotKicked(hostId, u.id);
     const [s, cat]: [any, any] = await Promise.all([getSettings(db), getCatalog(db)]);
     if (!s.visit.together) throw forbidden('Main bareng saat berkunjung sedang ditutup.');
+    // pet sendiri / pet tuan rumah sedang kerja sambilan: ditolak sebelum jeda antaraksi (diperiksa ulang di transaksi)
+    await assertNotWorking(db, u.id, 'Main dengan pet teman');
+    const hw = await db.one<any>(`select name, work_until, work_job from pets where user_id = $1`, [hostId]);
+    if (hw && isWorking(hw)) throw hostWorking(hw);
     // jeda antaraksi supaya tidak bisa membanjiri buku tamu / layar pemain lain
     const pair = `${u.id}:${hostId}`;
     if (Date.now() - (LAST_ACT.get(pair) ?? 0) < ACT_GAP_MS) throw bad('too_fast', 'Pelan-pelan, pet-mu masih beraksi.');
@@ -325,6 +339,9 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       const mine = locked[u.id], host = locked[hostId];
       if (!mine) throw bad('no_pet', 'Buat pet dulu.');
       if (!host) throw notFound(`Teman ini belum punya pet.`);
+      await assertNotWorking(t, u.id, 'Main dengan pet teman', mine);
+      // pet tuan rumah sedang kerja sambilan: tidak ada di rumah (perabotnya tetap bisa dipakai)
+      if (isWorking(host)) throw hostWorking(host);
       await bumpCounter(t, u.id, `vact_all:${hostId}`, ACT_HARD_CAP).catch(() => { throw bad('daily_limit', `Sudah banyak main dengan ${host.name} hari ini. Besok lagi, ya!`); });
       const key = `vact:${hostId}`;
       const used = await counter(t, u.id, key);
@@ -537,6 +554,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const me = h?.members.get(uid);
     if (!h || !me || !fresh(me)) throw bad('not_here', 'Masuk ke rumah dulu.');
     const b = req.body ?? {};
+    if (b.action === 'start' || b.action === 'join') await assertNotWorking(db, uid, 'Main bareng');
     await settleCoop(hostId, h, s);
     if (b.action === 'start') {
       if (h.coop && !h.coop.done) throw bad('coop_busy', 'Masih ada permainan yang berjalan di rumah ini.');
@@ -629,6 +647,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const pose = ['senyum', 'lompat', 'peluk'].includes(req.body?.pose) ? req.body.pose : 'senyum';
     if (!s.visit.together) throw forbidden('Foto bareng sedang ditutup.');
     assertNotKicked(hostId, u.id);
+    await assertNotWorking(db, u.id, 'Foto bareng');
     const h = HOUSES.get(hostId);
     const me = h?.members.get(u.id);
     const inHouse = !!me && fresh(me);
@@ -650,7 +669,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const rooms = await loadRooms(db, hostId, cat, s, false);
     const room = rooms.find((r: any) => r.id === roomId) ?? rooms[0];
     const members: any[] = [];
-    for (const id of ids) { const info = await memberInfo(id); if (info.pet) members.push({ id, name: info.name, pet: info.pet }); }
+    // pet yang sedang kerja sambilan (mis. pet tuan rumah) tidak ada di rumah, jadi tidak ikut berfoto
+    for (const id of ids) { const info = await memberInfo(id); if (info.pet && !info.away) members.push({ id, name: info.name, pet: info.pet }); }
     if (members.length < 2) throw bad('photo_alone', 'Foto bareng butuh minimal 2 pet.');
     const photo = await db.tx(async (t) => {
       await bumpCounter(t, u.id, 'photo', s.visit.photoPerDay);

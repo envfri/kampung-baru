@@ -19,6 +19,7 @@ import { grantXp, patch } from './game';
 import { EMOTES, markPresence } from './house';
 import { takePings } from '../lib/pings';
 import { barengAct, barengSeat, barengViews } from './bareng';
+import { assertNotWorkingFast } from '../lib/kerja';
 
 const LIVE_MS = 10_000;
 /** jeda antaraksi di alun-alun per pemain */
@@ -217,6 +218,11 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     prune(q);
     let m = q.members.get(uid);
     let joined = false;
+    // pet sedang kerja sambilan: tidak bisa ke alun-alun (pemeriksa yang sama, disimpan sebentar karena sinkron sering)
+    try { await assertNotWorkingFast(db, uid, 'Main di alun-alun'); } catch (e: any) {
+      if (m) { q.members.delete(uid); }
+      return { live: false, reason: 'working', message: e?.message };
+    }
     if (!m) {
       const info = await memberInfo(uid);
       if (!info.pet) throw bad('no_pet', 'Buat pet dulu, ya.');
@@ -363,6 +369,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     const { s, a, open } = await settings();
     if (!open) throw closed();
     const uid = req.user!.id;
+    await assertNotWorkingFast(db, uid, 'Main di alun-alun');
     const h = here(uid);
     if (!h) throw bad('not_here', 'Masuk ke alun-alun dulu.');
     const kind = String(req.body?.kind ?? '');
@@ -424,6 +431,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     const { s, a, open } = await settings();
     if (!open) throw closed();
     const uid = req.user!.id;
+    await assertNotWorkingFast(db, uid, 'Naik wahana');
     const h = here(uid);
     if (!h) throw bad('not_here', 'Masuk ke alun-alun dulu.');
     const kind = String(req.body?.kind ?? '') as SquareRide;
@@ -595,6 +603,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     if (!open) throw closed();
     const uid = req.user!.id;
     if (req.body?.leave) { leavePier(uid); return { ok: true }; }
+    await assertNotWorkingFast(db, uid, 'Mancing');
     const h = here(uid);
     if (!h) throw bad('not_here', 'Masuk ke alun-alun dulu.');
     const ride = RIDES.get(uid);
@@ -724,6 +733,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     const { s, open } = await settings();
     if (!open) throw closed();
     const uid = req.user!.id;
+    await assertNotWorkingFast(db, uid, 'Foto bareng');
     const h = here(uid);
     if (!h) throw bad('not_here', 'Masuk ke alun-alun dulu.');
     const pose = ['senyum', 'lompat', 'peluk'].includes(req.body?.pose) ? req.body.pose : 'senyum';

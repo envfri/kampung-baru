@@ -8,6 +8,7 @@ import { requireUser } from '../lib/auth';
 import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../lib/state';
 import { int, oneOf, str } from '../lib/validate';
 import { grantXp, patch } from './game';
+import { assertNotWorking } from '../lib/kerja';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -25,6 +26,7 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
     return db.tx(async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      await assertNotWorking(t, u.id, 'Lomba Karung', pet);
       assertAwake(pet, s);
       assertHealthy(pet, s);
       const needs = currentNeeds(pet, s);

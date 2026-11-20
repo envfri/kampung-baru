@@ -8,6 +8,7 @@ import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../l
 import { claimMilestone, eventList } from '../lib/events';
 import { int } from '../lib/validate';
 import { grantXp, patch } from './game';
+import { assertNotWorking } from '../lib/kerja';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -32,6 +33,7 @@ export default async function minigameRoutes(app: FastifyInstance, { db }: { db:
     return db.tx(async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      await assertNotWorking(t, u.id, 'Main di Balai Main', pet);
       assertAwake(pet, s);
       assertHealthy(pet, s);
       const needs = currentNeeds(pet, s);

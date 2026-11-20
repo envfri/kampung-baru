@@ -12,6 +12,7 @@
   import { sfx } from '../lib/sfx';
   import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
   import { JP, type JepretSnap, type JepretPet } from '../lib/jepret.svelte';
+  import { working, gajiWaiting, petFree } from '../lib/kerja.svelte';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
   /** alun-alun: lapangan bersama semua pemain (pet sendiri jalan-jalan, pemain lain live) */
@@ -111,7 +112,10 @@
   const homeLive = $derived((mode === 'home' || square) && !G.edit);
   // berkunjung saat tuan rumah juga ada di rumahnya: pet tuan rumah digerakkan pemiliknya (dari sinkron)
   const hostMember = $derived(mode === 'visit' ? H.members.find((m) => m.host) ?? null : null);
-  const hideMain = $derived(!!hostMember);
+  /** pet sedang kerja sambilan: tidak ada di rumah (rumah sendiri, atau pet tuan rumah saat berkunjung) */
+  // (berkunjung: tuan rumah yang memanggil petnya pulang lebih awal tampil lagi lewat sinkron rumah live)
+  const petAway = $derived(G.now > 0 && (mode === 'home' ? working() : mode === 'visit' && !!G.visit?.work && G.visit.work.until > serverNow() && !hostMember));
+  const hideMain = $derived(!!hostMember || petAway);
 
   /* ---------------- pet berjalan ---------------- */
   // `pos` dipakai untuk urutan kedalaman (diperbarui saat pet pindah petak);
@@ -267,7 +271,8 @@
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
   type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string }; behind?: boolean };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
-  const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop }) : '');
+  // pulang kerja: pet memegang amplop gaji sampai gajinya diterima
+  const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop ?? (mode === 'home' && G.now > 0 && gajiWaiting() ? 'amplop' : undefined) }) : '');
   /** gambar pet lain disimpan per pet: hanya dibuat ulang bila tampilannya berubah (bukan setiap ada yang pindah petak) */
   const markupCache = new Map<string, { k: string; h: string }>();
   function compMarkup(c: Comp) {
@@ -475,12 +480,37 @@
     if (square) return wide ? { t: 92, b: 110, l: 24, r: 340 } : vw > vh ? { t: 64, b: 120, l: 16, r: 16 } : { t: Math.min(vh * 0.2, 175), b: Math.min(vh * 0.34, 310), l: 8, r: 8 };
     if (planning) return wide ? { t: 92, b: 230, l: 24, r: 24 } : vw > vh ? { t: 64, b: 150, l: 16, r: 16 } : { t: Math.min(vh * 0.17, 140), b: Math.min(vh * 0.36, 320), l: 8, r: 8 };
     // desktop: bawah = dock + kartu tugas, kanan = tombol aksi (+ panel tamu), supaya rumah tidak tertutup menu
-    if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 150, l: 24, r: guestBar ? 520 : 170 };
+    // kartu "Terima gaji" kerja sambilan di kanan bawah: rumah dibingkai di kirinya (pet pemegang amplop terlihat)
+    if (wide) return mode === 'visit' ? { t: 200, b: 110, l: 24, r: 340 } : { t: 92, b: 150, l: 24, r: Math.max(guestBar ? 520 : 170, homePad?.r ?? 0) };
     if (vw > vh) return { t: 64, b: 84, l: 16, r: 16 };
     // berkunjung di HP: ruang di antara kartu rumah teman (atas) dan bar kunjungan (bawah), diukur dari layar
     if (mode === 'visit') return visitPad ? { t: visitPad.t, b: visitPad.b, l: 8, r: 8 } : { t: Math.min(vh * 0.3, 270), b: Math.min(vh * 0.27, 250), l: 8, r: 8 };
+    // kartu kerja sambilan "Terima gaji" (HP): rumah dibingkai di antara HUD dan kartu supaya pet pemegang amplop terlihat
+    if (homePad && !homePad.r) return { t: homePad.t, b: homePad.b, l: 8, r: 8 };
     return { t: Math.min(vh * 0.26, 225), b: guestBar ? Math.min(vh * 0.42, 390) : G.edit ? Math.min(vh * 0.27, 240) : Math.min(vh * 0.25, 230), l: 8, r: 8 };
   }
+  let homePad = $state<{ t: number; b: number; r?: number } | null>(null);
+  $effect(() => {
+    if (mode !== 'home' || !wrapEl) { homePad = null; return; }
+    const isWide = wide;
+    const measure = () => {
+      if (!wrapEl || G.jepret || G.immersive || document.hidden) return;
+      const card = document.querySelector(isWide ? '.kcard.gaji' : '.game.kfocus .kcard')?.getBoundingClientRect();
+      if (!card?.height) { if (homePad) homePad = null; return; }
+      const box = wrapEl.getBoundingClientRect(), hud = document.querySelector('.hud')?.getBoundingClientRect();
+      if (isWide) {
+        const r = Math.max(0, Math.round(box.right - card.left + 16));
+        if (!homePad || Math.abs((homePad.r ?? 0) - r) > 6) homePad = { t: 0, b: 0, r };
+        return;
+      }
+      const t = Math.max(40, Math.round((hud?.bottom ?? 90) - box.top + 12)), b = Math.max(40, Math.round(box.bottom - card.top + 12));
+      if (box.height - t - b < 70) return;
+      if (!homePad || Math.abs(homePad.t - t) > 6 || Math.abs(homePad.b - b) > 6) homePad = { t, b };
+    };
+    const t0 = setTimeout(measure, 80);
+    const id = setInterval(measure, 700);
+    return () => { clearTimeout(t0); clearInterval(id); };
+  });
   /** berkunjung di HP: tepi atas/bawah kamera = bawah kartu rumah teman & atas bar kunjungan (atau dock), dalam px ruangan.
    *  Diukur ulang berkala (kartu/bar bisa berubah tinggi: obrolan dibuka, hadiah diambil); tidak saat menu perabot,
    *  Jepret, atau layar penuh (bar disembunyikan sementara: kamera tidak ikut melompat). */
@@ -543,7 +573,7 @@
     const m = G.cam, f = focusId, w = vw, h = vh, pl = planning;
     // saat mengatur denah kamera tidak ikut bergeser setiap ruangan dipindah
     if (!pl) void planSig;
-    void editId; void guestBar; void visitPad;
+    void editId; void guestBar; void visitPad; void homePad;
     if (!w || !h) return;
     untrack(() => {
       if (!plan.rooms.length) return;
@@ -2122,6 +2152,8 @@
     // pet tuan rumah yang tidur / beraktivitas tidak menghalangi tamu berjalan
     if ((mode === 'home' || square) && acting) return;
     if (mode === 'home' && asleep) { toast(`Ssst… ${petData.name} lagi tidur.`); return; }
+    // pet sedang kerja sambilan: perabot & jendela menunggu pet pulang
+    if (mode === 'home' && petAway && t.closest('.furn, .spot')) { petFree('Pakai perabot'); return; }
     if (mode === 'home' || square) {
       const f = t.closest('.furn') as SVGElement | null;
       if (f) return openMenu(e, { room: f.dataset.r ?? '', index: Number(f.dataset.i) });
@@ -2199,7 +2231,8 @@
     if (square || reduced()) return;
     const t = setInterval(() => {
       const idle = performance.now() - idleSince;
-      const ok = G.santai && wide && !document.hidden && !G.sheet && !G.jepret && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free';
+      // kerja sambilan: pet tidak di rumah / kartu Terima gaji terbuka → kamera tetap membingkai rumah
+      const ok = G.santai && wide && !document.hidden && !G.sheet && !G.jepret && !G.edit && !G.plan && !G.bath && !G.feeding && !menu && !inGameNow() && G.cam !== 'free' && !(mode === 'home' && (petAway || gajiWaiting()));
       if (!ok || idle < 30_000) { if (santaiOn && !ok) { santaiOn = false; recam(); } return; }
       if (idle > 180_000) { if (santaiOn) { santaiOn = false; recam(); } return; }
       santaiOn = true;

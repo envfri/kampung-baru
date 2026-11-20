@@ -2,6 +2,7 @@
   import { mood, xpToNext, petSVG } from '@kb/shared';
   import { G, needsNow, wearItems, fmt, settings, petLook, isSleeping } from '../lib/game.svelte';
   import { needsSaving } from '../lib/account.svelte';
+  import { working, gajiWaiting } from '../lib/kerja.svelte';
   import { I, COIN, PEARL } from '../lib/icons';
   const pet = $derived(G.me.pet);
   const need = $derived(xpToNext(pet.level, settings().economy ?? { xpBase: 40, xpStep: 20 }));
@@ -26,7 +27,7 @@
     <span class="id">
       <span class="name"><span class="nm">{pet.name}</span><span class="lv">Lv {pet.level}</span></span>
       <span class="xp" title="{pet.xp}/{need} XP"><i style="width:{Math.min(100, (pet.xp / need) * 100)}%"></i></span>
-      <span class="mood">{mood(pet.name, needsNow(), { sleeping: isSleeping(), sick: !!pet.sick, chubby: (pet.chub ?? 0) > 0.25 })}</span>
+      <span class="mood">{G.now > 0 && working() ? `${pet.name} lagi kerja` : G.now > 0 && gajiWaiting() ? `${pet.name} bawa amplop` : mood(pet.name, needsNow(), { sleeping: isSleeping(), sick: !!pet.sick, chubby: (pet.chub ?? 0) > 0.25 })}</span>
     </span>
   </button>
   <div class="right">

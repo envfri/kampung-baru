@@ -3,12 +3,12 @@ import { forgetMute } from './square';
 import { checkCaturSettings } from '../lib/catur-game';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun, checkKerja } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
 import {
-  addItem, bad, bumpCatalog, credit, forbidden, getSettings, hashPassword, HttpError, invalidateBanned,
+  addItem, bad, bumpCatalog, credit, forbidden, getCatalog, getSettings, hashPassword, HttpError, invalidateBanned,
   invalidateCaches, notFound, today, verifyPassword,
 } from '../lib/core';
 import { audit, createAdminSession, destroyAdminSession, requireAdmin } from '../lib/auth';
@@ -21,7 +21,7 @@ import { zepay, zepayConfigured, zepayMode, zepayWebhookUrl, ZePayError, type Ze
 const zErr = (e: unknown) => (e instanceof ZePayError ? `${e.message} (${e.code})` : String((e as any)?.message ?? e));
 
 const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material', 'room'] as const;
-const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games', 'square'] as const;
+const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games', 'square', 'jobs', 'ronda'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const MIME = ['image/png', 'image/webp', 'image/jpeg', 'image/svg+xml'];
@@ -563,6 +563,8 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     checkCaturSettings(value, (msg) => { throw bad('invalid_settings', msg); });
     checkLudo(value.ludo);
     checkAjakAlun(value.ajakAlun, (msg) => { throw bad('invalid_settings', msg); });
+    const catK = await getCatalog(db);
+    checkKerja(value.kerja, (msg) => { throw bad('invalid_settings', msg); }, (id) => !!catK.byId.get(id));
     const fac = value.visit.facility;
     if (!(Number.isInteger(fac.hostCoins) && fac.hostCoins >= 0 && fac.hostCoins <= 100)) throw bad('invalid_settings', 'Kunjungan bareng › facility: tip koin tuan rumah harus bilangan bulat 0–100.');
     if (!(Number.isInteger(fac.hostMaxPerDay) && fac.hostMaxPerDay >= 0 && fac.hostMaxPerDay <= 1000)) throw bad('invalid_settings', 'Kunjungan bareng › facility: batas tip per hari harus bilangan bulat 0–1000.');

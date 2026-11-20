@@ -3,16 +3,37 @@
   // Peta kampung: pet berjalan menyusuri jalan ke tempat yang diketuk (toko, kebun, kolam, ...), lalu masuk.
   import { onDestroy, onMount, untrack } from 'svelte';
   import { renderMap, renderPet, MAP_VIEWBOX } from '@kb/shared';
-  import { G, toast, activeDecor, wearItems, isSleeping } from '../lib/game.svelte';
+  import { G, toast, activeDecor, wearItems, isSleeping, serverNow } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
   import { api } from '../lib/api';
+  import { K, working, shift, petFree, uniformWear, workLoc, sisa, boardSeen } from '../lib/kerja.svelte';
 
   let wrap: HTMLDivElement | undefined = $state();
   let svgEl: SVGSVGElement | undefined = $state();
   const locs = $derived<any[]>(G.catalog?.locations ?? []);
   const html = $derived(renderMap(locs, activeDecor()));
   const f = $derived(G.catalog?.settings?.features ?? {});
-  const petHtml = $derived(renderPet(G.me.pet, wearItems(G.me.pet.wear)));
+  /* ---------- kerja sambilan: pet di tempat kerja (berseragam) dengan hitung mundur ---------- */
+  const job = $derived(G.now > 0 && (working() || K.going) ? shift()?.job ?? null : null);
+  const jobLoc = $derived(job ? locs.find((l) => l.id === workLoc(job)) ?? null : null);
+  const petHtml = $derived(renderPet(G.me.pet, wearItems(job ? uniformWear(job, G.me.pet.wear) : G.me.pet.wear)));
+  /** tempat berdiri pet saat bekerja (di depan pintu toko, di antara bedeng, di dermaga, di bale pos ronda, ...) */
+  function workSpot(l: any): [number, number] {
+    switch (l.kind) {
+      case 'garden': return [l.x - 4, l.y - 32];
+      case 'pond': return [l.x - 45, l.y - 34];
+      case 'ronda': return [l.x - 12, l.y - 30];
+      case 'race': return [l.x, l.y - 30];
+      case 'square': return [l.x - 40, l.y - 40];
+      case 'jobs': return [l.x - 22, l.y + 6];
+      default: return [l.x + 26, l.y + 5];
+    }
+  }
+  /** Papan Lowongan baru: lencana BARU sampai papannya pernah dibuka di HP ini */
+  const lowongan = $derived(locs.find((l) => l.kind === 'jobs' && l.enabled !== false));
+  const baru = $derived(!!lowongan && G.catalog?.settings?.kerja?.on !== false && !boardSeen() && G.sheet !== 'kerja');
+  let atWork = $state(false);
+  const workLeft = $derived(job && atWork && G.now > 0 ? sisa((shift()?.endsAt ?? 0) - serverNow()) : '');
 
   /* ---------- alun-alun: berapa orang sedang di sana (tampil di peta supaya yang lain tertarik datang) ---------- */
   let sq = $state<{ max: number; squares: { id: number; count: number }[] } | null>(null);
@@ -48,11 +69,16 @@
     return [l.x, Math.max(ROAD + 20, top)];
   }
   const home = () => locs.find((l) => l.id === G.mapAt) ?? locs.find((l) => l.kind === 'home');
-  let at = $state<[number, number]>(untrack(() => door(home())));
+  // pet yang sedang kerja (bukan baru berangkat) langsung tampil di tempat kerjanya
+  untrack(() => { if (K.going && Date.now() - K.goingAt > 8000) K.going = null; });
+  const startAtWork = untrack(() => !!jobLoc && !K.going);
+  let at = $state<[number, number]>(untrack(() => (startAtWork && jobLoc ? workSpot(jobLoc) : door(home()))));
+  atWork = startAtWork;
   let flip = $state(false);
   let walking = $state(false);
   let entering = $state(false);
   let target: any = null;
+  let after: (() => void) | null = null;
   let pts: [number, number][] = [];
   let raf = 0, last = 0, timer: any;
 
@@ -63,8 +89,13 @@
     return s && f[s[0]] === false ? `${s[1]} sedang ditutup.` : '';
   }
 
+  /** tempat yang butuh pet (lomba, kolam, Balai Main, alun-alun) saat pet sedang kerja sambilan */
+  const NEEDS_PET: Record<string, string> = { race: 'Ikut lomba', pond: 'Mancing', games: 'Main di Balai Main', square: 'Main di alun-alun' };
   function open(l: any) {
+    if (NEEDS_PET[l.kind] && !petFree(NEEDS_PET[l.kind])) return;
     switch (l.kind) {
+      case 'jobs': G.sheetArg = null; G.sheet = 'kerja'; break;
+      case 'ronda': G.sheetArg = { job: 'ronda' }; G.sheet = 'kerja'; break;
       case 'home': G.view = 'home'; break;
       case 'shop': case 'pearl': G.shopId = l.id; G.view = 'shop'; break;
       case 'social': G.sheet = 'friends'; break;
@@ -82,6 +113,18 @@
   function arrive(l: any) {
     walking = false;
     G.mapAt = l.id;
+    // berangkat kerja: jalan sedikit ke tempat kerjanya lalu mulai bekerja (tempatnya tidak dibuka)
+    if (K.going === l.id) {
+      K.going = null;
+      target = null;
+      pts = [workSpot(l)];
+      after = () => { walking = false; atWork = true; sfx.pop(); };
+      walking = true;
+      cancelAnimationFrame(raf);
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+      return;
+    }
     sfx.pop();
     entering = true;
     timer = setTimeout(() => { entering = false; open(l); }, 280);
@@ -92,6 +135,13 @@
     if (!l || entering) return;
     const why = closed(l);
     if (why) { toast(why); return; }
+    // pet sedang kerja: pet tetap di tempat kerja (yang masih berjalan ke sana langsung sampai), pemain mampir sendiri
+    // (tempat yang butuh pet ditolak di open)
+    if (job && K.going !== id) {
+      if (!atWork) { cancelAnimationFrame(raf); pts = []; target = null; after = null; walking = false; K.going = null; if (jobLoc) at = workSpot(jobLoc); atWork = true; }
+      sfx.tap(); open(l); return;
+    }
+    atWork = false;
     // ketuk tujuan yang sama saat masih berjalan: langsung sampai
     if (walking && target?.id === id) { cancelAnimationFrame(raf); at = door(l); pts = []; return arrive(l); }
     target = l;
@@ -125,6 +175,7 @@
     follow();
     if (pts.length) raf = requestAnimationFrame(tick);
     else if (target) arrive(target);
+    else if (after) { const f = after; after = null; f(); }
   }
 
   /** di HP potret peta lebih lebar dari layar: geser mengikuti pet */
@@ -174,13 +225,27 @@
         <text bind:this={tSub} x={-w / 2 + 13} y="15" class="sub">{alunSub}</text>
       </g>
     {/if}
-    <g class="walker" class:walking class:entering pointer-events="none" transform="translate({at[0].toFixed(1)} {at[1].toFixed(1)})">
+    {#if baru && lowongan}
+      <g class="baru" pointer-events="none" transform="translate({lowongan.x + 40} {lowongan.y - 104})">
+        <rect x="-24" y="-11" width="48" height="22" rx="11" fill="#E0583F" stroke="#2B2F4A" stroke-width="2.2" />
+        <text x="0" y="5" text-anchor="middle" class="bt">BARU</text>
+      </g>
+    {/if}
+    <g class="walker" class:walking class:entering class:atwork={atWork && !!job} pointer-events="none" transform="translate({at[0].toFixed(1)} {at[1].toFixed(1)})">
       <ellipse cx="0" cy="1" rx="20" ry="6" fill="#2B2F4A" opacity=".18" />
       <g class="body"><g transform="scale(.42)"><g transform={flip ? 'scale(-1 1)' : ''}><g class="pet-bob">{@html petHtml}</g></g></g></g>
+      {#if workLeft}
+        {@const w = workLeft.length * 7 + 46}
+        <g class="workpill" transform="translate(0 -70)">
+          <rect x={-w / 2} y="-12" width={w} height="24" rx="12" fill="#FFFDF7" stroke="#2B2F4A" stroke-width="2.2" />
+          <circle cx={-w / 2 + 13} cy="0" r="6.5" fill="#F2B632" stroke="#2B2F4A" stroke-width="1.6" /><path d="M{-w / 2 + 13} -3.5V0l2.6 1.8" stroke="#2B2F4A" stroke-width="1.5" fill="none" stroke-linecap="round" />
+          <text x={-w / 2 + 25} y="4.5" class="wt">{workLeft}</text>
+        </g>
+      {/if}
     </g>
   </svg>
 </div>
-<p class="hint">Ketuk tempat yang ingin dikunjungi, {G.me.pet.name} akan berjalan ke sana</p>
+<p class="hint">{#if job && atWork}{G.me.pet.name} sedang {shift()?.doing} di {shift()?.place}. Ketuk tempat lain untuk mampir sendiri.{:else}Ketuk tempat yang ingin dikunjungi, {G.me.pet.name} akan berjalan ke sana{/if}</p>
 
 <style>
   .wrap { position: absolute; inset: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -191,13 +256,20 @@
   .walker.walking .pet-bob { animation: mapwaddle .26s ease-in-out infinite alternate; }
   @keyframes mapwaddle { from { transform: rotate(-7deg) translateY(0); } to { transform: rotate(7deg) translateY(-6px); } }
   .sqlive .t { font: 800 14px var(--font); fill: #2B2F4A; }
+  .baru .bt { font: 800 12px var(--font); fill: #FFFDF7; letter-spacing: .5px; }
+  .baru { animation: baru 1.4s ease-in-out infinite; transform-box: fill-box; }
+  @keyframes baru { 50% { opacity: .55; } }
+  .workpill .wt { font: 800 12.5px var(--font); fill: #2B2F4A; }
+  /* pet bekerja: sibuk bergoyang kecil */
+  .walker.atwork .pet-bob { animation: workbusy 1.1s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+  @keyframes workbusy { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg) translateY(-3px); } }
   .sqlive .hot { font: 800 11.5px var(--font); fill: #FFFDF7; }
   .sqlive .sub { font: 700 11.5px var(--font); fill: #5F6478; }
   .sqlive.on .dot { animation: livedot 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes livedot { 50% { opacity: .35; } }
   .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); margin: 0; background: rgba(255,253,247,.92); border: 2px solid var(--ink); border-radius: 12px; padding: 3px 10px; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center; width: max-content; max-width: calc(100vw - 24px); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { .map { min-width: 0; } }
-  @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob, .walker.atwork .pet-bob, .baru { animation: none; } }
   /* Pengaturan › Kurangi animasi (pilihan di game) */
-  :global(:root.reduce-motion) .walker.walking .pet-bob { animation: none; }
+  :global(:root.reduce-motion) .walker.walking .pet-bob, :global(:root.reduce-motion) .walker.atwork .pet-bob, :global(:root.reduce-motion) .baru { animation: none; }
 </style>

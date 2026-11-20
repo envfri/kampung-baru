@@ -1,6 +1,7 @@
 // Tautan dalam game (dipakai notifikasi & deep link): /#garden, /#shop, /#friends, ...
 import { G, goTo } from './game.svelte';
 import { JP } from './jepret.svelte';
+import { gajiWaiting, working } from './kerja.svelte';
 
 export function openLink(url: string) {
   let hash = '';
@@ -24,6 +25,12 @@ export function openLink(url: string) {
     case 'shop': goTo(G.shopId || 'pasar'); break;
     case 'bangunan': goTo('bangunan'); break;
     case 'alun': goTo('alun'); break;
+    // kerja sambilan: pulang bawa amplop → rumah (kartu Terima gaji); sedang kerja → peta; selain itu jalan ke Papan Lowongan
+    case 'kerja':
+      if (gajiWaiting()) G.view = 'home';
+      else if (working()) G.view = 'map';
+      else goTo(G.catalog?.locations?.find((l: any) => l.kind === 'jobs')?.id ?? 'lowongan');
+      break;
     case 'rooms': G.view = 'home'; G.sheet = 'rooms'; break;
     case 'friends': G.view = 'home'; G.sheet = 'friends'; break;
     case 'daily': G.view = 'home'; G.sheet = 'daily'; break;

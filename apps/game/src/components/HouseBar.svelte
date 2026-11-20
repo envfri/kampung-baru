@@ -1,7 +1,8 @@
 <script lang="ts">
   // Bar kunjungan bareng: main dengan pet teman (saat berkunjung), obrolan, ekspresi, foto bareng, main bareng.
   // Di rumah sendiri bar ini muncul bila ada tamu yang sedang live.
-  import { G, item, items, settings, toast } from '../lib/game.svelte';
+  import { G, item, items, settings, toast, serverNow } from '../lib/game.svelte';
+  import { jamPulang } from '../lib/kerja.svelte';
   import { H, say, emote, coop, takePhoto } from '../lib/house.svelte';
   import { startGame } from '../lib/bareng.svelte';
   import { barengTiles, playersOf } from '../lib/barengTiles';
@@ -24,9 +25,12 @@
   const liveOn = $derived(H.live && !H.full);
   const foods = $derived(items().filter(([, it]) => it.kind === 'food' && (G.me.inventory?.[it.id] ?? 0) > 0).map(([, it]) => it));
   const hostName = $derived(G.visit?.pet?.name ?? 'pet teman');
+  /** pet tuan rumah sedang kerja sambilan: tidak ada di rumah (main dengan petnya ditutup, perabot tetap boleh dipakai) */
+  const away = $derived(mode === 'visit' && G.now > 0 && !!G.visit?.work && G.visit.work.until > serverNow() && !host);
 
   const status = $derived.by(() => {
     if (mode === 'home') return `Tamu di rumahmu: ${[...here, ...H.elsewhere.filter((e) => !e.host)].map((m) => m.name).join(', ')}. Ketuk petnya untuk pilihan.`;
+    if (away) return `${hostName} sedang ${G.visit.work.doing} di ${G.visit.work.place}, pulang ${jamPulang(G.visit.work.until - G.offset)}. Perabot ${G.visit?.owner?.display_name ?? 'teman'} tetap boleh dipakai.`;
     if (H.full) return 'Rumah sedang ramai (penuh). Kamu tetap bisa main dengan pet teman.';
     if (H.reason === 'host_off') return `${G.visit?.owner?.display_name} sedang tidak menerima tamu live. Kamu tetap bisa main dengan ${hostName}.`;
     const others = here.filter((m) => !m.host).map((m) => m.name);
@@ -81,7 +85,7 @@
   {#if mode === 'visit' && together.on}
     <div class="acts" role="group" aria-label="Main dengan {hostName}">
       {#each [['sapa', 'Sapa'], ['peluk', 'Peluk'], ['camilan', 'Camilan'], ['kejar', 'Kejar'], ['duduk', 'Duduk']] as [k, l]}
-        <button class="btn act" disabled={G.busy} onclick={() => (k === 'camilan' ? toggle('snack') : act(k))}>{@html ACT_ICON[k]}<span>{l}</span></button>
+        <button class="btn act" disabled={G.busy || away} title={away ? `${hostName} sedang kerja` : undefined} onclick={() => (k === 'camilan' ? toggle('snack') : act(k))}>{@html ACT_ICON[k]}<span>{l}</span></button>
       {/each}
     </div>
     <p class="left"><span class="lg">Main berhadiah tersisa hari ini:</span><span class="sm">Sisa berhadiah:</span> <b>{together.left}</b></p>

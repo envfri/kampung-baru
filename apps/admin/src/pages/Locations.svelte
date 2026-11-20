@@ -2,7 +2,7 @@
   import CrudPage, { type CFilter, esc } from '../components/CrudPage.svelte';
   import Section from '../components/ui/Section.svelte';
   import { renderMap, MAP_VIEWBOX } from '@kb/shared';
-  const KIND: [string, string][] = [['shop', 'Toko'], ['pearl', 'Toko Mutiara'], ['social', 'Tempat nongkrong (teman)'], ['garden', 'Kebun'], ['race', 'Lapangan lomba'], ['pond', 'Kolam pancing'], ['games', 'Balai Main'], ['square', 'Alun-alun (tempat berkumpul semua pemain)'], ['home', 'Rumah']];
+  const KIND: [string, string][] = [['shop', 'Toko'], ['pearl', 'Toko Mutiara'], ['social', 'Tempat nongkrong (teman)'], ['garden', 'Kebun'], ['race', 'Lapangan lomba'], ['pond', 'Kolam pancing'], ['games', 'Balai Main'], ['square', 'Alun-alun (tempat berkumpul semua pemain)'], ['jobs', 'Papan Lowongan (kerja sambilan)'], ['ronda', 'Pos Ronda (kerja ronda malam)'], ['home', 'Rumah']];
   const label = Object.fromEntries(KIND);
   const short = (k: string) => (label[k] ?? k).replace(/ \(.*\)$/, '');
   const FILTERS: CFilter[] = [

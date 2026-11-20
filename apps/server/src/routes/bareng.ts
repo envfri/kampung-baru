@@ -17,6 +17,7 @@ import { houseLive } from './house';
 import { squareLiveOf, squareMembers } from './square';
 import { caturBegin, caturCfg, caturGate, caturPlay, caturRank, caturSeat, caturTick, caturView, longMult, type CaturGame } from '../lib/catur-game';
 import { ludoAct, ludoBegin, ludoNew, ludoRanked, ludoTick, ludoView, type LudoIO, type LudoState } from '../lib/ludo-game';
+import { assertNotWorking } from '../lib/kerja';
 
 type Player = { id: string; name: string; pet: any };
 type Result = { id: string; name: string; rank: number; score?: number; timeMs?: number | null; coins: number; xp: number; capped: boolean; left?: boolean; short?: boolean };
@@ -301,6 +302,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     const uid = req.user!.id;
     const game = String(req.body?.game ?? '') as BarengGame;
     if (!(game in BARENG_GAMES)) throw bad('invalid', 'Permainan tidak dikenal.');
+    await assertNotWorking(db, uid, 'Main bareng');
     const place = placeOf(uid, req.body ?? {}, game);
     for (const s of SESSIONS.values()) {
       if (s.place !== place || s.game !== game || s.phase === 'selesai') continue;
@@ -327,6 +329,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
   async function join(s: Session, uid: string, req: any) {
     if (s.players.some((p) => p.id === uid)) return { ok: true, game: view(s) };
     if (s.phase !== 'ajak') throw bad('started', 'Permainannya sudah dimulai.');
+    await assertNotWorking(db, uid, 'Main bareng');
     const g = BARENG_GAMES[s.game];
     if (s.players.length >= g.max) throw bad('full', 'Pemainnya sudah penuh. Kamu bisa menonton.');
     const p = me(s.place, uid);

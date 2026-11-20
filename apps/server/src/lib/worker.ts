@@ -11,6 +11,7 @@ import { waEnabled } from './klikflow';
 import { drainOutbox } from './outbox';
 import { getTemplate } from './notify-config';
 import { settlePet, isAsleep, type PetRow } from './state';
+import { jobInfo } from './kerja';
 
 const LOCK = 7_420_011;
 
@@ -18,7 +19,7 @@ export async function runJobs(db: Db, log?: any) {
   const s = await getSettings(db);
   const cat = await getCatalog(db);
   const outbox: { userId: string; key: string; vars: Vars; url?: string }[] = [];
-  const on = { garden: await eventOn(db, 'garden_ready'), daily: await eventOn(db, 'daily_reminder'),
+  const on = { garden: await eventOn(db, 'garden_ready'), daily: await eventOn(db, 'daily_reminder'), kerja: await eventOn(db, 'kerja_done'),
     needs: (await Promise.all(['needs_kenyang', 'needs_bersih', 'needs_ceria', 'needs_energi'].map((k) => eventOn(db, k)))).some(Boolean) };
   let broadcasts: any[] = [];
 
@@ -41,7 +42,13 @@ export async function runJobs(db: Db, log?: any) {
       }
     }
 
-    // 2) pet butuh perhatian (hanya pemain yang sedang tidak membuka game)
+    // 1b) kerja sambilan selesai: "<pet> sudah pulang kerja, bawa gaji!" (sekali per shift)
+    const due = await t.query<{ user_id: string; job: string }>(
+      `update pet_jobs set notified_at = now() where status = 'working' and ends_at <= now() and notified_at is null returning user_id, job`,
+    );
+    if (on.kerja) for (const d of due) { const j = jobInfo(d.job); outbox.push({ userId: d.user_id, key: 'kerja_done', vars: { tempat: j.place, pekerjaan: j.doing } }); }
+
+    // 2) pet butuh perhatian (hanya pemain yang sedang tidak membuka game; pet yang sedang kerja sambilan tidak turun kebutuhannya)
     if (on.needs) {
       const r = s.needs.decayPerHour;
       const rows = await t.query<{ user_id: string; name: string; kenyang: number; bersih: number; ceria: number; energi: number }>(
@@ -53,7 +60,7 @@ export async function runJobs(db: Db, log?: any) {
              greatest(0, p.energi  - $4::float8 * extract(epoch from now() - p.needs_at) / 3600) as energi
            from pets p join users u on u.id = p.user_id
            where u.banned_at is null and u.last_seen_at < now() - interval '30 minutes' and u.last_seen_at > now() - interval '14 days'
-             and p.sleep_from is null
+             and p.sleep_from is null and p.work_until is null
              and (p.needs_notified_at is null or p.needs_notified_at < now() - ($5::int * interval '1 hour'))
          )
          select * from c where least(kenyang, bersih, ceria, energi) < $6 limit 500`,

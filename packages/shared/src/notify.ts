@@ -100,6 +100,12 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{pet} kurang enak badan', body: '{pet} sakit. Belikan jamu di Warung Jamu, ya.', wa: '{pet} kurang enak badan 🤒 Belikan jamu di Warung Jamu, ya.\n{link}' },
   },
   {
+    key: 'kerja_done', group: 'Pet', label: 'Pulang kerja sambilan', kind: 'needs', allowed: ALL, url: '/#kerja',
+    desc: 'Sekali per shift saat waktu kerja sambilan pet habis: pet pulang membawa amplop gaji yang bisa diterima di rumah.',
+    vars: { tempat: 'Tempat kerja, mis. Pasar Pagi', pekerjaan: 'Pekerjaan, mis. jaga warung' },
+    defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{pet} sudah pulang kerja', body: '{pet} sudah pulang kerja, bawa gaji! Terima amplopnya di rumah, ya.', wa: '{pet} sudah pulang dari {tempat}, bawa gaji 💌 Terima amplopnya di rumah, ya.\n{link}' },
+  },
+  {
     key: 'needs_kenyang', group: 'Pet', label: 'Pet lapar', kind: 'needs', allowed: ALL, url: '/',
     desc: 'Pemain tidak membuka game dan kenyang pet di bawah ambang (atur ambang di Ekonomi & fitur › Waktu notifikasi otomatis).',
     vars: {},
@@ -234,7 +240,7 @@ export const NOTIFY_LOCKED = ['login_code', 'wa_verify'];
 export const NOTIFY_SAMPLE: Record<string, string> = {
   nama: 'Sari', pet: 'Mochi', mutiara: '10', nominal: 'Rp15.000', invoice: 'KBL-01JC0KY2MJ', judul: 'Pekan Ceria dimulai!',
   isi: 'Hadiah koin +20% sampai Minggu.', event: 'Pekan Panen Raya', deskripsi: 'Kumpulkan poin panen dan ambil caping emas edisi terbatas.',
-  tanaman: 'Jagung', jumlah: '1', teman: 'Budi', pesan: ': “Selamat ulang tahun!”', kode: '482913',
+  tanaman: 'Jagung', jumlah: '1', teman: 'Budi', pesan: ': “Selamat ulang tahun!”', kode: '482913', tempat: 'Pasar Pagi', pekerjaan: 'jaga warung',
 };
 
 export const NOTIFY_EVENT_BY_KEY: Record<string, NotifyEventDef> = Object.fromEntries(NOTIFY_EVENTS.map((e) => [e.key, e]));

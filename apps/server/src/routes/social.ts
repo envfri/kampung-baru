@@ -2,13 +2,14 @@ import type { FastifyInstance } from 'fastify';
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, today, track, weekKey } from '../lib/core';
 import { requireUser } from '../lib/auth';
-import { loadRooms, petView } from '../lib/state';
+import { isWorking, loadRooms, petView } from '../lib/state';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { eventOn, notifyEvent } from '../lib/notify';
 import { presenceOf, guestsAt, forgetFriend, metInHouse } from './house';
 import { metInSquare } from './square';
 import { ping } from '../lib/pings';
+import { assertNotWorking, jobInfo, workingOf } from '../lib/kerja';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -39,10 +40,13 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     // status online (bila tidak disembunyikan) & tamu yang sedang main di rumahnya
     const names = new Map(rows.map((r: any) => [r.id, r.display_name]));
     names.set(req.user!.id, 'kamu');
+    // pet teman yang sedang kerja sambilan: "Sedang kerja di Warung"
+    const work = await workingOf(db, rows.map((r: any) => r.id));
     const friends = rows.map((r: any) => {
       const p = r.show_online ? presenceOf(r.id, r.last_seen_at) : null;
       const { show_online, live_visits, ...rest } = r;
-      return { ...rest, online: !!p, where: p?.where ?? null, at: p?.where === 'visit' && p.host ? names.get(p.host) ?? 'teman' : null, alun: p?.where === 'alun' ? Number(p.host) || 1 : null, guests: live_visits ? guestsAt(r.id) : 0 };
+      const w = work.get(r.id);
+      return { ...rest, online: !!p, where: p?.where ?? null, at: p?.where === 'visit' && p.host ? names.get(p.host) ?? 'teman' : null, alun: p?.where === 'alun' ? Number(p.host) || 1 : null, guests: live_visits ? guestsAt(r.id) : 0, work: w ? { job: w.job, short: w.short, until: w.until } : null };
     });
     friends.sort((a: any, b: any) => Number(b.online) - Number(a.online) || b.guests - a.guests);
     return { friends };
@@ -212,6 +216,8 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const id = String(req.params.id);
     if (!UUID.test(id)) throw bad('invalid', 'ID tidak valid.');
     if (id !== req.user!.id && !(await isFriend(req.user!.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
+    // pet sendiri sedang kerja sambilan: tidak bisa diajak berkunjung
+    if (id !== req.user!.id) await assertNotWorking(db, req.user!.id, 'Berkunjung');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     const [owner, pet, rooms, visited, likes, photo, book, used] = await Promise.all([
       db.one<any>(`select id, display_name, live_visits, facility_visits, show_online, last_seen_at from users where id = $1 and banned_at is null`, [id]),
@@ -230,6 +236,8 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const online = owner.show_online ? presenceOf(id, owner.last_seen_at) : null;
     return {
       owner: { id: owner.id, display_name: owner.display_name }, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited,
+      // pet tuan rumah sedang kerja sambilan: tamu melihat catatan di pintu, petnya tidak ada di rumah
+      work: pet && isWorking(pet) ? (() => { const j = jobInfo(pet.work_job); return { job: pet.work_job, place: j.place, doing: j.doing, short: j.short, until: new Date(pet.work_until).getTime() }; })() : null,
       likes: { count: likes?.c ?? 0, liked: !!likes?.mine },
       photo: photo ? { id: photo.id, pose: photo.pose, members: photo.members, scene: photo.scene } : null,
       guestbook: book.map((b: any) => ({ ...b, created_at: new Date(b.created_at).getTime() })),
@@ -279,6 +287,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     const id = String(req.params.id);
     if (!UUID.test(id) || id === me.id) throw bad('invalid', 'Kunjungan tidak valid.');
     if (!(await isFriend(me.id, id))) throw forbidden('Kamu hanya bisa berkunjung ke rumah teman.');
+    await assertNotWorking(db, me.id, 'Berkunjung');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     return db.tx(async (t) => {
       const r = await t.one(`insert into visits (visitor_id, host_id, day) values ($1,$2,$3) on conflict do nothing returning 1 as ok`, [me.id, id, today()]);

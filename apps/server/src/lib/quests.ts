@@ -30,9 +30,9 @@ export function dailyFor(userId: string, day: string, pool: QuestDef[], n: numbe
   return [...pool].sort((a, b) => hash(userId + day + a.id) - hash(userId + day + b.id)).slice(0, Math.max(0, n));
 }
 
-/** kumpulan tugas harian yang bisa terpilih: tugas "bagikan foto" hanya bila fitur Jepret menyala */
-export function dailyPool(qs: QuestDef[], s: { features: Record<string, boolean> }) {
-  return qs.filter((q) => q.kind === 'daily' && (q.event !== 'share' || s.features.jepret !== false));
+/** kumpulan tugas harian yang bisa terpilih: tugas "bagikan foto" hanya bila fitur Jepret menyala, "kerja sambilan" bila Papan Lowongan buka */
+export function dailyPool(qs: QuestDef[], s: { features: Record<string, boolean>; kerja?: { on?: boolean } }) {
+  return qs.filter((q) => q.kind === 'daily' && (q.event !== 'share' || s.features.jepret !== false) && (!q.event.startsWith('kerja') || s.kerja?.on !== false));
 }
 
 const matches = (filter: Record<string, unknown>, props: Record<string, unknown> | undefined) =>

@@ -1,11 +1,11 @@
 // State global game (Svelte 5 runes). Semua angka penting berasal dari server;
 // client hanya menghitung ulang tampilan kebutuhan pet di antara respons.
-import { canRotate, decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planProblem, rotatePlaced, type ItemLike, type Needs } from '@kb/shared';
+import { applyNeedDelta, canRotate, decayNeeds, houseLayout, needsWithSleep, occupied, petLookState, planProblem, rotatePlaced, type ItemLike, type Needs } from '@kb/shared';
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
 export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel' | 'alun';
-export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'kebun' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew' | 'save';
+export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'kebun' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew' | 'save' | 'kerja';
 
 export interface CatalogItem extends ItemLike {
   description: string;
@@ -71,8 +71,8 @@ export const G = $state({
   bath: null as null | { scrub: number; tool: 'sabun' | 'gayung'; rinsing: boolean },
   /** celetukan pet yang sedang tampil */
   speech: null as null | { text: string; n: number },
-  /** ajakan pet ke alun-alun yang sedang tampil (gelembung dengan tombol Ayo! / Nanti) */
-  ajak: null as null | { text: string; sub: string; alun: number; reason: string; down: boolean },
+  /** ajakan pet yang sedang tampil (gelembung dengan tombol Ayo! / Nanti): ke alun-alun, atau sekali saja ke Papan Lowongan */
+  ajak: null as null | { text: string; sub: string; alun: number; reason: string; down: boolean; kind?: 'alun' | 'kerja'; go?: string },
   /** duel yang sedang dibuka (ruang tunggu / sedang dimainkan) */
   duel: null as null | { id: string; game: string; them: any; autostart?: boolean; live?: boolean },
   /** navigasi bawah diredupkan (mis. sedang memancing) supaya tidak terpencet */
@@ -100,6 +100,8 @@ export const serverNow = () => G.now + G.offset;
 export function needsNow(pet = G.me?.pet): Needs {
   if (!pet) return { kenyang: 0, bersih: 0, ceria: 0, energi: 0 };
   const per = settings().needs?.decayPerHour ?? {};
+  // kerja sambilan: beku selama kerja, lalu biaya kerja dikenakan sekali dan turun biasa lagi
+  if (pet.work) return serverNow() < pet.work.until ? { ...pet.needs } : decayNeeds(applyNeedDelta(pet.needs, pet.work.cost ?? {}), pet.work.until, serverNow(), per);
   // tidur: energi naik bertahap sampai bangun (dihitung dari saat mulai tidur)
   if (pet.sleep && settings().sleep) return needsWithSleep(pet.sleep.needs, pet.sleep.from, serverNow(), per, settings().sleep);
   return decayNeeds(pet.needs, pet.needsAt, serverNow(), per);
@@ -123,7 +125,7 @@ export function toast(text: string, kind: 'info' | 'error' | 'good' = 'info', ms
 export function merge(p: any) {
   if (!p || !G.me) return;
   const readyBefore = G.me.quests?.ready ?? 0;
-  for (const k of ['pet', 'wallet', 'inventory', 'room', 'rooms', 'garden', 'gardenLevel', 'limits', 'daily', 'notificationsUnread', 'quests', 'revealed']) if (p[k] !== undefined) G.me[k] = p[k];
+  for (const k of ['pet', 'wallet', 'inventory', 'room', 'rooms', 'garden', 'gardenLevel', 'limits', 'daily', 'notificationsUnread', 'quests', 'revealed', 'kerja']) if (p[k] !== undefined) G.me[k] = p[k];
   if ((G.me.quests?.ready ?? 0) > readyBefore) setTimeout(() => toast('Tugas selesai! Ambil hadiahnya di Tugas.', 'good'), 900);
   if (p.serverNow) G.offset = p.serverNow - Date.now();
 }
@@ -135,7 +137,12 @@ export function setState(s: any) {
   if (s?.serverNow) G.offset = s.serverNow - Date.now();
 }
 
+/** Kerja sambilan: aksi yang butuh pet ditolak karena pet sedang kerja → dialog dengan pilihan "Panggil pulang" (lib/kerja). */
+let workingHook: ((msg: string) => void) | null = null;
+export function setWorkingHook(fn: (msg: string) => void) { workingHook = fn; }
+
 export function fail(e: unknown) {
+  if (e instanceof ApiError && e.code === 'working' && workingHook) { sfx.error(); workingHook(e.message); return; }
   const msg = e instanceof ApiError ? (e.status === 401 ? 'Sesimu berakhir. Masuk lagi untuk melanjutkan.' : e.message) : 'Terjadi kesalahan. Coba lagi.';
   sfx.error();
   toast(msg, 'error');

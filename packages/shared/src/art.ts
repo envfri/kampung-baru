@@ -7,6 +7,7 @@
 import type { HousePlan, HouseDoor, WallSeg } from './house';
 import { BODY_WEAR, EXTRA_WEAR, bodyIcon, mannequin, type BodyParts } from './art-butik';
 import { KEBUN_ICONS, SEED_PICS, seedPacket } from './art-kebun';
+import { KERJA_WEAR, jobBoardSVG, posRondaSVG } from './art-kerja';
 
 export const INK = '#2B2F4A';
 
@@ -703,6 +704,8 @@ const WEAR: Record<string, { label: string; slot: WearSlot; colors: Record<strin
 };
 // Butik Benang v0.32: baju (slot body) + aksesori tambahan
 Object.assign(WEAR, BODY_WEAR, EXTRA_WEAR);
+// Kerja Sambilan: seragam tiap tempat kerja (didapat saat naik ke Karyawan)
+Object.assign(WEAR, KERJA_WEAR);
 
 const WEAR_IMG_BOX: Record<string, [number, number, number, number]> = {
   head: [-48, -112, 96, 52],
@@ -1102,6 +1105,8 @@ const PROPS: Record<string, string> = {
   payungtari: `<g transform="translate(30 -66) rotate(16)"><line x1="0" y1="0" x2="0" y2="34" stroke="${INK}" stroke-width="3"/><path d="M-30 0Q0 -30 30 0Q22 -4 15 0Q8 -4 0 0Q-8 -4 -15 0Q-22 -4 -30 0Z" fill="#E0583F" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M-15 0Q0 -26 15 0" fill="none" stroke="#F2B632" stroke-width="2"/></g>`,
   topi: `<g transform="translate(0 -96)"><ellipse cx="0" cy="12" rx="30" ry="7" fill="#2B2F4A" stroke="${INK}" stroke-width="2"/><rect x="-18" y="-24" width="36" height="36" rx="3" fill="#2B2F4A" stroke="${INK}" stroke-width="2"/><rect x="-18" y="4" width="36" height="6" fill="#E0583F"/><g class="dove" transform="translate(30 -30)"><path d="M-10 0Q0 -12 12 -4Q4 0 12 6Q0 8 -10 0Z" fill="#FFFFFF" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g></g>`,
   wayang: `<g transform="translate(36 -40)"><line x1="0" y1="40" x2="0" y2="-36" stroke="#8A5A36" stroke-width="2.4"/><path d="M0 -40q10 2 8 14q8 6 4 18l-4 22h-8l-4 -22q-4 -12 4 -18q-2 -12 0 -14Z" fill="#C0392B" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><circle cx="2" cy="-34" r="6" fill="#F2B632" stroke="${INK}" stroke-width="1.8"/><path d="M8 -12q16 -6 18 8" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/></g>`,
+  // amplop gaji kerja sambilan, dipegang di samping (pulang kerja, belum diterima)
+  amplop: `<g class="amplop" transform="translate(40 -40) rotate(-14)"><rect x="-15" y="-10" width="30" height="20" rx="2" fill="#F7E7C6" stroke="${INK}" stroke-width="2.8"/><path d="M-15 -9L0 3L15 -9" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><circle cx="0" cy="2.4" r="3.6" fill="#E0583F" stroke="${INK}" stroke-width="1.6"/><circle cx="9" cy="-12" r="5" fill="#F2B632" stroke="${INK}" stroke-width="2"/></g>`,
   // baskom mandi di depan kaki (mode mandi: gosok sabun lalu bilas)
   baskom: `<ellipse cx="0" cy="-10" rx="54" ry="13" fill="#9FD3EC" stroke="${INK}" stroke-width="3" opacity=".92"/><path d="M-54 -10Q-50 16 0 18Q50 16 54 -10Q48 4 0 6Q-48 4 -54 -10Z" fill="#9AA7B8" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><path d="M-36 -6q8 4 16 0M12 -5q8 4 16 0" stroke="#FFFFFF" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
 };
@@ -1966,6 +1971,9 @@ function special(l: LocationLike) {
     for (let i = 0; i < 7; i++) o += `<path d="M${x - 84 + i * 28} ${y - 128}q14 10 28 0" fill="none" stroke="${INK}" stroke-width="1.2"/><circle cx="${x - 70 + i * 28}" cy="${y - 123}" r="3" fill="${['#E0583F', '#F2B632', '#7FC4E8', '#F7A8C4'][i % 4]}"/>`;
     return `<g class="lift">${o}</g>${pill(x, y, l.name)}`;
   }
+  // Kerja Sambilan: papan lowongan (di tepi jalan, label seperti bangunan) & pos ronda
+  if (l.kind === 'jobs') return `${jobBoardSVG(x, y)}${pill(x, y + 12, l.name)}`;
+  if (l.kind === 'ronda') return `${posRondaSVG(x, y)}${pill(x, y, l.name)}`;
   return building(l);
 }
 

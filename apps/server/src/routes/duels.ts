@@ -12,6 +12,7 @@ import { assertAwake, assertHealthy, currentNeeds, lockPet, petView, savePet } f
 import { notifyEvent } from '../lib/notify';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
+import { assertNotWorking } from '../lib/kerja';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 type Side = 'c' | 'o';
@@ -89,6 +90,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const friendId = String(req.body?.friendId ?? '');
     if (!UUID.test(friendId) || friendId === me.id) throw bad('invalid', 'Pilih teman untuk ditantang.');
     if (!(await isFriend(me.id, friendId))) throw forbidden('Kamu hanya bisa menantang teman.');
+    await assertNotWorking(db, me.id, 'Duel');
     const friend = await db.one<{ display_name: string }>(`select display_name from users where id = $1 and banned_at is null`, [friendId]);
     if (!friend) throw notFound('Teman tidak ditemukan.');
     const open = await db.one<{ id: string }>(
@@ -121,6 +123,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
       const me = sideOf(d, uid), them = other(me);
       if (d.status !== 'open' && d.status !== 'live') return d;
       if (d[me + '_started_at']) return d;
+      await assertNotWorking(t, uid, 'Duel');
       const now = Date.now();
       await t.query(`update duels set ${me}_ready_at = now() where id = $1`, [d.id]);
       d[me + '_ready_at'] = new Date(now);
@@ -154,6 +157,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
       if (d[me + '_started_at']) throw bad('started', 'Kamu sudah memainkan duel ini.');
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      await assertNotWorking(t, u.id, 'Duel', pet);
       assertAwake(pet, s);
       assertHealthy(pet, s);
       const cfg = s.games[d.game] ?? {};
