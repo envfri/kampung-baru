@@ -387,7 +387,8 @@
 
   <!-- HP: nampan makanan terbuka → kartu tamu disembunyikan sementara (seperti saat mandi); pet tidur → kartu naik di atas bar tidur -->
   {#if guestBar && !G.jepret && !(G.feeding && !wideDesk)}<HouseBar mode="home" lift={sleeping && !wideDesk && sleepH ? 86 + sleepH + 8 : 0} />{/if}
-  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card && !G.jepret}<HouseBar mode="visit" />{/if}
+  <!-- HP kecil: menu perabot teman tidak muat → bar kunjungan disembunyikan sementara selama menu terbuka -->
+  {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card && !G.jepret && !G.fasMenu}<HouseBar mode="visit" />{/if}
   {#if (G.view === 'home' || G.view === 'visit') && !G.jepret}<CoopPanel /><PhotoPreview />{/if}
   {#if wideDesk && (G.view === 'home' || (G.view === 'visit' && G.visit)) && !G.edit && !G.plan && !G.bath && !playingGame && !G.immersive && !G.jepret}<CamPanel />{/if}
   {#if G.view === 'alun'}

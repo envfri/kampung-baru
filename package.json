@@ -36,6 +36,7 @@
     "test:e2e:perabot3": "node scripts/e2e-perabot3.mjs",
     "test:e2e:edisi1": "node scripts/e2e-edisi1.mjs",
     "test:e2e:tamu": "node scripts/e2e-tamu.mjs",
+    "test:e2e:fasilitas": "node scripts/e2e-fasilitas.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",

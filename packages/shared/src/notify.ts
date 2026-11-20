@@ -167,7 +167,7 @@ export const NOTIFY_EVENTS: NotifyEventDef[] = [
   },
   {
     key: 'visit_play', group: 'Teman', label: 'Tamu main dengan pet-mu', kind: 'social', allowed: ALL, url: '/#bukutamu',
-    desc: 'Teman berkunjung dan bermain dengan pet-mu (sapa, peluk, kasih camilan, ...). Maksimal sekali per teman per jam.',
+    desc: 'Teman berkunjung dan bermain dengan pet-mu (sapa, peluk, kasih camilan, ...) atau memakai perabotmu (aksi mis. "memakai Sofa Santai, ditemani"). Maksimal sekali per teman per jam.',
     vars: { teman: 'Nama tamu', pet: 'Nama pet-mu', aksi: 'Yang dilakukan, mis. "memberi Klepon"' },
     defaults: { enabled: true, channels: ch('inbox', 'push'), title: '{teman} main ke rumahmu', body: '{teman} {aksi} {pet}. Lihat di buku tamu.', wa: '{teman} main ke rumahmu dan {aksi} {pet}.\n{link}' },
   },

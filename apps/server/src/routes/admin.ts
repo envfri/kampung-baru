@@ -563,6 +563,9 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     checkCaturSettings(value, (msg) => { throw bad('invalid_settings', msg); });
     checkLudo(value.ludo);
     checkAjakAlun(value.ajakAlun, (msg) => { throw bad('invalid_settings', msg); });
+    const fac = value.visit.facility;
+    if (!(Number.isInteger(fac.hostCoins) && fac.hostCoins >= 0 && fac.hostCoins <= 100)) throw bad('invalid_settings', 'Kunjungan bareng › facility: tip koin tuan rumah harus bilangan bulat 0–100.');
+    if (!(Number.isInteger(fac.hostMaxPerDay) && fac.hostMaxPerDay >= 0 && fac.hostMaxPerDay <= 1000)) throw bad('invalid_settings', 'Kunjungan bareng › facility: batas tip per hari harus bilangan bulat 0–1000.');
     const jp = value.jepret;
     if (!(Number.isInteger(jp.shareEventsPerDay) && jp.shareEventsPerDay >= 0 && jp.shareEventsPerDay <= 50)) throw bad('invalid_settings', 'Jepret: batas catatan bagikan per hari harus bilangan bulat 0–50.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);

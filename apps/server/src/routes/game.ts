@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { WEAR_SLOTS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -12,8 +12,10 @@ function partFor(kind: keyof typeof PART_LABEL, value: unknown, level: number) {
 import type { Db } from '../db/index';
 import {
   addItem, bad, checkName, coinMultiplier, cooldown, counter, credit, getCatalog, getSettings,
-  HttpError, notFound, purchasable, today, track, yesterday, bumpCounter, type CatalogItem,
+  HttpError, notFound, purchasable, today, track, yesterday, bumpCounter, type Catalog, type CatalogItem,
 } from '../lib/core';
+import type { Settings } from '@kb/shared';
+import { claimFurniture, occupyMs } from '../lib/facility';
 import { requireUser } from '../lib/auth';
 import { J, loadRooms, lockPet, maxItemsFor, petView, playerState, publicCatalog, roomMeta, savePet, currentNeeds, currentWeight, assertAwake, assertHealthy, isAsleep, isSick, wakePet, crumbsNow } from '../lib/state';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -83,6 +85,78 @@ export async function gamesLeft(db: Db, userId: string, s: any) {
   const ids = Object.keys(GAMES);
   const used = await Promise.all(ids.map((id) => counter(db, userId, 'game_' + id)));
   return Object.fromEntries(ids.map((id, i) => [id, Math.max(0, Number(s.games?.[id]?.playsPerDay ?? 0) - used[i])]));
+}
+
+/** Tempat aktivitas: mebel ke-`index` (atau bagian ruangan `spot`) di ruangan `roomId` milik `ownerId`. */
+export type ActivityPlace = { ownerId: string; roomId: string | null; index: number; spot: string | null; itemId?: string };
+
+/**
+ * Satu aktivitas di rumah (pakai mebel, lihat jendela/lukisan): di rumah sendiri, atau di rumah teman saat berkunjung
+ * (`ownerId` = tuan rumah). Efeknya selalu ke pet pemain `uid`; cooldown & batas harian memakai kunci yang sama
+ * (`act:<id>`) di rumah mana pun. Perabot dengan pose "naik ke mebel" (tidur, duduk, berendam, gowes, ...) hanya untuk
+ * satu pet sekaligus per rumah. Dipanggil di dalam transaksi `once()`.
+ */
+export async function useActivity(t: Db, uid: string, act: any, w: ActivityPlace, o: { s: Settings; cat: Catalog; etaMs?: unknown; host?: string }) {
+  const { s, cat } = o;
+  const room = await t.one<{ id: string; room_item: string | null; layout: any[] }>(
+    `select id, room_item, layout from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [w.ownerId, w.roomId]);
+  if (!room) throw notFound('Ruangan tidak ditemukan.');
+  let target = '', itemId: string | null = null;
+  if (w.spot) {
+    if (roomMeta(room.room_item, cat, s).theme === 'luar' || !activityFits(act.targets, null, w.spot)) throw bad('invalid_target', 'Aktivitas ini tidak bisa dilakukan di situ.');
+    target = ACTIVITY_SPOTS[w.spot].toLowerCase();
+  } else {
+    const placed = (room.layout ?? [])[w.index];
+    // denah di layar sudah usang (tuan rumah memindah / menjual perabot): mebel di indeks itu bukan yang diketuk
+    if (w.itemId !== undefined && placed?.i !== w.itemId) throw bad('furniture_moved', 'Perabot sudah dipindah.');
+    const it = placed ? cat.byId.get(placed.i) : undefined;
+    if (!it || !activityFits(act.targets, it as any)) throw bad('invalid_target', 'Mebel itu tidak bisa dipakai untuk aktivitas ini.');
+    target = it.name;
+    itemId = it.id;
+  }
+  const pet = await lockPet(t, uid);
+  if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+  if (pet.level < (act.min_level ?? 1)) throw bad('locked', `Aktivitas ini terbuka di Lv ${act.min_level}.`);
+  assertAwake(pet, s);
+  let needs = currentNeeds(pet, s);
+  const delta: Partial<Needs> = {};
+  for (const k of NEED_KEYS) { const v = Math.round(Number(act.effects?.[k]) || 0); if (v) delta[k] = v; }
+  const berat = Math.round(Number(act.effects?.berat) || 0);
+  if ((delta.energi ?? 0) < 0 || berat < 0) assertHealthy(pet, s);
+  if ((delta.energi ?? 0) < 0 && needs.energi + (delta.energi ?? 0) < 0) throw bad('tired', `${pet.name} kecapekan. Tidur dulu.`);
+  // satu pet per perabot: diperiksa & ditandai sekaligus, dilepas lagi bila aktivitas gagal di bawah
+  const anim = Object.hasOwn(ACTIVITY_ANIMS, act.anim) ? ACTIVITY_ANIMS[act.anim] : null;
+  let release: (() => void) | null = null;
+  if (anim?.on) {
+    const c = claimFurniture(w.ownerId, `${room.id}:${w.spot ? 's:' + w.spot : w.index}`, uid, pet.name, occupyMs(anim.ms, o.etaMs));
+    if (!c.ok) throw bad('occupied', `${target.charAt(0).toUpperCase()}${target.slice(1)} sedang dipakai ${c.by}.`, { by: c.by });
+    release = c.release;
+  }
+  try {
+    await cooldown(t, uid, 'act:' + act.id, act.cooldown_sec);
+    if (act.daily_limit > 0) await bumpCounter(t, uid, 'act:' + act.id, act.daily_limit);
+    const before = needs;
+    needs = applyNeedDelta(needs, delta);
+    const lv = act.xp ? await grantXp(t, uid, pet, act.xp) : { level: pet.level, xp: pet.xp, levelsGained: 0 };
+    const coins = act.coins ? Math.round(act.coins * coinMultiplier(cat)) : 0;
+    if (coins) await credit(t, uid, 'coin', coins, 'activity', act.id);
+    const rewardItem = act.reward_item && cat.byId.get(act.reward_item) ? act.reward_item : null;
+    if (rewardItem) await addItem(t, uid, rewardItem, 1);
+    const weight = berat ? Math.max(0, Math.min(100, currentWeight(pet, s) + berat)) : undefined;
+    await savePet(t, uid, { needs, level: lv.level, xp: lv.xp, weight });
+    await track(t, uid, 'activity', { id: act.id, anim: act.anim, ...(o.host ? { host: o.host } : {}) });
+    if (berat < 0) await track(t, uid, 'exercise', { id: act.id });
+    // perubahan kebutuhan yang benar-benar terjadi (dibatasi 0–100), untuk ditampilkan saat kebutuhan tidak terlihat
+    const gained: Record<string, number> = {};
+    for (const k of Object.keys(delta) as (keyof Needs)[]) { const d = Math.round(needs[k] - before[k]); if (d) gained[k] = d; }
+    return {
+      pet, target, itemId, coins, rewardItem,
+      result: { id: act.id, coins, xp: act.xp, item: rewardItem, cooldownSec: act.cooldown_sec, levelUp: lv.levelsGained > 0 ? lv.level : null, message: activityMessage(act, pet.name, target), gained },
+    };
+  } catch (e) {
+    release?.();
+    throw e;
+  }
 }
 
 /** Tambah XP pet (dan bonus koin saat naik level). Dipakai di banyak tempat. */
@@ -586,51 +660,14 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const roomId = roomIdOf(b.roomId);
     const spot = b.spot !== undefined && b.spot !== null ? oneOf(b.spot, 'Bagian ruangan', Object.keys(ACTIVITY_SPOTS)) : null;
     const index = spot ? -1 : int(b.index, 'Mebel', { min: 0, max: 500 });
+    // client baru mengirim id mebel yang diketuk: ditolak bila susunannya sudah berubah (mis. diatur di HP lain)
+    const itemId = spot ? undefined : str(b.itemId, 'Mebel', { max: 64, optional: true });
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
     const act = cat.activities.find((a) => a.id === id && a.active);
     if (!act) throw bad('invalid_activity', 'Aktivitas ini sedang tidak tersedia.');
-    const mult = coinMultiplier(cat);
     return once(db, u.id, reqId(b.requestId), async (t) => {
-      const room = await t.one<{ room_item: string | null; layout: any[] }>(
-        `select room_item, layout from rooms where user_id = $1 and ($2::uuid is null or id = $2::uuid) order by sort, id limit 1`, [u.id, roomId]);
-      if (!room) throw notFound('Ruangan tidak ditemukan.');
-      let target = '';
-      if (spot) {
-        if (roomMeta(room.room_item, cat, s).theme === 'luar' || !activityFits(act.targets, null, spot)) throw bad('invalid_target', 'Aktivitas ini tidak bisa dilakukan di situ.');
-        target = ACTIVITY_SPOTS[spot].toLowerCase();
-      } else {
-        const placed = (room.layout ?? [])[index];
-        const it = placed ? cat.byId.get(placed.i) : undefined;
-        if (!it || !activityFits(act.targets, it as any)) throw bad('invalid_target', 'Mebel itu tidak bisa dipakai untuk aktivitas ini.');
-        target = it.name;
-      }
-      const pet = await lockPet(t, u.id);
-      if (!pet) throw bad('no_pet', 'Buat pet dulu.');
-      if (pet.level < (act.min_level ?? 1)) throw bad('locked', `Aktivitas ini terbuka di Lv ${act.min_level}.`);
-      assertAwake(pet, s);
-      let needs = currentNeeds(pet, s);
-      const delta: Partial<Needs> = {};
-      for (const k of NEED_KEYS) { const v = Math.round(Number(act.effects?.[k]) || 0); if (v) delta[k] = v; }
-      const berat = Math.round(Number(act.effects?.berat) || 0);
-      if ((delta.energi ?? 0) < 0 || berat < 0) assertHealthy(pet, s);
-      if ((delta.energi ?? 0) < 0 && needs.energi + (delta.energi ?? 0) < 0) throw bad('tired', `${pet.name} kecapekan. Tidur dulu.`);
-      await cooldown(t, u.id, 'act:' + act.id, act.cooldown_sec);
-      if (act.daily_limit > 0) await bumpCounter(t, u.id, 'act:' + act.id, act.daily_limit);
-      needs = applyNeedDelta(needs, delta);
-      const lv = act.xp ? await grantXp(t, u.id, pet, act.xp) : { level: pet.level, xp: pet.xp, levelsGained: 0 };
-      const coins = act.coins ? Math.round(act.coins * mult) : 0;
-      if (coins) await credit(t, u.id, 'coin', coins, 'activity', act.id);
-      const rewardItem = act.reward_item && cat.byId.get(act.reward_item) ? act.reward_item : null;
-      if (rewardItem) await addItem(t, u.id, rewardItem, 1);
-      const weight = berat ? Math.max(0, Math.min(100, currentWeight(pet, s) + berat)) : undefined;
-      await savePet(t, u.id, { needs, level: lv.level, xp: lv.xp, weight });
-      await track(t, u.id, 'activity', { id: act.id, anim: act.anim });
-      if (berat < 0) await track(t, u.id, 'exercise', { id: act.id });
-      return {
-        ok: true,
-        result: { id: act.id, coins, xp: act.xp, item: rewardItem, cooldownSec: act.cooldown_sec, levelUp: lv.levelsGained > 0 ? lv.level : null, message: activityMessage(act, pet.name, target) },
-        ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])),
-      };
+      const r = await useActivity(t, u.id, act, { ownerId: u.id, roomId, index, spot, itemId }, { s, cat, etaMs: b.etaMs });
+      return { ok: true, result: r.result, ...(await patch(t, u.id, ['pet', 'wallet', 'inventory'])) };
     });
   });
 
