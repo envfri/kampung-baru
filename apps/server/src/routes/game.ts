@@ -27,6 +27,7 @@ const roomIdOf = (v: unknown) => {
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { claimQuest, questEvent, questList, questSummary } from '../lib/quests';
 import { forgetHouseRooms } from './house';
+import { assertNotWorking } from '../lib/kerja';
 
 /** Jalankan mutasi sekali saja per requestId (aman dari klik ganda / retry di sinyal lemah). */
 export async function once<T>(db: Db, userId: string, requestId: string | undefined, fn: (t: Db) => Promise<T>): Promise<T> {
@@ -116,6 +117,8 @@ export async function useActivity(t: Db, uid: string, act: any, w: ActivityPlace
   }
   const pet = await lockPet(t, uid);
   if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+  // pet yang memakai perabot (di rumah sendiri atau rumah teman) tidak sedang kerja sambilan
+  await assertNotWorking(t, uid, 'Pakai perabot', pet);
   if (pet.level < (act.min_level ?? 1)) throw bad('locked', `Aktivitas ini terbuka di Lv ${act.min_level}.`);
   assertAwake(pet, s);
   let needs = currentNeeds(pet, s);
@@ -284,6 +287,8 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     return once(db, u.id, reqId(req.body?.requestId), async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      // pet sedang kerja sambilan: rawat pet (makan, mandi, main, elus) setelah pulang
+      await assertNotWorking(t, u.id, ({ makan: 'Makan', mandi: 'Mandi', main: 'Main', elus: 'Mengelus' } as const)[type], pet);
       let needs: Needs = currentNeeds(pet, s);
       let delta: Partial<Needs> = {};
       let xp = 0;
@@ -352,6 +357,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     return once(db, u.id, requestId, async (t) => {
       const pet = await lockPet(t, u.id);
       if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+      await assertNotWorking(t, u.id, 'Tidur', pet);
       if (isAsleep(pet, s)) return { ok: true, result: { type: 'tidur', coins: 0, xp: 0, levelUp: null }, ...(await patch(t, u.id, ['pet'])) };
       const needs = currentNeeds(pet, s);
       if (needs.energi >= (s as any).sleep.maxEnergiToSleep) throw bad('not_sleepy', `${pet.name} belum ngantuk. Main dulu, yuk!`);
@@ -697,7 +703,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
 
   /* ---------------- analitik dari client ---------------- */
 
-  const CLIENT_EVENTS = new Set(['session_start', 'tutorial_done', 'open_shop', 'open_map', 'install_prompt', 'installed', 'share_invite', 'open_pearls', 'save_nudge', 'save_nudge_later', 'ajak_alun']);
+  const CLIENT_EVENTS = new Set(['session_start', 'tutorial_done', 'open_shop', 'open_map', 'install_prompt', 'installed', 'share_invite', 'open_pearls', 'save_nudge', 'save_nudge_later', 'ajak_alun', 'kerja_ajak']);
   app.post('/api/track', { ...auth, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req: any) => {
     const list = Array.isArray(req.body?.events) ? req.body.events.slice(0, 20) : [];
     for (const e of list) {

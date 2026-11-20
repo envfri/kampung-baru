@@ -6,6 +6,7 @@ import { G, goTo, serverNow, settings, track } from './game.svelte';
 import { H } from './house.svelte';
 import { localNow } from './alun.svelte';
 import { sfx } from './sfx';
+import { kerjaAjakDone } from './kerja.svelte';
 
 const KEY = 'kb-ajak';
 const day = () => new Date().toLocaleDateString('en-CA');
@@ -52,6 +53,8 @@ export async function ajakCheck(homeSince: number, busy: () => boolean) {
 export function ajakDone(choice: 'ayo' | 'nanti' | 'lewat') {
   const a = G.ajak;
   if (!a) return;
+  // ajakan sekali ke Papan Lowongan (kerja sambilan) memakai gelembung yang sama
+  if (a.kind === 'kerja') return kerjaAjakDone(choice);
   G.ajak = null;
   save(ajakNote(load(), choice, Date.now(), day()));
   track('ajak_alun', { reason: a.reason, choice });

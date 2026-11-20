@@ -3,14 +3,16 @@
   // Di atas kepala pet; bila tidak muat (HP kecil) di bawah pet dengan ekor ke atas (kartu tugas disembunyikan sementara).
   import { onMount } from 'svelte';
   import { G } from '../lib/game.svelte';
-  import { ajakCheck, ajakDone } from '../lib/ajak.svelte';
+  import { ajakCheck, ajakDone, ajakOn } from '../lib/ajak.svelte';
+  import { kerjaAjakCheck } from '../lib/kerja.svelte';
 
   let { quiet = false }: { quiet?: boolean } = $props();
 
   const homeSince = Date.now();
   onMount(() => {
     // cek ringan tiap 5 detik (data alun-alun dari server paling sering tiap 2 menit)
-    const t = setInterval(() => ajakCheck(homeSince, () => quiet), 5000);
+    // ajakan sekali ke Papan Lowongan (kerja sambilan) lebih dulu; selain itu ajakan ke alun-alun
+    const t = setInterval(() => { if (!kerjaAjakCheck(homeSince, () => quiet) && ajakOn()) ajakCheck(homeSince, () => quiet); }, 5000);
     return () => { clearInterval(t); if (G.ajak) ajakDone('lewat'); };
   });
   // jadi sibuk (lembar, Atur, mandi, makan, Jepret, main bareng, tidur, ...) → ajakan hilang
@@ -61,12 +63,17 @@
 </script>
 
 {#if G.ajak}
-  <div class="ajak" class:down={pos?.down} class:ready={!!pos} bind:this={el} style={pos ? `left:${pos.x}px;top:${pos.y}px` : ''} role="dialog" aria-label="Ajakan ke alun-alun">
+  <div class="ajak" class:down={pos?.down} class:ready={!!pos} bind:this={el} style={pos ? `left:${pos.x}px;top:${pos.y}px` : ''} role="dialog" aria-label={G.ajak.kind === 'kerja' ? 'Ajakan kerja sambilan' : 'Ajakan ke alun-alun'}>
     <p role="status">{G.ajak.text}{#if G.ajak.sub}<small>{G.ajak.sub}</small>{/if}</p>
     <div class="row">
       <button class="go" onclick={() => ajakDone('ayo')}>
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 20h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 20V11M18 20V11" stroke="currentColor" stroke-width="2"/><path d="M4 11l8-6 8 6z" fill="#E86A4F" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="15" r="2.4" fill="#F2B632" stroke="currentColor" stroke-width="1.6"/></svg>
-        Ayo!
+        {#if G.ajak.kind === 'kerja'}
+          <!-- papan lowongan -->
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 21V9M18 21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="3" y="5" width="18" height="11" rx="1.5" fill="#D6A76A" stroke="currentColor" stroke-width="2"/><rect x="6" y="7.5" width="5" height="6" fill="#FFFDF7" stroke="currentColor" stroke-width="1.2"/><rect x="13" y="7.5" width="5" height="4" fill="#DDEFFB" stroke="currentColor" stroke-width="1.2"/></svg>
+        {:else}
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 20h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 20V11M18 20V11" stroke="currentColor" stroke-width="2"/><path d="M4 11l8-6 8 6z" fill="#E86A4F" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="15" r="2.4" fill="#F2B632" stroke="currentColor" stroke-width="1.6"/></svg>
+        {/if}
+        {G.ajak.go ?? 'Ayo!'}
       </button>
       <button class="no" onclick={() => ajakDone('nanti')}>Nanti</button>
     </div>

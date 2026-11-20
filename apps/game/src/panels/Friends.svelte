@@ -3,7 +3,7 @@
   import Sheet from '../components/Sheet.svelte';
   import { petSVG, renderPhoto, ACTIVITY_SPOTS } from '@kb/shared';
   import PhotoPreview from '../components/PhotoPreview.svelte';
-  import { G, item, wearItems, run, toast, fail, track, goTo } from '../lib/game.svelte';
+  import { G, item, wearItems, run, toast, fail, track, goTo, serverNow } from '../lib/game.svelte';
   import { H } from '../lib/house.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
@@ -156,6 +156,7 @@
           <div class="info">
             <b>{#if f.online}<i class="on" aria-label="online"></i>{/if}{f.display_name}</b>
             <span>{f.pet_name ?? 'Belum punya pet'}{f.level ? ` · Lv ${f.level}` : ''}</span>
+            {#if f.work && f.work.until > serverNow()}<em class="kerja">Sedang kerja di {f.work.short}</em>{/if}
             {#if f.online}<em class="hot">Online · {whereText(f)}{f.guests ? ` · ramai ${f.guests} tamu` : ''}</em>
             {:else}<em class:hot={!f.visited_today}>{f.visited_today ? 'Sudah dikunjungi hari ini' : 'Hadiah kunjungan tersedia'}</em>{/if}
           </div>
@@ -281,6 +282,7 @@
   .info span { font-size: 13px; color: var(--muted); font-weight: 600; }
   .info em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--muted); }
   .info em.hot { color: #1E7A4C; }
+  .info em.kerja { color: #8A5A36; }
   /* tombol pindah ke baris bawah bila tidak muat di samping nama (HP) */
   .btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; max-width: 100%; }
   .info em { overflow-wrap: anywhere; }

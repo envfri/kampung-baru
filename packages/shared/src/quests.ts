@@ -35,9 +35,11 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
   friend_added: { label: 'Tambah teman', filters: '' },
   daily_claim: { label: 'Ambil hadiah harian', filters: '' },
   level_up: { label: 'Naik level', filters: 'level: angka' },
+  kerja: { label: 'Selesai kerja sambilan (sampai waktunya habis, gaji diterima)', filters: 'job: warung | kebun | kolam | mebel | butik | ronda · minutes: angka' },
+  kerja_rank: { label: 'Naik pangkat kerja sambilan', filters: 'rank: karyawan | senior | kepala · job: warung | kebun | kolam | mebel | butik | ronda' },
 };
 
 export const QUEST_LINKS: [string, string][] = [
   ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko (lewat peta)'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
-  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'],
+  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'], ['/#kerja', 'Papan Lowongan (kerja sambilan)'],
 ];

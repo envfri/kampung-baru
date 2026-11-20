@@ -9,6 +9,7 @@ import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, notFound, today, track, type Catalog, type CatalogItem } from './core';
 import { assertAwake, currentNeeds, lockPet, publicItem, revealedItems, savePet } from './state';
 import { grantXp } from '../routes/game';
+import { assertNotWorking } from './kerja';
 
 export type FishPlace = 'kolam' | 'alun';
 export type CatchKind = 'fish' | PondFind;
@@ -141,6 +142,8 @@ export async function closeOpenCasts(t: Db, uid: string) {
 export async function castFish(t: Db, uid: string, o: { place: FishPlace; dist: FishDist; s: Settings; cat: Catalog; energi: number; quota: { key: string; limit: number }; now?: number; ramai?: { waitPct: number; xp: number } }) {
   const pet = await lockPet(t, uid);
   if (!pet) throw bad('no_pet', 'Buat pet dulu.');
+  // Kolam Pancing & kolam alun-alun: pet yang sedang kerja sambilan tidak bisa memancing
+  await assertNotWorking(t, uid, 'Mancing', pet);
   assertAwake(pet, o.s);
   const needs = currentNeeds(pet, o.s);
   if (needs.energi < o.energi) throw bad('tired', `${pet.name} terlalu capek untuk memancing.`);

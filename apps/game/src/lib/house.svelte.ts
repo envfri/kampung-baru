@@ -84,16 +84,20 @@ async function tick(myGen: number) {
       ALUN.ramai = PREVIEW.ramai !== null && r.pier ? { anglers: PREVIEW.ramai, need: 3, xp: 1 } : r.ramai ?? null;
     }
     if (H.hostId === SQUARE && !r.live && r.reason) {
-      // alun-alun ditutup admin / pet tertidur: kembali ke peta kampung
+      // alun-alun ditutup admin / pet tertidur / pet sedang kerja sambilan: kembali ke peta kampung
       leaveHouse();
       if (G.view === 'alun') { G.view = 'map'; G.mapAt = 'alun'; }
+      if (r.reason === 'working') { fail(new ApiError(400, 'working', r.message ?? 'Pet-mu sedang kerja sambilan.')); return; }
       toast(r.reason === 'asleep' ? `${G.me?.pet?.name ?? 'Pet'} sedang tidur. Bangunkan dulu, ya.` : 'Alun-alun sedang ditutup.');
       return;
     }
     if (r.reason === 'kicked') { leaveHouse(); if (G.view === 'visit') { G.view = 'home'; G.visit = null; } toast('Tuan rumah mengantarmu pulang.'); return; }
+    // pet sendiri sedang kerja sambilan: tidak bisa berkunjung
+    if (r.reason === 'working' && H.hostId !== G.me?.user?.id) { leaveHouse(); if (G.view === 'visit') { G.view = 'home'; G.visit = null; } fail(new ApiError(400, 'working', r.message ?? 'Pet-mu sedang kerja sambilan.')); return; }
     if (r.live) {
       H.me = r.me;
-      H.members = (r.members ?? []).filter((m: LiveMember) => !H.hidden.includes(m.id));
+      // pet yang sedang kerja sambilan (mis. pet tuan rumah) tidak ada di rumah: tidak digambar
+      H.members = (r.members ?? []).filter((m: LiveMember & { away?: boolean }) => !H.hidden.includes(m.id) && !m.away);
       H.elsewhere = r.elsewhere ?? [];
       H.coop = r.coop;
       for (const e of r.events ?? []) handle(e);

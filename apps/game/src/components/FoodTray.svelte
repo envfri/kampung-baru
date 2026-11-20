@@ -5,6 +5,7 @@
   // Nampan makanan: seret makanan ke mulut pet (atau ketuk untuk langsung menyuapi).
   import { itemIcon } from '@kb/shared';
   import { G, item, effText, run, post, fx, toast, goTo } from '../lib/game.svelte';
+  import { petFree } from '../lib/kerja.svelte';
   import { sfx } from '../lib/sfx';
 
   const foods = $derived(
@@ -94,6 +95,7 @@
 
   async function feed(id: string) {
     const it = item(id);
+    if (!petFree('Makan')) return;
     const r: any = await run(() => post('/api/action', { type: 'makan', itemId: id }));
     if (!r) return;
     G.chewing = Date.now();

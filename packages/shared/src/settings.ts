@@ -1,5 +1,6 @@
 // Nilai awal pengaturan game. Semua bisa diubah dari halaman admin (menu Ekonomi & Fitur)
 // tanpa deploy ulang. Server menggabungkan nilai di database di atas default ini.
+import { KERJA_STORIES } from './kerja';
 
 export const DEFAULT_SETTINGS = {
   economy: {
@@ -153,6 +154,35 @@ export const DEFAULT_SETTINGS = {
       ramai: ['Alun-alun lagi ramai, {jumlah} orang! Main ke sana yuk?', 'Wah, alun-alun ramai banget! Ke sana yuk?'],
     },
   },
+  /** Kerja Sambilan: pet kerja paruh waktu di tempat kampung (Papan Lowongan di peta). Lama kerja dalam MENIT. */
+  kerja: {
+    on: true,
+    /** pilihan lama kerja (menit) & hasilnya untuk tempat biasa: pendek, sedang, panjang */
+    minutes: [60, 180, 480],
+    pay: [20, 50, 110],
+    xp: [4, 10, 24],
+    /** biaya kebutuhan saat pulang (dikurangi); bersih hanya untuk tempat yang "kotor" (kebun & kolam) */
+    energi: [8, 15, 30],
+    kenyang: [6, 12, 25],
+    bersih: [10, 15, 25],
+    minEnergi: 25,
+    minKenyang: 25,
+    maxHoursPerDay: 12,
+    /** shift selesai untuk naik pangkat (per tempat): Magang → Karyawan → Senior → Kepala */
+    rankAt: { karyawan: 5, senior: 15, kepala: 40 },
+    rankBonusPct: 10,
+    /** ronda malam: hanya bisa mulai pukul fromHour–toHour (jam setempat pemain), lama tetap */
+    ronda: { fromHour: 19, toHour: 23, minutes: 480, pay: 150, xp: 28, energi: 35, kenyang: 25 },
+    jobs: {
+      warung: { minLevel: 1, bonusPct: 35, bonusItems: ['pisang-goreng', 'es-teh', 'onde-onde', 'pisang-molen'], kotor: false },
+      kebun: { minLevel: 1, bonusPct: 35, bonusItems: ['tomat', 'wortel', 'jagung', 'kangkung', 'bibit-tomat', 'bibit-cabai', 'bibit-kangkung'], kotor: true },
+      kolam: { minLevel: 2, bonusPct: 30, bonusItems: ['ikan-mujair', 'ikan-nila', 'ikan-mas', 'ikan-tawes', 'ikan-wader', 'ikan-sepat'], kotor: true },
+      mebel: { minLevel: 3, bonusPct: 8, bonusItems: ['kaktus-pot', 'pot-monstera'], kotor: false },
+      butik: { minLevel: 4, bonusPct: 8, bonusItems: ['plester-lucu', 'pita-rambut', 'dasi-kupu', 'kacu-merahputih'], kotor: false },
+      ronda: { minLevel: 6, bonusPct: 30, bonusItems: ['wedang-jahe', 'wedang-ronde'], kotor: false },
+    },
+    stories: KERJA_STORIES as Record<string, string[]>,
+  },
   premium: {
     bundleDiscount: 20,
     bonusMin: 3,
@@ -297,6 +327,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   catur: 'Catur Kilat (main bareng 2 pemain, rumah & Pos Ronda alun-alun). baseMs = waktu awal tiap pemain (ms, 300000 = 5 menit), incMs = tambahan per langkah (ms), firstMoveMs = batas langkah pertama tiap pihak (lewat = permainan batal tanpa hadiah), idleMs = batas diam satu langkah (lewat = kalah waktu), idleWarnMs = peringatan diam, maxMs = batas lama permainan (lewat = remis), minPlies = paruh langkah minimal supaya ada hadiah (kurang = tanpa hadiah & tanpa jatah), drawOfferFromPly = tawar remis boleh mulai paruh langkah ke-, drawOffers = tawaran remis per pemain, promoAutoMs = pilihan promosi otomatis Menteri (ms), auto50 = remis otomatis setelah sekian paruh langkah tanpa makan / gerak pion (0 = mati).',
   jepret: 'Jepret & Bagikan ke Story: pemain memotret rumah, rumah teman, atau alun-alun (atau Foto bareng) lalu membagikannya sebagai gambar Story/Feed. Gambar dibuat di HP pemain (tanpa biaya server, tidak disimpan di server). shareEventsPerDay = batas catatan bagikan/simpan per pemain per hari (0–50) yang dihitung untuk tugas harian "Bagikan 1 foto"; tidak ada koin di luar hadiah tugas. Nyalakan/matikan di Fitur & login › jepret.',
   ajakAlun: 'Pet ngajak ke Alun-alun: saat pemain di rumahnya sendiri dan ada orang lain di alun-alun, pet sesekali mengajak lewat gelembung bicara dengan tombol Ayo! (langsung jalan ke alun-alun) dan Nanti. Alasan dipilih otomatis: kembang api ≤ 5 menit lagi, Lomba Mancing ≤ 3 menit lagi, arak-arakan ≤ 2 menit lagi, teman sedang di sana, lalu keramaian. firstSec = jeda pertama setelah masuk rumah (detik, 5–600), gapMin = jeda antar ajakan (menit, 1–240), perDay = ajakan per hari (0–20), minPeople = paling sedikit orang lain di alun-alun (1–20), ramaiFrom = mulai sekian orang dipakai kalimat "ramai" (2–50). Pemain yang menekan Nanti 2 kali berturut-turut tidak diajak lagi hari itu; tidak mengajak bila baru pulang dari alun-alun (< 10 menit). lines = kalimat per alasan (satu baris satu kalimat, dipilih acak): {teman} = nama pet teman, {jumlah} = jumlah orang, {menit} = menit sampai acara, {pet} = nama pet pemain. Nyalakan/matikan di Fitur & login › ajakAlun.',
+  kerja: 'Kerja Sambilan: pet kerja paruh waktu di tempat kampung (Papan Lowongan di peta) lalu pulang membawa gaji, XP, kadang barang bonus, dan cerita lucu. on = buka/tutup (pet yang sedang kerja tetap pulang & gajinya tetap bisa diambil). minutes = 3 pilihan lama kerja dalam MENIT (bawaan 60, 180, 480; perkecil untuk uji), pay & xp = gaji koin & XP Magang untuk tiap pilihan, energi/kenyang = kebutuhan yang berkurang saat pulang, bersih = ikut berkurang khusus tempat kotor (jobs › kotor: kebun & kolam). Selama kerja kebutuhan pet tidak turun dan pet tidak bisa sakit karena dibiarkan; biayanya dikenakan sekali saat pulang. Syarat mulai: energi ≥ minEnergi, kenyang ≥ minKenyang, tidak sakit, tidak tidur, level ≥ jobs › minLevel. maxHoursPerDay = batas jam kerja per hari (shift selesai dihitung penuh, yang dipanggil pulang dihitung lama kerjanya). rankAt = shift selesai per tempat untuk naik ke Karyawan / Senior / Kepala; rankBonusPct = tambahan gaji per pangkat di atas Magang (%). Saat jadi Karyawan pet dapat seragam tempat itu (tidak dijual di toko). Dipanggil pulang: gaji sebanding lama kerja (termasuk bonus pangkat), tanpa bonus barang, tidak dihitung untuk pangkat. ronda = Ronda malam di Pos Ronda: hanya bisa mulai pukul fromHour–toHour jam setempat pemain, lama tetap (minutes), gaji, XP & biaya sendiri. jobs › bonusPct = peluang barang bonus (%), bonusItems = ID item yang mungkin didapat (dipilih acak). stories = cerita pulang kerja per tempat (satu baris satu cerita, {pet} = nama pet).',
   bareng: 'Main bareng: longMult = pengali koin & XP untuk game panjang (Catur, Ludo) di atas hadiah main bareng biasa (Kunjungan bareng › coopCoins / coopXp). Jatah harian tetap sama.',
   account: 'Akun tamu & pindah perangkat. transferCodes = izinkan kode pindah perangkat (sekali pakai, berlaku transferMinutes menit). Ajakan "Simpan progres" untuk pemain tamu muncul setelah nudgeDays hari, atau saat pet mencapai Lv nudgeLevel, punya teman pertama, atau menang duel; bila ditunda muncul lagi setelah nudgeSnoozeDays hari.',
   duel: 'Duel dengan teman (Balap Bakiak, Gasing, Tangkap Layangan): main bareng langsung bila keduanya online, atau tantangan melawan bayangan. Hadiah koin dari sistem (tanpa taruhan) dibayar setelah kedua pemain main; perDay = batas duel per pemain per hari; tantangan kedaluwarsa setelah expireHours jam.',

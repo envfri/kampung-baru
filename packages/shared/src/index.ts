@@ -26,3 +26,5 @@ export * from './art-kebun';
 export * from './kebun';
 export * from './jepret';
 export * from './ajak';
+export * from './kerja';
+export * from './art-kerja';

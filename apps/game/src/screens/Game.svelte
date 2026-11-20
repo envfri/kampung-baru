@@ -6,6 +6,9 @@
   import FoodTray from '../components/FoodTray.svelte';
   import AjakAlun from '../components/AjakAlun.svelte';
   import { ajakOn, ajakLeftAlun } from '../lib/ajak.svelte';
+  import KerjaHome from '../components/KerjaHome.svelte';
+  import KerjaPanel from '../panels/Kerja.svelte';
+  import { K as KJ, kerjaOn, working, gajiWaiting, jamPulang } from '../lib/kerja.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -77,6 +80,9 @@
   const cdLeft = (k: string) => Math.max(0, Math.ceil(((G.cool[k] ?? 0) - Date.now()) / 1000));
   const fmtCd = (s: number) => (s >= 60 ? Math.ceil(s / 60) + 'm' : s + 'd');
   const sleeping = $derived(G.now > 0 && isSleeping());
+  /** kerja sambilan: catatan pintu (pet sedang kerja) / kartu Terima gaji / hasil gaji menggantikan tombol aksi di rumah */
+  const kerjaCard = $derived(G.now > 0 && (working() || (gajiWaiting() && !!G.me.kerja?.shift?.done) || !!KJ.result));
+  let kerjaH = $state(0);
   const wakeIn = $derived(sleeping ? Math.max(1, Math.ceil((G.me.pet.sleep.wakeAt - serverNow()) / 60_000)) : 0);
 
   async function act(k: string) {
@@ -232,7 +238,9 @@
   const compactVisit = $derived(!wideDesk && winH <= 760);
   const visitTop = $derived(compactVisit ? 92 : 118);
   /** tombol Jepret tampil di tempat tombol kamera tampil (rumah, rumah teman, alun-alun); tidak saat atur, mandi, mancing, mini-game & papan */
-  const jpPill = $derived(jepretOn() && !G.jepret && !JP.src && !G.immersive && !G.edit && !G.plan && !G.bath && !ALUN.fishing && !playingGame && !longBoard && !BG.watching
+  /** HP: kartu "Terima gaji" tampil → kebutuhan, ruangan & event disembunyikan dulu supaya pet yang memegang amplop terlihat */
+  const kerjaFocus = $derived(!wideDesk && G.view === 'home' && G.now > 0 && !G.edit && !G.plan && ((gajiWaiting() && !!G.me.kerja?.shift?.done) || !!KJ.result));
+  const jpPill = $derived(!kerjaFocus && jepretOn() && !G.jepret && !JP.src && !G.immersive && !G.edit && !G.plan && !G.bath && !ALUN.fishing && !playingGame && !longBoard && !BG.watching
     && (G.view === 'home' || (G.view === 'visit' && !!G.visit) || G.view === 'alun') && !(friendPrompt && !wideDesk) && !(G.view === 'visit' && !wideDesk && !visitH));
   /** HP: 8 px di bawah deret ruangan/kamera (tinggi ±30 px) atau kartu rumah teman; desktop: di atas panel kamera (alun-alun: pojok sendiri) */
   const jpStyle = $derived(wideDesk
@@ -241,7 +249,7 @@
   /** kartu ajakan (FriendPrompt, Tonton, ...) turun di bawah tombol Jepret di HP */
   const promptTop = $derived(jpPill && !wideDesk ? `--prompt-top:calc(${G.view === 'visit' ? visitTop + visitH + 8 + 44 + 10 : 186 + (roomH || 30) + 8 + 44 + 10}px + var(--hud-x, 0px))` : '');
   /* ---------- Pet ngajak ke Alun-alun: hanya di rumah sendiri & saat tidak sibuk ---------- */
-  const ajakQuiet = $derived(!!G.sheet || G.edit || !!G.plan || !!G.bath || G.feeding || !!G.feedDrag || !!G.jepret || !!JP.src || G.immersive || sleeping
+  const ajakQuiet = $derived(!!G.sheet || G.edit || !!G.plan || !!G.bath || G.feeding || !!G.feedDrag || !!G.jepret || !!JP.src || G.immersive || sleeping || kerjaCard
     || playingGame || longBoard || !!BG.card || !!BG.watching || H.members.length > 0 || !!G.confirm);
   // pulang dari alun-alun: tidak langsung diajak ke sana lagi (dicatat terus selama di alun-alun, juga bila halaman dimuat ulang)
   $effect(() => {
@@ -282,7 +290,7 @@
 
 
 <svelte:window bind:innerWidth={winW} bind:innerHeight={winH} onkeydown={onKey} />
-<div class="game" data-view={G.view} class:board={longBoard && !wideDesk} style={promptTop}>
+<div class="game" data-view={G.view} class:board={longBoard && !wideDesk} class:kfocus={kerjaFocus} style={promptTop}>
   <div class="scene">
     {#if G.view === 'home'}<Room mode="home" />
     {:else if G.view === 'visit' && G.visit}<Room mode="visit" />
@@ -319,7 +327,7 @@
         {event.name}{#if event.bonus?.coinMultiplier > 1}{' · '}koin ×{event.bonus.coinMultiplier}{/if}
       </button>
     {/if}
-    {#if !G.feeding && !G.bath && !sleeping && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk) && !G.ajak?.down}<QuestChip side={guestBar && wideDesk} />{/if}
+    {#if !G.feeding && !G.bath && !sleeping && !kerjaCard && !BG.card && !(guestBar && !wideDesk) && !(longBoard && !wideDesk) && !G.ajak?.down}<QuestChip side={guestBar && wideDesk} />{/if}
     {#if sleeping}
       <div class="sleepbar" class:side={guestBar && wideDesk} bind:offsetHeight={sleepH}>
         <p><b>{G.me.pet.name} tidur…</b> Energi terisi pelan-pelan, bangun sendiri ±{wakeIn >= 60 ? `${Math.floor(wakeIn / 60)} j ${wakeIn % 60} mnt` : `${wakeIn} mnt`} lagi.</p>
@@ -335,6 +343,8 @@
           <button class="btn sm" onclick={() => (G.bath = null)}>Batal</button>
         </div>
       </div>
+    {:else if kerjaCard}
+      <KerjaHome side={guestBar && wideDesk} bind:height={kerjaH} />
     {:else}
       {#if G.feeding}<FoodTray side={guestBar && wideDesk} />{/if}
       <div class="acts" class:hide={(BG.card || longBoard) && !wideDesk}>
@@ -389,7 +399,7 @@
   {/if}
 
   <!-- HP: nampan makanan terbuka → kartu tamu disembunyikan sementara (seperti saat mandi); pet tidur → kartu naik di atas bar tidur -->
-  {#if guestBar && !G.jepret && !(G.feeding && !wideDesk)}<HouseBar mode="home" lift={sleeping && !wideDesk && sleepH ? 86 + sleepH + 8 : 0} />{/if}
+  {#if guestBar && !G.jepret && !(G.feeding && !wideDesk)}<HouseBar mode="home" lift={sleeping && !wideDesk && sleepH ? 86 + sleepH + 8 : kerjaCard && !wideDesk && kerjaH ? 86 + kerjaH + 8 : 0} />{/if}
   <!-- HP kecil: menu perabot teman tidak muat → bar kunjungan disembunyikan sementara selama menu terbuka -->
   {#if G.view === 'visit' && G.visit && G.visit.together?.on !== false && !playingGame && !BG.card && !G.jepret && !G.fasMenu}<HouseBar mode="visit" />{/if}
   {#if (G.view === 'home' || G.view === 'visit') && !G.jepret}<CoopPanel /><PhotoPreview />{/if}
@@ -413,6 +423,10 @@
         <div class="who"><b>Rumah {G.visit.owner.display_name}</b>{#if G.visit.pet}<span>{G.visit.pet.name} · Lv {G.visit.pet.level}{#if G.visit.guestbook?.[0] && !compactVisit}{' · '}terakhir mampir: {G.visit.guestbook[0].name}{/if}</span>{/if}</div>
         {#if !wideDesk && (visitRooms.length > 1 || G.cam !== 'room')}{@render camBtn()}{/if}
       </div>
+      {#if G.visit.work && G.now > 0 && G.visit.work.until > serverNow() && !H.members.some((m) => m.host)}
+        <!-- pet tuan rumah sedang kerja sambilan: catatan di pintu -->
+        <p class="doornote" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-7-4-7 4Z" fill="#FFF6D8" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="7.5" r="2.2" fill="#E0583F" stroke="currentColor" stroke-width="1.4"/></svg><span><b>{G.visit.pet?.name} sedang {G.visit.work.doing}</b> di {G.visit.work.place} · pulang {jamPulang(G.visit.work.until - G.offset)}</span></p>
+      {/if}
       <div class="row">
         {#if compactVisit}
           <button class="btn sm {G.visit.claimed ? '' : 'hot'}" disabled={G.visit.claimed || G.busy} onclick={claimVisit} aria-label={G.visit.claimed ? 'Hadiah kunjungan sudah diambil' : `Ambil ${settings().social?.visitCoins ?? 20} koin hadiah kunjungan`}>{G.visit.claimed ? '✓ Diambil' : `+${settings().social?.visitCoins ?? 20} koin`}</button>
@@ -435,7 +449,7 @@
       <span class="ic">{@html CAM_IC}</span>Jepret{#if wideDesk}<kbd>J</kbd>{/if}{#if !JP.seen}<em>BARU</em>{/if}
     </button>
   {/if}
-  {#if G.view === 'home' && ajakOn()}<AjakAlun quiet={ajakQuiet} />{/if}
+  {#if G.view === 'home' && (ajakOn() || kerjaOn())}<AjakAlun quiet={ajakQuiet} />{/if}
   {#if G.jepret === 'frame'}<JepretMode wide={wideDesk} />{/if}
   {#if JP.src}<SharePreview wide={wideDesk} />{/if}
   {#key JP.flash}{#if JP.flash}<div class="jflash" aria-hidden="true"></div>{/if}{/key}
@@ -462,6 +476,7 @@
   {:else if G.sheet === 'save'}<SaveProgress />
   {:else if G.sheet === 'event'}<EventPanel />
   {:else if G.sheet === 'whatsnew'}<WhatsNew />
+  {:else if G.sheet === 'kerja'}<KerjaPanel />
   {/if}
 </div>
 
@@ -480,6 +495,7 @@
   .acts.hide { display: none; }
   /* HP: papan Catur / Ludo mengisi ruang antara HUD & dok, isi atas (kebutuhan, ruangan, event) disembunyikan dulu */
   .game.board :global(.needs), .game.board .roombar, .game.board .event { display: none; }
+  .game.kfocus :global(.needs), .game.kfocus .roombar, .game.kfocus .event { display: none; }
   .act { position: relative; flex-direction: column; gap: 0; width: 62px; min-height: 56px; padding: 4px 2px; font-size: 13px; }
   .act :global(svg) { width: 22px; height: 22px; }
   .roombar { position: absolute; z-index: 6; top: calc(var(--safe-t) + 186px + var(--hud-x, 0px)); left: max(10px, var(--safe-l)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 20px); }
@@ -511,6 +527,9 @@
   .visit.compact .row .btn.ic :global(svg) { width: 18px; height: 18px; }
   .visit.compact :global(.cambtn span) { display: none; }
   .editbar p { margin: 0; font-weight: 700; font-size: 14.5px; }
+  .doornote { margin: 0; display: flex; align-items: center; gap: 6px; background: #FFF6D8; border: 2px dashed #C9A15E; border-radius: 10px; padding: 3px 8px; font-weight: 600; font-size: 13.5px; line-height: 1.25; }
+  .doornote svg { width: 20px; height: 20px; flex: none; }
+  .visit.compact .doornote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .planbar .warn, .editbar .warn { color: #A93A27; font-size: 13.5px; }
   .rotbtn { display: inline-flex; align-items: center; gap: 4px; }
   .rotbtn :global(svg) { width: 18px; height: 18px; }
