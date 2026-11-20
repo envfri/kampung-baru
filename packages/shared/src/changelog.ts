@@ -39,7 +39,28 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.44.0',
+    date: '2026-11-20',
+    title: 'Pakai perabot di rumah teman + barang dapur, kamar mandi & taman',
+    summary: 'Saat berkunjung, pet-mu bisa ikut memakai perabot teman. Ada 29 barang baru untuk dapur, kamar mandi dan taman, plus 3 gerakan baru.',
+    items: [
+      { kind: 'baru', text: 'Pakai perabot di rumah teman: ketuk sofa, bak mandi, kompor atau perabot lain di rumah teman, lalu pet-mu berjalan ke sana dan ikut memakainya. Hasilnya (Kenyang, Bersih, Ceria, Energi, koin) untuk pet-mu sendiri, dan teman serta tamu lain melihat pet-mu duduk, berendam atau memasak.', player: true },
+      { kind: 'baru', text: 'Jeda dan batas harian aktivitas di rumah teman dihitung bersama rumah sendiri. Satu perabot hanya bisa dipakai satu pet sekaligus (duduk, rebahan, berendam, gowes, berayun).', player: true },
+      { kind: 'baru', text: 'Tuan rumah dapat catatan di buku tamu dan tip +1 koin setiap perabotnya dipakai teman (paling banyak 10 koin sehari). Tidak mau perabotmu dipakai? Matikan "Teman boleh memakai perabot di rumahku" di Pengaturan.', player: true },
+      { kind: 'baru', text: 'Saat berkunjung, kamu juga melihat pet tuan rumah memakai perabotnya sendiri (tidur di kasur, duduk di sofa, dan lainnya).', player: true },
+      { kind: 'baru', text: 'Dapur baru di Mebel Jati: Dandang & Kukusan (kukus kue lapis), Penanak Nasi, Galon & Dispenser, Blender Jus, Rak Bumbu & Cobek, Bak Cuci Piring, Tempat Sampah Pilah, Meja Makan Taplak Kotak, Dinding Keramik Dapur dan Lantai Tegel Catur.', player: true },
+      { kind: 'baru', text: 'Kamar mandi baru di Mebel Jati: Wastafel & Cermin (sikat gigi), Baskom Bebek Karet, Ember & Papan Gilas, Mesin Cuci yang tabungnya berputar, Timbangan Badan, Gantungan Handuk Bambu, Keset Kaki, Dinding Keramik Biru Laut dan Lantai Mozaik.', player: true },
+      { kind: 'baru', text: 'Taman baru di Toko Bangunan: Ayunan Kayu, Hamak, Meja Piknik, Bedeng Cabai & Tomat, Sangkar Burung, Bak Pasir, Tempat Minum Burung, Gerobak Bunga, Pagar Tanaman dan Lantai Rumput Berbunga.', player: true },
+      { kind: 'baru', text: 'Tiga gerakan baru untuk pet: berayun di ayunan, sikat gigi, dan mencuci dengan spons berbusa. Semua barang baru bisa diputar 4 arah.', player: true },
+      { kind: 'perbaikan', text: 'Pet yang sedang jalan-jalan sendiri tepat di samping perabot kini berhenti dulu sebelum beraktivitas, jadi gerakannya tidak tertimpa langkah.', player: true },
+      { kind: 'perbaikan', text: 'Label nama pet tidak lagi bergeser dari petnya saat ruangan sempat tergulir oleh tombol.', player: true },
+      { kind: 'ubah', text: 'Admin: pengaturan Kunjungan › Perabot rumah teman (nyala/mati, tip koin tuan rumah, batas tip harian). Aktivitas admin bisa memakai animasi baru ayun, sikat, cuci.' },
+      { kind: 'ubah', text: 'Teknis: POST /api/visit/:id/activity (logika aktivitas dipakai bersama /api/activity, kunci jeda act:<id> sama), satu pet per perabot (lib/facility.ts), migrasi 028 (users.facility_visits, visit_acts.activity_id), sinkron live menerima semua pose ACTIVITY_ANIMS; paket konten 20 (pack_perabot3: 24 perabot, 5 dinding/lantai, 23 aktivitas). Uji baru: fasilitas.test.ts, perabot3.test.ts, e2e-fasilitas, e2e-perabot3.' },
+    ],
+  },
+  {
     version: '0.43.1',
+    commits: ['41eadec'],
     date: '2026-11-18',
     title: 'Nampan makanan tidak tertutup kartu tamu',
     summary: 'Saat ada teman berkunjung, nampan makanan dan bar tidur tidak lagi tertutup kartu tamu.',

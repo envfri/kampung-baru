@@ -1253,6 +1253,8 @@
     clearTimeout(idleTimer);
     // permintaan ke server berjalan bersamaan dengan pet berjalan, supaya terasa cepat
     const gen = planGen;
+    // pet sedang jalan-jalan sendiri: berhenti dulu (bila sudah di samping perabot, jalan-jalannya tidak menimpa pose)
+    if (walking) { halt(); if (live) pos = [...live]; }
     const p = routeToAny(g.goals);
     const req = run(() => post('/api/activity', { activityId: a.id, roomId: t.room || undefined, ...(t.spot ? { spot: t.spot } : { index: t.index, itemId: placedAt(t)?.i }), etaMs: etaMs(p, SPEED, 4.5) }));
     if (p) await walkPath(p);
@@ -1328,6 +1330,8 @@
     const gen = planGen, owner = v.owner.id;
     const gone = () => gen !== planGen || !alive || G.visit?.owner?.id !== owner || comps.get(SELF) !== me;
     selfBusy = true;
+    // berhenti dari jalan-jalan sendiri dulu (bila sudah di samping perabot, langkahnya tidak menimpa pose)
+    if (me.path.length) { me.path = []; me.tile = tileOf(me.live); }
     const route = routeFrom(me.live, g.goals);
     // permintaan & pet berjalan bersamaan (terasa cepat); bila ditolak pet berhenti di tempat
     G.busy = true;

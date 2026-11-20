@@ -4,6 +4,31 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.44.0 · 2026-11-20 · Pakai perabot di rumah teman + barang dapur, kamar mandi & taman
+
+_Saat berkunjung, pet-mu bisa ikut memakai perabot teman. Ada 29 barang baru untuk dapur, kamar mandi dan taman, plus 3 gerakan baru._
+
+### Baru
+
+- Pakai perabot di rumah teman: ketuk sofa, bak mandi, kompor atau perabot lain di rumah teman, lalu pet-mu berjalan ke sana dan ikut memakainya. Hasilnya (Kenyang, Bersih, Ceria, Energi, koin) untuk pet-mu sendiri, dan teman serta tamu lain melihat pet-mu duduk, berendam atau memasak. _(pemain)_
+- Jeda dan batas harian aktivitas di rumah teman dihitung bersama rumah sendiri. Satu perabot hanya bisa dipakai satu pet sekaligus (duduk, rebahan, berendam, gowes, berayun). _(pemain)_
+- Tuan rumah dapat catatan di buku tamu dan tip +1 koin setiap perabotnya dipakai teman (paling banyak 10 koin sehari). Tidak mau perabotmu dipakai? Matikan "Teman boleh memakai perabot di rumahku" di Pengaturan. _(pemain)_
+- Saat berkunjung, kamu juga melihat pet tuan rumah memakai perabotnya sendiri (tidur di kasur, duduk di sofa, dan lainnya). _(pemain)_
+- Dapur baru di Mebel Jati: Dandang & Kukusan (kukus kue lapis), Penanak Nasi, Galon & Dispenser, Blender Jus, Rak Bumbu & Cobek, Bak Cuci Piring, Tempat Sampah Pilah, Meja Makan Taplak Kotak, Dinding Keramik Dapur dan Lantai Tegel Catur. _(pemain)_
+- Kamar mandi baru di Mebel Jati: Wastafel & Cermin (sikat gigi), Baskom Bebek Karet, Ember & Papan Gilas, Mesin Cuci yang tabungnya berputar, Timbangan Badan, Gantungan Handuk Bambu, Keset Kaki, Dinding Keramik Biru Laut dan Lantai Mozaik. _(pemain)_
+- Taman baru di Toko Bangunan: Ayunan Kayu, Hamak, Meja Piknik, Bedeng Cabai & Tomat, Sangkar Burung, Bak Pasir, Tempat Minum Burung, Gerobak Bunga, Pagar Tanaman dan Lantai Rumput Berbunga. _(pemain)_
+- Tiga gerakan baru untuk pet: berayun di ayunan, sikat gigi, dan mencuci dengan spons berbusa. Semua barang baru bisa diputar 4 arah. _(pemain)_
+
+### Perubahan
+
+- Admin: pengaturan Kunjungan › Perabot rumah teman (nyala/mati, tip koin tuan rumah, batas tip harian). Aktivitas admin bisa memakai animasi baru ayun, sikat, cuci.
+- Teknis: POST /api/visit/:id/activity (logika aktivitas dipakai bersama /api/activity, kunci jeda act:<id> sama), satu pet per perabot (lib/facility.ts), migrasi 028 (users.facility_visits, visit_acts.activity_id), sinkron live menerima semua pose ACTIVITY_ANIMS; paket konten 20 (pack_perabot3: 24 perabot, 5 dinding/lantai, 23 aktivitas). Uji baru: fasilitas.test.ts, perabot3.test.ts, e2e-fasilitas, e2e-perabot3.
+
+### Perbaikan
+
+- Pet yang sedang jalan-jalan sendiri tepat di samping perabot kini berhenti dulu sebelum beraktivitas, jadi gerakannya tidak tertimpa langkah. _(pemain)_
+- Label nama pet tidak lagi bergeser dari petnya saat ruangan sempat tergulir oleh tombol. _(pemain)_
+
 ## 0.43.1 · 2026-11-18 · Nampan makanan tidak tertutup kartu tamu
 
 _Saat ada teman berkunjung, nampan makanan dan bar tidur tidak lagi tertutup kartu tamu._
@@ -16,6 +41,8 @@ _Saat ada teman berkunjung, nampan makanan dan bar tidur tidak lagi tertutup kar
 
 - Saat ada teman di rumahmu, nampan makanan tidak lagi tertutup kartu tamu. Di HP, kartu tamu disembunyikan sementara selama nampan terbuka dan muncul lagi setelah nampan ditutup. Di komputer, nampan bergeser ke kiri panel tamu. _(pemain)_
 - Saat pet tidur dan ada tamu, kartu tamu naik ke atas bar tidur di HP, atau bar tidur bergeser ke kiri panel tamu di komputer, jadi tombol "Nyalakan lampu & bangunkan" tetap terlihat dan bisa diketuk. _(pemain)_
+
+Commit: [`41eadec`](https://github.com/envfri/kampung-baru/commit/41eadec)
 
 ## 0.43.0 · 2026-11-18 · Barang baru di 3 toko & Edisi Spesial Toko Mutiara
 
