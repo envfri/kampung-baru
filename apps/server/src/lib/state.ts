@@ -316,6 +316,8 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       crumbs: (s as any).crumbs,
       speech: (s as any).speech,
       ajakAlun: (s as any).ajakAlun,
+      // duel: hadiah & lama tantangan sebelum batal otomatis (untuk teks di daftar duel)
+      duel: (() => { const d = (s as any).duel ?? {}; return { winCoins: d.winCoins, drawCoins: d.drawCoins, loseCoins: d.loseCoins, perDay: d.perDay, expireHours: d.expireHours }; })(),
       // kerja sambilan: angka papan lowongan dimuat lewat GET /api/kerja; di sini cukup nyala/mati & syarat
       kerja: (() => { const k = (s as any).kerja ?? {}; return { on: k.on !== false, minEnergi: k.minEnergi, minKenyang: k.minKenyang, ronda: { fromHour: k.ronda?.fromHour, toHour: k.ronda?.toHour } }; })(),
       garden: s.garden,

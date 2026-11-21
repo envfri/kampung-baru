@@ -39,7 +39,21 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.45.2',
+    date: '2026-11-21',
+    title: 'Tantangan duel bisa dibatalkan',
+    summary: 'Teman yang ditantang duel tidak datang? Batalkan sendiri kapan saja, atau tantangan batal otomatis setelah 6 jam.',
+    items: [
+      { kind: 'perbaikan', text: 'Tantangan duel yang tidak didatangi teman kini batal otomatis setelah 6 jam (sebelumnya baru setelah 2 hari), jadi kamu bisa langsung menantang temanmu lagi.', player: true },
+      { kind: 'baru', text: 'Tombol Batalkan tantangan di ruang duel dan di daftar Duel Teman, juga setelah kamu main duluan. Ketuk dua kali supaya tidak terpencet. Teman yang ditantang tetap bisa Tolak.', player: true },
+      { kind: 'ubah', text: 'Riwayat duel menjelaskan duel yang tidak jadi: "Kamu batalkan", "Dibatalkan …", "Ditolak …", atau "Batal otomatis, … tidak datang". Kartu duel menunjukkan kapan batal otomatis.', player: true },
+      { kind: 'ubah', text: 'Admin: Duel teman › expireHours bawaan 6 jam (pengaturan yang masih 48 diubah otomatis; angka lain dari admin tidak disentuh). Hadiah duel di daftar duel kini mengikuti pengaturan admin.' },
+      { kind: 'ubah', text: "Teknis: migrasi 030 (status duel 'cancelled', batas 6 jam juga untuk tantangan yang sedang menunggu), POST /api/duels/:id/decline dipakai untuk tolak & batal (ditolak saat teman sedang main; mulai >10 menit tanpa selesai dianggap pergi). Uji: duel.test.ts, e2e-duel." },
+    ],
+  },
+  {
     version: '0.45.1',
+    commits: ['888e6ea'],
     date: '2026-11-21',
     title: 'Semua kasur bisa dipakai tidur',
     summary: 'Dipan Kayu dan Kasur Roket kini bisa dipakai tidur sampai segar, sama seperti Kasur Rotan, tidak hanya rebahan sebentar.',

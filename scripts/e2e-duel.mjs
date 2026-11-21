@@ -120,6 +120,52 @@ await settle(A, 800); await shot(A, '13-hasil-tantangan');
 await A.p.click('.card .btn:has-text("Kembali ke Duel")');
 await A.p.waitForSelector('.duel.past');
 await settle(A, 500); await shot(A, '14-riwayat');
+
+// 6. teman tidak datang: A menantang lagi lalu membatalkan sendiri dari ruang duel (ketuk dua kali)
+const fail6 = (m) => { errors.push('batal: ' + m); };
+await A.p.click('.sheet .btn:has-text("Tantang teman")');
+await A.p.click('.new .friends button >> nth=0');
+await A.p.click('.games button:has-text("Gasing")');
+await A.p.click('.new .btn:has-text("Tantang!")');
+await A.p.waitForSelector('.lobby .btn:has-text("Batalkan tantangan")');
+if (!/batal otomatis/.test(await A.p.locator('.lobby .card').innerText())) fail6('ruang duel tidak menyebut batal otomatis');
+await settle(A, 400); await shot(A, '15-ruang-duel-batalkan');
+await A.p.click('.lobby .btn:has-text("Batalkan tantangan")');
+await A.p.waitForSelector('.lobby .btn:has-text("Yakin batalkan?")');
+await shot(A, '16-yakin-batalkan');
+await A.p.click('.lobby .btn:has-text("Yakin batalkan?")');
+await A.p.waitForSelector('.sheet .duel.past', { timeout: 10000 });
+await A.p.waitForTimeout(800);
+const histA = await A.p.locator('.sheet .duel.past').first().innerText();
+if (!/Gasing/.test(histA) || !/Kamu batalkan/.test(histA)) fail6(`riwayat A: ${histA}`);
+await shot(A, '17-riwayat-dibatalkan');
+const duelsOf = async (pl, tag) => {
+  await pl.p.goto(`${BASE}/?r=${tag}#duels`);
+  await pl.p.waitForSelector('.sheet .duel', { timeout: 15000 });
+  // tamu yang baru menang duel bisa melihat ajakan Simpan progres dulu
+  if (await pl.p.locator('.sheet[aria-label="Simpan progres"]').count()) { await pl.p.click('.sheet .link:has-text("Nanti saja")'); await pl.p.waitForSelector('.sheet .duel'); }
+};
+await duelsOf(B, 'batal1');
+await B.p.waitForSelector('.sheet .duel.past');
+await settle(B, 600);
+const histB = await B.p.locator('.sheet .duel.past').first().innerText();
+if (!/Dibatalkan Mochi/.test(histB)) fail6(`riwayat B: ${histB}`);
+if (await B.p.locator('.duel.hot').count()) fail6('B masih punya giliran duel');
+await shot(B, '18-desktop-riwayat-dibatalkan');
+// dari daftar duel: Batalkan di kartu tantangan sendiri
+await B.p.click('.sheet .btn:has-text("Tantang teman")');
+await B.p.click('.new .friends button >> nth=0');
+await B.p.click('.games button:has-text("Balap Bakiak")');
+await B.p.click('.new .btn:has-text("Tantang!")');
+await B.p.waitForSelector('.lobby .card');
+await B.p.click('.lobby .btn:has-text("Kembali")');
+await duelsOf(B, 'batal2');
+await B.p.waitForSelector('.sheet .duel.hot .btn:has-text("Batalkan")');
+if (!/Batal otomatis (5|6) jam lagi/.test(await B.p.locator('.sheet .duel.hot').first().innerText())) fail6('kartu tidak menyebut batal otomatis 6 jam');
+await shot(B, '19-desktop-kartu-batalkan');
+await B.p.click('.sheet .duel.hot .btn:has-text("Batalkan")');
+await B.p.click('.sheet .duel.hot .btn:has-text("Yakin?")');
+await B.p.waitForFunction(() => !document.querySelector('.sheet .duel.hot'), null, { timeout: 10000 }).catch(() => fail6('kartu tantangan B tidak hilang'));
 await b.close();
 if (errors.length) { console.error('Galat:', errors); process.exit(1); }
 console.log('Duel OK. Screenshot di', OUT);

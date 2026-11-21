@@ -138,13 +138,26 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     return { duel: view(d, uid, await people([d.challenger_id, d.opponent_id])), serverNow: Date.now() };
   });
 
+  /**
+   * Tolak (yang ditantang) atau batalkan (yang menantang), mis. teman tidak kunjung datang. Boleh selama duel masih
+   * menunggu dan tidak ada yang sedang di tengah permainan (sudah mulai tapi belum selesai; yang mulai lebih dari
+   * 10 menit lalu dianggap sudah pergi). Yang sedang main sendiri memakai "Akhiri" (finish forfeit).
+   */
   app.post('/api/duels/:id/decline', auth, async (req: any) => {
     const uid = req.user!.id;
-    const d = await load(String(req.params.id), uid);
-    const me = sideOf(d, uid);
-    if (d.status !== 'open' || d[me + '_started_at']) throw bad('invalid', 'Duel ini tidak bisa dibatalkan.');
-    await db.query(`update duels set status = 'declined' where id = $1`, [d.id]);
-    return { ok: true };
+    const res = await db.tx(async (t) => {
+      const d = await load(String(req.params.id), uid, true, t);
+      const me = sideOf(d, uid), them = other(me);
+      const playing = (s: Side, mins: number) => !!d[s + '_started_at'] && d[s + '_score'] === null && Date.now() - ms(d[s + '_started_at'])! < mins * 60_000;
+      if (d.status !== 'open') throw bad('invalid', d.status === 'live' ? 'Duel sudah mulai.' : 'Duel ini sudah selesai.');
+      if (playing(me, 1e9)) throw bad('invalid', 'Kamu sudah mulai duel ini. Akhiri dari daftar duel.');
+      if (playing(them, 10)) throw bad('them_playing', 'Temanmu sedang memainkan duel ini.');
+      const status = me === 'c' ? 'cancelled' : 'declined';
+      await t.query(`update duels set status = $2 where id = $1`, [d.id, status]);
+      await track(t, uid, status === 'cancelled' ? 'duel_cancel' : 'duel_decline', { game: d.game });
+      return { ok: true, status };
+    });
+    return res;
   });
 
   app.post('/api/duels/:id/start', auth, async (req: any) => {

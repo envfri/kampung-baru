@@ -48,16 +48,28 @@
       fail(e);
     }
   }
+  /** tolak (ditantang) / batalkan (menantang, mis. teman tidak datang): ketuk dua kali supaya tidak terpencet */
+  let armed = $state<string | null>(null);
+  let armT: any;
   async function decline(d: any) {
-    const r = await run(() => api.post(`/api/duels/${d.id}/decline`));
-    if (r) { toast('Tantangan ditolak.'); load(); }
+    if (armed !== d.id) { sfx.tap(); armed = d.id; clearTimeout(armT); armT = setTimeout(() => (armed = null), 3500); return; }
+    armed = null;
+    const r: any = await run(() => api.post(`/api/duels/${d.id}/decline`));
+    if (r) { toast(r.status === 'cancelled' ? `Tantangan ke ${d.them.name} dibatalkan.` : 'Tantangan ditolak.'); load(); }
+  }
+  const cancelLabel = (d: any) => (armed === d.id ? 'Yakin?' : d.role === 'opponent' ? 'Tolak' : 'Batalkan');
+  /** keterangan duel yang tidak jadi (riwayat) */
+  function endedText(d: any) {
+    if (d.status === 'declined') return d.role === 'opponent' ? 'Kamu tolak' : `Ditolak ${d.them.name}`;
+    if (d.status === 'cancelled') return d.role === 'challenger' ? 'Kamu batalkan' : `Dibatalkan ${d.them.name}`;
+    return d.them.played ? 'Batal otomatis, kamu belum sempat main' : `Batal otomatis, ${d.them.name} tidak datang`;
   }
   async function forfeit(d: any) {
     const r: any = await run(() => api.post(`/api/duels/${d.id}/finish`, { forfeit: true }));
     if (r) { toast(r.duel.result ? `Duel selesai: ${r.duel.result}` : 'Skor 0 tercatat.'); load(); }
   }
   const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'baru saja' : m < 60 ? `${m} mnt lalu` : m < 1440 ? `${Math.round(m / 60)} jam lalu` : `${Math.round(m / 1440)} hari lalu`; };
-  const until = (t: number) => { const h = Math.max(0, Math.round((t - Date.now()) / 3600000)); return h >= 1 ? `${h} jam lagi` : 'segera berakhir'; };
+  const until = (t: number) => { const m = Math.max(0, Math.round((t - Date.now()) / 60000)); return m >= 90 ? `${Math.round(m / 60)} jam lagi` : m >= 1 ? `${m} mnt lagi` : 'sebentar lagi'; };
   const ava = (p: any) => (p ? petSVG(p, wearItems(p.wear)) : '');
 </script>
 
@@ -110,14 +122,14 @@
           {:else if d.them.played}<span>{d.them.name} sudah main: <b>{d.them.label}</b>. Kalahkan!</span>
           {:else if d.them.ready}<span class="live">{d.them.name} menunggu di ruang duel!</span>
           {:else}<span>{d.role === 'opponent' ? `${d.them.name} menantangmu` : 'Tantanganmu'} · {ago(d.createdAt)}</span>{/if}
-          <em>Berakhir {until(d.expiresAt)}</em>
+          <em>Batal otomatis {until(d.expiresAt)}</em>
         </div>
         <div class="btns">
           {#if d.me.started}
             <button class="btn sm" disabled={G.busy} onclick={() => forfeit(d)}>Akhiri</button>
           {:else}
             <button class="btn sm hot" onclick={() => open(d)}>{d.them.played ? 'Main' : 'Buka'}</button>
-            {#if d.role === 'opponent' && d.status === 'open'}<button class="btn sm" disabled={G.busy} onclick={() => decline(d)}>Tolak</button>{/if}
+            {#if d.status === 'open' && !d.them.started}<button class="btn sm" class:armed={armed === d.id} disabled={G.busy} onclick={() => decline(d)}>{cancelLabel(d)}</button>{/if}
           {/if}
         </div>
       </div>
@@ -132,8 +144,11 @@
         <div class="info">
           <b>{d.gameName} vs {d.them.name}</b>
           <span>Skormu <b>{d.me.label}</b> · {d.them.started ? `${d.them.name} sedang main…` : `menunggu ${d.them.name} main`}</span>
-          <em>Berakhir {until(d.expiresAt)}</em>
+          <em>Batal otomatis {until(d.expiresAt)}</em>
         </div>
+        {#if d.status === 'open' && !d.them.started}
+          <div class="btns"><button class="btn sm" class:armed={armed === d.id} disabled={G.busy} onclick={() => decline(d)}>{armed === d.id ? 'Yakin?' : 'Batalkan'}</button></div>
+        {/if}
       </div>
     {/each}
   {/if}
@@ -146,7 +161,7 @@
         <div class="info">
           <b>{d.gameName} vs {d.them.name}</b>
           {#if d.status === 'done'}<span>{d.me.label} vs {d.them.label}{#if d.me.reward}{' · '}+{d.me.reward} koin{/if}</span>
-          {:else}<span>{d.status === 'declined' ? 'Ditolak' : 'Kedaluwarsa'}</span>{/if}
+          {:else}<span>{endedText(d)}</span>{/if}
         </div>
         {#if d.result}<i class="res {d.result}">{d.result === 'menang' ? 'Menang' : d.result === 'kalah' ? 'Kalah' : 'Seri'}</i>{/if}
       </div>
@@ -184,6 +199,7 @@
   .info .live { color: #1E7A4C; font-weight: 800; }
   .info em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); }
   .btns { display: flex; flex-direction: column; gap: 4px; }
+  .btns .armed { background: #F8C9BE; }
   .res { font-style: normal; font-weight: 800; font-size: 13px; border: 2px solid var(--ink); border-radius: 999px; padding: 1px 10px; background: var(--paper); }
   .res.menang { background: #BFEBCB; }
   .res.kalah { background: #F8C9BE; }

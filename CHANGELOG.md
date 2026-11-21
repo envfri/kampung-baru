@@ -4,6 +4,24 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.45.2 · 2026-11-21 · Tantangan duel bisa dibatalkan
+
+_Teman yang ditantang duel tidak datang? Batalkan sendiri kapan saja, atau tantangan batal otomatis setelah 6 jam._
+
+### Baru
+
+- Tombol Batalkan tantangan di ruang duel dan di daftar Duel Teman, juga setelah kamu main duluan. Ketuk dua kali supaya tidak terpencet. Teman yang ditantang tetap bisa Tolak. _(pemain)_
+
+### Perubahan
+
+- Riwayat duel menjelaskan duel yang tidak jadi: "Kamu batalkan", "Dibatalkan …", "Ditolak …", atau "Batal otomatis, … tidak datang". Kartu duel menunjukkan kapan batal otomatis. _(pemain)_
+- Admin: Duel teman › expireHours bawaan 6 jam (pengaturan yang masih 48 diubah otomatis; angka lain dari admin tidak disentuh). Hadiah duel di daftar duel kini mengikuti pengaturan admin.
+- Teknis: migrasi 030 (status duel 'cancelled', batas 6 jam juga untuk tantangan yang sedang menunggu), POST /api/duels/:id/decline dipakai untuk tolak & batal (ditolak saat teman sedang main; mulai >10 menit tanpa selesai dianggap pergi). Uji: duel.test.ts, e2e-duel.
+
+### Perbaikan
+
+- Tantangan duel yang tidak didatangi teman kini batal otomatis setelah 6 jam (sebelumnya baru setelah 2 hari), jadi kamu bisa langsung menantang temanmu lagi. _(pemain)_
+
 ## 0.45.1 · 2026-11-21 · Semua kasur bisa dipakai tidur
 
 _Dipan Kayu dan Kasur Roket kini bisa dipakai tidur sampai segar, sama seperti Kasur Rotan, tidak hanya rebahan sebentar._
@@ -17,6 +35,8 @@ _Dipan Kayu dan Kasur Roket kini bisa dipakai tidur sampai segar, sama seperti K
 - Semua kasur bisa dipakai tidur sungguhan: ketuk Kasur Rotan, Dipan Kayu, atau Kasur Roket lalu pilih "Tidur sampai segar". Lampu dimatikan dan energi terisi pelan-pelan sampai pet bangun sendiri. Rebahan sebentar (Rebahan, Leyeh-leyeh, Rebahan di roket) tetap ada untuk tambahan energi cepat. _(pemain)_
 - Pet tidur di kasur yang kamu ketuk. Lewat tombol Tidur, pet berjalan ke kasur mana pun di rumahmu, jadi tidak lagi tidur di lantai bila kasurnya bukan Kasur Rotan. _(pemain)_
 - Setelah memakai perabot di rumah sendiri, pesan menunjukkan kebutuhan yang bertambah (mis. "+15 Energi"), atau bahwa kebutuhannya sudah penuh. _(pemain)_
+
+Commit: [`888e6ea`](https://github.com/envfri/kampung-baru/commit/888e6ea)
 
 ## 0.45.0 · 2026-11-20 · Kerja Sambilan
 

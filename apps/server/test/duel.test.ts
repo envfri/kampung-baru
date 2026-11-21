@@ -125,3 +125,37 @@ test('tolak tantangan & langkah tidak wajar', async () => {
   assert.equal(ff.body.duel.status, 'done');
   assert.equal(ff.body.duel.result, 'seri', '0 lawan 0 (langkah A tadi tidak sah)');
 });
+
+test('batalkan tantangan: teman tidak datang, batal otomatis 6 jam, tidak bisa saat teman sedang main', async () => {
+  const { a, b } = await pair();
+  // batal otomatis 6 jam (bawaan) sejak tantangan dibuat
+  const mk = await a.c.post('/api/duels', { friendId: b.id, game: 'layangan' });
+  const d0 = mk.body.duel;
+  assert.ok(Math.abs(d0.expiresAt - d0.createdAt - 6 * 3600_000) < 60_000, `batal otomatis 6 jam (${(d0.expiresAt - d0.createdAt) / 3600_000} jam)`);
+  // yang menantang membatalkan sendiri: duel tertutup, bisa langsung menantang lagi
+  const c1 = await a.c.post(`/api/duels/${d0.id}/decline`);
+  assert.equal(c1.status, 200, JSON.stringify(c1.body));
+  assert.equal(c1.body.status, 'cancelled');
+  assert.equal((await b.c.get(`/api/duels/${d0.id}`)).body.duel.status, 'cancelled', 'teman melihat dibatalkan');
+  assert.equal((await b.c.post(`/api/duels/${d0.id}/start`)).body.error?.code, 'closed');
+  assert.equal((await b.c.get('/api/me')).body.duelsPending ?? 0, 0, 'tidak lagi menunggu giliran teman');
+  // sudah main duluan, teman tidak kunjung main: tetap bisa dibatalkan
+  const id2 = (await a.c.post('/api/duels', { friendId: b.id, game: 'bakiak' })).body.duel.id;
+  assert.ok(id2, 'bisa menantang lagi setelah batal');
+  await a.c.post(`/api/duels/${id2}/start`);
+  await a.c.post(`/api/duels/${id2}/finish`, { forfeit: true });
+  assert.equal((await a.c.post(`/api/duels/${id2}/decline`)).body.status, 'cancelled', 'batal setelah main duluan');
+  // teman sedang main: tidak bisa dibatalkan; setelah 10 menit tanpa selesai dianggap pergi
+  const id3 = (await a.c.post('/api/duels', { friendId: b.id, game: 'bakiak' })).body.duel.id;
+  await b.c.post(`/api/duels/${id3}/start`);
+  assert.equal((await a.c.post(`/api/duels/${id3}/decline`)).body.error?.code, 'them_playing');
+  assert.equal((await b.c.post(`/api/duels/${id3}/decline`)).body.error?.code, 'invalid', 'yang sedang main memakai Akhiri');
+  await backdate(id3, 'o', 11 * 60);
+  assert.equal((await a.c.post(`/api/duels/${id3}/decline`)).body.status, 'cancelled', 'teman pergi di tengah permainan');
+  // batal otomatis: lewat batas waktu → kedaluwarsa, di daftar duel tidak lagi menunggu
+  const id4 = (await a.c.post('/api/duels', { friendId: b.id, game: 'gasing' })).body.duel.id;
+  await db.query(`update duels set expires_at = now() - interval '1 minute' where id = $1`, [id4]);
+  const list = (await a.c.get('/api/duels')).body.duels;
+  assert.equal(list.find((x: any) => x.id === id4)?.status, 'expired');
+  assert.equal((await a.c.post(`/api/duels/${id4}/decline`)).body.error?.code, 'invalid');
+});

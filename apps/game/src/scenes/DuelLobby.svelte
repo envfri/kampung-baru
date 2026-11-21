@@ -3,7 +3,7 @@
   // Kalau teman belum datang, pemain bisa main duluan; temannya nanti melawan bayangan permainannya.
   import { onDestroy, onMount } from 'svelte';
   import { petSVG, GAMES } from '@kb/shared';
-  import { G, wearItems, fail, settings } from '../lib/game.svelte';
+  import { G, wearItems, fail, settings, run, toast } from '../lib/game.svelte';
   import { leaveDuel } from '../lib/minigame.svelte';
   import { api } from '../lib/api';
   import { GAME_ART } from '../lib/gameArt';
@@ -53,6 +53,19 @@
   const gname = $derived((GAMES as any)[G.duel?.game ?? d?.game]?.name ?? 'Duel');
   const wa = $derived(`https://wa.me/?text=${encodeURIComponent(`Ayo duel ${gname} sama aku di BUPI! Buka sekarang, aku tunggu di ruang duel: ${location.origin}/#duels`)}`);
   const cost = $derived(settings().games?.[G.duel?.game ?? '']?.energiCost ?? 0);
+  const autoH = $derived(settings().duel?.expireHours ?? 6);
+  /** batalkan tantangan (teman tidak datang) / tolak; ketuk dua kali supaya tidak terpencet */
+  let armed = $state(false);
+  let armT: any;
+  const canCancel = $derived(!!d && d.status === 'open' && !d.them.started && !(d.me.started && !d.me.played));
+  async function cancel() {
+    if (!d) return;
+    if (!armed) { sfx.tap(); armed = true; clearTimeout(armT); armT = setTimeout(() => (armed = false), 3500); return; }
+    armed = false;
+    const r: any = await run(() => api.post(`/api/duels/${id}/decline`));
+    if (r) { toast(r.status === 'cancelled' ? `Tantangan ke ${d.them.name} dibatalkan.` : 'Tantangan ditolak.'); leaveDuel(); }
+  }
+  const cancelText = $derived(armed ? 'Yakin batalkan?' : d?.role === 'opponent' ? 'Tolak tantangan' : 'Batalkan tantangan');
 </script>
 
 <div class="lobby">
@@ -92,10 +105,11 @@
       <p>Masuk ke ruang duel…</p>
     {:else if d.me.played}
       <p>{d.result === 'menang' ? 'Kamu menang!' : d.result === 'kalah' ? 'Kamu kalah.' : d.result === 'seri' ? 'Seri!' : `Skormu ${d.me.label}. Tunggu ${d.them.name} main.`}</p>
-      {#if d.result}<p class="sub">{d.me.label} vs {d.them.label}</p>{/if}
+      {#if d.result}<p class="sub">{d.me.label} vs {d.them.label}</p>{:else}<p class="sub">Kalau {d.them.name} belum main dalam {autoH} jam, duel batal otomatis.</p>{/if}
       <div class="row"><button class="btn hot" onclick={() => leaveDuel()}>{@html I.back} Daftar duel</button></div>
+      {#if canCancel}<button class="btn ghost" class:armed onclick={cancel}>{cancelText}</button>{/if}
     {:else if d.status !== 'open' && d.status !== 'live'}
-      <p>{d.status === 'declined' ? 'Tantangan ini ditolak.' : d.status === 'expired' ? 'Duel ini sudah kedaluwarsa.' : 'Duel sudah selesai.'}</p>
+      <p>{d.status === 'declined' ? 'Tantangan ini ditolak.' : d.status === 'cancelled' ? 'Tantangan ini dibatalkan.' : d.status === 'expired' ? `Duel ini batal otomatis karena tidak selesai dalam ${autoH} jam.` : 'Duel sudah selesai.'}</p>
       <div class="row"><button class="btn hot" onclick={() => leaveDuel()}>{@html I.back} Daftar duel</button></div>
     {:else if d.me.started}
       <p>Kamu sudah mulai duel ini. Selesaikan dari daftar duel.</p>
@@ -112,12 +126,15 @@
       </div>
     {:else}
       <p>{d.them.started ? `${d.them.name} sedang main duel ini…` : `Menunggu ${d.them.name} masuk ruang duel…`}</p>
-      <p class="sub">Kalau kalian sama-sama di sini, permainan mulai bersamaan. Tidak mau menunggu? Main duluan, nanti {d.them.name} melawan bayanganmu.</p>
+      <p class="sub">Kalau kalian sama-sama di sini, permainan mulai bersamaan. Tidak mau menunggu? Main duluan, nanti {d.them.name} melawan bayanganmu. Kalau {d.them.name} tidak datang dalam {autoH} jam, tantangan batal otomatis.</p>
       <div class="row">
         <a class="btn wa" href={wa} target="_blank" rel="noopener">Ajak lewat WA</a>
         <button class="btn hot" onclick={() => go(false)}>Main duluan</button>
       </div>
-      <button class="btn ghost" onclick={() => leaveDuel()}>{@html I.back} Kembali</button>
+      <div class="row">
+        <button class="btn ghost" onclick={() => leaveDuel()}>{@html I.back} Kembali</button>
+        {#if canCancel}<button class="btn ghost" class:armed onclick={cancel}>{cancelText}</button>{/if}
+      </div>
     {/if}
   </div>
 </div>
@@ -153,6 +170,7 @@
   .row { display: flex; gap: 8px; } .row .btn { flex: 1; }
   .wa { background: #BFEBCB; text-decoration: none; color: var(--ink); }
   .ghost { background: transparent; box-shadow: none; border-color: transparent; min-height: 36px; }
+  .ghost.armed { background: #F8C9BE; border-color: var(--ink); }
   @keyframes hop { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
   @keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .pet .svg, .dots i { animation: none; } }
