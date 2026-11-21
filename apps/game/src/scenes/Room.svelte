@@ -3,7 +3,7 @@
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { roomMood, premiumMoodSVG, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
+  import { roomMood, premiumMoodSVG, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, isBedItem, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
   import { EMOTE_ICON } from '../lib/houseArt';
@@ -1122,7 +1122,12 @@
 
   /* ---------------- tidur dengan lampu mati ---------------- */
 
-  /** Pet berjalan ke kasur (di ruangan ini dulu, lalu ruangan lain) lalu tidur; tanpa kasur tidur di lantai. */
+  /** kasur yang baru diketuk untuk "Tidur sampai segar": pet tidur di kasur itu, bukan kasur lain */
+  let bedPick: { t: Target; at: number } | null = null;
+  /**
+   * Pet berjalan ke kasur lalu tidur: kasur yang diketuk, atau kasur apa pun (Kasur Rotan, Dipan Kayu, Kasur Roket, ...)
+   * di ruangan ini dulu, lalu ruangan lain; tanpa kasur tidur di lantai.
+   */
   async function goToBed(instant = false) {
     if (!live) return;
     const gen = planGen;
@@ -1131,10 +1136,15 @@
     const here = roomAt(live)?.id;
     const order = [...plan.rooms].sort((a, b) => (a.id === here ? -1 : b.id === here ? 1 : a.i - b.i));
     let bed: { r: (typeof plan.rooms)[number]; p: any; it: any } | null = null;
-    for (const r of order) {
-      const lay = layoutOf(roomOf(r.id));
-      const p = lay.find((q) => { const it = item(q.i); return it?.art?.type === 'builtin' && it.art.key === 'kasur'; });
-      if (p) { bed = { r, p, it: item(p.i) }; break; }
+    const pick = bedPick && Date.now() - bedPick.at < 15_000 ? bedPick.t : null;
+    bedPick = null;
+    if (pick) {
+      const r = plan.byId.get(pick.room), p = placedAt(pick), it = itemOf(p?.i);
+      if (r && p && isBedItem(it as any)) bed = { r, p, it };
+    }
+    for (const r of bed ? [] : order) {
+      const p = layoutOf(roomOf(r.id)).find((q) => isBedItem(itemOf(q.i) as any));
+      if (p) { bed = { r, p, it: itemOf(p.i) }; break; }
     }
     if (bed) {
       const { r, p } = bed;
@@ -1211,9 +1221,9 @@
       });
     }
     const acts = list.filter((a: any) => activityFits(a.targets, it as any));
-    // kasur & lampu: matikan lampu untuk tidur sungguhan (hanya di rumah sendiri; di rumah teman cukup rebahan)
+    // semua kasur & lampu: matikan lampu untuk tidur sungguhan (hanya di rumah sendiri; di rumah teman cukup rebahan)
     const key = it?.art?.type === 'builtin' ? it.art.key : '';
-    return mode === 'home' && (key === 'kasur' || key === 'lampu') ? [SLEEP_ACT, ...acts] : acts;
+    return mode === 'home' && (isBedItem(it as any) || key === 'lampu') ? [SLEEP_ACT, ...acts] : acts;
   }
 
   function goalsFor(t: Target): { goals: [number, number][]; center: [number, number] | null; faceTo: [number, number] | null; flipTo: boolean | null } {
@@ -1294,7 +1304,7 @@
     if (mode === 'visit') return doVisitActivity(a, t);
     menu = null;
     if (acting || G.busy) return;
-    if (a.id === '__sleep') { await setSleep(true); return; }
+    if (a.id === '__sleep') { bedPick = isBedItem(itemOf(placedAt(t)?.i) as any) ? { t, at: Date.now() } : null; await setSleep(true); return; }
     if ((a.min_level ?? 1) > G.me.pet.level) { sfx.error(); toast(`Terbuka di Lv ${a.min_level}.`, 'error'); return; }
     const anim = ACTIVITY_ANIMS[a.anim] ?? ACTIVITY_ANIMS.lihat;
     // tamu yang sedang memakai perabot ini (satu pet per perabot)
@@ -1328,8 +1338,10 @@
     if (anim.on && standAt) { live = standAt; pos = [...standAt]; }
     queueMicrotask(place);
     const res = r.result ?? {};
-    const extra = [res.coins ? `+${res.coins} koin` : '', res.item ? `dapat ${item(res.item)?.name ?? 'barang'}` : ''].filter(Boolean).join(', ');
-    toast(`${res.message ?? a.name}${extra ? ` (${extra})` : ''}`, 'good');
+    // tampilkan kebutuhan yang benar-benar bertambah ("+15 Energi"), atau bahwa kebutuhannya sudah penuh
+    const ups = Object.keys(NEED_LABEL).filter((k) => Number(a.effects?.[k]) > 0);
+    const full = ups.length && !ups.some((k) => res.gained?.[k]) ? ` ${ups.map((k) => NEED_LABEL[k]).join(' & ')} sudah penuh.` : '';
+    toast(`${visitResult(res, a)}${full}`, 'good');
     if (res.coins) sfx.coin();
     if (res.levelUp) { sfx.level(); toast(`Naik ke Lv ${res.levelUp}!`, 'good'); }
     acting = false;
@@ -1350,7 +1362,7 @@
   });
 
   const NEED_LABEL: Record<string, string> = { kenyang: 'Kenyang', bersih: 'Bersih', ceria: 'Ceria', energi: 'Energi' };
-  /** hasil aktivitas di rumah teman (kebutuhan tidak tampil saat berkunjung): "Mochi berendam. +45 Bersih, +4 Ceria · +3 koin" */
+  /** hasil aktivitas (di rumah sendiri & rumah teman): "Mochi berendam. +45 Bersih, +4 Ceria · +3 koin" */
   function visitResult(res: any, a: any) {
     const eff = Object.entries(res?.gained ?? {}).filter(([, v]) => v).map(([k, v]) => `${(v as number) > 0 ? '+' : ''}${v} ${NEED_LABEL[k] ?? k}`).join(', ');
     const bits = [eff, res?.coins ? `+${res.coins} koin` : '', res?.item ? `dapat ${item(res.item)?.name ?? 'barang'}` : ''].filter(Boolean).join(' · ');

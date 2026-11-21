@@ -4,6 +4,20 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.45.1 · 2026-11-21 · Semua kasur bisa dipakai tidur
+
+_Dipan Kayu dan Kasur Roket kini bisa dipakai tidur sampai segar, sama seperti Kasur Rotan, tidak hanya rebahan sebentar._
+
+### Perubahan
+
+- Teknis: BED_ARTS/isBedItem di @kb/shared (kasur, dipan, kasurroket); Room memakai kasur yang diketuk untuk tidur. Ayunan jaring & hamak tetap untuk tidur siang. Uji baru: e2e-kasur.
+
+### Perbaikan
+
+- Semua kasur bisa dipakai tidur sungguhan: ketuk Kasur Rotan, Dipan Kayu, atau Kasur Roket lalu pilih "Tidur sampai segar". Lampu dimatikan dan energi terisi pelan-pelan sampai pet bangun sendiri. Rebahan sebentar (Rebahan, Leyeh-leyeh, Rebahan di roket) tetap ada untuk tambahan energi cepat. _(pemain)_
+- Pet tidur di kasur yang kamu ketuk. Lewat tombol Tidur, pet berjalan ke kasur mana pun di rumahmu, jadi tidak lagi tidur di lantai bila kasurnya bukan Kasur Rotan. _(pemain)_
+- Setelah memakai perabot di rumah sendiri, pesan menunjukkan kebutuhan yang bertambah (mis. "+15 Energi"), atau bahwa kebutuhannya sudah penuh. _(pemain)_
+
 ## 0.45.0 · 2026-11-20 · Kerja Sambilan
 
 _Pet-mu bisa kerja paruh waktu di tempat-tempat kampung selama 1, 3 atau 8 jam, lalu pulang membawa gaji, XP, kadang barang bonus, dan cerita lucu._
@@ -24,6 +38,8 @@ _Pet-mu bisa kerja paruh waktu di tempat-tempat kampung selama 1, 3 atau 8 jam, 
 
 - Admin: pengaturan Ekonomi & fitur › Kerja sambilan (nyala/mati, lama kerja dalam menit, gaji, XP, biaya kebutuhan, syarat, batas harian, pangkat, jendela ronda, level/bonus per tempat, cerita). Jenis lokasi baru jobs & ronda, jenis notifikasi kerja_done.
 - Teknis: migrasi 029 (pet_jobs, pet_job_progress, pets.work_until/work_cost/work_job), paket konten 21 (pack_kerja: 8 seragam, 2 tempat peta, tugas & lencana), GET /api/kerja, POST /api/kerja/start|recall|claim, satu pemeriksa server assertNotWorking. Uji baru: kerja.test.ts, e2e-kerja.
+
+Commit: [`76f1970`](https://github.com/envfri/kampung-baru/commit/76f1970)
 
 ## 0.44.1 · 2026-11-20 · Rumah teman terlihat jelas di HP kecil
 

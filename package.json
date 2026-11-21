@@ -1,6 +1,6 @@
 {
   "name": "bupi",
-  "version": "0.45.0",
+  "version": "0.45.1",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -38,6 +38,7 @@
     "test:e2e:tamu": "node scripts/e2e-tamu.mjs",
     "test:e2e:fasilitas": "node scripts/e2e-fasilitas.mjs",
     "test:e2e:kerja": "node scripts/e2e-kerja.mjs",
+    "test:e2e:kasur": "node scripts/e2e-kasur.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",

@@ -54,6 +54,13 @@ export function activityFits(targets: string[] | undefined, item?: ItemLike | nu
   return t.includes('item:' + item.id) || (item.art?.type === 'builtin' && t.includes('art:' + item.art.key));
 }
 
+/**
+ * Perabot untuk tidur sungguhan ("Tidur sampai segar": lampu mati, energi terisi sampai segar). Semua kasur sama-sama
+ * bisa dipakai tidur; ayunan jaring & hamak tetap untuk tidur siang sebentar.
+ */
+export const BED_ARTS: readonly string[] = ['kasur', 'dipan', 'kasurroket'];
+export const isBedItem = (item?: ItemLike | null) => !!item && item.kind === 'furniture' && item.art?.type === 'builtin' && BED_ARTS.includes(item.art.key);
+
 export function activityMessage(a: Pick<ActivityLike, 'message' | 'name'>, pet: string, target: string) {
   const tpl = a.message?.trim() || `{pet} selesai: ${a.name}.`;
   return tpl.replace(/\{pet\}/g, pet).replace(/\{item\}/g, target);

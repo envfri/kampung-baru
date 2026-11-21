@@ -39,7 +39,20 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.45.1',
+    date: '2026-11-21',
+    title: 'Semua kasur bisa dipakai tidur',
+    summary: 'Dipan Kayu dan Kasur Roket kini bisa dipakai tidur sampai segar, sama seperti Kasur Rotan, tidak hanya rebahan sebentar.',
+    items: [
+      { kind: 'perbaikan', text: 'Semua kasur bisa dipakai tidur sungguhan: ketuk Kasur Rotan, Dipan Kayu, atau Kasur Roket lalu pilih "Tidur sampai segar". Lampu dimatikan dan energi terisi pelan-pelan sampai pet bangun sendiri. Rebahan sebentar (Rebahan, Leyeh-leyeh, Rebahan di roket) tetap ada untuk tambahan energi cepat.', player: true },
+      { kind: 'perbaikan', text: 'Pet tidur di kasur yang kamu ketuk. Lewat tombol Tidur, pet berjalan ke kasur mana pun di rumahmu, jadi tidak lagi tidur di lantai bila kasurnya bukan Kasur Rotan.', player: true },
+      { kind: 'perbaikan', text: 'Setelah memakai perabot di rumah sendiri, pesan menunjukkan kebutuhan yang bertambah (mis. "+15 Energi"), atau bahwa kebutuhannya sudah penuh.', player: true },
+      { kind: 'ubah', text: 'Teknis: BED_ARTS/isBedItem di @kb/shared (kasur, dipan, kasurroket); Room memakai kasur yang diketuk untuk tidur. Ayunan jaring & hamak tetap untuk tidur siang. Uji baru: e2e-kasur.' },
+    ],
+  },
+  {
     version: '0.45.0',
+    commits: ['76f1970'],
     date: '2026-11-20',
     title: 'Kerja Sambilan',
     summary: 'Pet-mu bisa kerja paruh waktu di tempat-tempat kampung selama 1, 3 atau 8 jam, lalu pulang membawa gaji, XP, kadang barang bonus, dan cerita lucu.',
