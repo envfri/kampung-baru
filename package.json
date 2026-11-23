@@ -40,8 +40,10 @@
     "test:e2e:kerja": "node scripts/e2e-kerja.mjs",
     "test:e2e:kasur": "node scripts/e2e-kasur.mjs",
     "test:e2e:mandi2": "node scripts/e2e-mandi2.mjs",
+    "test:e2e:sahabat": "node scripts/e2e-sahabat.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
+    "sahabat-sheet": "node --import tsx scripts/sahabat-sheet.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",
     "instagram": "node --import tsx scripts/instagram.mjs",
     "changelog": "node --import tsx scripts/changelog.mjs"

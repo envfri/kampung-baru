@@ -200,6 +200,62 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 /* Pengaturan › Kurangi animasi (pilihan di game) — paket 22 */
 :root.reduce-motion :is(.pet, .opet).pose-gayung :is(.pet-bob, .p-gayung, .p-guyur), :root.reduce-motion :is(.pet, .opet).pose-shower :is(.pet-bob, .p-shower path, .p-busa, .p-cipr), :root.reduce-motion :is(.pet, .opet).pose-kering :is(.pet-bob, .p-angin path, .p-bulu) { animation: none; }
 
+/* ---------- Paket konten 23 (Sahabat Mungil): hewan kecil yang mengikuti pet ----------
+   Gambar di art-sahabat.ts (buddyMarkup): .bud (posisi lewat transform dari Room.svelte / MapScene.svelte) > .bud-hop >
+   .bud-face (arah) > .bud-bob > .b-n (gambar biasa) / .b-t (gambar trik) / .b-f (pipit terbang) & .b-pk (kepala/telinga).
+   Kelas sesaat dari game: .mv (berjalan), .trk (trik, Akrab ke atas), .hop1 (lompat kecil, Kenal), .idl (gerak diam);
+   .nite = malam (cahaya kunang-kunang lebih terang & berdenyut — satu-satunya animasi terus-menerus, hanya kunang-kunang
+   & hanya malam). Diam dengan prefers-reduced-motion & Kurangi animasi: frame trik tetap tampil sebagai gambar diam. */
+.bud { cursor: pointer; }
+.bud :is(.bud-bob, .bud-hop) { transform-box: fill-box; transform-origin: 50% 100%; }
+.bud .b-pk { transform-box: fill-box; transform-origin: 30% 90%; }
+.bud .b-glow { transform-box: fill-box; transform-origin: center; }
+.bud.mv .bud-bob { animation: bd-waddle .3s ease-in-out infinite alternate; }
+.bud.mv.sp-kelinci .bud-bob { animation: bd-hop .32s ease-out infinite alternate; }
+.bud.mv.sp-kura .bud-bob { animation: bd-waddle .62s ease-in-out infinite alternate; }
+.bud.mv.sp-umang .bud-bob { animation: bd-scuttle .16s linear infinite alternate; }
+.bud.mv:is(.sp-pipit, .sp-kunang) .bud-bob { animation: bd-flut .26s ease-in-out infinite alternate; }
+.bud:is(.mv, .trk).sp-pipit .b-n { display: none; }
+.bud:is(.mv, .trk).sp-pipit .b-f { display: inline; }
+.bud.trk:is(.sp-umang, .sp-bebek, .sp-kura, .sp-hamster, .sp-landak) .b-n { display: none; }
+.bud.trk .b-t { display: inline; }
+.bud.trk.sp-ayam .bud-bob { animation: bd-peck .22s ease-in-out 4 alternate; }
+.bud.trk.sp-umang .bud-bob { animation: bd-shake .12s linear 6 alternate; }
+.bud.trk.sp-bebek .bud-hop, .bud.hop1 .bud-hop { animation: bd-jump .5s ease-out; }
+.bud.trk.sp-kura .bud-bob { animation: bd-stretch .6s ease-in-out 2 alternate; }
+.bud.trk.sp-pipit .bud-hop { animation: bd-loop 1.1s ease-in-out; }
+.bud.trk.sp-kunang .b-glow { animation: bd-flash .55s ease-in-out 2 alternate; }
+.bud.trk.sp-kelinci .bud-hop { animation: bd-binky .8s ease-out; }
+.bud.trk.sp-hamster .bud-bob { animation: bd-puff .3s ease-in-out 4 alternate; }
+.bud.trk.sp-landak .bud-bob { transform-origin: 50% 64%; animation: bd-roll 1s ease-in-out; }
+.bud.idl:is(.sp-ayam, .sp-bebek) .b-pk { animation: bd-nod .24s ease-in-out 4 alternate; }
+.bud.idl:is(.sp-pipit, .sp-kelinci, .sp-landak, .sp-kura) .b-pk { animation: bd-tilt .45s ease-in-out 2 alternate; }
+.bud.idl:is(.sp-hamster, .sp-umang) .bud-bob { animation: bd-puff .4s ease-in-out 2 alternate; }
+.bud.idl.sp-kunang .b-glow { animation: bd-flash .5s ease-in-out 2 alternate; }
+.bud.k-wait.idl .bud-hop { animation: bd-jump .5s ease-out; }
+.bud.sp-kunang.nite .b-glow { transform: scale(1.75); animation: bd-glow 2.4s ease-in-out infinite alternate; }
+@keyframes bd-waddle { from { transform: rotate(-9deg) translateY(0); } to { transform: rotate(9deg) translateY(-2.5px); } }
+@keyframes bd-hop { from { transform: translateY(0) scale(1.04, .94); } to { transform: translateY(-9px) scale(.97, 1.04); } }
+@keyframes bd-scuttle { from { transform: translateX(-1px); } to { transform: translateX(1px) translateY(-1px); } }
+@keyframes bd-flut { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+@keyframes bd-peck { from { transform: rotate(0); } to { transform: rotate(24deg); } }
+@keyframes bd-shake { from { transform: translateX(-1.5px); } to { transform: translateX(1.5px); } }
+@keyframes bd-jump { 0% { transform: translateY(0); } 40% { transform: translateY(-14px); } 100% { transform: translateY(0); } }
+@keyframes bd-stretch { from { transform: scale(1, 1); } to { transform: scale(.96, 1.06); } }
+@keyframes bd-loop { 0% { transform: translate(0, 0); } 25% { transform: translate(14px, -22px); } 50% { transform: translate(0, -34px); } 75% { transform: translate(-14px, -22px); } 100% { transform: translate(0, 0); } }
+@keyframes bd-flash { from { transform: scale(1); opacity: 1; } to { transform: scale(2.2); opacity: .9; } }
+@keyframes bd-binky { 0% { transform: translateY(0) rotate(0); } 45% { transform: translateY(-24px) rotate(-16deg); } 70% { transform: translateY(-10px) rotate(10deg); } 100% { transform: translateY(0) rotate(0); } }
+@keyframes bd-puff { from { transform: scale(1, 1); } to { transform: scale(1.08, .93); } }
+@keyframes bd-roll { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes bd-nod { from { transform: rotate(0); } to { transform: rotate(18deg); } }
+@keyframes bd-tilt { from { transform: rotate(0); } to { transform: rotate(-12deg); } }
+@keyframes bd-glow { from { transform: scale(1.5); opacity: .8; } to { transform: scale(1.95); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .bud :is(.bud-bob, .bud-hop, .b-pk, .b-glow) { animation: none !important; }
+}
+/* Pengaturan › Kurangi animasi (pilihan di game) — paket 23 */
+:root.reduce-motion .bud :is(.bud-bob, .bud-hop, .b-pk, .b-glow) { animation: none !important; }
+
 /* ---------- Paket konten 20 (perabot dapur, kamar mandi, taman): pose aktivitas baru ayun, sikat, cuci ----------
    Selektor :is(.pet, .opet) supaya pet lain di ruangan (tamu / pet sendiri saat berkunjung) ikut berpose bila kelas
    pose-nya terpasang. Properti pet ada di art-perabot3.ts: p-ayun (penanda), p-sikat & p-busa, p-cuci.

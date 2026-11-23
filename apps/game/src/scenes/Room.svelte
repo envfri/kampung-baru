@@ -13,6 +13,8 @@
   import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
   import { JP, type JepretSnap, type JepretPet } from '../lib/jepret.svelte';
   import { working, gajiWaiting, petFree } from '../lib/kerja.svelte';
+  import { buddyMarkup, SAHABAT_INFO, PIPIT_SPOTS, isSahabatSp, type SahabatSp } from '@kb/shared';
+  import { SB, myLook, myBuddies, activeBuddy, sahabatOn, ownsSp, kunangWaiting, openSahabat, play as playBud, takeGift } from '../lib/sahabat.svelte';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
   /** alun-alun: lapangan bersama semua pemain (pet sendiri jalan-jalan, pemain lain live) */
@@ -269,7 +271,7 @@
   const viewBounds = () => (square ? SQB : showYard ? houseYardBounds(plan) : houseBounds(plan));
   const crumbsHtml = $derived(G.edit ? '' : houseCrumbs(plan, crumbRoom, crumbs));
   const fixedDraws = $derived(houseDraws(plan, art, itemMap));
-  type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string }; behind?: boolean };
+  type Draw = HouseDraw & { pet?: { cls: string; tf: string; o?: string; b?: string }; behind?: boolean };
   const tf = (p: [number, number], lift = 0) => { const [x, y] = houseIso(p[0], p[1]); return `translate(${x.toFixed(1)} ${(y - liftPx(lift)).toFixed(1)}) scale(${HOUSE_PET_SCALE})`; };
   // pulang kerja: pet memegang amplop gaji sampai gajinya diterima
   const mainMarkup = $derived(petData && !hideMain && !planning ? petMarkup({ look: petData, wear: wearItems(petData.wear), state: look, flip, prop: mode === 'home' && G.bath ? 'baskom' : pose?.prop ?? (mode === 'home' && G.now > 0 && gajiWaiting() ? 'amplop' : undefined) }) : '');
@@ -301,7 +303,7 @@
     const hide = new Set(ONDEL_IDX.filter((_, k) => ondelAway[k]).map((i) => `f:${ALUN_ROOM}:${i}`));
     return fixedDraws.filter((d) => !hide.has(d.key));
   });
-  const draws = $derived<Draw[]>([...shownFixed, ...(square ? [FESTOON] : []), ...petDraws, ...npcDraws, ...moverDraws].sort(houseDrawOrder));
+  const draws = $derived<Draw[]>([...shownFixed, ...(square ? [FESTOON] : []), ...petDraws, ...budDraws, ...npcDraws, ...moverDraws].sort(houseDrawOrder));
   /** gerbong kereta di rel belakang & kiri (dan penumpangnya) digambar di balik pagar & semak */
   const drawsBehind = $derived(square ? draws.filter((d) => d.behind) : []);
   const drawsFront = $derived(square ? draws.filter((d) => !d.behind) : draws);
@@ -381,6 +383,7 @@
     else live = [live[0] + (dx / d) * step, live[1] + (dy / d) * step];
     if (tileOf(live) !== before || !path.length) pos = [...live];
     place();
+    budKick();
     if (mode === 'home') follow(dt);
     if (path.length) raf = requestAnimationFrame(tick);
     else stopWalk();
@@ -760,7 +763,9 @@
     /** beraktivitas di perabot: naik ke atas mebel (lift), properti yang dibawa, efek yang muncul berkala */
     lift?: number; prop?: string; fxKind?: string; fxN?: number;
     /** sedang naik wahana alun-alun (dari sinkron): posisi dihitung dari jadwal wahana */
-    ride?: { kind: RideKind | 'kolam' | 'catur'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean };
+    ride?: { kind: RideKind | 'kolam' | 'catur'; seat: number }; rideTf?: string; rideD?: number; rideBehind?: boolean;
+    /** sahabat aktif pemain itu (dari sinkron) */
+    buddy?: { sp: string; name: string; v?: string | null; lvl: number } | null; buddyKey?: string };
   const SELF = '__me';
   const comps = new Map<string, Comp>();
   const missing = new Map<string, number>();
@@ -799,6 +804,7 @@
       if (c.self && mode === 'visit') follow(dt);
     }
     if (retile) compVer++;
+    if (moving) budKick();
     compRaf = moving ? requestAnimationFrame(compTick) : 0;
     if (!moving) for (const c of comps.values()) placeComp(c);
   }
@@ -872,6 +878,8 @@
         let c = comps.get(m.id);
         if (!c) { c = { id: m.id, name: m.name, look: m.pet, wear: wearItems(m.pet.wear), state: m.pet.state, live: [...tgt], tile: tileOf(tgt), path: [], speed: 1.7, flip: m.flip, target: '' }; comps.set(m.id, c); changed = true; }
         else { c.look = m.pet; c.state = m.pet.state; c.name = m.name; c.wear = wearItems(m.pet.wear); }
+        const bk = JSON.stringify(m.pet.buddy ?? null);
+        if (bk !== c.buddyKey) { c.buddy = m.pet.buddy ?? null; c.buddyKey = bk; changed = true; }
         const rd = rideOf(m.act);
         // di rumah: pose aktivitas apa pun dari ACTIVITY_ANIMS (tidur, duduk, mandi, siram, ...) beserta properti & efeknya;
         // naik ke mebel (lift) hanya bila posisinya memang di atas mebel (duduk bareng pet teman tetap di lantai)
@@ -1067,6 +1075,340 @@
         if (Math.abs(sx) > 0.01) { flip = sx < 0; place(); }
       });
     });
+  });
+
+  /* ---------------- Sahabat Mungil: hewan kecil yang mengikuti pet ---------------- */
+  // Tiap pet yang terlihat (pet sendiri, pet tuan rumah, tamu, pemain di alun-alun) diikuti sahabat aktifnya lewat jejak
+  // langkah pet itu (jadi ikut lewat pintu); sahabat yang istirahat nongkrong di dekat "rumah"-nya (kurungan ayam,
+  // sangkar burung, kolam ikan, ...); anak ayam pertama, burung pipit & kunang-kunang menunggu diketuk. Posisi digeser
+  // lewat transform hanya selama ada yang bergerak (rAF berhenti sendiri saat semua diam); gerakan diam (mematuk, ...)
+  // berupa kelas sesaat, jadi rumah 12 ruangan tidak terbebani animasi terus-menerus.
+  type Bud = {
+    key: string; sp: SahabatSp; v: string | null; lvl: number; name: string; owner: string | null; kind: 'follow' | 'rest' | 'wait';
+    live: [number, number]; trail: [number, number][]; flip: boolean; perch: boolean; moving: boolean; tile: string; gift: boolean;
+    /** tinggi di atas lantai (px pet): bertengger di tempat minum burung, kunang-kunang melayang */
+    lift: number; id?: string;
+  };
+  type BudWant = Pick<Bud, 'key' | 'sp' | 'v' | 'lvl' | 'name' | 'owner' | 'kind' | 'gift' | 'lift' | 'id'> & { at?: [number, number] };
+  const buds = new Map<string, Bud>();
+  let budVer = $state(0);
+  let budRaf = 0, budLast = 0;
+  /** pose pemilik yang membuat sahabat Akrab duduk di kepalanya */
+  const HEAD_POSES = new Set(['tidur', 'duduk']);
+
+  /** pemilik sahabat: posisi, arah, bergerak, pose, tinggi naik, transform wahana & kedalaman gambar */
+  function ownerState(o: string | null) {
+    if (o === 'main') {
+      if (!live || hideMain || planning) return null;
+      return { at: live, flip, moving: walking, pose: pose?.pose ?? null, lift: pose?.lift ?? 0, tf: rideTf, d: rideD ?? (pos ? pos[0] + pos[1] + 0.01 : live[0] + live[1]) };
+    }
+    const c = o ? comps.get(o) : undefined;
+    if (!c) return null;
+    return { at: c.live, flip: c.flip, moving: c.path.length > 0, pose: c.pose ?? null, lift: compLift(c), tf: c.rideTf ?? null, d: c.rideD ?? c.live[0] + c.live[1] + 0.005 };
+  }
+  type Owner = NonNullable<ReturnType<typeof ownerState>>;
+  /** duduk di kepala pemilik (px pet, relatif kaki pemilik): Akrab saat pemilik duduk/tidur, pipit saat pemilik diam */
+  function perchOf(b: Bud, o: Owner): { hx: number; hy: number } | null {
+    if (b.kind !== 'follow' || o.tf) return null;
+    if (o.pose && HEAD_POSES.has(o.pose) && b.lvl >= 1) return o.pose === 'tidur' ? { hx: (o.flip ? 1 : -1) * 15, hy: -60 } : { hx: 0, hy: -70 };
+    if (b.sp === 'pipit' && !o.moving && !o.pose) return { hx: 3, hy: -74 };
+    return null;
+  }
+  /** tempat di belakang pemilik (sisi layar berlawanan arah hadapnya), di ruangan yang sama & tidak tertutup mebel */
+  function behindOf(o: Owner): [number, number] {
+    const s = o.flip ? 1 : -1, [x, y] = o.at;
+    const r = roomAt(o.at);
+    for (const c of [[x + s * 0.68, y - s * 0.62], [x + s * 0.85, y], [x, y - s * 0.85], [x - s * 0.68, y + s * 0.62]] as [number, number][]) {
+      if (!blocked.has(tileOf(c)) && roomAt(c)?.id === r?.id) return c;
+    }
+    return [x, y];
+  }
+  /** sahabat di lantai sedikit lebih besar dari skala pet (supaya mudah diketuk); di kepala pet memakai skala pet */
+  const BUD_K = HOUSE_PET_SCALE * 1.15;
+  function budTf(b: Bud, o: Owner | null, pp: { hx: number; hy: number } | null) {
+    if (pp && o) return `${o.tf ?? tf(o.at, o.lift)} translate(${pp.hx} ${pp.hy})`;
+    const [x, y] = houseIso(b.live[0], b.live[1]);
+    return `translate(${x.toFixed(1)} ${(y - liftPx(b.lift)).toFixed(1)}) scale(${BUD_K.toFixed(3)})`;
+  }
+  const budEl = (key: string) => svgEl?.querySelector(`[data-b="${key}"]`) as SVGGElement | null | undefined;
+  function placeBud(b: Bud, o: Owner | null, pp: { hx: number; hy: number } | null) {
+    budEl(b.key)?.setAttribute('transform', budTf(b, o, pp));
+  }
+  /** satu langkah mengikuti pemilik; true = masih perlu frame berikutnya */
+  function budStep(b: Bud, dt: number): boolean {
+    if (b.kind !== 'follow') return false;
+    const o = ownerState(b.owner);
+    if (!o) return false;
+    const pp = perchOf(b, o);
+    if (pp) {
+      if (!b.perch || b.moving) { b.perch = true; b.moving = false; b.trail = []; budVer++; }
+      b.live = [o.at[0], o.at[1]];
+      placeBud(b, o, pp);
+      return o.moving;
+    }
+    if (b.perch) { b.perch = false; b.live = behindOf(o); b.trail = []; b.tile = tileOf(b.live); budVer++; }
+    // naik wahana: sahabat menunggu di bawah
+    if (o.tf) return false;
+    const last = b.trail.length ? b.trail[b.trail.length - 1] : b.live;
+    const jump = Math.hypot(o.at[0] - last[0], o.at[1] - last[1]);
+    // pemilik pindah jauh sekaligus (ditempatkan ulang, sinkron tertinggal): sahabat ikut langsung
+    if (jump > 3.5) { b.trail = []; b.live = behindOf(o); b.tile = tileOf(b.live); b.moving = false; budVer++; return false; }
+    if (jump > 0.22) { b.trail.push([o.at[0], o.at[1]]); if (b.trail.length > 90) b.trail.splice(0, b.trail.length - 90); }
+    let rem = 0, px = b.live;
+    for (const q of b.trail) { rem += Math.hypot(q[0] - px[0], q[1] - px[1]); px = q; }
+    rem += Math.hypot(o.at[0] - px[0], o.at[1] - px[1]);
+    const I = SAHABAT_INFO[b.sp];
+    if (rem <= I.lag + 0.02) {
+      if (b.moving) { b.moving = false; budEl(b.key)?.classList.remove('mv'); }
+      return o.moving;
+    }
+    // tertinggal jauh: menyusul lebih cepat (kura-kura tetap paling pelan)
+    let step = Math.min(I.speed * (rem > 4.5 ? 2.6 : rem > 2.4 ? 1.5 : 1) * dt, rem - I.lag);
+    const x0 = b.live[0], y0 = b.live[1];
+    while (step > 1e-4) {
+      const t = b.trail[0] ?? o.at;
+      const dx = t[0] - b.live[0], dy = t[1] - b.live[1], d = Math.hypot(dx, dy);
+      if (d <= step) { b.live = [t[0], t[1]]; step -= d; if (b.trail.length) b.trail.shift(); else break; }
+      else { b.live = [b.live[0] + (dx / d) * step, b.live[1] + (dy / d) * step]; step = 0; }
+    }
+    const sx = b.live[0] - x0 - (b.live[1] - y0);
+    if (Math.abs(sx) > 0.002 && sx < 0 !== b.flip) { b.flip = sx < 0; budVer++; }
+    if (!b.moving) { b.moving = true; budEl(b.key)?.classList.add('mv'); }
+    placeBud(b, o, null);
+    const tk = tileOf(b.live);
+    if (tk !== b.tile) { b.tile = tk; budVer++; }
+    return true;
+  }
+  function budTick(now: number) {
+    const dt = Math.min(0.05, (now - budLast) / 1000);
+    budLast = now;
+    let more = false;
+    for (const b of buds.values()) if (budStep(b, dt)) more = true;
+    budRaf = more ? requestAnimationFrame(budTick) : 0;
+  }
+  function budKick() { if (!budRaf && buds.size) { budLast = performance.now(); budRaf = requestAnimationFrame(budTick); } }
+  onDestroy(() => cancelAnimationFrame(budRaf));
+
+  /** petak bebas di sebelah mebel (sisi depan dulu supaya terlihat) */
+  function besideItem(r: { id: string; gx: number; gy: number; w: number; d: number }, p: any, taken: Set<string>): [number, number] | null {
+    const f = footprint(itemOf(p.i), p.r);
+    const c: [number, number][] = [];
+    for (let a = 0; a < f.w; a++) c.push([p.x + a, p.y + f.d]);
+    for (let b = 0; b < f.d; b++) c.push([p.x + f.w, p.y + b]);
+    for (let a = 0; a < f.w; a++) c.push([p.x + a, p.y - 1]);
+    for (let b = 0; b < f.d; b++) c.push([p.x - 1, p.y + b]);
+    for (const [x, y] of c) {
+      if (x < 0 || y < 0 || x >= r.w || y >= r.d) continue;
+      const k = `${x + r.gx},${y + r.gy}`;
+      if (!blocked.has(k) && !taken.has(k)) { taken.add(k); return [x + r.gx + 0.5, y + r.gy + 0.5]; }
+    }
+    return null;
+  }
+  const hashSp = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  /** sahabat yang istirahat: dekat "rumah"-nya bila dipasang, selain itu di pojok kamar; paling banyak maxResting */
+  function restingWant(list: { sp: string; name: string; v?: string | null; lvl: number; id?: string }[], taken: Set<string>): BudWant[] {
+    const max = Math.max(0, Math.min(8, Number(settings().sahabat?.maxResting ?? 3)));
+    const ok = list.filter((b) => isSahabatSp(b.sp));
+    const found = ok.map((b) => {
+      const homes = SAHABAT_INFO[b.sp as SahabatSp].homes;
+      for (const r of plan.rooms) for (const p of layoutOf(roomOf(r.id))) if (homes.includes(p.i)) { const at = besideItem(r, p, taken); if (at) return { b, at }; }
+      return { b, at: null as [number, number] | null };
+    });
+    const out: BudWant[] = [];
+    for (const { b, at } of [...found.filter((x) => x.at), ...found.filter((x) => !x.at)]) {
+      if (out.length >= max) break;
+      let spot = at;
+      if (!spot) {
+        const r0 = plan.rooms.find((r) => !r.outdoor) ?? plan.rooms[0];
+        const free = freeIn(r0?.id).filter(([x, y]) => !taken.has(`${x},${y}`)).sort((p, q) => hashSp(b.sp + p.join(',')) - hashSp(b.sp + q.join(',')));
+        if (!free[0]) continue;
+        taken.add(free[0].join(','));
+        spot = [free[0][0] + 0.5, free[0][1] + 0.5];
+      }
+      out.push({ key: 'r:' + b.sp, sp: b.sp as SahabatSp, v: b.v ?? null, lvl: b.lvl, name: b.name, owner: null, kind: 'rest', gift: false, lift: SAHABAT_INFO[b.sp as SahabatSp].fly ? -14 : 0, id: b.id, at: spot });
+    }
+    return out;
+  }
+  /** pemain sendiri: daftar sahabat yang istirahat (bukan yang aktif) */
+  const restMine = $derived(mode === 'home' ? myBuddies().filter((b) => !b.active).map((b) => ({ sp: b.sp, name: b.name, v: b.variant, lvl: b.lvl, id: b.id })) : []);
+  /** burung pipit yang mampir: di atas Tempat Minum Burung / Sangkar Burung di ruangan luar (Halaman) */
+  const pipitAt = $derived.by((): [number, number, number] | null => {
+    if (mode !== 'home' || !sahabatOn() || ownsSp('pipit')) return null;
+    for (const r of plan.rooms) {
+      if (!r.outdoor) continue;
+      const p = layoutOf(roomOf(r.id)).find((q) => PIPIT_SPOTS.includes(q.i));
+      if (p) return [r.gx + p.x + 0.5, r.gy + p.y + 0.5, p.i === 'sangkar-burung' ? 54 : 30];
+    }
+    return null;
+  });
+  /** kunang-kunang menunggu (malam, belum dimiliki): boolean sendiri supaya daftar sahabat tidak dihitung ulang tiap detik */
+  const kunangNow = $derived(G.now > 0 && kunangWaiting());
+  const budWant = $derived.by((): BudWant[] => {
+    void compVer;
+    if (planning || (mode === 'home' && G.edit)) return [];
+    const out: BudWant[] = [];
+    const mine = myLook();
+    const mainLook = mode === 'visit' ? G.visit?.pet?.buddy ?? null : mine;
+    const myId = activeBuddy()?.id;
+    if (mainLook && isSahabatSp(mainLook.sp) && petData && !hideMain) out.push({ key: 'main', sp: mainLook.sp, v: mainLook.v ?? null, lvl: mainLook.lvl, name: mainLook.name, owner: 'main', kind: 'follow', gift: mode === 'home' && !!G.me.sahabat?.gift && sahabatOn(), lift: 0, id: mode === 'visit' ? undefined : myId });
+    for (const c of comps.values()) {
+      const lk = c.self ? mine : c.buddy;
+      if (lk && isSahabatSp(lk.sp)) out.push({ key: 'c:' + c.id, sp: lk.sp, v: lk.v ?? null, lvl: lk.lvl, name: lk.name, owner: c.id, kind: 'follow', gift: false, lift: 0, id: c.self ? myId : undefined });
+    }
+    if (square) return out;
+    const taken = new Set<string>();
+    if (mode === 'home') {
+      const pa = pipitAt;
+      if (pa) out.push({ key: 'w:pipit', sp: 'pipit', v: null, lvl: 0, name: 'Burung pipit', owner: null, kind: 'wait', gift: false, lift: pa[2] - (SAHABAT_INFO.pipit.fly ?? 0), at: [pa[0], pa[1]] });
+      if (G.me.sahabat?.ayam && sahabatOn()) {
+        // anak ayam menunggu di "pintu": petak bebas paling dekat ke sudut depan ruangan tempat pet berada
+        const r = plan.byId.get(petRoomId || focusId) ?? plan.rooms[0];
+        const free = r ? freeIn(r.id).sort((p, q) => Math.hypot(r.gx + r.w - 1 - p[0], r.gy + r.d - 1 - p[1]) - Math.hypot(r.gx + r.w - 1 - q[0], r.gy + r.d - 1 - q[1])) : [];
+        const t = free.find(([x, y]) => !taken.has(`${x},${y}`));
+        if (t) { taken.add(t.join(',')); out.push({ key: 'w:ayam', sp: 'ayam', v: null, lvl: 0, name: 'Anak ayam', owner: null, kind: 'wait', gift: false, lift: 0, at: [t[0] + 0.5, t[1] + 0.5] }); }
+      }
+      if (kunangNow) {
+        // di Halaman bila ada, selain itu melayang di depan pintu rumah
+        const yard = plan.rooms.find((r) => r.outdoor);
+        const free = yard ? freeIn(yard.id).filter(([x, y]) => !taken.has(`${x},${y}`)).sort((p, q) => hashSp('kunang' + p.join(',')) - hashSp('kunang' + q.join(','))) : [];
+        let at: [number, number] | null = free[0] ? [free[0][0] + 0.5, free[0][1] + 0.5] : null;
+        if (!at) { let X1 = -Infinity, Y1 = -Infinity; for (const r of plan.rooms) { X1 = Math.max(X1, r.gx + r.w); Y1 = Math.max(Y1, r.gy + r.d); } if (isFinite(X1)) at = [X1 + 0.35, Y1 + 0.35]; }
+        if (at) out.push({ key: 'w:kunang', sp: 'kunang', v: null, lvl: 0, name: 'Kunang-kunang', owner: null, kind: 'wait', gift: false, lift: 4, at });
+      }
+    }
+    out.push(...restingWant(mode === 'home' ? restMine : (G.visit?.resting ?? []), taken));
+    return out;
+  });
+  /** samakan sahabat yang tampil dengan daftar yang diinginkan; pemilik yang belum punya posisi dicoba lagi sebentar lagi */
+  let budRetry: any = 0;
+  onDestroy(() => clearTimeout(budRetry));
+  function syncBuds(want: BudWant[]) {
+    let changed = false, later = false;
+    const keep = new Set<string>();
+    for (const w of want) {
+      keep.add(w.key);
+      const b = buds.get(w.key);
+      if (!b) {
+        const o = w.owner ? ownerState(w.owner) : null;
+        const start = w.at ?? (o ? behindOf(o) : null);
+        if (!start) { later = true; continue; }
+        buds.set(w.key, { ...w, live: [start[0], start[1]], trail: [], flip: o ? o.flip : w.kind === 'wait' ? true : (hashSp(w.key) & 1) === 1, perch: false, moving: false, tile: tileOf(start) });
+        changed = true;
+        continue;
+      }
+      if (b.sp !== w.sp || b.v !== w.v || b.lvl !== w.lvl || b.gift !== w.gift || b.name !== w.name || b.owner !== w.owner || b.kind !== w.kind || b.lift !== w.lift) { Object.assign(b, { sp: w.sp, v: w.v, lvl: w.lvl, gift: w.gift, name: w.name, owner: w.owner, kind: w.kind, lift: w.lift }); changed = true; }
+      b.id = w.id;
+      if (w.at && (Math.abs(w.at[0] - b.live[0]) > 0.01 || Math.abs(w.at[1] - b.live[1]) > 0.01)) { b.live = [w.at[0], w.at[1]]; b.tile = tileOf(b.live); changed = true; }
+    }
+    for (const k of [...buds.keys()]) if (!keep.has(k)) { buds.delete(k); changed = true; }
+    if (changed) budVer++;
+    budKick();
+    clearTimeout(budRetry);
+    if (later) budRetry = setTimeout(() => syncBuds(untrack(() => budWant)), 400);
+  }
+  $effect(() => { const want = budWant; untrack(() => syncBuds(want)); });
+  // denah berubah: sahabat pengikut langsung ke belakang pemiliknya (letak lama sudah tidak berlaku)
+  $effect(() => {
+    void planSig;
+    untrack(() => { for (const b of buds.values()) if (b.kind === 'follow') { const o = ownerState(b.owner); if (o) { b.live = behindOf(o); b.trail = []; b.tile = tileOf(b.live); } } budVer++; });
+  });
+  // pemilik duduk / tidur / bangun / mulai beraktivitas: sahabat naik ke kepala atau turun
+  $effect(() => { void pose; void asleep; void compVer; untrack(budKick); });
+
+  const budCache = new Map<string, { k: string; h: string }>();
+  function budMarkup(b: Bud) {
+    const k = `${b.sp}|${b.v}|${b.lvl}|${b.flip}|${b.perch}|${b.gift}`;
+    const hit = budCache.get(b.key);
+    if (hit && hit.k === k) return hit.h;
+    const h = buddyMarkup(b.sp, { variant: b.v, lvl: b.lvl, flip: b.flip, gift: b.gift, perch: b.perch });
+    budCache.set(b.key, { k, h });
+    return h;
+  }
+  /** malam (langit rumah / alun-alun): cahaya kunang-kunang lebih terang */
+  const budNight = $derived(square ? nightSq : sky === 'malam');
+  const budDraws = $derived.by(() => {
+    // pemilik berjalan tidak menggambar ulang daftar (posisi digeser budStep lewat transform); hanya sahabat pindah petak / pose
+    void budVer; void pose;
+    const out: Draw[] = [];
+    for (const b of buds.values()) {
+      const o = b.kind === 'follow' ? untrack(() => ownerState(b.owner)) : null;
+      const pp = o && b.perch ? perchOf(b, o) : null;
+      const cls = `bud sp-${b.sp} k-${b.kind}${b.moving ? ' mv' : ''}${b.perch ? ' perch' : ''}${budNight ? ' nite' : ''}`;
+      out.push({ key: 'b:' + b.key, d: pp && o ? o.d + 0.002 : b.live[0] + b.live[1] + 0.003 + (b.lift > 0 ? 0.012 : 0), h: budMarkup(b), pet: { cls, tf: budTf(b, o, pp), b: b.key } });
+    }
+    return out;
+  });
+
+  /** ketuk sahabat: yang menunggu → beri nama; sahabat sendiri → oleh-oleh / main (keakraban); sahabat orang lain → trik saja */
+  function tapBud(key: string) {
+    const b = buds.get(key);
+    if (!b) return;
+    if (b.kind === 'wait') { sfx.tap(); openSahabat(b.sp as 'ayam' | 'pipit' | 'kunang'); return; }
+    if (key === 'main' && b.gift && mode === 'home') { void takeGift(); return; }
+    const mine = b.id ? myBuddies().find((x) => x.id === b.id) : undefined;
+    if (mine) { void playBud(mine, key); return; }
+    SB.trick = { key, n: (SB.trick?.n ?? 0) + 1 };
+    SB.say = { key, text: `${b.name}: ${SAHABAT_INFO[b.sp].say}`, n: (SB.say?.n ?? 0) + 1 };
+    sfx.pop();
+  }
+  // trik: Akrab ke atas memainkan trik jenisnya (.trk), Kenal cukup melompat kecil (.hop1)
+  $effect(() => {
+    const t = SB.trick;
+    if (!t) return;
+    untrack(() => {
+      const el = budEl(t.key), b = buds.get(t.key);
+      if (!el || !b) return;
+      const c = b.lvl >= 1 ? 'trk' : 'hop1';
+      el.classList.remove('trk', 'hop1', 'idl');
+      void (el as any).getBBox?.();
+      el.classList.add(c);
+      setTimeout(() => el.classList.remove(c), 1300);
+    });
+  });
+  // gerakan diam sesekali (mematuk, mengangguk, berkedip): kelas sesaat, tidak saat animasi dikurangi
+  onMount(() => {
+    const t = setInterval(() => {
+      if (document.hidden || G.jepret || reduced() || !buds.size) return;
+      for (const b of buds.values()) {
+        if (b.moving || Math.random() > 0.2) continue;
+        const el = budEl(b.key);
+        if (!el || el.classList.contains('trk') || el.classList.contains('hop1')) continue;
+        el.classList.add('idl');
+        setTimeout(() => el.classList.remove('idl'), 1000);
+      }
+    }, 2000);
+    return () => clearInterval(t);
+  });
+  /** gelembung di atas sahabat: "Ketuk aku!" (menunggu), "Ada oleh-oleh!", dan celetukan saat diketuk */
+  let budTips = $state<{ key: string; x: number; y: number; text: string; tap: boolean }[]>([]);
+  let sayUntil = 0;
+  $effect(() => { const s = SB.say; if (s) sayUntil = Date.now() + 2200; });
+  /** posisi gelembung hanya diukur ulang bila kamera, sahabat, atau gelembungnya berubah (tanpa membaca tata letak tiap saat) */
+  let tipSig = '';
+  $effect(() => {
+    const t = setInterval(() => {
+      if (document.hidden || G.jepret || !buds.size) { if (budTips.length) budTips = []; tipSig = ''; return; }
+      const say = SB.say && Date.now() < sayUntil ? SB.say : null;
+      const want: { b: Bud; text: string; tip: string }[] = [];
+      for (const b of buds.values()) {
+        const tip = b.kind === 'wait' ? (b.sp === 'ayam' ? 'Ciap? Ketuk aku!' : b.sp === 'pipit' ? 'Cuit? Ketuk aku!' : 'Ketuk aku!') : b.key === 'main' && b.gift && !b.moving && !b.perch && !asleep ? 'Ada oleh-oleh!' : '';
+        const text = say?.key === b.key ? say.text : tip;
+        if (text) want.push({ b, text, tip });
+      }
+      const sig = want.length ? `${cam.x.toFixed(1)},${cam.y.toFixed(1)},${cam.k.toFixed(3)},${vw},${vh},${mirrored},${budVer}|` + want.map((x) => `${x.b.key}:${x.text}:${x.b.live[0].toFixed(2)},${x.b.live[1].toFixed(2)}:${x.b.perch}`).join(';') : '';
+      if (sig === tipSig) return;
+      tipSig = sig;
+      const w = wrapEl?.getBoundingClientRect();
+      if (!w) return;
+      const out: typeof budTips = [];
+      for (const { b, text, tip } of want) {
+        const r = budEl(b.key)?.querySelector('.bud-bob')?.getBoundingClientRect();
+        if (!r || r.bottom < w.top || r.top > w.bottom || r.right < w.left || r.left > w.right) continue;
+        out.push({ key: b.key, x: Math.max(64, Math.min(w.width - 64, r.left + r.width / 2 - w.left)), y: Math.max(40, r.top - w.top - 2), text, tap: !!tip && text === tip });
+      }
+      if (out.length || budTips.length) budTips = out;
+    }, 140);
+    return () => clearInterval(t);
   });
 
   /* ---------------- gelembung obrolan & label nama di atas pet ---------------- */
@@ -2133,6 +2475,8 @@
     if (menu) { menu = null; if (!t.closest('.furn, .spot')) return; }
     const cr = t.closest('.crumb') as SVGElement | null;
     if (cr && homeLive) return sweepCrumb(Number(cr.dataset.c), e);
+    const bd = t.closest('.bud') as SVGElement | null;
+    if (bd?.dataset.b) return tapBud(bd.dataset.b);
     if (t.closest('.pet')) return tapPet();
     const op = t.closest('.opet') as SVGElement | null;
     if (op) {
@@ -2664,7 +3008,7 @@
     {#if square}{@html groundHtml}{/if}
     {@html yardHtml}
     {@html layers.shadow}
-    {#if drawsBehind.length}<g class="draws behind">{#each drawsBehind as d (d.key)}{#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}{/each}</g>{/if}
+    {#if drawsBehind.length}<g class="draws behind">{#each drawsBehind as d (d.key)}{#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} data-b={d.pet.b} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}{/each}</g>{/if}
     {#each layers.back as l (l.key)}<g>{@html l.h}</g>{/each}
     {#each layers.floor as l (l.key)}<g>{@html l.h}</g>{/each}
     {@html layers.mats}
@@ -2672,7 +3016,7 @@
     <g>{@html crumbsHtml}</g>
     <g class="draws">
     {#each drawsFront as d (d.key)}
-      {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
+      {#if d.pet}<g class={d.pet.cls} data-o={d.pet.o} data-b={d.pet.b} transform={d.pet.tf}>{@html d.h}</g>{:else}<g>{@html d.h}</g>{/if}
     {/each}
     </g>
     {#if square && nightSq}<g class="malam" pointer-events="none"><rect class="veil" x="-8000" y="-8000" width="16000" height="16000" />{@html nightHtml}{@html BL_BRIGHT}</g>{/if}
@@ -2699,6 +3043,10 @@
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
   {/each}
   {/if}
+  {#each budTips as t (t.key)}
+    {#if t.tap}<button class="bubble btip tap" style="left:{t.x}px;top:{t.y}px" onclick={() => tapBud(t.key)}>{t.text}</button>
+    {:else}<p class="bubble btip" style="left:{t.x}px;top:{t.y}px" role="status">{t.text}</p>{/if}
+  {/each}
   {#if bubble && G.speech && mode === 'home' && !G.jepret && !G.ajak}
     {#key G.speech.n}<p class="bubble" style="left:{bubble.x}px;top:{bubble.y}px" role="status">{G.speech.text}</p>{/key}
   {/if}
@@ -2815,6 +3163,12 @@
   .plabel.tight { font-size: 11px; padding: 0 6px; border-width: 1.5px; box-shadow: 0 1.5px 0 var(--ink); max-width: 84px; overflow: hidden; text-overflow: ellipsis; opacity: .92; }
   .plabel.apart { background: #FBE1DF; color: #A93A27; }
   .bubble.hb { z-index: 12; }
+  /* gelembung sahabat: kecil & tetap tampil (yang menunggu sampai diketuk) */
+  .bubble.btip { z-index: 9; font-size: 12.5px; padding: 2px 9px; border-width: 2px; border-radius: 12px; box-shadow: 0 2px 0 var(--ink); animation: none; transform: translate(-50%, calc(-100% - 6px)); }
+  .bubble.btip::after { width: 10px; height: 10px; bottom: -7px; border-width: 2px; }
+  .bubble.btip.tap { pointer-events: auto; cursor: pointer; font-family: inherit; color: var(--ink); background: #FFF3CF; line-height: 1.3; }
+  .bubble.btip.tap::after { background: #FFF3CF; }
+  .bubble.btip.tap:focus-visible { outline: 3px solid #3F7FBF; outline-offset: 2px; }
   .bubble.hb.emo { padding: 3px 6px; z-index: 10; }
   .bubble.hb.emo :global(svg) { width: 30px; height: 30px; display: block; }
   .room :global(.foam) { fill: #FFFFFF; stroke: #9FD0E8; stroke-width: 1.4; opacity: .95; animation: pop .25s ease-out; }

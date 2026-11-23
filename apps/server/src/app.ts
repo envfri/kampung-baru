@@ -19,6 +19,7 @@ import { seedPackV19 } from './db/seed-edisi1';
 import { seedPackV20 } from './db/seed-perabot3';
 import { seedPackV21 } from './db/seed-kerja';
 import { seedPackV22 } from './db/seed-mandi2';
+import { seedPackV23 } from './db/seed-sahabat';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -46,6 +47,7 @@ import squareRoutes from './routes/square';
 import siteRoutes from './routes/site';
 import barengRoutes from './routes/bareng';
 import kerjaRoutes from './routes/kerja';
+import sahabatRoutes from './routes/sahabat';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -94,6 +96,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV20(db)) app.log.info('Paket konten 20 (perabot dapur, kamar mandi & taman di Mebel Jati dan Toko Bangunan) ditambahkan');
   if (await seedPackV21(db)) app.log.info('Paket konten 21 (Kerja Sambilan: Papan Lowongan, Pos Ronda, seragam, tugas & lencana) ditambahkan');
   if (await seedPackV22(db)) app.log.info('Paket konten 22 (kamar mandi 2 di Mebel Jati & Toko Mutiara, enam ruangan Mutiara bertema) ditambahkan');
+  if (await seedPackV23(db)) app.log.info('Paket konten 23 (Sahabat Mungil: Pondok Sahabat, 9 sahabat, Camilan Sahabat, tugas & lencana) ditambahkan');
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
@@ -192,6 +195,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(siteRoutes, { db });
   await app.register(barengRoutes, { db });
   await app.register(kerjaRoutes, { db });
+  await app.register(sahabatRoutes, { db });
   await app.register(serverMonitorRoutes, { db });
 
   // gambar upload dari admin

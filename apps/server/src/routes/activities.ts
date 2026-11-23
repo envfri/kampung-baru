@@ -4,6 +4,7 @@ import { applyNeedDelta, karungRace, KARUNG_HOPS, KARUNG_MAX_TAPS_PER_SEC } from
 import type { Db } from '../db/index';
 import { addItem, bad, bumpCounter, coinMultiplier, credit, forbidden, getCatalog, getSettings, notFound, purchasable, track } from '../lib/core';
 import { castFish, fishBook, hookFish, kolamReward, landFish, loseFish } from '../lib/fishing';
+import { kuraRoll, sahabatState } from '../lib/sahabat';
 import { requireUser } from '../lib/auth';
 import { assertAwake, assertHealthy, currentNeeds, lockPet, savePet } from '../lib/state';
 import { int, oneOf, str } from '../lib/validate';
@@ -123,6 +124,9 @@ export default async function activityRoutes(app: FastifyInstance, { db }: { db:
       const r: any = await landFish(t, u.id, castId, cat, kolamReward(t, u.id, s, cat));
       if (r.suspicious) req.log.warn({ userId: u.id, castId, elapsed: r.elapsed, min: r.min }, 'mancing: tarik-ulur terlalu cepat');
       delete r.suspicious; delete r.elapsed; delete r.min;
+      // Sahabat Mungil: kura-kura kadang ikut tersangkut bersama ikan (langka, sekali seumur akun)
+      const kura = r.result === 'caught' && r.kind === 'fish' ? await kuraRoll(t, u.id, s) : null;
+      if (kura) { r.kura = kura; r.sahabat = await sahabatState(t, u.id, s, cat); }
       return { ok: true, ...r, ...(await patch(t, u.id, r.result === 'caught' ? ['inventory', 'pet', 'wallet', 'limits'] : ['limits'])) };
     });
   });

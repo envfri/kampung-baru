@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
+import { SAHABAT_BELI, SAHABAT_BY_ITEM, SAHABAT_INFO, SAHABAT_NAME_MAX, UMANG_DEFAULT, WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -28,6 +28,7 @@ import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { claimQuest, questEvent, questList, questSummary } from '../lib/quests';
 import { forgetHouseRooms } from './house';
 import { assertNotWorking } from '../lib/kerja';
+import { buddyView, grantBuddy, sahabatState } from '../lib/sahabat';
 
 /** Jalankan mutasi sekali saja per requestId (aman dari klik ganda / retry di sinyal lemah). */
 export async function once<T>(db: Db, userId: string, requestId: string | undefined, fn: (t: Db) => Promise<T>): Promise<T> {
@@ -435,6 +436,24 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     // bibit kebun yang terkunci level pet (data.minLevel)
     const minLv = item!.kind === 'seed' ? Number(item!.data?.minLevel) || 1 : 1;
     if (minLv > 1 && ((await db.one<{ level: number }>(`select level from pets where user_id = $1`, [u.id]))?.level ?? 1) < minLv) throw bad('locked', `${item!.name} terbuka di Lv ${minLv}.`);
+    // Sahabat Mungil (Pondok Sahabat / Toko Mutiara): satu per jenis, langsung jadi sahabat (bukan barang di Tas)
+    if (item!.kind === 'sahabat') {
+      const sp = SAHABAT_BY_ITEM[itemId];
+      if (!sp || !SAHABAT_BELI.includes(sp)) throw bad('not_for_sale', 'Sahabat ini tidak dijual di toko.');
+      const s = await getSettings(db);
+      if ((s as any).sahabat?.on === false) throw bad('sahabat_off', 'Pondok Sahabat sedang tutup. Coba lagi nanti, ya.');
+      if (qty !== 1) throw bad('invalid', 'Sahabat diadopsi satu per satu.');
+      const name = req.body?.name ? await checkName(db, String(req.body.name).slice(0, 40)) : SAHABAT_INFO[sp].nama[0];
+      if (name.length > SAHABAT_NAME_MAX) throw bad('name_length', `Nama sahabat paling panjang ${SAHABAT_NAME_MAX} huruf.`);
+      return once(db, u.id, reqId(req.body?.requestId), async (t) => {
+        if (!(await t.one(`select 1 from pets where user_id = $1`, [u.id]))) throw bad('no_pet', 'Buat pet dulu.');
+        if (await t.one(`select 1 from pet_buddies where user_id = $1 and species = $2`, [u.id, sp])) throw bad('owned', `Kamu sudah punya ${item!.name}.`);
+        await credit(t, u.id, currency, -price, 'buy', `${itemId}x1`);
+        const b = await grantBuddy(t, u.id, sp, name, 'beli', sp === 'umang' ? UMANG_DEFAULT : null);
+        await track(t, u.id, 'purchase', { itemId, kind: 'sahabat', currency, total: price });
+        return { ok: true, buddy: buddyView(b, (s as any).sahabat), sahabat: await sahabatState(t, u.id, s), ...(await patch(t, u.id, ['wallet'])) };
+      });
+    }
     if (item!.kind === 'room') {
       const s = await getSettings(db);
       return once(db, u.id, reqId(req.body?.requestId), async (t) => {

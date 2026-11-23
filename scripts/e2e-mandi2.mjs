@@ -91,8 +91,12 @@ async function checkShop(pl, shop, tag, shot) {
   // toko terbuka di tab Semua (bukan Edisi Spesial yang lebih lama) dan barang terbaru di urutan atas
   const tabOn = await pl.p.locator('.shop .tabbar:not(.slots) button.on').first().innerText().catch(() => '');
   check(/^Semua/.test(tabOn.trim()), `${tag}: ${shop} terbuka di tab Semua ("${tabOn.trim()}")`);
-  const top = (await cardNames(pl.p)).slice(0, NEW[shop].length);
-  check(NEW[shop].every((n) => top.includes(n)), `${tag}: ${NEW[shop].length} barang baru di urutan paling atas ${shop} (${top.slice(0, 3).join(', ')}, …)`);
+  // barang dari paket konten yang lebih baru (mis. sahabat Mutiara paket 23) boleh tampil lebih dulu
+  const mine = cat.items.filter((i) => NEW[shop].includes(i.name));
+  const since = Math.max(0, ...mine.map((i) => Number(i.new_until ?? 0)));
+  const newer = cat.items.filter((i) => i.shop === shop && !NEW[shop].includes(i.name) && Number(i.new_until ?? 0) > since).length;
+  const top = (await cardNames(pl.p)).slice(0, NEW[shop].length + newer);
+  check(NEW[shop].every((n) => top.includes(n)), `${tag}: ${NEW[shop].length} barang baru di urutan paling atas ${shop}${newer ? ` (sesudah ${newer} barang paket yang lebih baru)` : ''} (${top.slice(0, 3).join(', ')}, …)`);
   const names = await cardNames(pl.p);
   const missing = NEW[shop].filter((n) => !names.includes(n));
   check(!missing.length, `${tag}: ${NEW[shop].length} barang baru tampil di ${shop}${missing.length ? ` (tidak ada: ${missing.join(', ')})` : ''}`);

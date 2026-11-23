@@ -15,7 +15,7 @@ export const CUTOFF_PHRASE = 'RESET BUPI';
 const PROGRESS_TABLES = [
   'pets', 'inventory', 'rooms', 'wallets', 'wallet_ledger', 'cooldowns', 'daily_counters', 'daily_claims', 'visits', 'gifts',
   'garden_plots', 'races', 'fishing_casts', 'fish_collection', 'fish_hints', 'notifications', 'quest_progress', 'event_progress', 'game_runs',
-  'house_likes', 'duels', 'transfer_codes', 'idempotency',
+  'house_likes', 'duels', 'transfer_codes', 'idempotency', 'pet_buddies',
 ];
 
 export default async function launchRoutes(app: FastifyInstance, { db }: { db: Db }) {

@@ -4,6 +4,7 @@ import { maskPhone } from './klikflow';
 import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog, type CatalogItem } from './core';
 import { questSummary } from './quests';
 import { kerjaState } from './kerja';
+import { sahabatState } from './sahabat';
 
 export const J = (v: unknown) => JSON.stringify(v ?? null);
 
@@ -258,6 +259,8 @@ export async function playerState(db: Db, userId: string) {
     revealed: await revealedItems(db, userId, cat),
     /** kerja sambilan: shift yang sedang berjalan / menunggu gaji diterima, jam kerja hari ini */
     kerja: await kerjaState(db, userId, s),
+    /** Sahabat Mungil: sahabat milik pemain, anak ayam di pintu, pipit di Halaman, oleh-oleh hari ini */
+    sahabat: await sahabatState(db, userId, s, cat),
   };
 }
 
@@ -320,6 +323,8 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       duel: (() => { const d = (s as any).duel ?? {}; return { winCoins: d.winCoins, drawCoins: d.drawCoins, loseCoins: d.loseCoins, perDay: d.perDay, expireHours: d.expireHours }; })(),
       // kerja sambilan: angka papan lowongan dimuat lewat GET /api/kerja; di sini cukup nyala/mati & syarat
       kerja: (() => { const k = (s as any).kerja ?? {}; return { on: k.on !== false, minEnergi: k.minEnergi, minKenyang: k.minKenyang, ronda: { fromHour: k.ronda?.fromHour, toHour: k.ronda?.toHour } }; })(),
+      // Sahabat Mungil: angka keakraban & jam kunang-kunang untuk tampilan (oleh-oleh & peluang kura-kura tetap di server)
+      sahabat: (() => { const k = (s as any).sahabat ?? {}; return { on: k.on !== false, points: k.points, mainPerDay: k.mainPerDay, akrabAt: k.akrabAt, sejatiAt: k.sejatiAt, kunang: k.kunang, maxResting: k.maxResting }; })(),
       garden: s.garden,
       room: s.room,
       house: (s as any).house,

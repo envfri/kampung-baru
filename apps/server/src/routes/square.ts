@@ -20,6 +20,7 @@ import { EMOTES, markPresence } from './house';
 import { takePings } from '../lib/pings';
 import { barengAct, barengSeat, barengViews } from './bareng';
 import { assertNotWorkingFast } from '../lib/kerja';
+import { buddyLook, outing } from '../lib/sahabat';
 
 const LIVE_MS = 10_000;
 /** jeda antaraksi di alun-alun per pemain */
@@ -184,7 +185,9 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     const r = await db.one<any>(`select u.display_name, p.* from users u left join pets p on p.user_id = u.id where u.id = $1`, [uid]);
     if (!r?.name) return { name: r?.display_name ?? 'Pemain', pet: null, asleep: false };
     const v = petView({ ...r, user_id: uid }, s);
-    return { name: r.display_name, asleep: !!v.sleep, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
+    // sahabat aktif ikut ke alun-alun (terlihat semua orang)
+    const buddy = await buddyLook(db, uid, s);
+    return { name: r.display_name, asleep: !!v.sleep, pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }), ...(buddy ? { buddy } : {}) } };
   }
   // kursi wahana / dermaga / Pos Ronda (catur) / pojok Tikar Ludo dipasang server, selain itu gerak dari HP
   const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: ALUN_ROOM, x: m.x, y: m.y, flip: m.flip, act: rideAct(m.id, clock()) ?? barengSeat(`a:${WHERE.get(m.id)}`, m.id) ?? barengAct(m.id) ?? m.act, host: false });
@@ -254,6 +257,8 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
     }
     if (Date.now() - m.petAt > 45_000) { m.petAt = Date.now(); const info = await memberInfo(uid); if (info.pet) m.pet = info.pet; m.name = info.name; }
     markPresence(uid, 'alun', String(id));
+    // Sahabat Mungil: ke alun-alun bareng sahabat aktif (keakraban sekali sehari)
+    const jalan = joined ? await outing(db, uid, 'alun') : null;
     // hadiah kunjungan pertama hari ini
     let welcome: any = null;
     const daily = numOr(a.dailyCoins, 15);
@@ -288,6 +293,7 @@ export default async function squareRoutes(app: FastifyInstance, { db }: { db: D
       pings: takePings(uid),
       games: barengViews(`a:${id}`),
       lomba, pier: pierOf(uid)?.n ?? null,
+      ...(jalan ? { jalanSahabat: jalan } : {}),
       // Ramai-ramai: berapa pemancing di dermaga & berapa yang dibutuhkan (untuk panel mancing)
       ...(pierOf(uid) ? { ramai: { anglers: anglersAt(q), need: ramaiCfg(a).anglers, xp: ramaiCfg(a).xp } } : {}),
     };
