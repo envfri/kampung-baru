@@ -39,7 +39,18 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.47.1',
+    date: '2026-11-23',
+    title: 'Jalan setapak ke Pondok Sahabat',
+    summary: 'Pondok Sahabat kini punya jalan setapak dari jalan utama kampung, jadi pet-mu tidak lagi berjalan menembus rumput.',
+    items: [
+      { kind: 'perbaikan', text: 'Peta kampung: ada jalan setapak dari jalan utama ke Pondok Sahabat, lewat celah antara Toko Mutiara dan Balai Main. Pet-mu dan sahabatnya berjalan di atas jalan setapak itu.', player: true },
+      { kind: 'ubah', text: 'Teknis: renderMap menggambar jalan setapak otomatis untuk tempat yang letaknya jauh di belakang deretan toko (y < 140), menyatu dengan jalan utama. Uji: sahabat.test.ts.' },
+    ],
+  },
+  {
     version: '0.47.0',
+    commits: ['a78eb3d'],
     date: '2026-11-23',
     title: 'Sahabat Mungil',
     summary: 'Pet-mu kini punya teman kecil yang ikut ke mana pun: di rumah, ke rumah teman, keliling kampung, ke alun-alun, sampai ikut terfoto di Jepret.',

@@ -4,6 +4,18 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.47.1 · 2026-11-23 · Jalan setapak ke Pondok Sahabat
+
+_Pondok Sahabat kini punya jalan setapak dari jalan utama kampung, jadi pet-mu tidak lagi berjalan menembus rumput._
+
+### Perubahan
+
+- Teknis: renderMap menggambar jalan setapak otomatis untuk tempat yang letaknya jauh di belakang deretan toko (y < 140), menyatu dengan jalan utama. Uji: sahabat.test.ts.
+
+### Perbaikan
+
+- Peta kampung: ada jalan setapak dari jalan utama ke Pondok Sahabat, lewat celah antara Toko Mutiara dan Balai Main. Pet-mu dan sahabatnya berjalan di atas jalan setapak itu. _(pemain)_
+
 ## 0.47.0 · 2026-11-23 · Sahabat Mungil
 
 _Pet-mu kini punya teman kecil yang ikut ke mana pun: di rumah, ke rumah teman, keliling kampung, ke alun-alun, sampai ikut terfoto di Jepret._
@@ -23,6 +35,8 @@ _Pet-mu kini punya teman kecil yang ikut ke mana pun: di rumah, ke rumah teman, 
 
 - Admin: bagian pengaturan "Sahabat Mungil" (buka/tutup, poin keakraban, batas Akrab & Sahabat Sejati, peluang kura-kura, jam kunang-kunang, sahabat istirahat yang tampil, daftar oleh-oleh). Harga sahabat & Camilan Sahabat diatur di Item & harga (jenis barang baru Sahabat), Pondok Sahabat di Lokasi. Reset peluncuran juga menghapus sahabat.
 - Teknis: paket konten 23 (seed-sahabat.ts, pack_sahabat), migrasi 032 (tabel pet_buddies, satu sahabat aktif per pemain), lib/sahabat.ts & routes/sahabat.ts, art-sahabat.ts; batas harian, peluang, jam malam, pembelian & oleh-oleh dicek di server dalam transaksi. Uji baru: sahabat.test.ts, e2e-sahabat; npm run sahabat-sheet membuat lembar kontak gambar.
+
+Commit: [`a78eb3d`](https://github.com/envfri/kampung-baru/commit/a78eb3d)
 
 ## 0.46.0 · 2026-11-23 · Kamar mandi baru & enam ruangan Mutiara
 

@@ -15,7 +15,7 @@ const { buildApp } = await import('../src/app');
 const { invalidateCaches } = await import('../src/lib/core');
 const { setSahabatClock, setSahabatRandom } = await import('../src/lib/sahabat');
 const { seedPackV23, SAHABAT_ITEMS, SAHABAT_LOCATION } = await import('../src/db/seed-sahabat');
-const { DEFAULT_SETTINGS, SAHABAT_SPECIES, SAHABAT_INFO } = await import('@kb/shared');
+const { DEFAULT_SETTINGS, SAHABAT_SPECIES, SAHABAT_INFO, renderMap } = await import('@kb/shared');
 let app: any;
 let db: any;
 before(async () => { ({ app, db } = await buildApp({ memoryDb: true, logger: false, rateLimit: false, worker: false })); });
@@ -122,6 +122,10 @@ test('peta: Pondok Sahabat tidak menimpa jalan, tempat lain, atau labelnya', asy
   // jalan setapak dari jalan utama ke pintunya lewat celah antara Toko Mutiara & Balai Main (pet ±42 lebar)
   const mut = box(L.find((l) => l.id === 'mutiara')), bal = box(L.find((l) => l.id === 'balai'));
   assert.ok(me.x - 21 >= mut[2] && me.x + 21 <= bal[0], 'celah jalan setapak cukup');
+  // jalan setapak benar-benar tergambar dari jalan utama sampai pintunya (pet berjalan lurus di x yang sama)
+  const svg = renderMap(L);
+  assert.ok(svg.includes(`M${me.x} 236V${me.y - 6}`), 'jalan setapak ke Pondok Sahabat tergambar di peta');
+  assert.ok(!renderMap(L.filter((l) => l.id !== 'pondok')).includes(`M${me.x} 236V`), 'tanpa Pondok, tidak ada jalan setapak');
 });
 
 test('anak ayam pertama: gratis, diberi nama, langsung aktif, sekali saja', async () => {

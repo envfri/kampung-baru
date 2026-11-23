@@ -2062,7 +2062,13 @@ export function renderMap(locations: LocationLike[], decor?: string) {
     o += `<circle cx="${x}" cy="${y + 16}" r="5" fill="#7A5232"/><circle cx="${x}" cy="${y}" r="20" fill="#5DA05A" stroke="${INK}" stroke-width="2.5"/><circle cx="${x - 6}" cy="${y - 6}" r="7" fill="#7CC57D"/>`;
   });
   const road = `M-20 240H${MAP_W + 20}M420 240V470`;
-  o += `<path d="${road}" stroke="${INK}" stroke-width="38" fill="none"/><path d="${road}" stroke="#E9D9AE" stroke-width="32" fill="none"/><path d="${road}" stroke="#C9B582" stroke-width="2" stroke-dasharray="12 12" fill="none"/>`;
+  // jalan setapak dari jalan utama ke tempat yang letaknya jauh di belakang deretan toko (mis. Pondok Sahabat):
+  // garis tinta setapak & jalan dulu, lalu isinya, supaya pertemuannya menyatu tanpa garis tinta melintang
+  const foot = locations.filter((l) => l.enabled && l.y < 140).map((l) => `M${l.x} 236V${l.y - 6}`).join('');
+  const fx = foot ? `<path d="${foot}" stroke="${INK}" stroke-width="24" fill="none"/>` : '';
+  const ff = foot ? `<path d="${foot}" stroke="#E9D9AE" stroke-width="18" fill="none"/>`
+    + `<path d="${foot}" stroke="#D6C390" stroke-width="5" stroke-dasharray="3 13" stroke-linecap="round" fill="none"/>` : '';
+  o += `${fx}<path d="${road}" stroke="${INK}" stroke-width="38" fill="none"/>${ff}<path d="${road}" stroke="#E9D9AE" stroke-width="32" fill="none"/><path d="${road}" stroke="#C9B582" stroke-width="2" stroke-dasharray="12 12" fill="none"/>`;
   for (const l of locations) {
     if (!l.enabled) continue;
     o += `<g class="loc" data-loc="${esc(l.id)}" tabindex="0" role="button" aria-label="${esc(l.name)}">${special(l)}</g>`;
