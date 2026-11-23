@@ -3,7 +3,7 @@ import { forgetMute } from './square';
 import { checkCaturSettings } from '../lib/catur-game';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun, checkKerja } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun, checkKerja, checkSahabat, isSahabatSp } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -20,8 +20,8 @@ import { zepay, zepayConfigured, zepayMode, zepayWebhookUrl, ZePayError, type Ze
 
 const zErr = (e: unknown) => (e instanceof ZePayError ? `${e.message} (${e.code})` : String((e as any)?.message ?? e));
 
-const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material', 'room'] as const;
-const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games', 'square', 'jobs', 'ronda'] as const;
+const KINDS = ['food', 'furniture', 'wear', 'wallpaper', 'floor', 'seed', 'fish', 'material', 'room', 'sahabat'] as const;
+const LOC_KINDS = ['home', 'shop', 'social', 'garden', 'race', 'pond', 'pearl', 'games', 'square', 'jobs', 'ronda', 'sahabat'] as const;
 const ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 const UUID = /^[0-9a-f-]{36}$/i;
 const MIME = ['image/png', 'image/webp', 'image/jpeg', 'image/svg+xml'];
@@ -148,6 +148,9 @@ function cleanKindData(kind: string, v: any) {
       if (d.cat) out.cat = oneOf(d.cat, 'Kelompok bibit', ['sayur', 'buah', 'bunga', 'event'] as const);
       return out;
     }
+    // Sahabat Mungil: jenis hewannya tetap (dari id item), cara mendapatnya diatur kode (gratis / beli / syarat khusus)
+    case 'sahabat':
+      return isSahabatSp(d.sp) ? { sp: d.sp, ...(typeof d.how === 'string' ? { how: d.how.slice(0, 12) } : {}) } : {};
     // ikan & bahan: data kolam diisi cleanPond (berlaku juga untuk mebel/pakaian temuan kolam)
     default:
       return {};
@@ -571,6 +574,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     checkAjakAlun(value.ajakAlun, (msg) => { throw bad('invalid_settings', msg); });
     const catK = await getCatalog(db);
     checkKerja(value.kerja, (msg) => { throw bad('invalid_settings', msg); }, (id) => !!catK.byId.get(id));
+    checkSahabat(value.sahabat, (msg) => { throw bad('invalid_settings', msg); }, (id) => !!catK.byId.get(id) && catK.byId.get(id)!.kind !== 'sahabat');
     const fac = value.visit.facility;
     if (!(Number.isInteger(fac.hostCoins) && fac.hostCoins >= 0 && fac.hostCoins <= 100)) throw bad('invalid_settings', 'Kunjungan bareng › facility: tip koin tuan rumah harus bilangan bulat 0–100.');
     if (!(Number.isInteger(fac.hostMaxPerDay) && fac.hostMaxPerDay >= 0 && fac.hostMaxPerDay <= 1000)) throw bad('invalid_settings', 'Kunjungan bareng › facility: batas tip per hari harus bilangan bulat 0–1000.');
@@ -692,6 +696,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const it = await db.one<{ kind: string }>('select kind from items where id = $1', [itemId]);
     if (!it) throw notFound('Item tidak ditemukan.');
     if (it.kind === 'room') throw bad('invalid_item', 'Ruangan tidak masuk tas. Pemain membelinya di Toko Bangunan.');
+    if (it.kind === 'sahabat') throw bad('invalid_item', 'Sahabat tidak masuk tas. Pemain mengadopsinya di Pondok Sahabat.');
     await db.tx((t) => addItem(t, id, itemId, qty));
     await audit(db, req, 'player_items', id, { itemId, qty });
     return { ok: true };

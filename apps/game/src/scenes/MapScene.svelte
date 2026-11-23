@@ -7,6 +7,8 @@
   import { sfx } from '../lib/sfx';
   import { api } from '../lib/api';
   import { K, working, shift, petFree, uniformWear, workLoc, sisa, boardSeen } from '../lib/kerja.svelte';
+  import { buddyMarkup, SAHABAT_INFO } from '@kb/shared';
+  import { myLook, pondokSeen, jalanPeta, openSahabat, sahabatOn } from '../lib/sahabat.svelte';
 
   let wrap: HTMLDivElement | undefined = $state();
   let svgEl: SVGSVGElement | undefined = $state();
@@ -32,6 +34,9 @@
   /** Papan Lowongan baru: lencana BARU sampai papannya pernah dibuka di HP ini */
   const lowongan = $derived(locs.find((l) => l.kind === 'jobs' && l.enabled !== false));
   const baru = $derived(!!lowongan && G.catalog?.settings?.kerja?.on !== false && !boardSeen() && G.sheet !== 'kerja');
+  /** Pondok Sahabat baru: lencana BARU sampai panelnya pernah dibuka di HP ini */
+  const pondok = $derived(locs.find((l) => l.kind === 'sahabat' && l.enabled !== false));
+  const baruP = $derived(!!pondok && sahabatOn() && !pondokSeen() && G.sheet !== 'sahabat');
   let atWork = $state(false);
   const workLeft = $derived(job && atWork && G.now > 0 ? sisa((shift()?.endsAt ?? 0) - serverNow()) : '');
 
@@ -103,6 +108,7 @@
       case 'race': G.view = 'karung'; break;
       case 'pond': G.view = 'fishing'; break;
       case 'games': G.sheet = 'games'; break;
+      case 'sahabat': openSahabat('pondok'); break;
       case 'square':
         if (isSleeping()) { toast(`${G.me.pet.name} sedang tidur. Bangunkan dulu, ya.`); break; }
         G.view = 'alun';
@@ -113,6 +119,8 @@
   function arrive(l: any) {
     walking = false;
     G.mapAt = l.id;
+    // jalan-jalan keliling kampung bareng sahabat aktif: keakraban sekali sehari (dicek server)
+    if (buddy && l.kind !== 'home') void jalanPeta();
     // berangkat kerja: jalan sedikit ke tempat kerjanya lalu mulai bekerja (tempatnya tidak dibuka)
     if (K.going === l.id) {
       K.going = null;
@@ -172,6 +180,8 @@
       else { x += (dx / d) * step; y += (dy / d) * step; step = 0; }
     }
     at = [x, y];
+    trailPush(at);
+    budGo();
     follow();
     if (pts.length) raf = requestAnimationFrame(tick);
     else if (target) arrive(target);
@@ -208,7 +218,64 @@
   });
 
   onMount(() => requestAnimationFrame(() => follow(true)));
-  onDestroy(() => { cancelAnimationFrame(raf); clearTimeout(timer); });
+  onDestroy(() => { cancelAnimationFrame(raf); cancelAnimationFrame(bRaf); clearTimeout(timer); });
+
+  /* ---------- Sahabat Mungil: sahabat aktif berjalan di belakang pet menyusuri jejaknya ---------- */
+  const buddy = $derived(myLook());
+  const BI = $derived(buddy ? SAHABAT_INFO[buddy.sp] : null);
+  /** jejak pet (titik peta) & jarak kumulatifnya; sahabat berada `bd` satuan dari awal jejak */
+  let trail: [number, number][] = [];
+  let tlen: number[] = [];
+  let bd = 0, bRaf = 0, bLast = 0;
+  let bpos = $state<[number, number]>([0, 0]);
+  let bflip = $state(false);
+  let bmove = $state(false);
+  /** jarak ikut di belakang pet (satuan peta) & kecepatan; kura-kura pelan, yang lain bisa menyusul */
+  const lagOf = () => (BI ? 26 + BI.lag * 14 : 30);
+  const spdOf = () => (BI ? (BI.speed < 1.5 ? 150 : 320) : 320);
+  function trailPush(p: [number, number]) {
+    const n = trail.length;
+    if (!n) { trail = [[p[0], p[1]]]; tlen = [0]; return; }
+    const d = Math.hypot(p[0] - trail[n - 1][0], p[1] - trail[n - 1][1]);
+    if (d < 0.5) return;
+    trail.push([p[0], p[1]]);
+    tlen.push(tlen[n - 1] + d);
+  }
+  function trailAt(dist: number): [number, number] {
+    if (!trail.length) return [at[0], at[1]];
+    if (dist <= 0) return [...trail[0]] as [number, number];
+    for (let i = 1; i < trail.length; i++) {
+      if (tlen[i] >= dist) { const f = (dist - tlen[i - 1]) / Math.max(0.001, tlen[i] - tlen[i - 1]); return [trail[i - 1][0] + (trail[i][0] - trail[i - 1][0]) * f, trail[i - 1][1] + (trail[i][1] - trail[i - 1][1]) * f]; }
+    }
+    return [...trail[trail.length - 1]] as [number, number];
+  }
+  /** mulai: sahabat di samping pet (belakang arah hadapnya), jejak berawal dari situ */
+  function budReset() {
+    const s = flip ? 1 : -1;
+    trail = [[at[0] + s * lagOf(), at[1]], [at[0], at[1]]];
+    tlen = [0, lagOf()];
+    bd = 0;
+    bpos = [trail[0][0], trail[0][1]];
+    bflip = flip;
+  }
+  untrack(() => budReset());
+  function bTick(now: number) {
+    const dt = Math.min(0.05, (now - bLast) / 1000);
+    bLast = now;
+    const goal = tlen[tlen.length - 1] - lagOf();
+    if (goal - bd > 0.5) {
+      const prev = bpos;
+      bd += Math.min(spdOf() * (goal - bd > 160 ? 2 : 1) * dt, goal - bd);
+      bpos = trailAt(bd);
+      if (Math.abs(bpos[0] - prev[0]) > 0.3) bflip = bpos[0] < prev[0];
+      bmove = true;
+      bRaf = requestAnimationFrame(bTick);
+    } else { bmove = false; bRaf = 0; }
+  }
+  function budGo() { if (!bRaf && buddy) { bLast = performance.now(); bRaf = requestAnimationFrame(bTick); } }
+  /** burung pipit hinggap di kepala pet saat pet diam */
+  const perched = $derived(!!buddy && buddy.sp === 'pipit' && !walking && !bmove);
+  const budHtml = $derived(buddy ? buddyMarkup(buddy.sp, { variant: buddy.v, lvl: buddy.lvl, perch: perched }) : '');
 </script>
 
 <div class="wrap" bind:this={wrap}>
@@ -231,9 +298,21 @@
         <text x="0" y="5" text-anchor="middle" class="bt">BARU</text>
       </g>
     {/if}
+    {#if baruP && pondok}
+      <g class="pbaru" pointer-events="none" transform="translate({pondok.x + 54} {pondok.y - 84})">
+        <rect x="-24" y="-11" width="48" height="22" rx="11" fill="#E0583F" stroke="#2B2F4A" stroke-width="2.2" />
+        <text x="0" y="5" text-anchor="middle" class="bt">BARU</text>
+      </g>
+    {/if}
+    {#if buddy && budHtml && !perched && !(job && atWork)}
+      <g class="mapbud bud sp-{buddy.sp}" class:mv={bmove} class:entering pointer-events="none" transform="translate({bpos[0].toFixed(1)} {bpos[1].toFixed(1)})">
+        <g class="bbody"><g transform="scale(.42)"><g transform={bflip ? 'scale(-1 1)' : ''}>{@html budHtml}</g></g></g>
+      </g>
+    {/if}
     <g class="walker" class:walking class:entering class:atwork={atWork && !!job} pointer-events="none" transform="translate({at[0].toFixed(1)} {at[1].toFixed(1)})">
       <ellipse cx="0" cy="1" rx="20" ry="6" fill="#2B2F4A" opacity=".18" />
       <g class="body"><g transform="scale(.42)"><g transform={flip ? 'scale(-1 1)' : ''}><g class="pet-bob">{@html petHtml}</g></g></g></g>
+      {#if perched && budHtml && !(job && atWork)}<g class="mapbud bud sp-pipit" pointer-events="none" transform="translate(1 -31) scale(.42)">{@html budHtml}</g>{/if}
       {#if workLeft}
         {@const w = workLeft.length * 7 + 46}
         <g class="workpill" transform="translate(0 -70)">
@@ -253,11 +332,13 @@
   .map { display: block; height: 100%; width: 100%; min-width: calc(100dvh * 2.077 * .78); }
   .walker .body { transition: transform .28s ease-in, opacity .28s ease-in; transform-box: fill-box; transform-origin: 50% 100%; }
   .walker.entering .body { transform: translateY(-10px) scale(.4); opacity: 0; }
+  .mapbud .bbody { transition: opacity .28s ease-in; }
+  .mapbud.entering .bbody { opacity: 0; }
   .walker.walking .pet-bob { animation: mapwaddle .26s ease-in-out infinite alternate; }
   @keyframes mapwaddle { from { transform: rotate(-7deg) translateY(0); } to { transform: rotate(7deg) translateY(-6px); } }
   .sqlive .t { font: 800 14px var(--font); fill: #2B2F4A; }
-  .baru .bt { font: 800 12px var(--font); fill: #FFFDF7; letter-spacing: .5px; }
-  .baru { animation: baru 1.4s ease-in-out infinite; transform-box: fill-box; }
+  .baru .bt, .pbaru .bt { font: 800 12px var(--font); fill: #FFFDF7; letter-spacing: .5px; }
+  .baru, .pbaru { animation: baru 1.4s ease-in-out infinite; transform-box: fill-box; }
   @keyframes baru { 50% { opacity: .55; } }
   .workpill .wt { font: 800 12.5px var(--font); fill: #2B2F4A; }
   /* pet bekerja: sibuk bergoyang kecil */
@@ -269,7 +350,7 @@
   @keyframes livedot { 50% { opacity: .35; } }
   .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); margin: 0; background: rgba(255,253,247,.92); border: 2px solid var(--ink); border-radius: 12px; padding: 3px 10px; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center; width: max-content; max-width: calc(100vw - 24px); pointer-events: none; }
   @media (min-aspect-ratio: 1/1) { .map { min-width: 0; } }
-  @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob, .walker.atwork .pet-bob, .baru { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .walker.walking .pet-bob, .walker.atwork .pet-bob, .baru, .pbaru { animation: none; } }
   /* Pengaturan › Kurangi animasi (pilihan di game) */
-  :global(:root.reduce-motion) .walker.walking .pet-bob, :global(:root.reduce-motion) .walker.atwork .pet-bob, :global(:root.reduce-motion) .baru { animation: none; }
+  :global(:root.reduce-motion) .walker.walking .pet-bob, :global(:root.reduce-motion) .walker.atwork .pet-bob, :global(:root.reduce-motion) .baru, :global(:root.reduce-motion) .pbaru { animation: none; }
 </style>

@@ -272,6 +272,8 @@
     res = r; phase = 'result';
     if (r.kind === 'treasure') sfx.pop(); else sfx.level();
     if (r.levelUp) setTimeout(() => toast(`Naik ke Lv ${r.levelUp}!`, 'good'), 900);
+    // Sahabat Mungil: kura-kura langka ikut tersangkut (sekali seumur akun)
+    if (r.kura) setTimeout(() => { sfx.level(); toast(`Wah! Anak kura-kura ikut naik ke dermaga. ${r.kura.name} mau jadi sahabatmu! Lihat di Tas › Sahabat Mungil.`, 'good', 5200); }, 1400);
   }
 
   function again() { res = null; phase = 'idle'; why = ''; snapAt = null; shadows = []; bobOn = false; }

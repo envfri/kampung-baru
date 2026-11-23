@@ -31,6 +31,11 @@ export function openLink(url: string) {
       else if (working()) G.view = 'map';
       else goTo(G.catalog?.locations?.find((l: any) => l.kind === 'jobs')?.id ?? 'lowongan');
       break;
+    // Sahabat Mungil: belum punya sahabat → rumah (anak ayam menunggu di pintu); selain itu jalan ke Pondok Sahabat
+    case 'sahabat':
+      if (G.me?.sahabat?.ayam) G.view = 'home';
+      else goTo(G.catalog?.locations?.find((l: any) => l.kind === 'sahabat' && l.enabled !== false)?.id ?? 'pondok');
+      break;
     case 'rooms': G.view = 'home'; G.sheet = 'rooms'; break;
     case 'friends': G.view = 'home'; G.sheet = 'friends'; break;
     case 'daily': G.view = 'home'; G.sheet = 'daily'; break;

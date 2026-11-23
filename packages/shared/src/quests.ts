@@ -37,9 +37,15 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
   level_up: { label: 'Naik level', filters: 'level: angka' },
   kerja: { label: 'Selesai kerja sambilan (sampai waktunya habis, gaji diterima)', filters: 'job: warung | kebun | kolam | mebel | butik | ronda · minutes: angka' },
   kerja_rank: { label: 'Naik pangkat kerja sambilan', filters: 'rank: karyawan | senior | kepala · job: warung | kebun | kolam | mebel | butik | ronda' },
+  sahabat_baru: { label: 'Dapat sahabat baru (Sahabat Mungil)', filters: 'sp: ayam | umang | bebek | kura | pipit | kunang | kelinci | hamster | landak' },
+  sahabat_makan: { label: 'Beri makan sahabat (Camilan Sahabat, dihitung sekali sehari per sahabat)', filters: 'sp: jenis sahabat' },
+  sahabat_main: { label: 'Main dengan sahabat (ketuk, yang menambah keakraban)', filters: 'sp: jenis sahabat' },
+  sahabat_oleh: { label: 'Terima oleh-oleh harian dari sahabat', filters: 'sp: jenis sahabat' },
+  sahabat_akrab: { label: 'Sahabat naik ke Akrab', filters: 'sp: jenis sahabat' },
+  sahabat_sejati: { label: 'Sahabat naik ke Sahabat Sejati', filters: 'sp: jenis sahabat' },
 };
 
 export const QUEST_LINKS: [string, string][] = [
   ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko (lewat peta)'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
-  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'], ['/#kerja', 'Papan Lowongan (kerja sambilan)'],
+  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'], ['/#kerja', 'Papan Lowongan (kerja sambilan)'], ['/#sahabat', 'Pondok Sahabat (Sahabat Mungil)'],
 ];

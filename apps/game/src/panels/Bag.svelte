@@ -5,6 +5,8 @@
   import { api } from '../lib/api';
   import { fits } from '@kb/shared';
   import { petFree } from '../lib/kerja.svelte';
+  import { buddyIcon, SAHABAT_CAMILAN } from '@kb/shared';
+  import { activeBuddy, myBuddies, openSahabat, spName } from '../lib/sahabat.svelte';
   import { sfx } from '../lib/sfx';
 
   const TABS = [
@@ -81,6 +83,15 @@
     </div>
   {/if}
 
+  {#if !feedOnly}
+    {@const ab = activeBuddy()}
+    <!-- Sahabat Mungil: sahabat bukan barang di Tas, tapi dibuka dari sini -->
+    <button class="sahabat" onclick={() => openSahabat('saya')} aria-label="Sahabat Mungil{ab ? `: ${ab.name}` : ''}">
+      <span class="sic">{@html buddyIcon(ab?.sp ?? 'ayam', ab ? { variant: ab.variant, lvl: ab.lvl } : { sil: true })}</span>
+      <span class="st"><b>Sahabat Mungil</b><small>{ab ? `${ab.name} (${spName(ab.sp)}) ikut ${G.me.pet.name} · ${ab.level}` : myBuddies().length ? `${myBuddies().length} sahabat istirahat di rumah` : 'Belum ada sahabat. Cek pintu rumahmu!'}</small></span>
+      <span class="go" aria-hidden="true">›</span>
+    </button>
+  {/if}
   {#if tab.k === 'wear'}
     <button class="btn block wardrobe" onclick={() => (G.sheet = 'wardrobe')}>Buka Lemari: ubah warna, telinga, motif, mata, ekor</button>
   {/if}
@@ -112,6 +123,8 @@
         <ItemCard it={i} sub={on ? 'Dipakai' : ''}><button class="btn sm" class:on disabled={G.busy} onclick={() => wear(i.id)}>{on ? 'Lepas' : 'Pakai'}</button></ItemCard>
       {:else if i.kind === 'seed'}
         <ItemCard it={i} sub="{i.data?.growMinutes} mnt" badge="×{n}"><button class="btn sm" onclick={() => { G.sheet = null; G.view = 'garden'; }}>Ke Kebun</button></ItemCard>
+      {:else if i.id === SAHABAT_CAMILAN}
+        <ItemCard it={i} sub="Untuk sahabat" badge="×{n}"><button class="btn sm" onclick={() => openSahabat('saya')}>Beri</button></ItemCard>
       {:else}
         <ItemCard it={i} sub={i.sell_coin ? `Jual ${i.sell_coin} koin` : ''} badge="×{n}"><button class="btn sm" onclick={() => goTo('pasar', { tab: 'sell' })}>Jual</button></ItemCard>
       {/if}
@@ -123,4 +136,11 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
   .empty { margin: 0; font-weight: 600; color: var(--muted); }
   .wardrobe { background: #ECE6F6; }
+  .sahabat { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 2.5px solid var(--ink); border-radius: 16px; background: #FFF3CF; padding: 6px 10px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; font: inherit; color: var(--ink); }
+  .sahabat .sic { width: 48px; height: 42px; flex: none; }
+  .sahabat .sic :global(svg) { width: 100%; height: 100%; }
+  .sahabat .st { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sahabat b { font-size: 15.5px; }
+  .sahabat small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .sahabat .go { font-size: 26px; font-weight: 800; line-height: 1; }
 </style>

@@ -17,6 +17,7 @@ import { grantXp, once, patch, useActivity } from './game';
 import { int, obj, oneOf, reqId, str } from '../lib/validate';
 import { forgetBlocks } from './square';
 import { assertNotWorking, assertNotWorkingFast, jobInfo } from '../lib/kerja';
+import { buddyLook, outing } from '../lib/sahabat';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 // HP yang sedang sibuk / sinyal lemah bisa telat beberapa kali sinkron: jangan langsung dianggap pulang
@@ -181,7 +182,9 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     if (!r?.name) return { name: r?.display_name ?? 'Teman', pet: null, away: false };
     const v = petView({ ...r, user_id: uid }, s);
     // pet sedang kerja sambilan: pemiliknya tetap di rumah (obrolan), tapi petnya tidak tampil di rumah itu
-    return { name: r.display_name, away: isWorking(r), pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }) } };
+    // sahabat aktif ikut tampil (mengikuti pet-nya di rumah ini)
+    const buddy = await buddyLook(db, uid, s);
+    return { name: r.display_name, away: isWorking(r), pet: { name: v.name, color: v.color, ear: v.ear, pattern: v.pattern, eyes: v.eyes, tail: v.tail, wear: v.wear, level: v.level, state: petLookState(v.needs, { sleeping: !!v.sleep, sick: v.sick, chub: v.chub }), ...(buddy ? { buddy } : {}) } };
   }
   // posisi dikirim per ruangan (roomId + x, y di dalamnya); layar rumah memetakannya ke denah rumah tersambung
   const view = (m: Member) => ({ id: m.id, name: m.name, pet: m.pet, roomId: m.roomId, x: m.x, y: m.y, flip: m.flip, act: m.act, host: m.host, ...(m.away ? { away: true } : {}) });
@@ -219,6 +222,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
     const num = (v: unknown) => Math.max(0, Math.min(lim, Number(v) || 0));
     let m = h.members.get(uid);
     let full = false;
+    let jalan: Awaited<ReturnType<typeof outing>> = null;
     if (!m) {
       const guests = [...h.members.values()].filter((x) => !x.host && fresh(x)).length;
       if (uid !== hostId && guests >= s.visit.maxLive) full = true;
@@ -233,6 +237,8 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
         m = { id: uid, name: info.name, pet: info.pet, roomId, x: num(b.x), y: num(b.y), flip: !!b.flip, act: null, seenAt: Date.now(), joinedAt: Date.now(), petAt: Date.now(), host: uid === hostId, emoteAt: 0, away: info.away };
         h.members.set(uid, m);
         push(h, { kind: 'join', from: uid, name: m.name, host: m.host });
+        // Sahabat Mungil: berkunjung bareng sahabat aktif (keakraban sekali sehari)
+        if (uid !== hostId && !m.away) jalan = await outing(db, uid, 'kunjung');
         }
       }
     }
@@ -260,6 +266,7 @@ export default async function houseRoutes(app: FastifyInstance, { db }: { db: Db
       games: barengViews(`h:${hostId}`),
       serverNow: now,
       pings: takePings(uid),
+      ...(jalan ? { jalanSahabat: jalan } : {}),
     };
   });
 

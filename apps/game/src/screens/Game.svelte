@@ -8,6 +8,7 @@
   import { ajakOn, ajakLeftAlun } from '../lib/ajak.svelte';
   import KerjaHome from '../components/KerjaHome.svelte';
   import KerjaPanel from '../panels/Kerja.svelte';
+  import SahabatPanel from '../panels/Sahabat.svelte';
   import { K as KJ, kerjaOn, working, gajiWaiting, jamPulang } from '../lib/kerja.svelte';
   import { api } from '../lib/api';
   import { I } from '../lib/icons';
@@ -477,6 +478,7 @@
   {:else if G.sheet === 'event'}<EventPanel />
   {:else if G.sheet === 'whatsnew'}<WhatsNew />
   {:else if G.sheet === 'kerja'}<KerjaPanel />
+  {:else if G.sheet === 'sahabat'}<SahabatPanel />
   {/if}
 </div>
 

@@ -9,6 +9,8 @@
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
   import ExpandRooms from '../components/ExpandRooms.svelte';
+  import { SAHABAT_BY_ITEM, SAHABAT_INFO } from '@kb/shared';
+  import { ownsSp, openSahabat } from '../lib/sahabat.svelte';
 
   const KEEPERS: Record<string, { name: string; look: any; greet: string; wear?: string[] }> = {
     pasar: { name: 'Bu Serabi', look: { color: '#F2EEE3', ear: 'kelinci', pattern: 'ujung', eyes: 'senyum' }, greet: 'Jajanan hangat, bibit segar! Mau beli apa hari ini?' },
@@ -18,7 +20,7 @@
     jamu: { name: 'Mbok Jamu', look: { color: '#F4D58D', ear: 'kelinci', pattern: 'ujung', eyes: 'senyum' }, greet: 'Kurang enak badan? Minum jamu, besok segar lagi!' },
     bangunan: { name: 'Pak Tukang', look: { color: '#F4D58D', ear: 'tunas', pattern: 'belang', eyes: 'bulat' }, greet: 'Mau tambah ruangan, atau perluas ruangan yang ada? Pak Tukang siap!' },
   };
-  const KIND_LABEL: Record<string, string> = { food: 'Makanan', seed: 'Bibit', furniture: 'Mebel', wallpaper: 'Dinding', floor: 'Lantai', wear: 'Pakaian', room: 'Ruangan', material: 'Lainnya', fish: 'Ikan' };
+  const KIND_LABEL: Record<string, string> = { food: 'Makanan', seed: 'Bibit', furniture: 'Mebel', wallpaper: 'Dinding', floor: 'Lantai', wear: 'Pakaian', room: 'Ruangan', material: 'Lainnya', fish: 'Ikan', sahabat: 'Sahabat' };
   /** bagian tubuh pakaian, urut seperti tab Butik */
   const SLOT_LABEL: Record<string, string> = { body: 'Baju', head: 'Kepala', face: 'Wajah', neck: 'Leher', back: 'Punggung', hand: 'Dibawa' };
   const SLOT_ORDER = Object.keys(SLOT_LABEL);
@@ -95,6 +97,8 @@
     if (it.kind === 'wallpaper') return 'Dinding';
     if (it.kind === 'floor') return 'Lantai';
     if (it.kind === 'room') return `${it.data?.theme === 'luar' ? 'Halaman' : 'Ruangan'} ${it.data?.size ?? 6}×${it.data?.size ?? 6}`;
+    // Sahabat Mungil: sifatnya (jadi sahabat, bukan barang di Tas)
+    if (it.kind === 'sahabat') { const sp = SAHABAT_BY_ITEM[it.id]; return sp ? SAHABAT_INFO[sp].sifat : 'Sahabat mungil'; }
     return it.description ?? '';
   }
   const ownRoom = (id: string) => rooms.find((r) => r.item === id);
@@ -116,6 +120,7 @@
     if (!r) return;
     sfx.coin();
     if (it.kind === 'room') { sfx.level(); const inc = bonusText(r.bonus); toast(inc ? `${it.name} sudah dibangun! ${inc[0].toUpperCase()}${inc.slice(1)} sudah masuk Tas. Ketuk Lihat untuk masuk.` : `${it.name} sudah dibangun! Ketuk Lihat untuk masuk.`, 'good', inc ? 4800 : undefined); }
+    else if (it.kind === 'sahabat') { sfx.level(); toast(`${r.buddy?.name ?? it.name} si ${it.name} jadi sahabatmu! Atur di Tas › Sahabat Mungil.`, 'good', 3600); }
     else if (isEdisi(it)) { sfx.level(); toast(`✦ ${it.name} masuk Tas. ${it.kind === 'furniture' ? 'Pasang lewat Atur' : 'Pakai dari Tas'} untuk melihat efeknya!`, 'good'); }
     else toast(`${it.name} masuk Tas`, 'good');
   }
@@ -325,9 +330,10 @@
       <div class="grid">
         {#each list as it (it.id)}
           {@const mine = it.kind === 'room' ? ownRoom(it.id) : null}
+          {@const buddyOwned = it.kind === 'sahabat' && ownsSp(SAHABAT_BY_ITEM[it.id] ?? '')}
           {@const on = it.kind === 'wear' && tried[slotOf(it)] === it.id}
           {@const left = isEdisi(it) ? sisaWaktu(it.available_to, nowMin * 60_000) : ''}
-          <ItemCard {it} sub={sub(it)} tried={on} badge={it.event_id && eventIds.has(it.event_id) ? 'Event' : mine ? 'Punya' : owned(it.id) ? `×${owned(it.id)}` : isNew(it) ? 'Baru' : ''}>
+          <ItemCard {it} sub={sub(it)} tried={on} badge={it.event_id && eventIds.has(it.event_id) ? 'Event' : mine || buddyOwned ? 'Punya' : owned(it.id) ? `×${owned(it.id)}` : isNew(it) ? 'Baru' : ''}>
             {#if left}<span class="cd" title="Edisi terbatas">⏳ {left}</span>{/if}
             {#if it.kind === 'room' && bonusText(it.data?.bonusItems)}<p class="incl"><b>Termasuk:</b> {bonusText(it.data?.bonusItems)}</p>{/if}
             <div class="acts">
@@ -336,6 +342,8 @@
               {/if}
               {#if mine}
                 <button class="btn sm" onclick={() => { switchRoom(mine.id); G.view = 'home'; }}>Lihat</button>
+              {:else if buddyOwned}
+                <button class="btn sm" onclick={() => openSahabat('saya')}>Lihat</button>
               {:else if it.kind === 'room' && rooms.length >= maxRooms}
                 <button class="btn sm" disabled>Rumah penuh</button>
               {:else if seedLock(it)}

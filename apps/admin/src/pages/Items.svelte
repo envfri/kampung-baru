@@ -13,7 +13,7 @@
   import Drawer from '../components/Drawer.svelte';
   import ArtEditor from '../components/ArtEditor.svelte';
 
-  const KIND: Record<string, string> = { food: 'Makanan', furniture: 'Mebel', wear: 'Pakaian', wallpaper: 'Dinding', floor: 'Lantai', seed: 'Bibit', fish: 'Ikan', material: 'Bahan/lainnya', room: 'Ruangan rumah' };
+  const KIND: Record<string, string> = { food: 'Makanan', furniture: 'Mebel', wear: 'Pakaian', wallpaper: 'Dinding', floor: 'Lantai', seed: 'Bibit', fish: 'Ikan', material: 'Bahan/lainnya', room: 'Ruangan rumah', sahabat: 'Sahabat (Sahabat Mungil)' };
   const SLOT_LABEL: Record<string, string> = { head: 'Kepala', face: 'Wajah', neck: 'Leher', body: 'Baju', back: 'Punggung', hand: 'Dibawa' };
   let items = $state<any[]>([]);
   let locs = $state<any[]>([]);

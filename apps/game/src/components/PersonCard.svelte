@@ -2,7 +2,7 @@
   // Kartu profil pemain lain: muncul saat pet atau label namanya diketuk (alun-alun, rumah teman, rumahku).
   // Ajak berteman / menunggu / terima ajakan / kunjungi rumahnya, kirim hati, dan laporkan · blokir · antar pulang.
   import { untrack } from 'svelte';
-  import { petSVG } from '@kb/shared';
+  import { petSVG, buddyIcon, isSahabatSp, SAHABAT_INFO } from '@kb/shared';
   import { G, wearItems, fail } from '../lib/game.svelte';
   import { H, SQUARE, block, kick, report, sendHeart } from '../lib/house.svelte';
   import { FR, askFriend, answerAsk, loadRelations } from '../lib/friends.svelte';
@@ -23,6 +23,8 @@
   const close = () => { H.card = null; };
   const petName = $derived(m?.pet?.name ?? m?.name ?? '');
   const where = $derived(square ? `Di Alun-alun${H.inst > 1 ? ` ${H.inst}` : ' 1'}` : '');
+  /** sahabat aktif pet itu (Sahabat Mungil); Sahabat Sejati berkalung emas & diberi tanda khusus */
+  const bud = $derived(m?.pet?.buddy && isSahabatSp(m.pet.buddy.sp) ? m.pet.buddy : null);
 
   async function visitHome() {
     if (!m || busy) return;
@@ -75,6 +77,13 @@
       </div>
     </div>
 
+    {#if bud}
+      <div class="bud" class:sejati={bud.lvl >= 2}>
+        <span class="bic">{@html buddyIcon(bud.sp, { variant: bud.v, lvl: bud.lvl })}</span>
+        <span class="bt"><b>{bud.name}</b><small>Sahabat {petName} · {SAHABAT_INFO[bud.sp as keyof typeof SAHABAT_INFO].name}</small></span>
+        {#if bud.lvl >= 2}<span class="gold">✦ Sahabat Sejati</span>{:else if bud.lvl === 1}<span class="akrab">Akrab</span>{/if}
+      </div>
+    {/if}
     {#if reporting}
       <p class="ask">Laporkan {m.name}?</p>
       <p class="note">Admin akan memeriksa obrolannya di alun-alun ini.</p>
@@ -131,6 +140,15 @@
   .ask { margin: 0; font-size: 15px; font-weight: 800; }
   .note { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--muted); line-height: 1.3; }
   .hrt { color: #E0583F; }
+  .bud { display: flex; align-items: center; gap: 8px; background: #F6F1E3; border: 2px solid var(--ink); border-radius: 14px; padding: 3px 8px; }
+  .bud.sejati { background: linear-gradient(90deg, #FFF3CF, #FFE7A0); box-shadow: inset 0 0 0 2px #F2C94C; }
+  .bic { width: 40px; height: 36px; flex: none; }
+  .bic :global(svg) { width: 100%; height: 100%; }
+  .bt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .bt b { font-size: 15px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bt small { font-size: 12px; font-weight: 600; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gold { flex: none; font-size: 12px; font-weight: 800; color: #7A5410; background: #F2C94C; border: 1.5px solid var(--ink); border-radius: 999px; padding: 0 8px; }
+  .akrab { flex: none; font-size: 12px; font-weight: 800; color: #1E7A63; background: #DCEFE8; border-radius: 999px; padding: 0 8px; }
   .foot { display: flex; justify-content: center; gap: 18px; border-top: 1.5px dashed rgba(43, 47, 74, .2); padding-top: 4px; }
   .foot button { border: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: var(--muted); min-height: 36px; padding: 0 6px; cursor: pointer; }
   .foot .d { color: #A93A27; }

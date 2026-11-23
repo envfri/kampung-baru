@@ -10,6 +10,7 @@ import { presenceOf, guestsAt, forgetFriend, metInHouse } from './house';
 import { metInSquare } from './square';
 import { ping } from '../lib/pings';
 import { assertNotWorking, jobInfo, workingOf } from '../lib/kerja';
+import { buddyLook, restingLooks } from '../lib/sahabat';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -219,7 +220,7 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
     // pet sendiri sedang kerja sambilan: tidak bisa diajak berkunjung
     if (id !== req.user!.id) await assertNotWorking(db, req.user!.id, 'Berkunjung');
     const [s, cat] = await Promise.all([getSettings(db), getCatalog(db)]);
-    const [owner, pet, rooms, visited, likes, photo, book, used] = await Promise.all([
+    const [owner, pet, rooms, visited, likes, photo, book, used, buddy, resting] = await Promise.all([
       db.one<any>(`select id, display_name, live_visits, facility_visits, show_online, last_seen_at from users where id = $1 and banned_at is null`, [id]),
       db.one(`select * from pets where user_id = $1`, [id]),
       loadRooms(db, id, cat, s, false),
@@ -230,12 +231,16 @@ export default async function socialRoutes(app: FastifyInstance, { db }: { db: D
         `select a.kind, a.item_id, a.created_at, u.display_name as name from visit_acts a join users u on u.id = a.visitor_id
           where a.host_id = $1 order by a.created_at desc limit 6`, [id]),
       db.one<{ count: number }>(`select count from daily_counters where user_id = $1 and key = $2 and day = $3`, [req.user!.id, `vact:${id}`, today()]),
+      buddyLook(db, id, s),
+      restingLooks(db, id, s),
     ]);
     if (!owner) throw notFound('Rumah tidak ditemukan.');
     const sv: any = s;
     const online = owner.show_online ? presenceOf(id, owner.last_seen_at) : null;
     return {
-      owner: { id: owner.id, display_name: owner.display_name }, pet: pet ? petView(pet, s) : null, rooms, room: rooms[0], claimed: !!visited,
+      owner: { id: owner.id, display_name: owner.display_name }, pet: pet ? { ...petView(pet, s), ...(buddy ? { buddy } : {}) } : null, rooms, room: rooms[0], claimed: !!visited,
+      // Sahabat Mungil: sahabat tuan rumah yang sedang istirahat di rumah (dekat kurungan ayam, sangkar burung, kolam ikan, ...)
+      resting,
       // pet tuan rumah sedang kerja sambilan: tamu melihat catatan di pintu, petnya tidak ada di rumah
       work: pet && isWorking(pet) ? (() => { const j = jobInfo(pet.work_job); return { job: pet.work_job, place: j.place, doing: j.doing, short: j.short, until: new Date(pet.work_until).getTime() }; })() : null,
       likes: { count: likes?.c ?? 0, liked: !!likes?.mine },

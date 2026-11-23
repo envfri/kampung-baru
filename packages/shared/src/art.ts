@@ -15,7 +15,7 @@ export type ArtSpec =
   | { type: 'builtin'; key: string; colors?: Record<string, string>; params?: Record<string, number> }
   | { type: 'image'; url: string; w?: number; h?: number };
 
-export type ItemKind = 'food' | 'furniture' | 'wear' | 'wallpaper' | 'floor' | 'seed' | 'fish' | 'material' | 'room';
+export type ItemKind = 'food' | 'furniture' | 'wear' | 'wallpaper' | 'floor' | 'seed' | 'fish' | 'material' | 'room' | 'sahabat';
 
 export interface ItemLike {
   id: string;
@@ -1011,6 +1011,7 @@ export function builtinCatalog() {
     fish: icons('fish'),
     material: icons('material'),
     room: pick(ROOMS),
+    sahabat: icons('sahabat'),
   } as Record<ItemKind, { key: string; label: string; colors: Record<string, string>; slot?: string }[]>;
 }
 
@@ -1990,8 +1991,14 @@ function special(l: LocationLike) {
   // Kerja Sambilan: papan lowongan (di tepi jalan, label seperti bangunan) & pos ronda
   if (l.kind === 'jobs') return `${jobBoardSVG(x, y)}${pill(x, y + 12, l.name)}`;
   if (l.kind === 'ronda') return `${posRondaSVG(x, y)}${pill(x, y, l.name)}`;
+  const own = MAP_PLACES[l.kind];
+  if (own) return own(l, pill);
   return building(l);
 }
+
+/** Tempat peta dengan gambar sendiri dari modul lain (mis. Pondok Sahabat di art-sahabat.ts), menurut jenis lokasi. */
+const MAP_PLACES: Record<string, (l: LocationLike, pill: (x: number, y: number, label: string) => string) => string> = {};
+export function registerMapPlace(kind: string, draw: (l: LocationLike, pill: (x: number, y: number, label: string) => string) => string) { MAP_PLACES[kind] = draw; }
 
 /** Lebar peta 1260 (versi lama 960 → 1080): sisi kanan untuk Warung Jamu dan Alun-alun. */
 export const MAP_W = 1260;
@@ -2049,7 +2056,9 @@ function mapDecor(decor: string | undefined) {
 export function renderMap(locations: LocationLike[], decor?: string) {
   let o = `<rect x="-200" y="-200" width="1500" height="900" fill="#A9D18A"/>`;
   for (let i = 0; i < 96; i++) o += `<circle cx="${(i * 137) % MAP_W}" cy="${(i * 89) % 440}" r="3" fill="#97C478"/>`;
-  [[40, 70], [200, 58], [380, 62], [560, 56], [770, 64], [20, 140], [940, 70], [1062, 52], [1000, 330], [1150, 70], [1230, 150], [1240, 330]].forEach(([x, y]) => {
+  // pohon (770, 64) berdiri di tempat Pondok Sahabat (paket 23): hanya digambar bila tempat itu tidak ada / dimatikan
+  const pondok = locations.some((l) => l.enabled && l.kind === 'sahabat' && Math.abs(l.x - 770) < 90 && l.y < 120);
+  [[40, 70], [200, 58], [380, 62], [560, 56], ...(pondok ? [] : [[770, 64]]), [20, 140], [940, 70], [1062, 52], [1000, 330], [1150, 70], [1230, 150], [1240, 330]].forEach(([x, y]) => {
     o += `<circle cx="${x}" cy="${y + 16}" r="5" fill="#7A5232"/><circle cx="${x}" cy="${y}" r="20" fill="#5DA05A" stroke="${INK}" stroke-width="2.5"/><circle cx="${x - 6}" cy="${y - 6}" r="7" fill="#7CC57D"/>`;
   });
   const road = `M-20 240H${MAP_W + 20}M420 240V470`;

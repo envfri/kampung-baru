@@ -6,6 +6,7 @@ import { onPings } from './friends.svelte';
 import { syncGames } from './bareng.svelte';
 import { sfx } from './sfx';
 import { ALUN, PREVIEW, previewLomba } from './alun.svelte';
+import { onJalan } from './sahabat.svelte';
 
 export type Bubble = { id: number; who: string; text?: string; emote?: string; until: number };
 /** posisi (x, y) di dalam ruangan `roomId`; layar rumah memetakannya ke denah */
@@ -71,6 +72,8 @@ async function tick(myGen: number) {
     // server baru restart: nomor urut kejadian mulai lagi dari awal
     if (r.boot && r.boot !== boot) { if (boot) seq = 0; boot = r.boot; }
     H.live = !!r.live; H.full = !!r.full; H.reason = r.reason ?? '';
+    // Sahabat Mungil: datang bareng sahabat aktif (keakraban sekali sehari per tempat)
+    if (r.jalanSahabat) onJalan(r.jalanSahabat);
     if (H.hostId === SQUARE && r.live) {
       // pindah ke alun-alun lain (mis. penuh): nomor urut kejadian mulai lagi
       if (H.inst && r.inst !== H.inst) seq = 0;
