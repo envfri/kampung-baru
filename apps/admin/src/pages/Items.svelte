@@ -359,6 +359,7 @@
               <label>Dinding awal<select bind:value={form.data.wall}><option value={undefined}>Bawaan</option>{#each items.filter((i) => i.kind === 'wallpaper') as i}<option value={i.id}>{i.name}</option>{/each}</select></label>
               <label>Lantai awal<select bind:value={form.data.floor}><option value={undefined}>Bawaan</option>{#each items.filter((i) => i.kind === 'floor') as i}<option value={i.id}>{i.name}</option>{/each}</select></label>
             </div>
+            <label>Barang bonus<input value={(form.data.bonusItems ?? []).join(', ')} placeholder="mis. kolam-bola, wp-balonpastel, fl-puzzlebusa" oninput={(e) => (form.data.bonusItems = e.currentTarget.value.split(',').map((x) => x.trim()).filter(Boolean))} /><span class="help">ID item (pisahkan dengan koma, maks. 8) yang masuk Tas sekali saat ruangan dibeli, mis. mebel khas serta dinding & lantai khususnya supaya bisa dipasang lagi. Di kartu toko tampil "Termasuk: …".</span></label>
             <span class="help">Ruangan tidak masuk tas: setelah dibeli langsung jadi ruangan baru di rumah pemain (maksimal per pemain diatur di Ekonomi & fitur › house). Jual di Toko Bangunan atau toko lain.</span>
           {:else}
             <p class="muted">Tidak ada detail tambahan.</p>

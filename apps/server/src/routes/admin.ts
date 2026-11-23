@@ -130,6 +130,11 @@ function cleanKindData(kind: string, v: any) {
       const out: any = { size: num(d.size, 'Ukuran ruangan', 4, 10, 6), theme: oneOf(d.theme ?? 'dalam', 'Tema', ['dalam', 'luar'] as const) };
       if (d.wall) out.wall = slug(d.wall, 'Dinding awal');
       if (d.floor) out.floor = slug(d.floor, 'Lantai awal');
+      // barang bonus: masuk Tas sekali saat ruangan dibeli (mebel khas, dinding & lantai khusus)
+      const bonus = Array.isArray(d.bonusItems) ? d.bonusItems : typeof d.bonusItems === 'string' ? d.bonusItems.split(',') : [];
+      const ids = [...new Set(bonus.map((x: unknown) => String(x ?? '').trim()).filter(Boolean))];
+      if (ids.length > 8) throw bad('invalid_data', 'Barang bonus paling banyak 8.');
+      if (ids.length) out.bonusItems = ids.map((x) => slug(x, 'Barang bonus'));
       return out;
     }
     case 'seed': {
@@ -355,6 +360,7 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     if (kind === 'room') {
       if (data.wall && !(await db.one(`select 1 from items where id = $1 and kind = 'wallpaper'`, [data.wall]))) throw bad('invalid_wall', 'Dinding awal harus item jenis Dinding.');
       if (data.floor && !(await db.one(`select 1 from items where id = $1 and kind = 'floor'`, [data.floor]))) throw bad('invalid_floor', 'Lantai awal harus item jenis Lantai.');
+      for (const bid of data.bonusItems ?? []) if (!(await db.one(`select 1 from items where id = $1 and kind <> 'room'`, [bid]))) throw bad('invalid_bonus', `Barang bonus "${bid}" tidak ditemukan (ruangan tidak bisa jadi bonus).`);
     }
     const vals = [
       id, kind, str(b.name, 'Nama', { min: 2, max: 60 }), str(b.description, 'Deskripsi', { max: 200, optional: true }) ?? '',

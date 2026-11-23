@@ -2529,6 +2529,12 @@
       return { id: r.id, name: roomOf(r.id)?.name ?? 'Ruangan', x: (x - cam.x) * cam.k + vw / 2, y: (y - cam.y) * cam.k + vh / 2, sel: G.plan?.sel === r.id, apart: apart.has(r.id) };
     });
   });
+  /** label nama ruangan saling menutupi (rumah banyak ruangan, layar kecil): tampil ringkas, yang dipilih tetap utuh di atas */
+  const planTight = $derived.by(() => {
+    const L = planLabels, w = (n: string) => n.length * 7.6 + 24;
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) if (Math.abs(L[i].x - L[j].x) < (w(L[i].name) + w(L[j].name)) / 2 && Math.abs(L[i].y - L[j].y) < 24) return true;
+    return false;
+  });
 
   /* ---------------- Jepret: foto pemandangan (lib/jepret.svelte.ts) ---------------- */
   // Masuk mode Jepret: kamera berhenti mengikuti pet (bingkai tidak bergeser saat pet berjalan); keluar: kamera kembali.
@@ -2687,7 +2693,7 @@
     {#if t.self || !H.members.some((m) => m.id === t.id)}<span class="tag" class:self={t.self} style="left:{t.x}px;top:{t.y}px">{t.name}</span>
     {:else}<button class="tag tap" style="left:{t.x}px;top:{t.y}px" aria-label="Lihat profil {t.name}" onclick={() => { H.card = t.id; sfx.tap(); }}>{t.name}</button>{/if}
   {/each}
-  {#each planLabels as l (l.id)}<span class="plabel" class:sel={l.sel} class:apart={l.apart} style="left:{l.x}px;top:{l.y}px">{l.name}</span>{/each}
+  {#each planLabels as l (l.id)}<span class="plabel" class:tight={planTight && !l.sel} class:sel={l.sel} class:apart={l.apart} style="left:{l.x}px;top:{l.y}px" title={l.name}>{l.name}</span>{/each}
   {#each H.bubbles as b (b.id)}
     {@const at = bpos[b.who]}
     {#if at}<p class="bubble hb" class:emo={!!b.emote} style="left:{at.x}px;top:{at.y}px" role="status">{#if b.emote}{@html EMOTE_ICON[b.emote] ?? ''}{:else}{b.text}{/if}</p>{/if}
@@ -2805,7 +2811,8 @@
   .room :global(.planmarks .selroom) { stroke: #F2B632; stroke-width: 5; fill: rgba(242, 182, 50, .16); }
   .room :global(.planmarks .apart) { stroke: #D9534F; stroke-width: 3.5; stroke-dasharray: 9 6; fill: rgba(217, 83, 79, .12); }
   .plabel { position: absolute; z-index: 9; transform: translate(-50%, -50%); background: rgba(255, 253, 247, .94); border: 2px solid var(--ink); border-radius: 999px; padding: 1px 9px; font-size: 13px; font-weight: 800; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 0 var(--ink); }
-  .plabel.sel { background: #FFE8A3; }
+  .plabel.sel { background: #FFE8A3; z-index: 10; }
+  .plabel.tight { font-size: 11px; padding: 0 6px; border-width: 1.5px; box-shadow: 0 1.5px 0 var(--ink); max-width: 84px; overflow: hidden; text-overflow: ellipsis; opacity: .92; }
   .plabel.apart { background: #FBE1DF; color: #A93A27; }
   .bubble.hb { z-index: 12; }
   .bubble.hb.emo { padding: 3px 6px; z-index: 10; }

@@ -8,7 +8,7 @@
 
   const rooms = $derived<any[]>(G.me.rooms ?? []);
   const cur = $derived(curRoom());
-  const max = $derived(settings().house?.maxRooms ?? 6);
+  const max = $derived(settings().house?.maxRooms ?? 12);
   const builder = $derived((G.catalog?.locations ?? []).find((l: any) => l.id === 'bangunan'));
   const forSale = $derived((G.catalog?.items ?? []).filter((i) => i.kind === 'room' && i.shop && !rooms.some((r) => r.item === i.id)));
   const shopName = (id: string | null) => (G.catalog?.locations ?? []).find((l: any) => l.id === id)?.name ?? '';

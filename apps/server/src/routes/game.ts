@@ -171,6 +171,23 @@ export async function grantXp(t: Db, userId: string, pet: { level: number; xp: n
   return r;
 }
 
+/**
+ * Barang bonus sebuah item ruangan (data.bonusItems): id item yang ada di katalog & aktif, bukan ruangan, tanpa dobel,
+ * paling banyak 8. Diberikan sekali saat ruangan dibeli (mebel khas, dinding & lantai khusus ruangan Mutiara).
+ */
+export function roomBonus(cat: Catalog, item: CatalogItem) {
+  const raw: unknown = item.data?.bonusItems;
+  if (!Array.isArray(raw)) return [] as string[];
+  const out: string[] = [];
+  for (const id of raw) {
+    if (typeof id !== 'string' || out.includes(id)) continue;
+    const it = cat.byId.get(id);
+    if (it && it.active && it.kind !== 'room') out.push(id);
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
 /** Item yang dimiliki pemain: di tas, terpasang di ruangan, atau dipakai sebagai dinding/lantai. */
 async function ownedOf(q: Db, uid: string, ids: string[]) {
   const [inv, placed, deco] = await Promise.all([
@@ -423,7 +440,7 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
       return once(db, u.id, reqId(req.body?.requestId), async (t) => {
         if (await t.one(`select 1 from rooms where user_id = $1 and room_item = $2`, [u.id, itemId])) throw bad('owned', 'Ruangan ini sudah ada di rumahmu.');
         const n = (await t.one<{ c: number; m: number }>(`select count(*)::int c, coalesce(max(sort), 0)::int m from rooms where user_id = $1`, [u.id]))!;
-        const max = Number((s as any).house?.maxRooms ?? 6);
+        const max = Number((s as any).house?.maxRooms ?? 12);
         if (n.c >= max) throw bad('max_rooms', `Rumahmu sudah punya ${max} ruangan (batas maksimal).`);
         await credit(t, u.id, currency, -price, 'buy', `${itemId}x1`);
         const deco = (id: unknown, kind: string) => (typeof id === 'string' && cat.byId.get(id)?.kind === kind ? id : null);
@@ -431,9 +448,13 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
           `insert into rooms (user_id, room_item, name, layout, wall, floor, sort) values ($1,$2,$3,'[]'::jsonb,$4,$5,$6) returning id`,
           [u.id, itemId, item!.name, deco(item!.data?.wall, 'wallpaper'), deco(item!.data?.floor, 'floor'), n.m + 1],
         ))!;
-        await track(t, u.id, 'purchase', { itemId, kind: 'room', currency, total: price });
+        // barang bonus ruangan (mebel khas, dinding & lantai khususnya) masuk Tas di transaksi yang sama: sekali per ruangan
+        // (ruangan hanya bisa dibeli sekali; requestId yang sama mengembalikan hasil pertama)
+        const bonus = roomBonus(cat, item!);
+        for (const id of bonus) await addItem(t, u.id, id, 1);
+        await track(t, u.id, 'purchase', { itemId, kind: 'room', currency, total: price, ...(bonus.length ? { bonus } : {}) });
         forgetHouseRooms(u.id);
-        return { ok: true, roomId: room.id, ...(await patch(t, u.id, ['wallet', 'room'])) };
+        return { ok: true, roomId: room.id, bonus, ...(await patch(t, u.id, bonus.length ? ['wallet', 'room', 'inventory'] : ['wallet', 'room'])) };
       });
     }
     return once(db, u.id, reqId(req.body?.requestId), async (t) => {
