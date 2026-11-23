@@ -43,7 +43,9 @@
   const anyNew = $derived(all.some(isNew));
   // Edisi Spesial (Toko Mutiara): barang dengan efek bergerak, tab sendiri; terbuka langsung bila ada yang baru
   const edisi = $derived(loc?.kind === 'pearl' ? all.filter(isEdisi) : []);
-  let cat = $state((G.catalog?.items ?? []).some((i) => i.shop === G.shopId && isEdisi(i) && isNew(i) && canBuy(i)) ? 'edisi' : '');
+  // tab Edisi Spesial hanya dibuka langsung bila barang edisi adalah yang terbaru di toko ini (bukan saat ada barang lain yang lebih baru)
+  const newest = (edi: boolean) => Math.max(0, ...(G.catalog?.items ?? []).filter((i) => i.shop === G.shopId && isEdisi(i) === edi && isNew(i) && canBuy(i)).map((i) => Number(i.new_until)));
+  let cat = $state(newest(true) > 0 && newest(true) >= newest(false) ? 'edisi' : '');
   // koleksi baju baru: tab Baju langsung terbuka
   let slot = $state((G.catalog?.items ?? []).some((i) => i.shop === G.shopId && i.kind === 'wear' && slotOf(i) === 'body' && isNew(i)) ? 'body' : '');
   let confirm = $state('');
@@ -51,8 +53,8 @@
     if (cat === 'set') return [];
     if (cat === 'edisi') return edisi;
     const l = all.filter((i) => (!cat || i.kind === cat) && (!wearShop || !slot || slotOf(i) === slot));
-    // Butik: koleksi baru tampil lebih dulu
-    return wearShop ? [...l].sort((a, b) => Number(isNew(b)) - Number(isNew(a))) : l;
+    // barang baru tampil lebih dulu (yang paling baru di atas); sisanya tetap urutan katalog
+    return [...l].sort((a, b) => (isNew(b) ? Number(b.new_until) : 0) - (isNew(a) ? Number(a.new_until) : 0));
   });
   // set premium (Toko Mutiara): paket semua item yang belum dimiliki dengan diskon, bonus suasana di ruangan
   const sets = $derived(loc?.kind === 'pearl' ? PREMIUM_SETS.map((st) => {

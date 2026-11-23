@@ -88,6 +88,11 @@ const cardNames = (p) => p.evaluate(() => [...document.querySelectorAll('.shop .
 const card = (p, name) => p.locator(`.shop .panel .card:has(.name:text-is("${name}"))`);
 /** cek toko: semua barang baru tampil, kartu & tombol tidak keluar layar, ikon tergambar */
 async function checkShop(pl, shop, tag, shot) {
+  // toko terbuka di tab Semua (bukan Edisi Spesial yang lebih lama) dan barang terbaru di urutan atas
+  const tabOn = await pl.p.locator('.shop .tabbar:not(.slots) button.on').first().innerText().catch(() => '');
+  check(/^Semua/.test(tabOn.trim()), `${tag}: ${shop} terbuka di tab Semua ("${tabOn.trim()}")`);
+  const top = (await cardNames(pl.p)).slice(0, NEW[shop].length);
+  check(NEW[shop].every((n) => top.includes(n)), `${tag}: ${NEW[shop].length} barang baru di urutan paling atas ${shop} (${top.slice(0, 3).join(', ')}, …)`);
   const names = await cardNames(pl.p);
   const missing = NEW[shop].filter((n) => !names.includes(n));
   check(!missing.length, `${tag}: ${NEW[shop].length} barang baru tampil di ${shop}${missing.length ? ` (tidak ada: ${missing.join(', ')})` : ''}`);

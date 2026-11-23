@@ -4,6 +4,27 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.46.0 · 2026-11-23 · Kamar mandi baru & enam ruangan Mutiara
+
+_Dua belas barang kamar mandi baru di Mebel Jati, dua bak mandi istimewa, dan enam ruangan baru di Toko Mutiara, masing-masing lengkap dengan dinding, lantai, dan mebel khasnya._
+
+### Baru
+
+- Barang kamar mandi baru di Mebel Jati: Bak Mandi Keramik & Gayung (mandi gayung), Shower & Tirai Ikan, Pengering Bulu, Mesin Gelembung Sabun, Rak Mainan Mandi, Ember Rendam Kaki, Rak Sabun & Sampo, Lampu Ubur-ubur, Keranjang Cucian Rotan, Pot Lidah Mertua, plus Dinding Ubin Perahu Layar dan Lantai Batu Kali Kecil. _(pemain)_
+- Gerakan baru saat mandi: pet diguyur gayung, mandi di bawah shower, dan bulunya mengembang saat dikeringkan. _(pemain)_
+- Di Toko Mutiara: Bak Mandi Kaki Kucing yang penuh busa, dan Pancuran Gajah yang belalainya menyemburkan air ke pet-mu. _(pemain)_
+- Enam ruangan baru di Toko Mutiara: Ruang Main Anak, Rumah Pohon, Studio Karaoke, Rumah Kaca Anggrek, Pemandian Air Panas, dan Ruang Akuarium. Setiap ruangan sudah termasuk dinding & lantai khusus serta mebel khasnya (Kolam Bola, Ayunan Ban, Mesin Karaoke, Rak Anggrek, Kolam Air Panas, Sofa Kerang). Bonusnya juga masuk Tas, jadi bisa dipasang lagi kapan saja. _(pemain)_
+
+### Perubahan
+
+- Rumah kini bisa punya sampai 12 ruangan, jadi semua jenis ruangan bisa kamu miliki sekaligus. Nama ruangan di Atur denah diringkas bila saling menutupi. _(pemain)_
+- Admin: house.maxRooms bawaan 12 (nilai tersimpan 6 dinaikkan otomatis; angka lain tidak disentuh). Barang ruangan punya kolom "Barang bonus" (maks 8, tidak boleh ruangan). Mebel khas, dinding & lantai khusus tidak dijual dan tidak bisa dijual kembali.
+- Teknis: paket konten 22 (seed-mandi2.ts, pack_mandi2), migrasi 031, art-mandi2.ts, animasi gayung/shower/kering, bonus ruangan diberikan dalam transaksi pembelian. Uji baru: mandi2.test.ts, e2e-mandi2. Rumah 12 ruangan terisi penuh terasa berat di HP kelas bawah; batas bisa diturunkan dari admin.
+
+### Perbaikan
+
+- Di setiap toko, barang baru kini tampil paling atas. Toko Mutiara hanya langsung membuka tab Edisi Spesial bila edisi itulah barang terbarunya, jadi barang dan ruangan yang lebih baru tidak lagi tersembunyi. _(pemain)_
+
 ## 0.45.2 · 2026-11-21 · Tantangan duel bisa dibatalkan
 
 _Teman yang ditantang duel tidak datang? Batalkan sendiri kapan saja, atau tantangan batal otomatis setelah 6 jam._
@@ -21,6 +42,8 @@ _Teman yang ditantang duel tidak datang? Batalkan sendiri kapan saja, atau tanta
 ### Perbaikan
 
 - Tantangan duel yang tidak didatangi teman kini batal otomatis setelah 6 jam (sebelumnya baru setelah 2 hari), jadi kamu bisa langsung menantang temanmu lagi. _(pemain)_
+
+Commit: [`e9e241c`](https://github.com/envfri/kampung-baru/commit/e9e241c)
 
 ## 0.45.1 · 2026-11-21 · Semua kasur bisa dipakai tidur
 
