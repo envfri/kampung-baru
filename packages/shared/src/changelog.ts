@@ -39,7 +39,26 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.47.0',
+    date: '2026-11-23',
+    title: 'Sahabat Mungil',
+    summary: 'Pet-mu kini punya teman kecil yang ikut ke mana pun: di rumah, ke rumah teman, keliling kampung, ke alun-alun, sampai ikut terfoto di Jepret.',
+    items: [
+      { kind: 'baru', text: 'Sahabat Mungil: hewan kecil yang menemani pet-mu ke mana pun. Ia ikut berjalan di rumah, saat berkunjung ke rumah teman, di peta kampung, di alun-alun, dan ikut terfoto di Jepret. Teman-temanmu juga bisa melihatnya.', player: true },
+      { kind: 'baru', text: 'Sahabat pertama gratis: seekor anak ayam menunggu di dekat rumahmu. Ketuk dia, lalu beri nama sendiri. Nama sahabat bisa diganti kapan saja.', player: true },
+      { kind: 'baru', text: 'Sembilan sahabat untuk dikumpulkan. Umang-umang (rumah kerangnya bisa diganti warna) dan Anak Bebek diadopsi dengan koin. Kelinci Mini, Hamster Pipi Tembam, dan Landak Mini dibeli dengan Mutiara. Kura-kura kadang ikut tersangkut di Kolam Pancing. Burung Pipit datang sendiri ke Tempat Minum Burung atau Sangkar Burung di halamanmu, dan Kunang-kunang muncul di halaman pada malam hari (19.00–04.00).', player: true },
+      { kind: 'baru', text: 'Pondok Sahabat di peta kampung: adopsi sahabat, beli Camilan Sahabat, dan buka Album Sahabat. Sahabat yang belum kamu punya tampil sebagai bayangan, lengkap dengan petunjuk cara mendapatkannya.', player: true },
+      { kind: 'baru', text: 'Satu sahabat menemani pet-mu, sisanya beristirahat di rumah, dekat Kurungan Ayam, Sangkar Burung, atau Kolam Ikan bila kamu punya. Ketuk sahabat untuk mengajaknya main. Atur sahabatmu di Tas › Sahabat Mungil.', player: true },
+      { kind: 'baru', text: 'Keakraban naik setiap kali kamu memberi camilan, mengajak main, dan pergi bersama. Saat sudah Akrab, sahabat punya trik dan duduk di kepala pet-mu ketika pet duduk atau tidur. Sahabat Sejati mendapat kalung emas dan tampil di kartu profil. Sahabat tidak pernah sakit, kabur, atau mati.', player: true },
+      { kind: 'baru', text: 'Oleh-oleh harian: sekali sehari sahabatmu membawa temuan kecil, misalnya koin, bibit, bunga, atau Kerang Hias. Kerang Hias bisa dijual di Pasar Pagi.', player: true },
+      { kind: 'baru', text: 'Tugas harian "Beri makan sahabat", serta lencana Kawan Satwa (3, 6, dan 9 sahabat) dan Sahabat Sejati.', player: true },
+      { kind: 'ubah', text: 'Admin: bagian pengaturan "Sahabat Mungil" (buka/tutup, poin keakraban, batas Akrab & Sahabat Sejati, peluang kura-kura, jam kunang-kunang, sahabat istirahat yang tampil, daftar oleh-oleh). Harga sahabat & Camilan Sahabat diatur di Item & harga (jenis barang baru Sahabat), Pondok Sahabat di Lokasi. Reset peluncuran juga menghapus sahabat.' },
+      { kind: 'ubah', text: 'Teknis: paket konten 23 (seed-sahabat.ts, pack_sahabat), migrasi 032 (tabel pet_buddies, satu sahabat aktif per pemain), lib/sahabat.ts & routes/sahabat.ts, art-sahabat.ts; batas harian, peluang, jam malam, pembelian & oleh-oleh dicek di server dalam transaksi. Uji baru: sahabat.test.ts, e2e-sahabat; npm run sahabat-sheet membuat lembar kontak gambar.' },
+    ],
+  },
+  {
     version: '0.46.0',
+    commits: ['8ab1906'],
     date: '2026-11-23',
     title: 'Kamar mandi baru & enam ruangan Mutiara',
     summary: 'Dua belas barang kamar mandi baru di Mebel Jati, dua bak mandi istimewa, dan enam ruangan baru di Toko Mutiara, masing-masing lengkap dengan dinding, lantai, dan mebel khasnya.',
