@@ -4,6 +4,7 @@ export * from './art';
 export * from './art-ikan';
 export * from './art-toko3';
 export * from './art-perabot3';
+export * from './art-mandi2';
 export * from './house';
 export * from './square';
 export * from './art-alun';

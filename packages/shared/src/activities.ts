@@ -22,6 +22,11 @@ export const ACTIVITY_ANIMS: Record<string, { label: string; on: boolean; lift: 
   ayun: { label: 'Main ayunan (naik ke dudukan ayunan)', on: true, lift: 24, fx: 'hearts', prop: 'ayun', ms: 3200 },
   sikat: { label: 'Sikat gigi (di dekatnya)', on: false, lift: 0, fx: 'bubbles', prop: 'sikat', ms: 2600 },
   cuci: { label: 'Mencuci / menggosok dengan spons (di dekatnya)', on: false, lift: 0, fx: 'bubbles', prop: 'cuci', ms: 2800 },
+  // paket konten 22 (kamar mandi 2): mengguyur badan dengan gayung di samping bak, berdiri di bawah pancuran
+  // (naik ke petak shower: lift = tinggi alas shower, MANDI2_SHOWER.tray), dan bulu mengembang ditiup pengering
+  gayung: { label: 'Mandi pakai gayung (di dekatnya)', on: false, lift: 0, fx: 'drops', prop: 'gayung', ms: 3000 },
+  shower: { label: 'Mandi di bawah pancuran (naik ke mebel)', on: true, lift: 4, fx: 'bubbles', prop: 'shower', ms: 3000 },
+  kering: { label: 'Mengeringkan bulu (di dekatnya)', on: false, lift: 0, fx: 'sparkle', prop: 'kering', ms: 2600 },
 };
 
 /** Efek aktivitas: empat kebutuhan + berat badan (negatif = menurunkan berat). */

@@ -985,6 +985,15 @@ const ROOMS: Record<string, { label: string; colors: Record<string, string> }> =
   luar: { label: 'Halaman terbuka', colors: { main: '#D9B26A', accent: '#8CC56E' } },
 };
 
+/** Tampilan ikon ruangan bertema (ruangan Mutiara paket 22): dinding, lantai & mebel khas di ruang mini 3×3. */
+const ROOM_LOOKS: Record<string, { wall: string; floor: string; furn?: { key: string; w: number; d: number } }> = {};
+export function registerRoomLooks(looks: Record<string, { label: string; colors: Record<string, string>; wall: string; floor: string; furn?: { key: string; w: number; d: number } }>) {
+  for (const [k, v] of Object.entries(looks)) {
+    ROOMS[k] = { label: v.label, colors: v.colors };
+    ROOM_LOOKS[k] = { wall: v.wall, floor: v.floor, furn: v.furn };
+  }
+}
+
 export const DEFAULT_WALL: ArtSpec = { type: 'builtin', key: 'garis', colors: WALLS.garis.colors };
 export const DEFAULT_FLOOR: ArtSpec = { type: 'builtin', key: 'papan', colors: FLOORS.papan.colors };
 
@@ -1883,10 +1892,17 @@ export function itemIcon(item: ItemLike) {
     const c = a.type === 'builtin' ? a.colors ?? {} : {};
     const outdoor = (item.data?.theme ?? (a.type === 'builtin' ? a.key : 'dalam')) === 'luar';
     const def = ROOMS[outdoor ? 'luar' : 'dalam'].colors;
-    const wallIt = { art: { type: 'builtin', key: 'polos', colors: { main: col(c.main, def.main), accent: col(c.main, def.main) } } } as unknown as ItemLike;
-    const floorIt = { art: { type: 'builtin', key: outdoor ? 'rumput' : 'papan', colors: { main: col(c.accent, def.accent), accent: shade(col(c.accent, def.accent), -0.08) } } } as unknown as ItemLike;
+    // ruangan bertema (registerRoomLooks): ikon memakai dinding, lantai & mebel khasnya sendiri
+    const look = a.type === 'builtin' && !outdoor ? ROOM_LOOKS[a.key] : undefined;
+    const wallIt = { art: look ? { type: 'builtin', key: look.wall } : { type: 'builtin', key: 'polos', colors: { main: col(c.main, def.main), accent: col(c.main, def.main) } } } as unknown as ItemLike;
+    const floorIt = { art: look ? { type: 'builtin', key: look.floor } : { type: 'builtin', key: outdoor ? 'rumput' : 'papan', colors: { main: col(c.accent, def.accent), accent: shade(col(c.accent, def.accent), -0.08) } } } as unknown as ItemLike;
     const g = G({ ox: 32, oy: 10, t: 9, h: 4.5 });
-    return `<svg viewBox="${outdoor ? '2 -8 60 50' : '2 -34 60 72'}" aria-hidden="true">${roomShell(g, 3, wallColors(wallIt), floorColors(floorIt), false, outdoor)}</svg>`;
+    let furn = '';
+    if (look?.furn && FURN[look.furn.key]) {
+      const f = look.furn, fi = { id: 'x', kind: 'furniture', name: '', art: { type: 'builtin', key: f.key }, data: { w: f.w, d: f.d } } as unknown as ItemLike;
+      furn = furnDraw(g, fi, (3 - f.w) / 2, (3 - f.d) / 2);
+    }
+    return `<svg viewBox="${outdoor ? '2 -8 60 50' : '2 -34 60 72'}" aria-hidden="true">${roomShell(g, 3, wallColors(wallIt), floorColors(floorIt), false, outdoor)}${furn}</svg>`;
   }
   if (item.kind === 'wallpaper' || item.kind === 'floor') {
     if (a.type === 'image') {

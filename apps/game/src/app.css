@@ -170,6 +170,36 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 .game-bg .flash { font: 800 26px var(--font); fill: #1E7A4C; stroke: #FFFDF7; stroke-width: 4px; paint-order: stroke; animation: fxUp .8s ease-out forwards; }
 .game-bg .flash.bad { fill: #A93A27; }
 
+/* ---------- Paket konten 22 (kamar mandi 2): pose aktivitas baru gayung, shower, kering ----------
+   Properti pet ada di art-mandi2.ts. gayung: gayung (.p-gayung) miring bolak-balik dari pegangannya (titik putar 46, −130
+   px lokal pet) dan aliran air (.p-guyur) makin deras saat gayung paling miring — keduanya seirama (durasi & arah sama);
+   badan sedikit mengerut tiap kali terguyur. shower: tetes air (.p-shower) mengalir turun (garis putus-putus), busa di
+   kepala & cipratan di kaki berdenyut. kering: badan mengembang (bulunya mekar), angin hangat (.p-angin) mengalir ke pet
+   & gumpalan bulu halus (.p-bulu) membesar-mengecil. Diam dengan prefers-reduced-motion & Kurangi animasi (gambar
+   dasarnya sudah frame tengah: gayung miring & air mengalir). */
+:is(.pet, .opet).pose-gayung .pet-bob { animation: p22-guyur 1.4s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-gayung .p-gayung { transform-box: view-box; transform-origin: 46px -130px; animation: p22-tuang 1.4s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-gayung .p-guyur { animation: p22-aliran 1.4s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-shower .pet-bob { animation: p22-bilas 1.1s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-shower .p-shower path { animation: p22-hujan .45s linear infinite; }
+:is(.pet, .opet).pose-shower :is(.p-busa, .p-cipr) { transform-box: fill-box; transform-origin: center; animation: p3-busa .7s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-kering .pet-bob { animation: p22-kembang 1.3s ease-in-out infinite alternate; }
+:is(.pet, .opet).pose-kering .p-angin path { animation: p22-angin .6s linear infinite; }
+:is(.pet, .opet).pose-kering .p-bulu { transform-box: fill-box; transform-origin: center; animation: p22-bulu 1.3s ease-in-out infinite alternate; }
+@keyframes p22-guyur { from { transform: scale(1, 1); } to { transform: scale(1.05, .94); } }
+@keyframes p22-tuang { from { transform: rotate(18deg); } to { transform: rotate(-12deg); } }
+@keyframes p22-aliran { from { opacity: .1; } to { opacity: 1; } }
+@keyframes p22-bilas { from { transform: rotate(-3deg) scale(1.02, .97); } to { transform: rotate(3deg) scale(.99, 1.01); } }
+@keyframes p22-hujan { to { stroke-dashoffset: -18; } }
+@keyframes p22-kembang { from { transform: scale(1, 1); } to { transform: scale(1.13, 1.09); } }
+@keyframes p22-angin { to { stroke-dashoffset: -15; } }
+@keyframes p22-bulu { from { transform: scale(.6); opacity: .35; } to { transform: scale(1.1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.pet, .opet).pose-gayung :is(.pet-bob, .p-gayung, .p-guyur), :is(.pet, .opet).pose-shower :is(.pet-bob, .p-shower path, .p-busa, .p-cipr), :is(.pet, .opet).pose-kering :is(.pet-bob, .p-angin path, .p-bulu) { animation: none; }
+}
+/* Pengaturan › Kurangi animasi (pilihan di game) — paket 22 */
+:root.reduce-motion :is(.pet, .opet).pose-gayung :is(.pet-bob, .p-gayung, .p-guyur), :root.reduce-motion :is(.pet, .opet).pose-shower :is(.pet-bob, .p-shower path, .p-busa, .p-cipr), :root.reduce-motion :is(.pet, .opet).pose-kering :is(.pet-bob, .p-angin path, .p-bulu) { animation: none; }
+
 /* ---------- Paket konten 20 (perabot dapur, kamar mandi, taman): pose aktivitas baru ayun, sikat, cuci ----------
    Selektor :is(.pet, .opet) supaya pet lain di ruangan (tamu / pet sendiri saat berkunjung) ikut berpose bila kelas
    pose-nya terpasang. Properti pet ada di art-perabot3.ts: p-ayun (penanda), p-sikat & p-busa, p-cuci.

@@ -71,7 +71,7 @@
   const sellable = $derived(Object.entries(G.me.inventory ?? {}).map(([id, n]) => ({ it: itemOf(id), n: n as number })).filter((x) => x.it && x.it.sell_coin > 0));
   const eventIds = $derived(new Set((G.me.events ?? []).map((e: any) => e.id)));
   const rooms = $derived<any[]>(G.me.rooms ?? []);
-  const maxRooms = $derived(settings().house?.maxRooms ?? 6);
+  const maxRooms = $derived(settings().house?.maxRooms ?? 12);
   const body = $derived(loc?.style?.body ?? '#FDF1D6');
   const roof = $derived(loc?.style?.roof ?? '#3FA06A');
 
@@ -96,6 +96,13 @@
     return it.description ?? '';
   }
   const ownRoom = (id: string) => rooms.find((r) => r.item === id);
+  /** barang bonus ruangan (data.bonusItems): mebel khas disebut namanya, dinding & lantai khusus diringkas */
+  function bonusText(ids: unknown) {
+    const its = (Array.isArray(ids) ? ids : []).map((id) => itemOf(String(id))).filter(Boolean) as any[];
+    const names = its.filter((i) => i.kind !== 'wallpaper' && i.kind !== 'floor').map((i) => i.name);
+    const deco = its.some((i) => i.kind === 'wallpaper') && its.some((i) => i.kind === 'floor') ? 'dinding & lantai khusus' : its.some((i) => i.kind === 'wallpaper') ? 'dinding khusus' : its.some((i) => i.kind === 'floor') ? 'lantai khusus' : '';
+    return [...names, deco].filter(Boolean).join(' + ');
+  }
   /** bibit kebun yang belum terbuka untuk level pet sekarang: level yang dibutuhkan, atau 0 */
   const seedLock = (it: any) => (it.kind === 'seed' && Number(it.data?.minLevel) > (G.me.pet?.level ?? 1) ? Number(it.data.minLevel) : 0);
 
@@ -106,7 +113,7 @@
     const r: any = await run(() => post('/api/shop/buy', { itemId: it.id, currency }));
     if (!r) return;
     sfx.coin();
-    if (it.kind === 'room') { sfx.level(); toast(`${it.name} sudah dibangun! Ketuk Lihat untuk masuk.`, 'good'); }
+    if (it.kind === 'room') { sfx.level(); const inc = bonusText(r.bonus); toast(inc ? `${it.name} sudah dibangun! ${inc[0].toUpperCase()}${inc.slice(1)} sudah masuk Tas. Ketuk Lihat untuk masuk.` : `${it.name} sudah dibangun! Ketuk Lihat untuk masuk.`, 'good', inc ? 4800 : undefined); }
     else if (isEdisi(it)) { sfx.level(); toast(`✦ ${it.name} masuk Tas. ${it.kind === 'furniture' ? 'Pasang lewat Atur' : 'Pakai dari Tas'} untuk melihat efeknya!`, 'good'); }
     else toast(`${it.name} masuk Tas`, 'good');
   }
@@ -320,6 +327,7 @@
           {@const left = isEdisi(it) ? sisaWaktu(it.available_to, nowMin * 60_000) : ''}
           <ItemCard {it} sub={sub(it)} tried={on} badge={it.event_id && eventIds.has(it.event_id) ? 'Event' : mine ? 'Punya' : owned(it.id) ? `×${owned(it.id)}` : isNew(it) ? 'Baru' : ''}>
             {#if left}<span class="cd" title="Edisi terbatas">⏳ {left}</span>{/if}
+            {#if it.kind === 'room' && bonusText(it.data?.bonusItems)}<p class="incl"><b>Termasuk:</b> {bonusText(it.data?.bonusItems)}</p>{/if}
             <div class="acts">
               {#if it.kind === 'wear'}
                 <button class="btn sm try" class:on aria-pressed={on} onclick={() => tryOn(it)}>{#if on}✓ Dicoba{:else}{@html I.hanger}Coba{/if}</button>
@@ -457,6 +465,8 @@
   .edban p { position: relative; margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
   .edstars { position: absolute; right: 6px; top: 4px; width: 120px; height: 40px; opacity: .9; pointer-events: none; }
   .cd { font-size: 12px; font-weight: 800; color: #8E2A1E; background: #FFE9D6; border: 1.5px solid #E0583F; border-radius: 999px; padding: 0 8px; }
+  .incl { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.2; color: #6B3FA0; background: #F1EAFB; border-radius: 8px; padding: 2px 6px; overflow-wrap: anywhere; }
+  .incl b { font-weight: 800; }
   .expand { display: flex; flex-direction: column; gap: 6px; background: #FFF4D6; border: 2px solid var(--ink); border-radius: 14px; padding: 8px 10px; margin-bottom: 8px; }
   .expand b { font-size: 15px; }
 </style>
