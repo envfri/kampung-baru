@@ -1,4 +1,4 @@
-import { GAMES, NEW_ITEM_DAYS, applyNeedDelta, chubOf, decayNeeds, kerjaCostScaled, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
+import { GAMES, NEW_ITEM_DAYS, kuisPublicCfg, applyNeedDelta, chubOf, decayNeeds, kerjaCostScaled, needsWithSleep, NEED_KEYS, sickOnset, wakeAt, weightNow, type Needs, type Settings } from '@kb/shared';
 import type { Db } from '../db/index';
 import { maskPhone } from './klikflow';
 import { bad, getCatalog, getSettings, activeEvents, today, counter, track, weekKey, type Catalog, type CatalogItem } from './core';
@@ -325,6 +325,8 @@ export function publicCatalog(cat: Catalog, s: Settings) {
       kerja: (() => { const k = (s as any).kerja ?? {}; return { on: k.on !== false, minEnergi: k.minEnergi, minKenyang: k.minKenyang, ronda: { fromHour: k.ronda?.fromHour, toHour: k.ronda?.toHour } }; })(),
       // Sahabat Mungil: angka keakraban & jam kunang-kunang untuk tampilan (oleh-oleh & peluang kura-kura tetap di server)
       sahabat: (() => { const k = (s as any).sahabat ?? {}; return { on: k.on !== false, points: k.points, mainPerDay: k.mainPerDay, akrabAt: k.akrabAt, sejatiAt: k.sejatiAt, kunang: k.kunang, maxResting: k.maxResting }; })(),
+      // Cerdas Cermat Kampung: angka untuk tampilan (kunci jawaban tidak pernah ada di sini)
+      kuis: kuisPublicCfg(s as any),
       garden: s.garden,
       room: s.room,
       house: (s as any).house,

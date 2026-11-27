@@ -8,6 +8,8 @@
   import { GAME_ART } from '../lib/gameArt';
   import { COIN } from '../lib/icons';
   import { sfx } from '../lib/sfx';
+  import { openKuis, createTantang } from '../lib/kuis.svelte';
+  const gameName = (g: string) => (g === 'kuis' ? 'Tantang Kuis' : (GAMES as any)[g]?.name);
 
   let data = $state<any>(null);
   let friends = $state<any[] | null>(null);
@@ -30,6 +32,8 @@
   const past = $derived((data?.duels ?? []).filter((d: any) => !['open', 'live'].includes(d.status)).slice(0, 12));
 
   function open(d: any) {
+    // tantangan kuis dimainkan di layar Kuis (soal & kunci tetap di server)
+    if (d.game === 'kuis') return openKuis({ duel: d.id });
     sfx.tap();
     G.duel = { id: d.id, game: d.game, them: d.them };
     G.sheet = null; G.sheetArg = null;
@@ -37,6 +41,7 @@
   }
   async function create() {
     if (!pick) return;
+    if (game === 'kuis') { G.sheet = null; G.view = 'kuis'; await createTantang(pick); return; }
     try {
       const r = await api.post('/api/duels', { friendId: pick, game });
       sfx.level();
@@ -98,10 +103,11 @@
       <div class="games" role="radiogroup" aria-label="Permainan">
         {#each data?.games ?? ['bakiak', 'gasing', 'layangan'] as g}
           <button role="radio" aria-checked={game === g} class:on={game === g} onclick={() => (game = g)}>
-            <span class="art">{@html GAME_ART[g]}</span><span class="nm">{(GAMES as any)[g]?.name}</span>
+            <span class="art">{@html GAME_ART[g]}</span><span class="nm">{gameName(g)}</span>
           </button>
         {/each}
       </div>
+      {#if game === 'kuis'}<p class="prize">Tantang Kuis: {settings().kuis?.tantangCount ?? 5} soal yang sama untuk kalian berdua. Kamu main duluan.{#if data?.kuisLeft !== undefined}{' · '}sisa hari ini <b>{data.kuisLeft}</b>{/if}</p>{/if}
       <div class="row">
         <button class="btn" onclick={() => (formOpen = false)}>Batal</button>
         <button class="btn hot" disabled={!pick || G.busy} onclick={create}>Tantang!</button>
@@ -125,7 +131,9 @@
           <em>Batal otomatis {until(d.expiresAt)}</em>
         </div>
         <div class="btns">
-          {#if d.me.started}
+          {#if d.me.started && d.game === 'kuis'}
+            <button class="btn sm hot" onclick={() => open(d)}>Lanjut</button>
+          {:else if d.me.started}
             <button class="btn sm" disabled={G.busy} onclick={() => forfeit(d)}>Akhiri</button>
           {:else}
             <button class="btn sm hot" onclick={() => open(d)}>{d.them.played ? 'Main' : 'Buka'}</button>

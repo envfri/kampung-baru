@@ -76,7 +76,7 @@
   ] as { k: string; l: string; show?: boolean; arak?: boolean; night?: boolean }[];
   function play(k: string) { pop = null; sfx.tap(); H.actReq = { kind: k }; }
   /* main bareng: ubin dari BARENG_GAMES (benda tempat mainnya harus ada di alun-alun) */
-  const tiles = $derived(barengTiles('alun', settings().features));
+  const tiles = $derived(barengTiles('alun', settings().features, settings()));
   /** permainan yang sedang berjalan di benda itu (bisa ditonton) */
   const runningOf = (key: string) => (key === 'karung' ? null : H.games.find((g: any) => g.game === key && g.phase === 'main') ?? null);
   const vsText = (g: any) => (g.players.length === 2 ? `${g.players[0].name} vs ${g.players[1].name} · Tonton` : 'Sedang main · Tonton');

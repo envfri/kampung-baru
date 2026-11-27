@@ -65,7 +65,7 @@
   }
   const toggle = (p: typeof pop) => { sfx.tap(); pop = pop === p ? null : p; };
   /** ubin permainan papan & dadu (dari BARENG_GAMES: game yang belum ada tidak tampil) */
-  const tiles = $derived(barengTiles('house', settings().features));
+  const tiles = $derived(barengTiles('house', settings().features, settings()));
   /** tinggi maksimal menu (semua menu): ruang antara HUD dan bar ini, jadi menu tidak menutupi HUD.
    *  Selama menu terbuka bar naik di atas kartu rumah teman (z 15): di HP kecil menu Foto bareng tidak lagi terselip di bawahnya. */
   let barEl = $state<HTMLElement | null>(null);

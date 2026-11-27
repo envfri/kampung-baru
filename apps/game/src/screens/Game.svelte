@@ -47,6 +47,7 @@
   import Layangan from '../games/Layangan.svelte';
   import Pinang from '../games/Pinang.svelte';
   import DuelLobby from '../scenes/DuelLobby.svelte';
+  import Kuis from '../scenes/Kuis.svelte';
   import Duels from '../panels/Duels.svelte';
   import SaveProgress from '../panels/SaveProgress.svelte';
   import HouseBar from '../components/HouseBar.svelte';
@@ -308,6 +309,7 @@
     {:else if G.view === 'layangan'}<Layangan />
     {:else if G.view === 'pinang'}<Pinang />
     {:else if G.view === 'duel' && G.duel}<DuelLobby />
+    {:else if G.view === 'kuis'}<Kuis />
     {/if}
   </div>
   <!-- lampu mati saat pet tidur -->

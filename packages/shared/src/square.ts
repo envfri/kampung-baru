@@ -113,7 +113,7 @@ export const ALUN_LAYOUT: Placed[] = [
 
 /** Aksi yang bisa dilakukan di tiap benda (diketuk). anim: pose pet (lihat ACTIVITY_ANIMS); ride: wahana panjang */
 export const SQUARE_ACTS: Record<string, { id: string; name: string; anim: string; note?: string; ride?: boolean; night?: boolean }[]> = {
-  panggung: [{ id: 'nonton', name: 'Nonton pertunjukan', anim: 'lihat' }],
+  panggung: [{ id: 'nonton', name: 'Nonton pertunjukan', anim: 'lihat' }, { id: 'kuis', name: 'Main Cerdas Cermat (2–4 orang)', anim: 'lihat' }],
   komidi: [{ id: 'naik', name: 'Naik komidi putar', anim: 'duduk' }],
   ayunan: [{ id: 'ayun', name: 'Main ayunan', anim: 'duduk' }],
   beringin: [{ id: 'teduh', name: 'Berteduh di bawah beringin', anim: 'lihat' }, { id: 'foto', name: 'Foto bareng di beringin', anim: 'lihat' }],

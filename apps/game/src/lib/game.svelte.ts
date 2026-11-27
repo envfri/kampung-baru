@@ -4,7 +4,7 @@ import { applyNeedDelta, canRotate, decayNeeds, houseLayout, needsWithSleep, occ
 import { api, ApiError, rid } from './api';
 import { sfx } from './sfx';
 
-export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel' | 'alun';
+export type View = 'home' | 'map' | 'garden' | 'karung' | 'fishing' | 'visit' | 'panen' | 'memori' | 'shop' | 'bakiak' | 'gasing' | 'layangan' | 'pinang' | 'duel' | 'alun' | 'kuis';
 export type Sheet = null | 'rooms' | 'duels' | 'bag' | 'friends' | 'pearls' | 'settings' | 'daily' | 'news' | 'collection' | 'feed' | 'seed' | 'kebun' | 'gift' | 'notifs' | 'quests' | 'wardrobe' | 'games' | 'event' | 'whatsnew' | 'save' | 'kerja' | 'sahabat';
 
 export interface CatalogItem extends ItemLike {

@@ -30,9 +30,10 @@ export function dailyFor(userId: string, day: string, pool: QuestDef[], n: numbe
   return [...pool].sort((a, b) => hash(userId + day + a.id) - hash(userId + day + b.id)).slice(0, Math.max(0, n));
 }
 
-/** kumpulan tugas harian yang bisa terpilih: tugas "bagikan foto" hanya bila fitur Jepret menyala, "kerja sambilan" bila Papan Lowongan buka, "beri makan sahabat" bila Pondok Sahabat buka */
-export function dailyPool(qs: QuestDef[], s: { features: Record<string, boolean>; kerja?: { on?: boolean }; sahabat?: { on?: boolean } }) {
-  return qs.filter((q) => q.kind === 'daily' && (q.event !== 'share' || s.features.jepret !== false) && (!q.event.startsWith('kerja') || s.kerja?.on !== false) && (!q.event.startsWith('sahabat') || s.sahabat?.on !== false));
+/** kumpulan tugas harian yang bisa terpilih: tugas "bagikan foto" hanya bila fitur Jepret menyala, "kerja sambilan" bila Papan Lowongan buka, "beri makan sahabat" bila Pondok Sahabat buka, "jawab kuis" bila Kuis buka */
+export function dailyPool(qs: QuestDef[], s: { features: Record<string, boolean>; kerja?: { on?: boolean }; sahabat?: { on?: boolean }; kuis?: { on?: boolean } }) {
+  return qs.filter((q) => q.kind === 'daily' && (q.event !== 'share' || s.features.jepret !== false) && (!q.event.startsWith('kerja') || s.kerja?.on !== false) && (!q.event.startsWith('sahabat') || s.sahabat?.on !== false)
+    && (!q.event.startsWith('kuis') || (s.kuis?.on !== false && s.features.minigames !== false)));
 }
 
 const matches = (filter: Record<string, unknown>, props: Record<string, unknown> | undefined) =>

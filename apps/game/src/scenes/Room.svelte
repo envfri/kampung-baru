@@ -1671,6 +1671,8 @@
         if (a.id === 'arak') { const pa = paradeNow(now); return pa.joinable ? { ...a, note: pa.on ? 'Sedang lewat!' : `Mulai ${mmss(pa.start - now)}` } : { ...a, off: true, note: pa.on ? 'Rombongan sudah jauh' : `Mulai ${Math.ceil((pa.start - now) / 60_000)} mnt lagi` }; }
         if (a.id === 'layar') return layarOn ? { ...a, note: FILMS[film] } : { ...a, off: true, note: 'Diputar 19.00–22.00' };
         if (a.id === 'gelang') return { ...a, note: '3 dari 3 = bonus' };
+        // Cerdas Cermat Bareng di Panggung: soal sama untuk semua, pertama benar membunyikan lonceng
+        if (a.id === 'kuis') return settings().kuis?.on === false ? { ...a, off: true, note: 'Kuis sedang ditutup' } : { ...a, note: `${settings().kuis?.barengCount ?? 7} soal · lonceng +3` };
         // Pos Ronda: satu papan catur per alun-alun
         if (a.id === 'catur' || a.id === 'tonton') {
           const g = rondaGame();

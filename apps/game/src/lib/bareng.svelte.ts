@@ -59,10 +59,10 @@ export async function moveGame(id: string, body: Record<string, unknown>) {
 export async function raceGame(id: string, body: Record<string, unknown>) {
   try { const r = await api.post(`/api/bareng/${id}/move`, body); mergeGame(r.game); return r.game; } catch { return null; }
 }
-export const GAME_NAMES: Record<string, string> = { congklak: 'Congklak', ular: 'Ular Tangga Kampung', karung: 'Balap Karung Live', catur: 'Catur', ludo: 'Ludo' };
+export const GAME_NAMES: Record<string, string> = { congklak: 'Congklak', ular: 'Ular Tangga Kampung', karung: 'Balap Karung Live', catur: 'Catur', ludo: 'Ludo', kuis: 'Cerdas Cermat' };
 export function whyText(g: any) {
   if (g.catur?.result?.reason === 'batal') return 'Langkah pertama tidak dibuat dalam 30 detik. Permainan batal, tanpa hadiah.';
-  return ({ batal: 'Ajakan dibatalkan.', sepi: 'Belum ada yang ikut, ajakan ditutup.', pergi: 'Pemain lain pergi.', waktu: 'Waktu habis.' } as Record<string, string>)[g.why] ?? '';
+  return ({ batal: 'Ajakan dibatalkan.', sepi: 'Belum ada yang ikut, ajakan ditutup.', pergi: 'Pemain lain pergi.', waktu: 'Waktu habis.', kosong: 'Soal kuis belum tersedia. Coba lagi nanti, ya.' } as Record<string, string>)[g.why] ?? '';
 }
 export function toastResult(g: any, me: string) {
   const r = g.results?.find((x: any) => x.id === me);

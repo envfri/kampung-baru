@@ -1,6 +1,7 @@
 <script lang="ts">
   import Sheet from '../components/Sheet.svelte';
-  import { GAMES, eventDropSVG } from '@kb/shared';
+  import { GAMES, eventDropSVG, kancilSVG } from '@kb/shared';
+  import { openKuis, kuisOn } from '../lib/kuis.svelte';
   import { G, settings, activeDecor } from '../lib/game.svelte';
   import { sfx } from '../lib/sfx';
   import { COIN } from '../lib/icons';
@@ -18,6 +19,18 @@
 
 <Sheet title="Balai Main">
   <p class="lead">Mini-game harian untuk koin, XP, dan poin event. Jatah main direset setiap hari.</p>
+  {#if kuisOn()}
+    {@const kz = settings().kuis ?? {}}
+    <div class="gm kz">
+      <span class="art kc">{@html kancilSVG('senang', { label: 'Pak Kancil' })}</span>
+      <div class="info">
+        <b>Cerdas Cermat Kampung <em class="new">BARU</em></b>
+        <span>Kuis bareng Pak Kancil: Kuis Harian, Tantang Teman, dan Cerdas Cermat Bareng.</span>
+        <em>{@html COIN} +{kz.coins ?? 5} per jawaban benar · {kz.dailyCount ?? 10} soal/hari · {kz.energi ?? 5} energi</em>
+      </div>
+      <button class="btn hot" onclick={() => openKuis()}>Kuis</button>
+    </div>
+  {/if}
   {#each Object.entries(GAMES) as [k, g]}
     {@const c = cfg[k] ?? {}}
     {@const ev = (g as any).event}
@@ -51,6 +64,10 @@
   .ev { display: flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 800; color: #1E7A4C; }
   .ev svg { width: 18px; height: 18px; }
   .gm.locked { opacity: .7; }
+  .gm.kz { background: linear-gradient(135deg, #FFF4D6, #FFE7B0); }
+  .art.kc { background: #FFF8E6; overflow: hidden; align-items: end; }
+  .art.kc :global(svg) { width: 52px; height: 64px; margin-top: 8px; }
+  .new { font-style: normal; font-size: 10.5px; font-weight: 800; background: #E0583F; color: #fff; border-radius: 999px; padding: 1px 6px; vertical-align: 3px; display: inline; }
   @media (max-width: 359px) {
     .gm { flex-wrap: wrap; }
     .art { width: 52px; height: 48px; }

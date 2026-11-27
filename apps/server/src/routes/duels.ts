@@ -13,6 +13,11 @@ import { notifyEvent } from '../lib/notify';
 import { str } from '../lib/validate';
 import { grantXp, patch } from './game';
 import { assertNotWorking } from '../lib/kerja';
+import { kuisOf, tantangMeta } from '../lib/kuis';
+
+/** Tantang Teman (Cerdas Cermat): duel game 'kuis' dimainkan lewat rute kuis (routes/kuis.ts), skor & kunci tetap di server */
+const KUIS = 'kuis';
+const kuisOnly = () => bad('kuis_flow', 'Tantangan kuis dimainkan dari layar Kuis.');
 
 const UUID = /^[0-9a-f-]{36}$/i;
 type Side = 'c' | 'o';
@@ -45,7 +50,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const themId = me === 'c' ? d.opponent_id : d.challenger_id;
     const p = ppl.get(themId);
     return {
-      id: d.id, game: d.game, gameName: (GAMES as any)[d.game]?.name ?? d.game, status: d.status,
+      id: d.id, game: d.game, gameName: d.game === KUIS ? 'Tantang Kuis' : (GAMES as any)[d.game]?.name ?? d.game, status: d.status,
       role: me === 'c' ? 'challenger' : 'opponent',
       createdAt: ms(d.created_at), expiresAt: ms(d.expires_at), liveStart: ms(d.live_start),
       me: { score: d[me + '_score'], label: duelLabel(d.game, d[me + '_score']), started: !!d[me + '_started_at'], played: d[me + '_score'] !== null, reward: d[me + '_reward'] ?? 0 },
@@ -63,7 +68,8 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const d = await t.one<any>(`select * from duels where id = $1${lock ? ' for update' : ''}`, [id]);
     if (!d) throw notFound('Duel tidak ditemukan.');
     sideOf(d, uid);
-    if ((d.status === 'open' || d.status === 'live') && ms(d.expires_at)! < Date.now() && (d.c_score === null || d.o_score === null)) {
+    if ((d.status === 'open' || d.status === 'live') && ms(d.expires_at)! < Date.now() && (d.c_score === null || d.o_score === null)
+      && !(d.game === KUIS && (await t.one(`select 1 from kuis_runs where duel_id = $1 and finished_at is null`, [d.id])))) {
       await t.query(`update duels set status = 'expired' where id = $1`, [id]);
       d.status = 'expired';
     }
@@ -72,21 +78,28 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
 
   app.get('/api/duels', auth, async (req: any) => {
     const uid = req.user!.id;
-    await db.query(`update duels set status = 'expired' where status in ('open','live') and expires_at < now() and (challenger_id = $1 or opponent_id = $1)`, [uid]);
+    // tantangan kuis yang sedang dimainkan (sudah mulai sebelum batas) boleh diselesaikan dulu
+    await db.query(`update duels set status = 'expired' where status in ('open','live') and expires_at < now() and (challenger_id = $1 or opponent_id = $1)
+      and not exists (select 1 from kuis_runs r where r.duel_id = duels.id and r.finished_at is null)`, [uid]);
     const rows = await db.query<any>(
       `select * from duels where (challenger_id = $1 or opponent_id = $1)
          and (status in ('open','live') or created_at > now() - interval '7 days') order by created_at desc limit 30`, [uid]);
     const ppl = await people([...new Set(rows.flatMap((d) => [d.challenger_id, d.opponent_id]))]);
     const s: any = await getSettings(db);
-    return { duels: rows.map((d) => view(d, uid, ppl)), games: DUEL_GAMES, leftToday: Math.max(0, s.duel.perDay - (await counter(db, uid, 'duel'))), serverNow: Date.now() };
+    const kuisOn = kuisOf(s).on !== false;
+    return {
+      duels: rows.map((d) => view(d, uid, ppl)), games: kuisOn ? [...DUEL_GAMES, KUIS] : DUEL_GAMES, leftToday: Math.max(0, s.duel.perDay - (await counter(db, uid, 'duel'))),
+      kuisLeft: kuisOn ? Math.max(0, kuisOf(s).tantangPerDay - (await counter(db, uid, 'kuis_tantang'))) : 0, serverNow: Date.now(),
+    };
   });
 
   app.post('/api/duels', auth, async (req: any) => {
     const me = req.user!;
     const s: any = await getSettings(db);
-    if (!s.duel.enabled || !s.features.minigames) throw forbidden('Duel sedang ditutup.');
     const game = str(req.body?.game, 'Permainan', { max: 20 })!;
-    if (!(DUEL_GAMES as readonly string[]).includes(game)) throw bad('invalid_game', 'Permainan ini belum bisa untuk duel.');
+    const isKuis = game === KUIS;
+    if (isKuis ? kuisOf(s).on === false || !s.features.minigames : !s.duel.enabled || !s.features.minigames) throw forbidden(isKuis ? 'Kuis sedang ditutup.' : 'Duel sedang ditutup.');
+    if (!isKuis && !(DUEL_GAMES as readonly string[]).includes(game)) throw bad('invalid_game', 'Permainan ini belum bisa untuk duel.');
     const friendId = String(req.body?.friendId ?? '');
     if (!UUID.test(friendId) || friendId === me.id) throw bad('invalid', 'Pilih teman untuk ditantang.');
     if (!(await isFriend(me.id, friendId))) throw forbidden('Kamu hanya bisa menantang teman.');
@@ -98,14 +111,15 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
          and ((challenger_id = $1 and opponent_id = $2) or (challenger_id = $2 and opponent_id = $1)) limit 1`, [me.id, friendId]);
     if (open) throw bad('duel_exists', `Masih ada duel yang belum selesai dengan ${friend.display_name}.`, { duelId: open.id });
     const cfg = s.games[game] ?? {};
-    const meta = game === 'gasing' ? { rounds: cfg.rounds ?? 5 } : { durationMs: cfg.durationMs };
+    // kuis: soal dipilih sekali sekarang (sama untuk kedua pemain); kuncinya tidak pernah dikirim lewat duel
+    const meta = isKuis ? await tantangMeta(db, me.id, s) : game === 'gasing' ? { rounds: cfg.rounds ?? 5 } : { durationMs: cfg.durationMs };
     const d = (await db.one<any>(
       `insert into duels (game, seed, meta, challenger_id, opponent_id, expires_at)
        values ($1,$2,$3::text::jsonb,$4,$5, now() + ($6::int * interval '1 hour')) returning *`,
-      [game, randomInt(1, 2_000_000_000), JSON.stringify(meta), me.id, friendId, s.duel.expireHours],
+      [game, randomInt(1, 2_000_000_000), JSON.stringify(meta), me.id, friendId, isKuis ? kuisOf(s).tantangExpireHours : s.duel.expireHours],
     ))!;
     await track(db, me.id, 'duel_create', { game });
-    void notifyEvent(db, friendId, 'duel_invite', { teman: me.display_name, permainan: (GAMES as any)[game].name }, { log: req.log, url: '/#duels' });
+    void notifyEvent(db, friendId, 'duel_invite', { teman: me.display_name, permainan: isKuis ? 'Tantang Kuis' : (GAMES as any)[game].name }, { log: req.log, url: isKuis ? '/#kuis' : '/#duels' });
     return { ok: true, duel: view(d, me.id, await people([me.id, friendId])) };
   });
 
@@ -120,6 +134,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const uid = req.user!.id;
     const d = await db.tx(async (t) => {
       const d = await load(String(req.params.id), uid, true, t);
+      if (d.game === KUIS) throw kuisOnly();
       const me = sideOf(d, uid), them = other(me);
       if (d.status !== 'open' && d.status !== 'live') return d;
       if (d[me + '_started_at']) return d;
@@ -165,6 +180,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const s: any = await getSettings(db);
     return db.tx(async (t) => {
       const d = await load(String(req.params.id), u.id, true, t);
+      if (d.game === KUIS) throw kuisOnly();
       const me = sideOf(d, u.id), them = other(me);
       if (d.status !== 'open' && d.status !== 'live') throw bad('closed', 'Duel ini sudah selesai.');
       if (d[me + '_started_at']) throw bad('started', 'Kamu sudah memainkan duel ini.');
@@ -190,6 +206,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const uid = req.user!.id;
     const id = String(req.params.id);
     const d = await load(id, uid);
+    if (d.game === KUIS) throw kuisOnly();
     const me = sideOf(d, uid), them = other(me);
     const p = Math.max(0, Math.min(100_000, Math.round(Number(req.body?.p) || 0)));
     const rec = liveProgress.get(id) ?? {};
@@ -205,6 +222,7 @@ export default async function duelRoutes(app: FastifyInstance, { db }: { db: Db 
     const [s, cat] = await Promise.all([getSettings(db) as Promise<any>, getCatalog(db)]);
     const res = await db.tx(async (t) => {
       const d = await load(String(req.params.id), u.id, true, t);
+      if (d.game === KUIS) throw kuisOnly();
       const me = sideOf(d, u.id), them = other(me);
       if (!d[me + '_started_at']) throw bad('not_started', 'Mulai duel dulu.');
       if (d[me + '_score'] !== null) throw bad('finished', 'Kamu sudah menyelesaikan duel ini.');
