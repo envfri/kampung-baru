@@ -39,7 +39,24 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.48.0',
+    date: '2026-11-27',
+    title: 'Sahabat Edisi Natal',
+    summary: 'Sambut Natal bersama dua sahabat besar edisi terbatas: Beruang Es yang ditemani butiran salju dan Rusa Kutup dengan lampu kerlap-kerlip di tanduknya.',
+    items: [
+      { kind: 'baru', text: 'Sahabat Edisi Natal: Beruang Es dan Rusa Kutup, masing-masing 25 Mutiara. Ukurannya lebih besar dari sahabat lain dan mereka ikut menemani pet-mu ke mana pun: di rumah, ke rumah teman, keliling kampung, ke alun-alun, dan ikut terfoto di Jepret.', player: true },
+      { kind: 'baru', text: 'Beruang Es: butiran salju menari di sekitarnya, jejak kakinya berkilau es, dan sesekali napasnya berembun. Triknya meluncur di perut sambil mendorong bola salju.', player: true },
+      { kind: 'baru', text: 'Rusa Kutup: tanduknya berhias lampu kerlap-kerlip, kalungnya berlonceng emas, dan langkahnya meninggalkan kilau emas. Triknya melompat tinggi dengan lengkung bintang.', player: true },
+      { kind: 'baru', text: 'Saat sudah Akrab, Beruang Es berbaring menjadi bantal di samping pet-mu yang tidur, dan Rusa Kutup berdiri menemani pet-mu dengan lampu tanduk yang menyala lembut.', player: true },
+      { kind: 'baru', text: 'Edisi terbatas: dijual di Toko Mutiara (tab Edisi Spesial) dan Pondok Sahabat sampai 6 Januari 2027. Yang sudah diadopsi tetap menemanimu selamanya. Album Sahabat punya bagian Edisi Natal tersendiri.', player: true },
+      { kind: 'perbaikan', text: 'Trik sahabat kini selalu tampil sampai selesai, juga saat sahabat sedang berjalan.', player: true },
+      { kind: 'ubah', text: 'Admin: masa jual Edisi Natal diatur di Item & harga › Mulai / Berhenti dijual (item sahabat-beruang & sahabat-rusa); nama edisi di pita kartu bisa diubah. Pembelian di luar masa jual ditolak server dengan pesan yang menyebut tanggalnya. Oleh-oleh keduanya diatur di Sahabat Mungil › gifts.' },
+      { kind: 'ubah', text: 'Teknis: paket konten 24 (seed-natal.ts, pack_natal), tanpa migrasi baru; aturan pose istirahat sahabat besar (buddyRestPose), efek ringan berbasis CSS transform/opacity yang berhenti saat Kurangi animasi. Uji baru: natal.test.ts, e2e-natal.' },
+    ],
+  },
+  {
     version: '0.47.1',
+    commits: ['6e36432'],
     date: '2026-11-23',
     title: 'Jalan setapak ke Pondok Sahabat',
     summary: 'Pondok Sahabat kini punya jalan setapak dari jalan utama kampung, jadi pet-mu tidak lagi berjalan menembus rumput.',

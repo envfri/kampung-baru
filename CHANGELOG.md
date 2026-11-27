@@ -4,6 +4,27 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.48.0 · 2026-11-27 · Sahabat Edisi Natal
+
+_Sambut Natal bersama dua sahabat besar edisi terbatas: Beruang Es yang ditemani butiran salju dan Rusa Kutup dengan lampu kerlap-kerlip di tanduknya._
+
+### Baru
+
+- Sahabat Edisi Natal: Beruang Es dan Rusa Kutup, masing-masing 25 Mutiara. Ukurannya lebih besar dari sahabat lain dan mereka ikut menemani pet-mu ke mana pun: di rumah, ke rumah teman, keliling kampung, ke alun-alun, dan ikut terfoto di Jepret. _(pemain)_
+- Beruang Es: butiran salju menari di sekitarnya, jejak kakinya berkilau es, dan sesekali napasnya berembun. Triknya meluncur di perut sambil mendorong bola salju. _(pemain)_
+- Rusa Kutup: tanduknya berhias lampu kerlap-kerlip, kalungnya berlonceng emas, dan langkahnya meninggalkan kilau emas. Triknya melompat tinggi dengan lengkung bintang. _(pemain)_
+- Saat sudah Akrab, Beruang Es berbaring menjadi bantal di samping pet-mu yang tidur, dan Rusa Kutup berdiri menemani pet-mu dengan lampu tanduk yang menyala lembut. _(pemain)_
+- Edisi terbatas: dijual di Toko Mutiara (tab Edisi Spesial) dan Pondok Sahabat sampai 6 Januari 2027. Yang sudah diadopsi tetap menemanimu selamanya. Album Sahabat punya bagian Edisi Natal tersendiri. _(pemain)_
+
+### Perubahan
+
+- Admin: masa jual Edisi Natal diatur di Item & harga › Mulai / Berhenti dijual (item sahabat-beruang & sahabat-rusa); nama edisi di pita kartu bisa diubah. Pembelian di luar masa jual ditolak server dengan pesan yang menyebut tanggalnya. Oleh-oleh keduanya diatur di Sahabat Mungil › gifts.
+- Teknis: paket konten 24 (seed-natal.ts, pack_natal), tanpa migrasi baru; aturan pose istirahat sahabat besar (buddyRestPose), efek ringan berbasis CSS transform/opacity yang berhenti saat Kurangi animasi. Uji baru: natal.test.ts, e2e-natal.
+
+### Perbaikan
+
+- Trik sahabat kini selalu tampil sampai selesai, juga saat sahabat sedang berjalan. _(pemain)_
+
 ## 0.47.1 · 2026-11-23 · Jalan setapak ke Pondok Sahabat
 
 _Pondok Sahabat kini punya jalan setapak dari jalan utama kampung, jadi pet-mu tidak lagi berjalan menembus rumput._
@@ -15,6 +36,8 @@ _Pondok Sahabat kini punya jalan setapak dari jalan utama kampung, jadi pet-mu t
 ### Perbaikan
 
 - Peta kampung: ada jalan setapak dari jalan utama ke Pondok Sahabat, lewat celah antara Toko Mutiara dan Balai Main. Pet-mu dan sahabatnya berjalan di atas jalan setapak itu. _(pemain)_
+
+Commit: [`6e36432`](https://github.com/envfri/kampung-baru/commit/6e36432)
 
 ## 0.47.0 · 2026-11-23 · Sahabat Mungil
 
