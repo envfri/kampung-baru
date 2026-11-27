@@ -18,6 +18,8 @@ import { squareLiveOf, squareMembers } from './square';
 import { caturBegin, caturCfg, caturGate, caturPlay, caturRank, caturSeat, caturTick, caturView, longMult, type CaturGame } from '../lib/catur-game';
 import { ludoAct, ludoBegin, ludoNew, ludoRanked, ludoTick, ludoView, type LudoIO, type LudoState } from '../lib/ludo-game';
 import { assertNotWorking } from '../lib/kerja';
+import { kuisAct, kuisBarengPick, kuisBegin, kuisCorrectCats, kuisGate, kuisRanked, kuisTick, kuisView, type KuisBS } from '../lib/kuis-bareng';
+import { invalidateKuis, kuisOf, kuisPool } from '../lib/kuis';
 
 type Player = { id: string; name: string; pet: any };
 type Result = { id: string; name: string; rank: number; score?: number; timeMs?: number | null; coins: number; xp: number; capped: boolean; left?: boolean; short?: boolean };
@@ -40,6 +42,8 @@ type Session = {
   throws: Record<string, number>;
   // ludo (lib/ludo-game.ts)
   ludo?: LudoState;
+  // Cerdas Cermat (lib/kuis-bareng.ts)
+  kuis?: KuisBS;
 };
 
 const SESSIONS = new Map<string, Session>();
@@ -73,6 +77,7 @@ const nameOf = (s: Session, id: string) => s.players.find((p) => p.id === id)?.n
 const REWARD_GATES: Partial<Record<BarengGame, (s: Session, uid: string) => boolean>> = {
   ular: (s, uid) => s.why === 'selesai' || s.why === 'waktu' || (s.throws[uid] ?? 0) >= 6,
   catur: (s) => caturGate(s),
+  kuis: (s, uid) => kuisGate(s, uid),
 };
 /** alat untuk modul game terpisah (Ludo) */
 const io = (s: Session): LudoIO => ({ now: () => clock(), note: (l) => note(s, l), bump: () => bump(s), end: (w) => end(s, w) });
@@ -105,6 +110,7 @@ function view(s: Session) {
   if (s.game === 'ular') return { ...base, pos: s.pos, skip: s.skip, finished: s.finished };
   if (s.game === 'catur') return { ...base, ...caturView(s, clock()) };
   if (s.game === 'ludo') return { ...base, ludo: ludoView(s) };
+  if (s.game === 'kuis') return { ...base, turn: null, kuis: kuisView(s) };
   return { ...base, race: s.race ? { startAt: s.race.startAt, endAt: s.race.endAt, prog: s.race.prog, done: s.race.done, out: s.race.out } : null };
 }
 /** Sesi di satu tempat (untuk respons sinkron rumah / alun-alun). */
@@ -232,6 +238,7 @@ function tick(s: Session, now = clock()) {
   if (s.phase === 'siap') return;
   if (s.game === 'catur') return caturTick(s, ops(s, now));
   if (now - s.startedAt > (s.ludo?.cfg.maxMs ?? g.maxMs) + (s.game === 'karung' ? KARUNG_COUNTDOWN : 0)) return end(s, 'waktu');
+  if (s.game === 'kuis') return kuisTick(s, now, io(s));
   if (s.game === 'karung') {
     const r = s.race!;
     const racing = active(s).filter((p) => !r.out.includes(p.id));
@@ -250,7 +257,8 @@ function tick(s: Session, now = clock()) {
 }
 /** ajakan selesai: mulai (karung perlu persiapan di server: energi & jatah harian) */
 function start(s: Session) {
-  if (s.game === 'karung') { s.phase = 'siap'; bump(s); return; }
+  // karung & kuis perlu persiapan di server (energi & jatah / soal dari database)
+  if (s.game === 'karung' || s.game === 'kuis') { s.phase = 'siap'; bump(s); return; }
   begin(s);
 }
 
@@ -280,6 +288,12 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     const s = await getSettings(db);
     if ((s.features as any).catur === false) throw forbidden('Catur sedang ditutup.');
     caturConf = caturCfg((s as any).catur);
+  }
+  /** Cerdas Cermat: kuis menyala & soal cukup */
+  async function kuisReady() {
+    const s = await getSettings(db);
+    if (kuisOf(s).on === false || s.features.minigames === false) throw forbidden('Cerdas Cermat sedang ditutup.');
+    if ((await kuisPool(db)).length < 3) throw bad('no_questions', 'Soal kuis belum tersedia. Coba lagi nanti, ya.');
   }
   function placeOf(uid: string, b: any, game: BarengGame) {
     const g = BARENG_GAMES[game];
@@ -312,6 +326,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     }
     if (game === 'karung') await karungReady(uid);
     if (game === 'catur') await caturReady();
+    if (game === 'kuis') await kuisReady();
     const cfg = game === 'ludo' ? await getSettings(db) : null;
     if (cfg && (cfg.features as any).ludo === false) throw forbidden('Ludo sedang ditutup.');
     const p = me(place, uid)!;
@@ -337,6 +352,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     if (await blockedAmong(uid, s.players.map((x) => x.id))) throw forbidden('Kamu tidak bisa ikut permainan ini.');
     if (s.game === 'karung') await karungReady(uid);
     if (s.game === 'catur') await caturReady();
+    if (s.game === 'kuis') await kuisReady();
     s.players.push(p);
     note(s, `${p.name} ikut main.`);
     bump(s);
@@ -389,6 +405,8 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     if (i < 0 || s.left.has(uid)) throw bad('not_player', 'Kamu tidak ikut permainan ini.');
     if (s.phase !== 'main') return { ok: true, game: view(s) };
     if (s.game === 'karung') return { ok: true, game: view(karungStep(s, uid, b)) };
+    // Cerdas Cermat: semua menjawab bersamaan (tanpa giliran), dinilai menurut urutan diterima
+    if (s.game === 'kuis') { kuisAct(s, uid, b, io(s)); return { ok: true, game: view(s) }; }
     // catur: langkah, menyerah & tawar remis (bukan giliran / tidak sah = invalid_move)
     if (s.game === 'catur') { caturPlay(s, uid, b, ops(s)); return { ok: true, game: view(s) }; }
     if (s.turn !== i) throw bad('not_turn', 'Belum giliranmu.');
@@ -447,6 +465,42 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     bump(s);
   }
 
+  /** Cerdas Cermat: ambil soal cepat dari bank, lalu mulai (sekali) */
+  async function prepareKuis(s: Session) {
+    s.phase = 'main'; // dicegah dijalankan dua kali
+    s.startedAt = clock();
+    try {
+      const cfg = await getSettings(db);
+      const k = kuisOf(cfg);
+      const qs = kuisBarengPick(await kuisPool(db), k.barengCount);
+      if (qs.length < 3) { s.startedAt = 0; end(s, 'kosong'); return; }
+      kuisBegin(s, qs, { timerSec: k.timerSec, revealSec: k.barengRevealSec, graceSec: k.graceSec }, io(s));
+    } catch (e) { app.log.error(e); s.startedAt = 0; end(s, 'kosong'); }
+  }
+  /** Cerdas Cermat selesai: statistik soal & lencana (Si Pintar per kategori, Juara Cerdas Cermat), tanpa memakai jatah */
+  async function kuisBadges(s: Session, ranked: { p: Player; rank: number; left: boolean }[]) {
+    const k = s.kuis;
+    if (!k) return;
+    try {
+      for (const r of k.rounds) {
+        const picks = Object.values(r.picks);
+        await db.query(`update kuis_questions set shown = shown + $2, answered = answered + $3, correct = correct + $4 where id = $1`,
+          [r.qid, s.players.length, picks.length, picks.filter((p) => p.ok).length]);
+      }
+      const played = s.players.filter((p) => (k.answered[p.id] ?? 0) > 0).length;
+      for (const x of ranked) {
+        const cats = kuisCorrectCats(s, x.p.id);
+        const juara = x.rank === 1 && !x.left && played >= 2 && kuisGate(s, x.p.id) && (k.points[x.p.id] ?? 0) > 0;
+        if (!cats.length && !juara) continue;
+        await db.tx(async (t) => {
+          for (const cat of cats) await track(t, x.p.id, 'kuis_benar', { cat, mode: 'bareng' });
+          if (juara) await track(t, x.p.id, 'kuis_juara', { place: s.place[0], players: s.players.length });
+        });
+      }
+      invalidateKuis();
+    } catch (e) { app.log.error(e); }
+  }
+
   async function settle(s: Session) {
     if (s.settled) return;
     s.settled = true;
@@ -473,6 +527,10 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     } else if (s.game === 'ludo') {
       // peringkat menurut urutan pulang lalu langkah bidak; tanpa hadiah bila tidak selesai normal & < 5 menit
       ranked.push(...ludoRanked(s));
+    } else if (s.game === 'kuis') {
+      // peringkat menurut poin lonceng (3 pertama benar, 2 benar, 0 salah)
+      ranked.push(...kuisRanked(s));
+      await kuisBadges(s, ranked);
     } else {
       const r = s.race;
       const fin = s.players.filter((p) => r && typeof r.done[p.id] === 'number').sort((x, y) => (r!.done[x.id]! - r!.done[y.id]!));
@@ -521,7 +579,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
     try {
       for (const s of [...SESSIONS.values()]) {
         tick(s);
-        if (s.phase === 'siap') await prepareKarung(s);
+        if (s.phase === 'siap') await (s.game === 'kuis' ? prepareKuis(s) : prepareKarung(s));
         if (s.phase === 'selesai' && !s.settled) await settle(s);
       }
     } catch (e) { app.log.error(e); } finally { running = false; }
@@ -532,7 +590,7 @@ export default async function barengRoutes(app: FastifyInstance, { db }: { db: D
   runTick = async () => {
     for (const s of [...SESSIONS.values()]) {
       tick(s);
-      if (s.phase === 'siap') await prepareKarung(s);
+      if (s.phase === 'siap') await (s.game === 'kuis' ? prepareKuis(s) : prepareKarung(s));
       if (s.phase === 'selesai' && !s.settled) await settle(s);
     }
   };

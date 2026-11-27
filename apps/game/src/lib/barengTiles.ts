@@ -30,12 +30,17 @@ export const BARENG_TILES: BarengTile[] = [
     key: 'ludo', label: 'Ludo', isNew: true, prop: 'alun-tikarludo', where: 'Tikar Ludo',
     icon: svg(`<rect x="1.5" y="1.5" width="21" height="21" rx="3" fill="#FFFDF7" stroke="${INK}" stroke-width="1.5"/>${[[2.3, 2.3], [14.2, 2.3], [14.2, 14.2], [2.3, 14.2]].map(([x, y], k) => `<rect x="${x}" y="${y}" width="7.5" height="7.5" fill="${LUDO[k]}"/>`).join('')}<path d="M12 9.6l2.4 2.4L12 14.4 9.6 12Z" fill="${INK}"/><path d="M4.4 9.2q1.7.8 3.4 0l-.8-3h-1.8Z" fill="#FFFDF7" stroke="${INK}" stroke-width="1"/><circle cx="6.1" cy="5.4" r="1.4" fill="#FFFDF7" stroke="${INK}" stroke-width="1"/>`),
   },
+  // Cerdas Cermat Bareng: di rumah, dan di Panggung Hiburan alun-alun
+  {
+    key: 'kuis', label: 'Cerdas Cermat', isNew: true, prop: 'alun-panggung', where: 'Panggung',
+    icon: svg(`<path d="M4 17C4 9 7.5 4.5 12 4.5S20 9 20 17Z" fill="#E3B23C" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><rect x="2.5" y="16.5" width="19" height="3.6" rx="1.8" fill="#8A5A36" stroke="${INK}" stroke-width="1.4"/><circle cx="12" cy="3.4" r="1.5" fill="#E3B23C" stroke="${INK}" stroke-width="1.2"/><path d="M10 10.2q0-2.2 2-2.2t2 1.8q0 1.4-2 2v1.2" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="14.6" r=".9" fill="${INK}"/>`),
+  },
 ];
 /** jumlah pemain: "2" atau "2–4" */
 export const playersOf = (key: string) => { const g = GAMES[key]; return !g ? '' : g.min === g.max ? `${g.min}` : `${g.min}–${g.max}`; };
 /** ubin yang tampil di tempat ini (game yang ditutup admin lewat features.<game> = false tidak tampil) */
-export function barengTiles(place: 'house' | 'alun', features?: Record<string, unknown>) {
-  return BARENG_TILES.filter((t) => features?.[t.key] !== false && GAMES[t.key]?.places.includes(place) && (place === 'house' || (!!t.prop && ALUN_LAYOUT.some((p) => p.i === t.prop))));
+export function barengTiles(place: 'house' | 'alun', features?: Record<string, unknown>, s?: any) {
+  return BARENG_TILES.filter((t) => features?.[t.key] !== false && !(t.key === 'kuis' && (s?.kuis?.on === false || features?.minigames === false)) && GAMES[t.key]?.places.includes(place) && (place === 'house' || (!!t.prop && ALUN_LAYOUT.some((p) => p.i === t.prop))));
 }
 /** indeks benda tempat main di ALUN_LAYOUT (−1 bila tidak ada) */
 export const tileIndex = (t: BarengTile) => (t.prop ? ALUN_LAYOUT.findIndex((p) => p.i === t.prop) : -1);
@@ -46,6 +51,10 @@ export const RULE_CHIPS: Record<string, (cfg: any) => { t: string; clock?: boole
   catur: (cfg) => {
     const c = cfg?.catur ?? {}, base = (c.baseMs ?? 300_000) / 60_000, inc = (c.incMs ?? 3000) / 1000;
     return [{ t: `${num(base)} mnt + ${num(inc)} dtk/langkah`, clock: true }, { t: 'warna diundi' }, { t: 'aturan lengkap' }];
+  },
+  kuis: (cfg) => {
+    const k = cfg?.kuis ?? {};
+    return [{ t: `${k.barengCount ?? 7} soal` }, { t: `${k.timerSec ?? 15} dtk/soal`, clock: true }, { t: 'pertama benar +3, benar +2' }];
   },
   ludo: (cfg) => {
     const l = cfg?.ludo ?? {}, t = l.tokensByPlayers ?? { 2: 4, 3: 2, 4: 2 }, max = (l.maxMs ?? 900_000) / 60_000;

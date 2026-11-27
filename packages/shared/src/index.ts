@@ -31,3 +31,5 @@ export * from './kerja';
 export * from './art-kerja';
 export * from './sahabat';
 export * from './art-sahabat';
+export * from './kuis';
+export * from './art-kuis';

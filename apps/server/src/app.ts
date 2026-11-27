@@ -21,6 +21,7 @@ import { seedPackV21 } from './db/seed-kerja';
 import { seedPackV22 } from './db/seed-mandi2';
 import { seedPackV23 } from './db/seed-sahabat';
 import { seedPackV24 } from './db/seed-natal';
+import { seedPackV25, syncKuisBank } from './db/seed-kuis';
 import { HttpError, sha256, setTrackHook } from './lib/core';
 import { loadAdmin } from './lib/auth';
 import { getSite, migrateSite, indexStatus, maintenanceInfo, maintenanceOpen, maintenanceResponse, ogImage, renderIndex, retryAfter, seoHead, type Invite } from './lib/site';
@@ -49,6 +50,7 @@ import siteRoutes from './routes/site';
 import barengRoutes from './routes/bareng';
 import kerjaRoutes from './routes/kerja';
 import sahabatRoutes from './routes/sahabat';
+import kuisRoutes from './routes/kuis';
 import { BUILD, recordDeploy } from './lib/version';
 import { migrateNotifySettings } from './lib/notify-config';
 import { eventPoints } from './lib/events';
@@ -99,6 +101,9 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   if (await seedPackV22(db)) app.log.info('Paket konten 22 (kamar mandi 2 di Mebel Jati & Toko Mutiara, enam ruangan Mutiara bertema) ditambahkan');
   if (await seedPackV23(db)) app.log.info('Paket konten 23 (Sahabat Mungil: Pondok Sahabat, 9 sahabat, Camilan Sahabat, tugas & lencana) ditambahkan');
   if (await seedPackV24(db)) app.log.info('Paket konten 24 (Sahabat Edisi Natal: Beruang Es & Rusa Kutup di Toko Mutiara, terbatas sampai 6 Januari) ditambahkan');
+  if (await seedPackV25(db)) app.log.info('Paket konten 25 (Cerdas Cermat Kampung: bank soal kuis, tugas Jawab Kuis Harian, lencana Si Pintar & Juara Cerdas Cermat) ditambahkan');
+  // soal baru di kuis-soal.json (rilis berikutnya) ditambahkan tiap start; soal yang ada / dihapus admin tidak disentuh
+  { const r = await syncKuisBank(db, undefined, app.log); if (r.added) app.log.info({ added: r.added }, 'bank soal kuis: soal baru ditambahkan'); }
   await migrateNotifySettings(db);
   if (await migrateSite(db)) app.log.info('Akun Instagram di Situs & SEO diperbaiki ke @playbupi');
   if (await recordDeploy(db)) app.log.info({ version: BUILD.version, commit: BUILD.commit }, 'versi baru berjalan');
@@ -198,6 +203,7 @@ export async function buildApp(opts: AppOpts = {}): Promise<{ app: FastifyInstan
   await app.register(barengRoutes, { db });
   await app.register(kerjaRoutes, { db });
   await app.register(sahabatRoutes, { db });
+  await app.register(kuisRoutes, { db });
   await app.register(serverMonitorRoutes, { db });
 
   // gambar upload dari admin

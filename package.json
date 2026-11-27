@@ -43,6 +43,7 @@
     "test:e2e:sahabat": "node scripts/e2e-sahabat.mjs",
     "test:e2e:natal": "node scripts/e2e-natal.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
+    "test:e2e:kuis": "node scripts/e2e-kuis.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "sahabat-sheet": "node --import tsx scripts/sahabat-sheet.mjs",
     "site-assets": "node --import tsx scripts/site-assets.mjs",

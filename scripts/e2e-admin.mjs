@@ -36,7 +36,7 @@ async function open(opts, tag) {
   await p.waitForSelector('nav[aria-label="Menu admin"]', { timeout: 10000 });
   return { ctx, p };
 }
-const PAGES = ['dashboard', 'items', 'events', 'quests', 'activities', 'locations', 'settings', 'media', 'notifcenter', 'broadcasts', 'email', 'whatsapp', 'announcements',
+const PAGES = ['dashboard', 'items', 'events', 'quests', 'kuis', 'activities', 'locations', 'settings', 'media', 'notifcenter', 'broadcasts', 'email', 'whatsapp', 'announcements',
   'players', 'moderation', 'payments', 'packages', 'launch', 'server', 'audit', 'site', 'integrations', 'versions', 'admins', 'account'];
 
 const D = await open({ viewport: { width: 1440, height: 900 } }, 'desktop');

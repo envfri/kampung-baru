@@ -203,6 +203,40 @@ export const DEFAULT_SETTINGS = {
     giftCoins: [5, 15],
     gifts: SAHABAT_GIFTS as Record<string, string[]>,
   },
+  /** Cerdas Cermat Kampung: kuis bersama Pak Kancil (kartu di Balai Main). Soal diatur di admin › Kuis. */
+  kuis: {
+    on: true,
+    /** Kuis Harian: jumlah soal per hari, campuran level [mudah, sedang, sulit], waktu per soal (urutkan & cocokkan 2×) */
+    dailyCount: 10,
+    levelMix: [4, 4, 2],
+    timerSec: 15,
+    graceSec: 2,
+    seenDays: 30,
+    energi: 5,
+    /** hadiah per jawaban benar, bonus sempurna, batas koin Kuis Harian per hari */
+    coins: 5,
+    xp: 2,
+    perfectCoins: 25,
+    perfectXp: 6,
+    dailyCoinCap: 120,
+    /** poin papan peringkat mingguan per jawaban benar [mudah, sedang, sulit] + bonus cepat */
+    points: [10, 15, 20],
+    fastBonus: 5,
+    /** bonus beruntun (hari berturut-turut menyelesaikan Kuis Harian) */
+    streak3Coins: 20,
+    streak7Coins: 40,
+    streak7Pearls: 1,
+    /** Cerdas Cermat Bareng (rumah teman & alun-alun) */
+    barengCount: 7,
+    barengRevealSec: 6,
+    /** Tantang Teman */
+    tantangCount: 5,
+    tantangPerDay: 5,
+    tantangExpireHours: 24,
+    reportsPerDay: 10,
+    /** jawaban benar per kategori untuk lencana Si Pintar */
+    badgeAt: 30,
+  },
   premium: {
     bundleDiscount: 20,
     bonusMin: 3,
@@ -349,6 +383,7 @@ export const SETTINGS_HELP: Record<keyof Settings, string> = {
   ajakAlun: 'Pet ngajak ke Alun-alun: saat pemain di rumahnya sendiri dan ada orang lain di alun-alun, pet sesekali mengajak lewat gelembung bicara dengan tombol Ayo! (langsung jalan ke alun-alun) dan Nanti. Alasan dipilih otomatis: kembang api ≤ 5 menit lagi, Lomba Mancing ≤ 3 menit lagi, arak-arakan ≤ 2 menit lagi, teman sedang di sana, lalu keramaian. firstSec = jeda pertama setelah masuk rumah (detik, 5–600), gapMin = jeda antar ajakan (menit, 1–240), perDay = ajakan per hari (0–20), minPeople = paling sedikit orang lain di alun-alun (1–20), ramaiFrom = mulai sekian orang dipakai kalimat "ramai" (2–50). Pemain yang menekan Nanti 2 kali berturut-turut tidak diajak lagi hari itu; tidak mengajak bila baru pulang dari alun-alun (< 10 menit). lines = kalimat per alasan (satu baris satu kalimat, dipilih acak): {teman} = nama pet teman, {jumlah} = jumlah orang, {menit} = menit sampai acara, {pet} = nama pet pemain. Nyalakan/matikan di Fitur & login › ajakAlun.',
   kerja: 'Kerja Sambilan: pet kerja paruh waktu di tempat kampung (Papan Lowongan di peta) lalu pulang membawa gaji, XP, kadang barang bonus, dan cerita lucu. on = buka/tutup (pet yang sedang kerja tetap pulang & gajinya tetap bisa diambil). minutes = 3 pilihan lama kerja dalam MENIT (bawaan 60, 180, 480; perkecil untuk uji), pay & xp = gaji koin & XP Magang untuk tiap pilihan, energi/kenyang = kebutuhan yang berkurang saat pulang, bersih = ikut berkurang khusus tempat kotor (jobs › kotor: kebun & kolam). Selama kerja kebutuhan pet tidak turun dan pet tidak bisa sakit karena dibiarkan; biayanya dikenakan sekali saat pulang. Syarat mulai: energi ≥ minEnergi, kenyang ≥ minKenyang, tidak sakit, tidak tidur, level ≥ jobs › minLevel. maxHoursPerDay = batas jam kerja per hari (shift selesai dihitung penuh, yang dipanggil pulang dihitung lama kerjanya). rankAt = shift selesai per tempat untuk naik ke Karyawan / Senior / Kepala; rankBonusPct = tambahan gaji per pangkat di atas Magang (%). Saat jadi Karyawan pet dapat seragam tempat itu (tidak dijual di toko). Dipanggil pulang: gaji sebanding lama kerja (termasuk bonus pangkat), tanpa bonus barang, tidak dihitung untuk pangkat. ronda = Ronda malam di Pos Ronda: hanya bisa mulai pukul fromHour–toHour jam setempat pemain, lama tetap (minutes), gaji, XP & biaya sendiri. jobs › bonusPct = peluang barang bonus (%), bonusItems = ID item yang mungkin didapat (dipilih acak). stories = cerita pulang kerja per tempat (satu baris satu cerita, {pet} = nama pet).',
   sahabat: 'Sahabat Mungil: hewan kecil yang menemani pet ke rumah, rumah teman, peta & alun-alun (Pondok Sahabat di peta). on = buka/tutup Pondok Sahabat & kegiatan sahabat (sahabat yang sudah dimiliki tetap tampil). Keakraban naik lewat points › makan (Camilan Sahabat, dihitung sekali sehari per sahabat), points › main (ketuk sahabat, dihitung mainPerDay kali sehari per sahabat), dan points › jalan (pergi bareng sahabat aktif: berkunjung ke rumah teman, ke alun-alun, jalan di peta — masing-masing sekali sehari). akrabAt & sejatiAt = keakraban untuk naik ke Akrab (punya trik, duduk di kepala pet saat pet duduk/tidur; sahabat besar Edisi Natal tidak naik ke kepala: Beruang Es jadi bantal saat pet tidur, Rusa Kutup berdiri di samping pet yang duduk/tidur) & Sahabat Sejati (kalung emas, tampil di kartu profil); bawaan ±3 hari & ±2 minggu main teratur. Sahabat tidak pernah sakit, kabur, atau mati: yang dibiarkan hanya tidak naik keakrabannya. kuraPct = peluang (%) kura-kura ikut tersangkut saat dapat ikan di Kolam Pancing (sekali seumur akun). kunang = jam kunang-kunang muncul di halaman (jam setempat pemain, boleh melewati tengah malam). Burung pipit datang sendiri ke Tempat Minum Burung / Sangkar Burung yang dipasang di Halaman. maxResting = sahabat istirahat yang tampil di rumah sekaligus (dekat rumahnya: Kurungan Ayam, Sangkar Burung, Kolam Ikan, ...). Oleh-oleh harian: sahabat aktif membawa satu temuan sekali sehari; gifts = daftar per jenis (satu baris satu id item; "koin" = koin acak giftCoins [min, maks]; baris yang sama boleh diulang supaya lebih sering). Harga Umang-umang, Anak Bebek, Kelinci Mini, Hamster & Landak Mini serta Camilan Sahabat diatur di Item & harga (jenis Sahabat / Camilan Sahabat). Edisi Natal (Beruang Es & Rusa Kutup, 25 Mutiara, Toko Mutiara tab Edisi Spesial & Pondok Sahabat): masa jualnya = Item & harga › Mulai dijual / Berhenti dijual pada item sahabat-beruang & sahabat-rusa (bawaan sampai 6 Januari 2027 23.59 WIB). Sesudahnya keduanya hilang dari toko & dari Album pemain yang belum punya; yang sudah punya tetap menyimpannya selamanya. Oleh-oleh keduanya ada di gifts › beruang & rusa.',
+  kuis: 'Cerdas Cermat Kampung (kartu Kuis di Balai Main, bersama Pak Kancil). on = buka/tutup semua mode kuis (Kuis Harian, Cerdas Cermat Bareng, Tantang Teman). KUIS HARIAN: dailyCount = jumlah soal per hari (1–30); levelMix = perbandingan soal mudah, sedang, sulit (bawaan 4/4/2; bila bank tipis, kekurangan diisi level lain); soal yang pemain lihat dalam seenDays hari terakhir dihindari bila masih ada soal lain; set soal tetap sepanjang hari WIB (muat ulang tidak mengacak lagi). timerSec = waktu per soal dalam detik (urutkan & cocokkan dapat 2×; juga dipakai Bareng & Tantang); graceSec = toleransi jaringan: jawaban yang tiba lebih dari timerSec + graceSec sejak soal dikirim dihitung waktu habis (salah). energi = energi pet sekali saat mulai Kuis Harian & Tantang Teman (pet tidak boleh sedang tidur, sakit, atau kerja, sama seperti mini-game lain). HADIAH: coins & xp per jawaban benar; perfectCoins & perfectXp bila semua soal hari itu benar; streak3Coins = bonus saat beruntun 3 hari (dan tiap hari ke-10, 17, ...), streak7Coins & streak7Pearls = bonus tiap kelipatan 7 hari beruntun (beruntun = hari berturut-turut menyelesaikan Kuis Harian). dailyCoinCap = batas koin dari Kuis Harian per hari (per jawaban + bonus; Mutiara tidak termasuk). Pengali koin event ikut berlaku. PAPAN PERINGKAT mingguan (Senin–Minggu WIB, hanya pemain & temannya): points = poin per jawaban benar untuk soal mudah, sedang, sulit; fastBonus = poin tambahan bila menjawab benar di paruh pertama waktu. CERDAS CERMAT BARENG (2–4 pemain, rumah teman & Panggung alun-alun): barengCount = jumlah soal (hanya tipe sekali ketuk); yang pertama benar dapat 3 poin (lonceng), benar lainnya 2, salah 0; barengRevealSec = lama jawaban & penjelasan tampil sebelum soal berikutnya. Hadiah memakai aturan & jatah main bareng (Kunjungan bareng › coop, peringkat 100/60/40/20%); pemain yang menjawab kurang dari 3 soal tanpa hadiah. TANTANG TEMAN: tantangCount = jumlah soal (teman memainkan soal yang SAMA dengan waktu yang sama; lebih banyak benar menang, seri dipecah total waktu menjawab); tantangPerDay = batas main tantangan per pemain per hari; tantangExpireHours = tantangan batal otomatis bila teman belum main. Hadiah koin & XP tantangan memakai pengaturan Duel teman (menang/kalah/seri), dibayar setelah keduanya main. reportsPerDay = batas "Laporkan soal" per pemain per hari. badgeAt = jawaban benar per kategori untuk lencana Si Pintar <Kategori> (mengubahnya ikut mengubah target 8 lencana itu). Soal, statistik, tanda otomatis (benar < 25 % setelah ≥ 30 jawaban, atau ≥ 3 laporan terbuka) & laporan pemain diatur di menu Kuis.',
   bareng: 'Main bareng: longMult = pengali koin & XP untuk game panjang (Catur, Ludo) di atas hadiah main bareng biasa (Kunjungan bareng › coopCoins / coopXp). Jatah harian tetap sama.',
   account: 'Akun tamu & pindah perangkat. transferCodes = izinkan kode pindah perangkat (sekali pakai, berlaku transferMinutes menit). Ajakan "Simpan progres" untuk pemain tamu muncul setelah nudgeDays hari, atau saat pet mencapai Lv nudgeLevel, punya teman pertama, atau menang duel; bila ditunda muncul lagi setelah nudgeSnoozeDays hari.',
   duel: 'Duel dengan teman (Balap Bakiak, Gasing, Tangkap Layangan): main bareng langsung bila keduanya online, atau tantangan melawan bayangan. Hadiah koin dari sistem (tanpa taruhan) dibayar setelah kedua pemain main; perDay = batas duel per pemain per hari; tantangan yang belum selesai batal otomatis setelah expireHours jam (bawaan 6), dan yang menantang bisa membatalkannya sendiri selama temannya belum main.',

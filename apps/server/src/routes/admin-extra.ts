@@ -136,6 +136,8 @@ export default async function adminExtraRoutes(app: FastifyInstance, { db }: { d
   app.get('/api/admin/badges', mod, async (req: any) => {
     const reports = (await db.one<{ c: number }>(`select count(*)::int c from reports where handled_at is null`))?.c ?? 0;
     const out: Record<string, number> = { reports };
+    // laporan soal kuis yang belum ditangani (menu Kuis)
+    out.kuis = (await db.one<{ c: number }>(`select count(*)::int c from kuis_reports where resolved_at is null`))?.c ?? 0;
     if (RANK[req.admin!.role] >= RANK.admin) {
       out.payments = (await db.one<{ c: number }>(`select count(*)::int c from payments where status = 'pending' and (expires_at is null or expires_at > now()) and created_at > now() - interval '1 day'`))?.c ?? 0;
       // lonceng admin: peringatan server yang sedang menyala

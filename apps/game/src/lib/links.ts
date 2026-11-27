@@ -2,6 +2,7 @@
 import { G, goTo } from './game.svelte';
 import { JP } from './jepret.svelte';
 import { gajiWaiting, working } from './kerja.svelte';
+import { KZ } from './kuis.svelte';
 
 export function openLink(url: string) {
   let hash = '';
@@ -48,6 +49,8 @@ export function openLink(url: string) {
     case 'event': G.view = 'home'; G.sheet = 'event'; break;
     case 'whatsnew': G.view = 'home'; G.sheet = 'whatsnew'; break;
     case 'games': G.view = 'map'; G.sheet = 'games'; break;
+    // Cerdas Cermat Kampung (kartu Kuis di Balai Main; notifikasi tantangan kuis)
+    case 'kuis': G.duel = null; KZ.page = 'home'; KZ.run = null; KZ.reveal = null; G.view = 'kuis'; break;
     case 'duels': G.duel = null; G.view = 'map'; G.sheet = 'duels'; break;
     case 'bukutamu': G.view = 'home'; G.sheet = 'friends'; G.sheetArg = { tab: 'book' }; break;
     case 'album': G.view = 'home'; G.sheet = 'friends'; G.sheetArg = { tab: 'album' }; break;

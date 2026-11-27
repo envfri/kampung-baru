@@ -33,6 +33,7 @@
   import Integrations from './pages/Integrations.svelte';
   import Launch from './pages/Launch.svelte';
   import Site from './pages/Site.svelte';
+  import Kuis from './pages/Kuis.svelte';
   import { APP_VERSION } from '@kb/shared';
 
   const NAV = [
@@ -41,6 +42,7 @@
       { k: 'items', label: 'Item & harga', icon: 'box', min: 'moderator', C: Items },
       { k: 'events', label: 'Event', icon: 'cal', min: 'moderator', C: Events },
       { k: 'quests', label: 'Tugas', icon: 'quest', min: 'moderator', C: Quests },
+      { k: 'kuis', label: 'Kuis', icon: 'info', min: 'moderator', C: Kuis, badge: 'kuis' },
       { k: 'activities', label: 'Aktivitas di rumah', icon: 'spark', min: 'moderator', C: Activities },
       { k: 'locations', label: 'Peta & toko', icon: 'map', min: 'moderator', C: Locations },
       { k: 'settings', label: 'Ekonomi & fitur', icon: 'sliders', min: 'moderator', C: Settings },

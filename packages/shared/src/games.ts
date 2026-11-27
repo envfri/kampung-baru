@@ -1,6 +1,7 @@
 // Mini-game Balai Main. Urutan & tata letak ditentukan dari seed, sehingga server bisa
 // menghitung ulang skor dari langkah pemain (client tidak bisa mengarang skor).
 import { mulberry32 } from './economy';
+import { tantangLabel } from './kuis';
 
 export const GAMES = {
   panen: { name: 'Panen Buah', desc: 'Geser keranjang untuk menangkap buah yang jatuh. Hindari kerikil!' },
@@ -281,6 +282,8 @@ export function duelScore(game: string, seed: number, meta: any, inputs: any): n
 /** Skor duel untuk dibaca pemain. */
 export function duelLabel(game: string, score: number | null | undefined) {
   if (score === null || score === undefined) return '—';
+  // Tantang Kuis: "4 benar · 31,2 dtk"
+  if (game === 'kuis') return tantangLabel(score);
   if (game === 'bakiak') return `${Math.floor(score / 100)} langkah`;
   if (game === 'gasing') return `${(score / 10).toFixed(1)} detik`;
   return `${score} poin`;

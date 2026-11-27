@@ -43,9 +43,12 @@ export const QUEST_EVENTS: Record<string, { label: string; filters: string }> = 
   sahabat_oleh: { label: 'Terima oleh-oleh harian dari sahabat', filters: 'sp: jenis sahabat' },
   sahabat_akrab: { label: 'Sahabat naik ke Akrab', filters: 'sp: jenis sahabat' },
   sahabat_sejati: { label: 'Sahabat naik ke Sahabat Sejati', filters: 'sp: jenis sahabat' },
+  kuis_harian: { label: 'Selesaikan Kuis Harian (Cerdas Cermat Kampung)', filters: '' },
+  kuis_benar: { label: 'Jawab benar satu soal kuis (Kuis Harian, Tantang Teman, Cerdas Cermat Bareng)', filters: 'cat: budaya | makanan | geografi | alam | sains | bahasa | matematika | sejarah · mode: harian | tantang | bareng' },
+  kuis_juara: { label: 'Juara 1 Cerdas Cermat Bareng', filters: '' },
 };
 
 export const QUEST_LINKS: [string, string][] = [
   ['/', 'Rumah'], ['/#map', 'Peta Kampung'], ['/#shop', 'Toko (lewat peta)'], ['/#bag', 'Tas'], ['/#friends', 'Teman'],
-  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'], ['/#kerja', 'Papan Lowongan (kerja sambilan)'], ['/#sahabat', 'Pondok Sahabat (Sahabat Mungil)'],
+  ['/#garden', 'Kebun'], ['/#karung', 'Lomba Karung'], ['/#fishing', 'Kolam Pancing'], ['/#daily', 'Hadiah harian'], ['/#duels', 'Duel teman'], ['/#jepret', 'Jepret (foto pemandangan)'], ['/#kerja', 'Papan Lowongan (kerja sambilan)'], ['/#sahabat', 'Pondok Sahabat (Sahabat Mungil)'], ['/#kuis', 'Kuis (Cerdas Cermat Kampung)'],
 ];

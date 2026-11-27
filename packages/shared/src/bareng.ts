@@ -1,7 +1,8 @@
-// Game main bareng baru (rumah & alun-alun): Congklak, Ular Tangga Kampung, Balap Karung Live, Catur (catur.ts), Ludo (ludo.ts).
+// Game main bareng baru (rumah & alun-alun): Congklak, Ular Tangga Kampung, Balap Karung Live, Catur (catur.ts), Ludo (ludo.ts),
+// Cerdas Cermat (kuis.ts; sesi di server lib/kuis-bareng.ts).
 // Aturan dihitung di server; fungsi di sini dipakai server (sumber kebenaran) dan game (gambar papan).
 
-export type BarengGame = 'congklak' | 'ular' | 'karung' | 'catur' | 'ludo';
+export type BarengGame = 'congklak' | 'ular' | 'karung' | 'catur' | 'ludo' | 'kuis';
 /** long: game panjang (±10–15 menit): hadiah × bareng.longMult, dan di HP tombol aksi & kartu rumah teman disembunyikan selama main */
 export const BARENG_GAMES: Record<BarengGame, { name: string; min: number; max: number; places: ('house' | 'alun')[]; inviteMs: number; turnMs: number; maxMs: number; long?: boolean }> = {
   congklak: { name: 'Congklak', min: 2, max: 2, places: ['house'], inviteMs: 20_000, turnMs: 15_000, maxMs: 20 * 60_000 },
@@ -12,6 +13,8 @@ export const BARENG_GAMES: Record<BarengGame, { name: string; min: number; max: 
   catur: { name: 'Catur', min: 2, max: 2, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 0, maxMs: 25 * 60_000, long: true },
   // Ludo: berdua 4 bidak, bertiga/berempat 2 bidak (±8–12 menit), batas 15 menit lalu diurutkan menurut langkah (lihat ludo.ts)
   ludo: { name: 'Ludo', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 10_000, maxMs: 15 * 60_000, long: true },
+  // Cerdas Cermat Bareng: soal sama untuk semua, yang pertama benar membunyikan lonceng (lib/kuis-bareng.ts di server)
+  kuis: { name: 'Cerdas Cermat', min: 2, max: 4, places: ['house', 'alun'], inviteMs: 20_000, turnMs: 15_000, maxMs: 12 * 60_000 },
 };
 
 /* ---------------- Congklak ---------------- */

@@ -10,12 +10,13 @@
   import KarungLive from './KarungLive.svelte';
   import CaturBoard from './CaturBoard.svelte';
   import LudoBoard from './LudoBoard.svelte';
+  import KuisBareng from './KuisBareng.svelte';
   /** game dengan kartu hasil sendiri di papannya (kartu hasil umum tidak dipakai) */
-  const OWN_RESULT = new Set(['catur', 'ludo']);
+  const OWN_RESULT = new Set(['catur', 'ludo', 'kuis']);
   /** papan catur sendiri sampai hasil (batal tetap memakai kartu umum) */
   const ownBoard = (g: any) => g.game === 'catur' && !!g.catur && g.catur.result?.reason !== 'batal';
   /** papan dengan tombol "Berhenti menonton" sendiri */
-  const ownStop = (g: any) => ownBoard(g) || g.game === 'ludo';
+  const ownStop = (g: any) => ownBoard(g) || g.game === 'ludo' || g.game === 'kuis';
 
   const me = $derived(H.me);
   const isMine = (g: any) => g.players.some((p: any) => p.id === me && !p.left);
@@ -57,13 +58,14 @@
       </div>
     </div>
   {:else if mine.phase === 'siap'}
-    <div class="card"><h3>{GAME_NAMES[mine.game]}</h3><p class="note">Menyiapkan lomba…</p></div>
+    <div class="card"><h3>{GAME_NAMES[mine.game]}</h3><p class="note">{mine.game === 'kuis' ? 'Pak Kancil menyiapkan soal…' : 'Menyiapkan lomba…'}</p></div>
   {:else if ownBoard(mine)}<CaturBoard g={mine} me={me} />
   {:else if mine.phase === 'selesai' && !mine.results?.length && mine.why}
     <div class="card"><h3>{GAME_NAMES[mine.game]}</h3><p class="note">{whyText(mine)}</p><div class="btns"><button class="btn" onclick={() => (BG.closed = [...BG.closed, mine.id])}>Tutup</button></div></div>
   {:else if mine.game === 'congklak'}<CongklakBoard g={mine} me={me} />
   {:else if mine.game === 'ular'}<UlarBoard g={mine} me={me} />
   {:else if mine.game === 'ludo'}<LudoBoard g={mine} me={me} />
+  {:else if mine.game === 'kuis'}<KuisBareng g={mine} me={me} />
   {:else}<KarungLive g={mine} me={me} />{/if}
 
   {#if mine.phase === 'selesai' && mine.results?.length && !OWN_RESULT.has(mine.game) && (void tick, resultsReady(mine))}
@@ -82,7 +84,7 @@
     </div>
   {/if}
 {:else if watch}
-  {#if watch.game === 'congklak'}<CongklakBoard g={watch} me={me} />{:else if watch.game === 'ular'}<UlarBoard g={watch} me={me} />{:else if watch.game === 'ludo'}<LudoBoard g={watch} me={me} />{:else if ownBoard(watch)}<CaturBoard g={watch} me={me} />{/if}
+  {#if watch.game === 'congklak'}<CongklakBoard g={watch} me={me} />{:else if watch.game === 'ular'}<UlarBoard g={watch} me={me} />{:else if watch.game === 'ludo'}<LudoBoard g={watch} me={me} />{:else if watch.game === 'kuis'}<KuisBareng g={watch} me={me} />{:else if ownBoard(watch)}<CaturBoard g={watch} me={me} />{/if}
   {#if !ownStop(watch)}<button class="btn sm stopwatch" onclick={() => (BG.watching = null)}>Berhenti menonton</button>{/if}
 {:else if invite}
   <div class="card" role="dialog" aria-label="Ajakan main {GAME_NAMES[invite.game]}">

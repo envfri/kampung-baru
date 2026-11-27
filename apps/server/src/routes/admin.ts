@@ -3,7 +3,7 @@ import { forgetMute } from './square';
 import { checkCaturSettings } from '../lib/catur-game';
 import { forgetMediaInfo } from '../lib/site';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun, checkKerja, checkSahabat, isSahabatSp } from '@kb/shared';
+import { WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_EFFECTS, ACTIVITY_SPOTS, builtinCatalog, DEFAULT_SETTINGS, diffPaths, PREMIUM_SET_BY_KEY, mergeSettings, SETTINGS_HELP, QUEST_EVENTS, QUEST_LINKS, EVENT_DECOR, EVENT_POINT_SOURCES, EVENT_TEMPLATES, FISH_TIER_KEYS, POND_FINDS, KEBUN_CROPS, checkAjakAlun, checkKerja, checkSahabat, checkKuis, isSahabatSp } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 import type { Db } from '../db/index';
 import { config } from '../config';
@@ -578,12 +578,18 @@ export default async function adminRoutes(app: FastifyInstance, { db }: { db: Db
     const catK = await getCatalog(db);
     checkKerja(value.kerja, (msg) => { throw bad('invalid_settings', msg); }, (id) => !!catK.byId.get(id));
     checkSahabat(value.sahabat, (msg) => { throw bad('invalid_settings', msg); }, (id) => !!catK.byId.get(id) && catK.byId.get(id)!.kind !== 'sahabat');
+    checkKuis(value.kuis, (msg) => { throw bad('invalid_settings', msg); });
     const fac = value.visit.facility;
     if (!(Number.isInteger(fac.hostCoins) && fac.hostCoins >= 0 && fac.hostCoins <= 100)) throw bad('invalid_settings', 'Kunjungan bareng › facility: tip koin tuan rumah harus bilangan bulat 0–100.');
     if (!(Number.isInteger(fac.hostMaxPerDay) && fac.hostMaxPerDay >= 0 && fac.hostMaxPerDay <= 1000)) throw bad('invalid_settings', 'Kunjungan bareng › facility: batas tip per hari harus bilangan bulat 0–1000.');
     const jp = value.jepret;
     if (!(Number.isInteger(jp.shareEventsPerDay) && jp.shareEventsPerDay >= 0 && jp.shareEventsPerDay <= 50)) throw bad('invalid_settings', 'Jepret: batas catatan bagikan per hari harus bilangan bulat 0–50.');
     await db.query(`insert into settings (key, value) values ('game', $1::text::jsonb) on conflict (key) do update set value = excluded.value, updated_at = now()`, [J(value)]);
+    // kuis.badgeAt = target 8 lencana Si Pintar <Kategori>
+    if ((before as any).kuis?.badgeAt !== value.kuis.badgeAt) {
+      await db.query(`update quests set target = $1, description = regexp_replace(description, '^Jawab benar [0-9]+ soal', $2) where kind = 'badge' and event = 'kuis_benar'`, [value.kuis.badgeAt, `Jawab benar ${value.kuis.badgeAt} soal`]);
+      invalidateQuests();
+    }
     await bumpCatalog(db);
     const changes = diffPaths(before, value);
     await audit(db, req, 'settings_update', changes.map((c) => c.path.split('.')[0]).filter((x, i, a) => a.indexOf(x) === i).join(', ') || 'game', { changes });

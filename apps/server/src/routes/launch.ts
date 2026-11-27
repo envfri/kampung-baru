@@ -16,6 +16,8 @@ const PROGRESS_TABLES = [
   'pets', 'inventory', 'rooms', 'wallets', 'wallet_ledger', 'cooldowns', 'daily_counters', 'daily_claims', 'visits', 'gifts',
   'garden_plots', 'races', 'fishing_casts', 'fish_collection', 'fish_hints', 'notifications', 'quest_progress', 'event_progress', 'game_runs',
   'house_likes', 'duels', 'transfer_codes', 'idempotency', 'pet_buddies',
+  // Cerdas Cermat Kampung: permainan, jawaban, soal yang pernah dilihat, beruntun, laporan soal (statistik soal ikut nol)
+  'kuis_answers', 'kuis_runs', 'kuis_seen', 'kuis_streaks', 'kuis_reports',
 ];
 
 export default async function launchRoutes(app: FastifyInstance, { db }: { db: Db }) {
@@ -83,12 +85,14 @@ export default async function launchRoutes(app: FastifyInstance, { db }: { db: D
         players = (await t.query(`delete from users returning id`)).length; // semua tabel pemain ikut terhapus (on delete cascade)
         await t.query(`delete from idempotency`);
         await t.query(`delete from email_otps`);
+        await t.query(`update kuis_questions set shown = 0, answered = 0, correct = 0`);
       } else {
         // catatan pembayaran disimpan (laporan keuangan); pembayaran uji dihapus
         await t.query(`delete from payments where test`);
         await t.query(`update payments set revoked_at = coalesce(revoked_at, now()) where status = 'paid'`);
         for (const tb of PROGRESS_TABLES) await t.query(`delete from ${tb}`);
         await t.query(`update users set garden_level = 1`); // tingkat kebun ikut progres
+        await t.query(`update kuis_questions set shown = 0, answered = 0, correct = 0`); // statistik soal dari masa uji
         // pesan email/WA yang belum terkirim (mis. kabar progres lama) dibatalkan; riwayat kiriman tetap
         await t.query(`delete from outbox where status in ('queued','sending')`);
         if (!keepFriends) await t.query(`delete from friendships`);
