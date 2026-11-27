@@ -1,6 +1,7 @@
-// Lembar kontak Sahabat Mungil (paket konten 23): sembilan sahabat — gambar biasa, gambar trik / terbang, warna kerang
-// umang-umang, kalung emas Sahabat Sejati, ikon Album (siluet), ikon item, dan Pondok Sahabat di peta. Untuk paket
-// desain & pemeriksaan gambar (tanpa server).
+// Lembar kontak Sahabat Mungil (paket konten 23 & 24): sembilan sahabat + dua sahabat besar Edisi Natal — gambar biasa,
+// gambar trik / terbang, warna kerang umang-umang, kalung emas Sahabat Sejati, pose Akrab (di kepala pet; sahabat besar:
+// bantal / di samping pet), ikon Album (siluet), ikon item, dan Pondok Sahabat di peta. Untuk paket desain & pemeriksaan
+// gambar (tanpa server).
 // Jalankan: npm run sahabat-sheet -- [folder keluaran]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -15,18 +16,23 @@ mkdirSync(OUT, { recursive: true });
 const cell = (title, svg, sub = '') => `<figure><div class="art">${svg}</div><figcaption><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</figcaption></figure>`;
 const stage = (inner, vb = '-40 -60 80 66') => `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
 // frame trik / terbang: kelas yang sama dengan game, ditampilkan lewat CSS lembar ini
-const frame = (sp, cls, o = {}) => stage(`<g class="bud ${cls}">${buddyMarkup(sp, o)}</g>`, SAHABAT_INFO[sp].fly && !o.perch ? '-40 -92 80 98' : undefined);
+const frame = (sp, cls, o = {}) => stage(`<g class="bud ${cls}">${buddyMarkup(sp, o)}</g>`, SAHABAT_INFO[sp].fly && !o.perch ? '-40 -92 80 98' : SAHABAT_INFO[sp].big ? '-58 -80 116 86' : undefined);
 const pet = { color: '#F6B7A8', ear: 'kucing', pattern: 'polos', eyes: 'bulat', tail: 'bulat' };
 
 let rows = '';
 for (const sp of SAHABAT_SPECIES) {
   const I = SAHABAT_INFO[sp];
-  const alt = sp === 'pipit' ? frame(sp, 'mv') : sp === 'kunang' ? frame(sp, 'nite') : ['umang', 'bebek', 'kura', 'hamster', 'landak'].includes(sp) ? frame(sp, 'trk') : frame(sp, 'flip', { flip: true });
-  const altLabel = sp === 'pipit' ? 'terbang' : sp === 'kunang' ? 'malam' : ['umang', 'bebek', 'kura', 'hamster', 'landak'].includes(sp) ? `trik: ${I.trick}` : 'menghadap kiri';
+  const trk = ['umang', 'bebek', 'kura', 'hamster', 'landak', 'beruang', 'rusa'].includes(sp);
+  const alt = sp === 'pipit' ? frame(sp, 'mv') : sp === 'kunang' ? frame(sp, 'nite') : trk ? frame(sp, 'trk') : frame(sp, 'flip', { flip: true });
+  const altLabel = sp === 'pipit' ? 'terbang' : sp === 'kunang' ? 'malam' : trk ? `trik: ${I.trick}` : 'menghadap kiri';
+  // pose Akrab: di kepala pet; sahabat besar Edisi Natal: bantal (beruang) / berdiri di samping pet (rusa)
+  const akrab = I.big
+    ? cell(sp === 'beruang' ? 'bantal pet tidur' : 'di samping pet', stage(sp === 'beruang' ? `<g transform="translate(-40 1) scale(.943)">${buddyMarkup(sp, { pose: 'pillow', perch: true, lvl: 1, flip: true })}</g><g transform="translate(6 0) scale(.82)">${renderPet(pet)}</g>` : `<g transform="translate(-8 0) scale(.82)">${renderPet(pet)}</g><g transform="translate(60 0) scale(-1 1)">${buddyMarkup(sp, { pose: 'side', lvl: 1 })}</g>`, '-80 -150 160 156'))
+    : cell('di kepala pet', stage(`<g transform="scale(.82)">${renderPet(pet)}<g transform="translate(${sp === 'pipit' ? 3 : 0} ${sp === 'pipit' ? -74 : -70})">${buddyMarkup(sp, { perch: true, lvl: 1 })}</g></g>`, '-60 -150 120 156'));
   rows += `<section><h2>${I.name}</h2><p>${I.sifat}</p><div class="row">` +
     cell('biasa', frame(sp, '')) + cell(altLabel, alt) + cell('Sahabat Sejati', frame(sp, '', { lvl: 2 }), 'kalung emas') +
     cell('oleh-oleh', frame(sp, '', { gift: true })) +
-    cell('di kepala pet', stage(`<g transform="scale(.82)">${renderPet(pet)}<g transform="translate(${sp === 'pipit' ? 3 : 0} ${sp === 'pipit' ? -74 : -70})">${buddyMarkup(sp, { perch: true, lvl: 1 })}</g></g>`, '-60 -150 120 156')) +
+    akrab +
     cell('Album (belum)', buddyIcon(sp, { sil: true })) +
     `</div></section>`;
 }

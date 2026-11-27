@@ -21,6 +21,9 @@ const adm = await request.newContext({ baseURL: BASE });
 check((await adm.post('/api/admin/login', { data: ADMIN })).ok(), 'admin masuk');
 const cat = await (await adm.get('/api/catalog')).json();
 const byId = Object.fromEntries(cat.items.map((i) => [i.id, i]));
+// barang edisi lain yang sedang dijual di tab yang sama (mis. sahabat Edisi Natal paket 24, pita "✦ Edisi Natal")
+const onSale = (i) => (!i.available_from || new Date(i.available_from).getTime() <= Date.now()) && (!i.available_to || new Date(i.available_to).getTime() > Date.now());
+const OTHER = cat.items.filter((i) => i.shop === 'mutiara' && Number(i.data?.edisi) > 0 && !EDISI.includes(i.id) && onSale(i)).map((i) => i.name);
 check(EDISI.every((id) => byId[id]?.data?.edisi === 1 && byId[id].price_pearl > 0 && byId[id].shop === 'mutiara'), 'katalog memuat 10 barang Edisi Spesial (Mutiara, Toko Mutiara)');
 /** ubah item lewat admin (PUT memakai seluruh isian item) */
 async function adminEdit(id, patch) {
@@ -86,10 +89,11 @@ async function checkEdisiTab(pl, tag, n = 10) {
     return { name: c.querySelector('.name')?.textContent, edisi: c.classList.contains('edisi'), ribbon: c.querySelector('.ribbon')?.textContent ?? '', sub: c.querySelector('.sub')?.textContent ?? '', cd: c.querySelector('.cd')?.textContent ?? '',
       inside: r.left >= -1 && r.right <= innerWidth + 1 && (!rib || rib.left >= -1), clash: !!(rib && bad && rib.right > bad.left - 1 && rib.bottom > bad.top && rib.top < bad.bottom), live: !!c.querySelector('.ic.edfx') };
   }));
-  check(cards.length === n && cards.every((c) => c.edisi && c.ribbon === '✦ Edisi Spesial' && c.live), `${tag}: ${cards.length} kartu Edisi Spesial dengan pita "✦ Edisi Spesial" & pratinjau .edfx`);
+  const mine = cards.filter((c) => !OTHER.includes(c.name));
+  check(mine.length === n && cards.length === n + OTHER.length && cards.every((c) => c.edisi && c.live) && mine.every((c) => c.ribbon === '✦ Edisi Spesial'), `${tag}: ${mine.length} kartu Edisi Spesial dengan pita "✦ Edisi Spesial" & pratinjau .edfx${OTHER.length ? ` (+ ${OTHER.length} edisi lain: ${OTHER.join(', ')})` : ''}`);
   check(cards.every((c) => /✦/.test(c.sub)), `${tag}: kartu menyebut efeknya (${cards[0]?.sub})`);
   check(cards.every((c) => c.inside && !c.clash), `${tag}: kartu di dalam layar, pita tidak bertumpuk dengan lencana`);
-  return cards;
+  return mine;
 }
 
 /** foto kartu-kartu: panel digulir sampai spanduk di atas */
@@ -213,7 +217,7 @@ check((await adminEdit('es-wayanggolek', { available_to: new Date(Date.now() - 6
 await W(400);
 await openEdisi(B.p);
 cards = await B.p.evaluate(() => [...document.querySelectorAll('.grid .card .name')].map((n) => n.textContent));
-check(cards.length === 9 && !cards.includes('Wayang Golek Menari'), `HP 320: barang lewat batas tidak tampil (${cards.length} kartu)`);
+check(cards.length === 9 + OTHER.length && !cards.includes('Wayang Golek Menari'), `HP 320: barang lewat batas tidak tampil (${cards.length} kartu)`);
 const nb = await B.ctx.request.post(BASE + '/api/shop/buy', { data: { itemId: 'es-wayanggolek', currency: 'pearl' } });
 check(nb.status() === 400 && (await nb.json()).error?.code === 'not_for_sale', `HP 320: server menolak beli barang lewat batas (${nb.status()})`);
 check((await adminEdit('es-wayanggolek', { available_to: null })).ok(), 'admin: batas jual Wayang Golek dihapus lagi');

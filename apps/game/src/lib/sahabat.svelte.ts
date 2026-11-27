@@ -1,8 +1,8 @@
 // Sahabat Mungil (game): sahabat milik pemain (G.me.sahabat dari server), aksi (anak ayam pertama, pipit, kunang-kunang,
 // ajak / istirahatkan, nama, warna kerang, camilan, main, oleh-oleh, jalan di peta), dan lencana BARU Pondok Sahabat.
 // Semua aturan & batas harian di server (routes/sahabat.ts); di sini hanya tampilan & panggilan API.
-import { SAHABAT_INFO, SAHABAT_LEVELS, isSahabatSp, kunangOpen, localHM, tzOf, type SahabatSp } from '@kb/shared';
-import { G, item, post, run, serverNow, settings, toast, fx } from './game.svelte';
+import { SAHABAT_INFO, SAHABAT_LEVELS, isSahabatSp, kunangOpen, localHM, tanggalWIB, tzOf, type SahabatSp } from '@kb/shared';
+import { G, canBuy, item, post, run, serverNow, settings, toast, fx } from './game.svelte';
 import { tzMin } from './alun.svelte';
 import { sfx } from './sfx';
 
@@ -27,6 +27,10 @@ export const spName = (sp: string) => (isSahabatSp(sp) ? item(SAHABAT_INFO[sp].i
 export const levelLabel = (lvl: number) => SAHABAT_LEVELS[Math.max(0, Math.min(2, lvl | 0))];
 /** sahabat aktif pemain sendiri dalam bentuk yang sama dengan sahabat pemain lain */
 export const myLook = (): BuddyLook | null => { const b = activeBuddy(); return b ? { sp: b.sp, name: b.name, v: b.variant, lvl: b.lvl } : null; };
+/** sahabat edisi terbatas (Edisi Natal) yang masih dijual sekarang (masa jual = jadwal jual item-nya, dicek juga di server) */
+export const edisiOnSale = (sp: SahabatSp) => { const it = item(SAHABAT_INFO[sp].item); return !!it && canBuy(it); };
+/** batas jual sahabat edisi, untuk teks ("6 Januari"); '' bila tanpa batas */
+export const edisiUntil = (sp: SahabatSp) => { const t = item(SAHABAT_INFO[sp].item)?.available_to; return t ? tanggalWIB(t) : ''; };
 /** sudah malam untuk kunang-kunang (jam setempat, sama dengan aturan server) */
 export function kunangNight() {
   const k = settings().sahabat?.kunang ?? { fromHour: 19, toHour: 4 };
@@ -46,6 +50,7 @@ export function howText(sp: SahabatSp) {
     case 'mancing': return 'Kadang ikut tersangkut kail di Kolam Pancing. Langka!';
     case 'pipit': return 'Pasang Tempat Minum Burung atau Sangkar Burung di Halaman. Pipit akan mampir sendiri.';
     case 'kunang': return `Muncul di halaman rumahmu pukul ${hh(k.fromHour)}–${hh(k.toHour)}. Ketuk untuk menangkapnya.`;
+    case 'edisi': { const until = edisiUntil(sp); return `Edisi terbatas di Toko Mutiara${until ? ` sampai ${until}` : ''}.`; }
   }
 }
 
@@ -54,7 +59,9 @@ function levelUp(r: any) {
   sfx.level();
   fx('sparkle');
   const pet = G.me?.pet?.name ?? 'pet-mu';
-  setTimeout(() => toast(r.up >= 2 ? `${r.name} jadi Sahabat Sejati! Kalung emasnya berkilau.` : `${r.name} sekarang Akrab! Ia punya trik & suka duduk di kepala ${pet}.`, 'good', 4200), 700);
+  // sahabat besar Edisi Natal tidak duduk di kepala pet: beruang jadi bantal, rusa berdiri di samping pet
+  const akrab = r.sp === 'beruang' ? `jadi bantal empuk saat ${pet} tidur` : r.sp === 'rusa' ? `menemani di samping ${pet} saat duduk atau tidur` : `suka duduk di kepala ${pet}`;
+  setTimeout(() => toast(r.up >= 2 ? `${r.name} jadi Sahabat Sejati! Kalung emasnya berkilau.` : `${r.name} sekarang Akrab! Ia punya trik & ${akrab}.`, 'good', 4200), 700);
 }
 
 /** sahabat pertama: anak ayam di depan pintu */

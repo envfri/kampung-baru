@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import ItemCard from '../components/ItemCard.svelte';
   import { G, canBuy, effText, fmt, owned, hasItem, run, post, toast, switchRoom, settings, serverNow, fx, item as itemOf } from '../lib/game.svelte';
-  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice, growText, isEdisi, EDISI_SPESIAL, EDISI_EFEK, sisaWaktu } from '@kb/shared';
+  import { footprint, itemIcon, renderPet, mannequinSVG, shade, PREMIUM_SETS, PREMIUM_SET_BY_KEY, bundlePrice, growText, isEdisi, EDISI_SPESIAL, EDISI_EFEK, EDISI_NATAL, sisaWaktu, tanggalWIB } from '@kb/shared';
   import { api } from '../lib/api';
   import { COIN, PEARL, I } from '../lib/icons';
   import { sfx } from '../lib/sfx';
@@ -53,11 +53,13 @@
   let confirm = $state('');
   const list = $derived.by(() => {
     if (cat === 'set') return [];
-    if (cat === 'edisi') return edisi;
-    const l = all.filter((i) => (!cat || i.kind === cat) && (!wearShop || !slot || slotOf(i) === slot));
+    const l = cat === 'edisi' ? edisi : all.filter((i) => (!cat || i.kind === cat) && (!wearShop || !slot || slotOf(i) === slot));
     // barang baru tampil lebih dulu (yang paling baru di atas); sisanya tetap urutan katalog
     return [...l].sort((a, b) => (isNew(b) ? Number(b.new_until) : 0) - (isNew(a) ? Number(a.new_until) : 0));
   });
+  // Edisi Natal (sahabat besar, paket konten 24) di tab Edisi Spesial: spanduk musim dingin & batas jualnya
+  const natal = $derived(edisi.filter((i) => i.kind === 'sahabat' && SAHABAT_INFO[SAHABAT_BY_ITEM[i.id]]?.edisi === 'natal'));
+  const natalUntil = $derived(natal.map((i) => i.available_to).filter(Boolean).sort()[0] ?? null);
   // set premium (Toko Mutiara): paket semua item yang belum dimiliki dengan diskon, bonus suasana di ruangan
   const sets = $derived(loc?.kind === 'pearl' ? PREMIUM_SETS.map((st) => {
     const its = st.items.map((id) => all.find((i) => i.id === id)).filter(Boolean) as any[];
@@ -88,6 +90,7 @@
     if (isEdisi(it)) {
       const ef = EDISI_EFEK[it.art?.key] ?? 'Efek bergerak';
       if (it.kind === 'furniture') { const f = footprint(it); return `${f.w}×${f.d} · ✦ ${ef}`; }
+      if (it.kind === 'sahabat') return `Sahabat besar · ✦ ${ef}`;
       return `${it.kind === 'floor' ? 'Lantai' : it.kind === 'wallpaper' ? 'Dinding' : KIND_LABEL[it.kind] ?? ''} · ✦ ${ef}`;
     }
     if (it.kind === 'furniture') { const f = footprint(it); return `Ukuran ${f.w}×${f.d}${f.flat ? ' · karpet' : ''}${setName ? ` · ${setName}` : ''}`; }
@@ -306,6 +309,13 @@
           <b>{EDISI_SPESIAL.badge}</b>
           <p>{EDISI_SPESIAL.desc}</p>
         </div>
+        {#if natal.length}
+          <div class="natban" role="note">
+            <svg class="natsnow edfx" viewBox="0 0 120 40" aria-hidden="true">{#each [[12, 12, 3.4, 0], [38, 28, 2.6, -1.6], [66, 10, 3, -0.8], [94, 26, 2.4, -2.4], [110, 9, 2.8, -3.2]] as [x, y, r, d]}<g transform="translate({x} {y})"><g class="nt-flake" style="animation-delay:{d}s"><path d="M0 {-r}V{r}M{-r * 0.87} {-r / 2}L{r * 0.87} {r / 2}M{-r * 0.87} {r / 2}L{r * 0.87} {-r / 2}" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" /></g></g>{/each}</svg>
+            <b>✦ {EDISI_NATAL.name}</b>
+            <p>{natal.map((i) => i.name).join(' & ')}: {EDISI_NATAL.desc}{natalUntil ? ` Dijual sampai ${tanggalWIB(natalUntil)}.` : ''}</p>
+          </div>
+        {/if}
       {/if}
       {#if cat === 'set'}
         <p class="hint">Paket berisi semua item set yang belum kamu punya, hemat {settings().premium?.bundleDiscount ?? 20}%. Pasang {settings().premium?.bonusMin ?? 3} item atau lebih dari set yang sama di satu ruangan untuk efek suasana.</p>
@@ -474,6 +484,10 @@
   .edban b { position: relative; font-size: 17px; font-weight: 800; color: #FFE27A; }
   .edban p { position: relative; margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
   .edstars { position: absolute; right: 6px; top: 4px; width: 120px; height: 40px; opacity: .9; pointer-events: none; }
+  .natban { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; border: 2.5px solid var(--ink); border-radius: 16px; padding: 8px 12px 10px; background: linear-gradient(120deg, #1F5A3D, #2E7A50 55%, #A8322A); color: #FFFDF7; box-shadow: 0 3px 0 var(--ink); }
+  .natban b { position: relative; font-size: 17px; font-weight: 800; color: #FFE27A; }
+  .natban p { position: relative; margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .natsnow { position: absolute; right: 6px; top: 4px; width: 120px; height: 40px; opacity: .9; pointer-events: none; }
   .cd { font-size: 12px; font-weight: 800; color: #8E2A1E; background: #FFE9D6; border: 1.5px solid #E0583F; border-radius: 999px; padding: 0 8px; }
   .incl { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.2; color: #6B3FA0; background: #F1EAFB; border-radius: 8px; padding: 2px 6px; overflow-wrap: anywhere; }
   .incl b { font-weight: 800; }

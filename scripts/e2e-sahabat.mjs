@@ -311,7 +311,8 @@ try {
   check(await A.p.locator('.sheet button.sahabat').count() === 1, '390: Tas › Sahabat Mungil');
   await A.p.locator('.sheet button.sahabat').click(); await W(500);
   await A.p.getByRole('tab', { name: /Album/ }).click(); await W(400);
-  const cells = await A.p.locator('.sheet .album .cell').count(), unk = await A.p.locator('.sheet .album .cell.unk').count();
+  // sahabat biasa (bagian Edisi Natal paket 24 terpisah, diuji di e2e-natal)
+  const cells = await A.p.locator('.sheet .album.biasa .cell').count(), unk = await A.p.locator('.sheet .album.biasa .cell.unk').count();
   check(cells === 9 && unk === 2, `390: Album 9 sahabat, ${unk} siluet (belum dimiliki)`);
   check((await A.p.locator('.sheet .album .cell.unk small.hint').allInnerTexts()).every((t) => t.length > 20), '390: siluet diberi petunjuk cara mendapatkan');
   await shot(A, '13-album');

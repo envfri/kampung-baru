@@ -1,14 +1,18 @@
 // Sahabat Mungil: sembilan hewan kecil yang menemani pet (anak ayam, umang-umang, anak bebek, kura-kura, burung pipit,
-// kunang-kunang, kelinci mini, hamster pipi tembam, landak mini), ikon kartu, Camilan Sahabat, Kerang Hias, dan Pondok
-// Sahabat di peta. Semua orisinal: garis tinta INK tebal, isian datar, menghadap ke kanan (dibalik saat jalan ke kiri).
+// kunang-kunang, kelinci mini, hamster pipi tembam, landak mini) + dua sahabat besar Edisi Natal (Beruang Es & Rusa
+// Kutup, paket konten 24), ikon kartu, Camilan Sahabat, Kerang Hias, dan Pondok Sahabat di peta. Semua orisinal: garis
+// tinta INK tebal, isian datar, menghadap ke kanan (dibalik saat jalan ke kiri).
 //
 // Koordinat = ruang pet (renderPet): kaki di (0,0), satu sahabat ±34 lebar & ±30 tinggi (pet ±100 × 110), jadi di rumah
 // & peta cukup memakai skala pet yang sama. Bagian yang bergerak diberi kelas (diatur CSS game, app.css):
 //   b-n = gambar biasa, b-t = gambar trik (disembunyikan; tampil saat kelas .trk), b-f = sayap terbuka (pipit terbang),
 //   b-glow = cahaya kunang-kunang, b-pk = kepala mematuk / mengangguk.
+// Edisi Natal (digambar langsung ±1,6× lebih besar): efek kecil berkelas nt-* (salju, lampu tanduk, jejak kilau, napas
+// dingin, lonceng, bintang trik). Efek terus-menerus (salju & lampu) tampil diam di posisinya; jejak & bintang trik
+// tersembunyi (opacity 0) sampai CSS menyalakannya (.mv / .trk / .idl).
 // Foto Jepret tidak membawa CSS, jadi gambar dasar (b-n) selalu frame diam yang pas.
 import { INK, shade, registerArt, registerMapPlace, type IconDef } from './art';
-import { SAHABAT_INFO, SAHABAT_SPECIES, UMANG_COLORS, UMANG_DEFAULT, type SahabatSp } from './sahabat';
+import { SAHABAT_INFO, SAHABAT_SPECIES, UMANG_COLORS, UMANG_DEFAULT, buddyScale, type SahabatSp } from './sahabat';
 
 const f1 = (v: number) => Math.round(v * 10) / 10;
 const S = (w = 2.4) => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
@@ -23,7 +27,14 @@ const shadow = (rx = 14) => `<ellipse cx="0" cy="-0.5" rx="${rx}" ry="3.4" fill=
 /* Gambar tiap jenis                                                    */
 /* ------------------------------------------------------------------ */
 
-type Draw = { n: string; t?: string; f?: string; collar: [number, number, number]; head: number; shadow: number };
+type Draw = {
+  n: string; t?: string; f?: string; collar: [number, number, number]; head: number; shadow: number;
+  /** Edisi Natal: l = gambar berbaring (bantal), lcollar = letak kalung saat berbaring, ck = skala kalung emas */
+  l?: string; lcollar?: [number, number, number]; ck?: number;
+  /** efek di luar badan (tidak ikut bergoyang): fx = selalu tampil (salju), back = di belakang badan (jejak kilau, bintang
+   * trik), glow = cahaya lembut lampu tanduk saat berdiri di samping pet (pose 'side') */
+  fx?: string; back?: string; glow?: string;
+};
 
 function ayam(): Draw {
   const Y = '#F7D65A', dk = shade(Y, -0.18);
@@ -156,6 +167,116 @@ function landak(): Draw {
   return { n: feet + back + face, t, collar: [6.6, -6, 9], head: 26, shadow: 16 };
 }
 
+/* ---------- Edisi Natal (paket konten 24): sahabat besar, digambar langsung ±1,6× ---------- */
+const GOLD = '#F2B632';
+/** butiran salju kecil bercabang enam (garis biru muda + inti putih) */
+const flake = (r: number) => {
+  const a = f1(r * 0.87), b = f1(r / 2);
+  const d = `M0 ${-r}V${r}M${-a} ${-b}L${a} ${b}M${-a} ${b}L${a} ${-b}`;
+  return `<path d="${d}" stroke="#8DBFE0" stroke-width="2.8" stroke-linecap="round"/><path d="${d}" stroke="#FFFFFF" stroke-width="1.3" stroke-linecap="round"/>`;
+};
+/** bintang berujung empat (kilau es, kilau emas, bintang trik) */
+const star4 = (r: number, fill: string, stroke: string, w = 1) => {
+  const q = f1(r * 0.28);
+  return `<path d="M0 ${-r}L${q} ${-q}L${r} 0L${q} ${q}L0 ${r}L${-q} ${q}L${-r} 0L${-q} ${-q}Z" fill="${fill}" stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round"/>`;
+};
+/** satu partikel efek: letak lewat atribut, gerak lewat CSS (kelas cls), jeda awal d detik, opacity awal op */
+const part = (x: number, y: number, cls: string, inner: string, d = 0, op?: number) =>
+  `<g transform="translate(${x} ${y})"><g class="${cls}"${d ? ` style="animation-delay:${d}s"` : ''}${op === undefined ? '' : ` opacity="${op}"`}>${inner}</g></g>`;
+
+function beruang(): Draw {
+  const W = '#F6F9FD', SH = '#D3DFEC', IN = '#F4C6D0', NOSE = '#3A3550', RED = '#D9473B', GRN = '#3E9A5A', PINK = '#FF8FA3';
+  const stripes = (d: string) => `<path d="${d}" stroke="${GRN}" stroke-width="2.3" stroke-linecap="round"/>`;
+  // berdiri: kaki jauh (lebih gelap) → badan + kepala + telinga + kaki dekat jadi satu siluet → wajah & selendang
+  const farLegs = `<g fill="${SH}" ${S(2.4)}><rect x="-11" y="-15" width="9.5" height="15.4" rx="4.4"/><rect x="15" y="-15" width="9.5" height="15.4" rx="4.4"/></g>`;
+  const body = blob([
+    `<circle cx="9" cy="-41.5" r="4.8"/>`, `<circle cx="21" cy="-43.5" r="4.8"/>`,
+    `<ellipse cx="-2" cy="-18.5" rx="22.5" ry="14.5"/>`, `<circle cx="17" cy="-31" r="12.6"/>`, `<ellipse cx="27.6" cy="-27.4" rx="7.2" ry="5.6"/>`,
+    `<rect x="4.6" y="-16" width="10.8" height="16.4" rx="4.8"/>`, `<rect x="-21.5" y="-16" width="11.2" height="16.4" rx="4.8"/>`, `<circle cx="-24" cy="-22" r="4.2"/>`,
+  ], W, 5);
+  const details = `<circle cx="21" cy="-43.2" r="2.1" fill="${IN}"/><circle cx="9.2" cy="-41.2" r="1.9" fill="${SH}"/>` +
+    `<path d="M-17 -7.5q11 5.4 22 1.2" fill="none" stroke="${SH}" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M7.8 -2v-2.6M11.4 -2v-2.6M-18.4 -2v-2.6M-14.8 -2v-2.6" stroke="${SH}" stroke-width="1.6" stroke-linecap="round"/>` +
+    `<ellipse cx="33.4" cy="-29" rx="2.7" ry="2.2" fill="${NOSE}" ${S(1.4)}/><path d="M31 -24.6q-2.2 1.8 -4.8 0.3" fill="none" ${S(1.5)}/>` +
+    eye(22, -33.6, 2.4) + `<ellipse cx="23.4" cy="-26.6" rx="3.4" ry="2" fill="${PINK}" opacity=".7"/>`;
+  // selendang rajut merah-hijau: lingkar leher + ujung menjuntai berumbai
+  const scarf = `<path d="M4.2 -24.4Q11.6 -17.6 20.2 -22L21.4 -16.4Q11.4 -11.8 3 -18.8Z" fill="${RED}" ${S(2.2)}/>` + stripes('M7.8 -21.2l-1.3 4.4M12.4 -19.6l-0.6 4.6M16.8 -20.4v4.4') +
+    `<path d="M13.6 -16.8L18.8 -5L13 -3.8L10.8 -15.6Z" fill="${RED}" ${S(2)}/>` + stripes('M12.4 -9.8l5 -1') +
+    `<path d="M13.6 -3.6v2.2M15.8 -4v2.2M18 -4.6v2.2" stroke="${INK}" stroke-width="1.4" stroke-linecap="round"/>`;
+  const n = farLegs + body + details + scarf;
+  // trik: meluncur di perut sambil mendorong bola salju (mata terpejam senang, selendang berkibar ke belakang)
+  const tb = blob([
+    `<circle cx="15" cy="-24" r="4.4"/>`, `<circle cx="25.6" cy="-26" r="4.4"/>`,
+    `<ellipse cx="-1" cy="-10.6" rx="24.5" ry="10.2"/>`, `<circle cx="22" cy="-15" r="11.6"/>`, `<ellipse cx="31.6" cy="-12.4" rx="6.6" ry="5"/>`,
+    `<ellipse cx="33.4" cy="-3.6" rx="7.4" ry="3.4"/>`, `<ellipse cx="-25.6" cy="-4.4" rx="6.8" ry="3.4"/>`,
+  ], W, 5);
+  const spray = `<g fill="#FFFFFF" stroke="#8DBFE0" stroke-width="1.2"><circle cx="-31" cy="-8" r="2.6"/><circle cx="-35.4" cy="-3.4" r="1.9"/><circle cx="-30" cy="-1.6" r="1.6"/></g>`;
+  const t = spray + tb +
+    `<path d="M11 -21.6Q0 -27.4 -12 -23.4L-10.2 -18.4Q1 -21.2 11.6 -16.2Z" fill="${RED}" ${S(2)}/>` + stripes('M4 -22.8l1 4.2M-3 -23.2l0.6 4.4') +
+    `<path d="M-12 -23.4l-3.4 -1.2M-11.2 -20.8l-3.6 0M-10.2 -18.4l-3.2 1.2" stroke="${INK}" stroke-width="1.3" stroke-linecap="round"/>` +
+    `<circle cx="25.6" cy="-25.8" r="2" fill="${IN}"/>` +
+    `<path d="M21.8 -18.2q2.4 -2.8 4.8 0" fill="none" ${S(2)}/><ellipse cx="37.4" cy="-13.6" rx="2.5" ry="2.1" fill="${NOSE}" ${S(1.3)}/><path d="M35.6 -9q-2.8 3 -6 0.6" fill="#F38BA0" ${S(1.5)}/>` +
+    `<ellipse cx="26.6" cy="-10.4" rx="3.2" ry="1.9" fill="${PINK}" opacity=".7"/>` +
+    `<path d="M9.4 -20.8Q13.2 -14.6 18.4 -16.8L19 -12.8Q12.6 -10.6 8.6 -16.6Z" fill="${RED}" ${S(1.8)}/>` +
+    `<circle cx="48" cy="-8.2" r="7.8" fill="#FFFFFF" ${S(2.4)}/><path d="M43.4 -4.6q4.4 3 9.6 -1.4" fill="none" stroke="#CFE4F3" stroke-width="2.2" stroke-linecap="round"/><circle cx="45.6" cy="-11" r="1.4" fill="#E6F2FB"/>`;
+  // berbaring (bantal untuk pet yang tidur): kepala bersandar di kaki depan, mata terpejam
+  const lb = blob([
+    `<circle cx="12.4" cy="-22.4" r="4.4"/>`, `<circle cx="23.4" cy="-24.2" r="4.4"/>`,
+    `<ellipse cx="-2" cy="-11.4" rx="24.5" ry="11.4"/>`, `<circle cx="20" cy="-13" r="11.6"/>`, `<ellipse cx="29.6" cy="-10.2" rx="6.4" ry="4.8"/>`,
+    `<ellipse cx="25" cy="-2.6" rx="9" ry="3.2"/>`, `<circle cx="-25.4" cy="-14" r="3.8"/>`,
+  ], W, 5);
+  const l = lb + `<circle cx="23.4" cy="-24" r="2" fill="${IN}"/>` +
+    `<path d="M-19 -4.6q12 4 24 0.6" fill="none" stroke="${SH}" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M17.6 -14.6q2.4 1.8 4.8 0" fill="none" ${S(1.9)}/><ellipse cx="33.8" cy="-11.4" rx="2.4" ry="2" fill="${NOSE}" ${S(1.3)}/>` +
+    `<ellipse cx="23.6" cy="-9.4" rx="3.2" ry="1.9" fill="${PINK}" opacity=".7"/>` +
+    `<path d="M6.6 -21Q10.6 -12 9.2 -3L14 -3.2Q15.6 -12.4 11.8 -21.8Z" fill="${RED}" ${S(2)}/>` + stripes('M8 -17.2l4.4 -0.8M9.2 -10.6l4.6 -0.4');
+  // salju yang selalu menari di sekitarnya (5 butir) & napas dingin (tampil saat .idl)
+  const fx = ([[-31, -42, 3, -0.8], [-12, -56, 2.4, -2.4], [6, -59, 2.6, -1.6], [37, -45, 2.8, -3.2], [-37, -21, 2.2, 0]] as number[][])
+    .map(([x, y, r, d]) => part(x, y, 'nt-flake', flake(r), d)).join('') +
+    part(38.6, -27.4, 'nt-breath', `<g fill="#FFFFFF" stroke="#A9CDE6" stroke-width="1.2"><circle r="3.2"/><circle cx="4.4" cy="-1.6" r="2.6"/><circle cx="7.6" cy="0.8" r="2"/></g>`, 0, 0);
+  // kilau es di bekas pijakan (tampil saat berjalan)
+  const back = ([[12, -1, 0], [-15, -1, -0.15], [20, 0.4, -0.3], [-6, 0.4, -0.45]] as number[][])
+    .map(([x, y, d]) => part(x, y, 'nt-frost', star4(3.6, '#E9F7FF', '#79B4DA'), d, 0)).join('');
+  return { n, t, l, collar: [12.4, -15.6, 17], lcollar: [10.4, -6.6, 11], ck: 1.3, head: 49, shadow: 26, fx, back };
+}
+
+function rusa(): Draw {
+  const BR = '#B67B49', DK = shade(BR, -0.24), CR = '#F4E3C6', HOOF = '#5A3A26', ANT = '#DDB97F', NOSE = '#4A3428', RED = '#C8372D';
+  const leg = (x: number, fill: string, rot = 0) => `<g${rot ? ` transform="rotate(${rot} ${f1(x + 2.7)} -17)"` : ''}><rect x="${x}" y="-18" width="5.4" height="16.6" rx="2.4" fill="${fill}" ${S(2.2)}/><rect x="${f1(x - 0.4)}" y="-3.4" width="6.2" height="3.8" rx="1.4" fill="${HOOF}" ${S(1.6)}/></g>`;
+  // tanduk: garis tinta tebal lalu warna tanduk di atasnya (cabang menyatu tanpa sambungan)
+  const antD = (near: boolean) => near
+    ? 'M23 -50.5C24.5 -58 22 -64 17.5 -71M23.6 -58L30.6 -62.4M21.2 -65L27.4 -70.6M23.4 -53.6L29 -55.4'
+    : 'M17.5 -50C15 -57 10 -61 4.6 -64M13.2 -57.6L12.2 -65.6M8.6 -61.4L6.4 -68';
+  const antler = (near: boolean) => `<path d="${antD(near)}" fill="none" stroke="${INK}" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/><path d="${antD(near)}" fill="none" stroke="${near ? ANT : shade(ANT, -0.12)}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // lampu kecil di tanduk (berkelip bergantian: .nt-light)
+  const BULBS: [number, number, string, number][] = [[21.8, -56.6, '#FFD95A', 0], [17.2, -55.8, '#FF7B7B', -0.4], [29.4, -61.2, '#7BD88F', -1.2], [17.2, -62.8, '#7CC0FF', -0.8], [7.1, -65.6, '#FFF3C4', -0.2]];
+  const wire = `<path d="M24.4 -59.4Q20.4 -54.4 14.4 -57.2Q11.6 -58.6 10.4 -59.6M21.2 -66Q17.6 -61.6 12.4 -63.6" fill="none" stroke="#2F5D3A" stroke-width="1.1" stroke-linecap="round"/>`;
+  const bulbs = BULBS.map(([x, y, c, d]) => part(x, y, 'nt-light', `<ellipse rx="1.8" ry="2.2" fill="${c}" stroke="${INK}" stroke-width=".9"/><circle cx="-.6" cy="-.8" r=".5" fill="#FFFFFF"/>`, d)).join('');
+  const glow = BULBS.map(([x, y, c], k) => part(x, y, 'nt-halo', `<circle r="3.9" fill="${c}"/>`, -k * 0.4, 0.5)).join('');
+  const ear = `<path d="M15.6 -47.6Q8 -53.2 5.6 -48.8Q8.8 -44.8 15.6 -45.8Z" fill="${BR}" ${S(2)}/><path d="M13.2 -47.2Q9.4 -49.6 8.2 -48.6" fill="none" stroke="${CR}" stroke-width="1.6" stroke-linecap="round"/>`;
+  const body = blob([`<ellipse cx="-4" cy="-25" rx="20" ry="10.6"/>`, `<path d="M3 -32L13.6 -47.4L24.6 -42.4L15.8 -22.6Z"/>`, `<ellipse cx="21" cy="-44.2" rx="8.4" ry="7.2"/>`, `<ellipse cx="29" cy="-40.6" rx="6.2" ry="4.8"/>`], BR, 4.8);
+  const tail = `<ellipse cx="-24" cy="-30" rx="3.8" ry="2.6" transform="rotate(-24 -24 -30)" fill="${CR}" ${S(2)}/>`;
+  const marks = `<ellipse cx="-4" cy="-17.8" rx="13" ry="3.4" fill="${CR}"/><ellipse cx="12.4" cy="-27" rx="3.6" ry="5.6" fill="${CR}"/><ellipse cx="29.6" cy="-40" rx="5" ry="3.8" fill="${CR}"/>` +
+    `<ellipse cx="34.6" cy="-41.4" rx="2.5" ry="2.1" fill="${NOSE}" ${S(1.3)}/><path d="M33.6 -37.4q-2 1.4 -4.2 0.4" fill="none" ${S(1.4)}/>` +
+    eye(22.8, -46, 2.2) + `<ellipse cx="25.4" cy="-40.8" rx="3" ry="1.8" fill="#FF8FA3" opacity=".7"/>`;
+  // kalung merah dengan lonceng emas (berayun & berkilau saat .idl / .trk)
+  const collarR = `<path d="M7.4 -36.4Q14.4 -30.2 21.6 -35.8L22.4 -31.8Q14.4 -26 6.6 -32.4Z" fill="${RED}" ${S(1.8)}/>`;
+  const bell = `<g class="nt-bell"><path d="M14.6 -31.4v2" stroke="${INK}" stroke-width="1.4"/><circle cx="14.6" cy="-26.4" r="3.6" fill="${GOLD}" ${S(1.6)}/><path d="M12.6 -25.6h4" stroke="${INK}" stroke-width="1.1" stroke-linecap="round"/><circle cx="13.4" cy="-27.6" r=".9" fill="#FFF4C2"/></g>`;
+  const jingle = part(20.6, -26.6, 'nt-jingle', star4(2.8, '#FFE27A', INK, 0.8), 0, 0) + part(8.4, -23, 'nt-jingle', star4(2.2, '#FFE27A', INK, 0.8), 0.15, 0);
+  const head = ear + antler(false) + antler(true) + wire + bulbs;
+  const n = leg(-13.4, DK) + leg(12.2, DK) + tail + leg(-19.6, BR) + leg(6.6, BR) + body + marks + head + collarR + bell + jingle;
+  // trik: melompat tinggi (kaki terentang)
+  const t = leg(-13.4, DK, 38) + leg(12.2, DK, -38) + tail + leg(-19.6, BR, 44) + leg(6.6, BR, -44) + body + marks + head + collarR + bell;
+  // jejak kilau emas saat berjalan & lengkung bintang emas saat melompat (di belakang badan, tidak ikut melompat)
+  const trail = ([[-19, -3, 0], [-26, -8, -0.12], [-32, -2, -0.24], [-38, -7, -0.36]] as number[][])
+    .map(([x, y, d]) => part(x, y, 'nt-trail', star4(3.2, '#FFE27A', '#C9930F', 0.9), d, 0)).join('');
+  const arc = [-172, -131, -90, -49, -8].map((deg, k) => {
+    const a = (deg * Math.PI) / 180;
+    return part(f1(Math.cos(a) * 44), f1(-40 + Math.sin(a) * 50), 'nt-arc', star4(5.2, '#FFE27A', INK, 1.1), f1(k * 0.11), 0);
+  }).join('');
+  return { n, t, collar: [14.6, -35, 15], ck: 1.25, head: 71, shadow: 24, back: trail + arc, glow };
+}
+
 function drawOf(sp: SahabatSp, variant?: string | null): Draw {
   switch (sp) {
     case 'ayam': return ayam();
@@ -167,6 +288,8 @@ function drawOf(sp: SahabatSp, variant?: string | null): Draw {
     case 'kelinci': return kelinci();
     case 'hamster': return hamster();
     case 'landak': return landak();
+    case 'beruang': return beruang();
+    case 'rusa': return rusa();
   }
 }
 const CACHE = new Map<string, Draw>();
@@ -178,9 +301,9 @@ function cached(sp: SahabatSp, variant?: string | null) {
 }
 
 /** kalung emas Sahabat Sejati: pita emas melengkung & bandul bintang kecil */
-function collar([x, y, w]: [number, number, number]) {
+function collar([x, y, w]: [number, number, number], k = 1) {
   const G = '#F2B632';
-  return `<g class="b-collar"><path d="M${f1(x - w / 2)} ${f1(y - 1.2)}Q${x} ${f1(y + 2.2)} ${f1(x + w / 2)} ${f1(y - 1.2)}" fill="none" stroke="${INK}" stroke-width="4.4" stroke-linecap="round"/>` +
+  return `<g class="b-collar"${k !== 1 ? ` transform="translate(${x} ${y}) scale(${k}) translate(${-x} ${-y})"` : ''}><path d="M${f1(x - w / 2)} ${f1(y - 1.2)}Q${x} ${f1(y + 2.2)} ${f1(x + w / 2)} ${f1(y - 1.2)}" fill="none" stroke="${INK}" stroke-width="4.4" stroke-linecap="round"/>` +
     `<path d="M${f1(x - w / 2)} ${f1(y - 1.2)}Q${x} ${f1(y + 2.2)} ${f1(x + w / 2)} ${f1(y - 1.2)}" fill="none" stroke="${G}" stroke-width="2.2" stroke-linecap="round"/>` +
     `<circle cx="${x}" cy="${f1(y + 2.6)}" r="2.6" fill="${G}" ${S(1.4)}/><circle cx="${f1(x - 0.8)}" cy="${f1(y + 1.8)}" r=".8" fill="#FFF4C2"/></g>`;
 }
@@ -194,8 +317,10 @@ export interface BuddyOpts {
   flip?: boolean;
   /** membawa oleh-oleh (buntelan) */
   gift?: boolean;
-  /** hinggap / duduk (di kepala pet): tanpa bayangan, hewan terbang tidak melayang */
+  /** hinggap / duduk (di kepala pet, atau jadi bantal): tanpa bayangan, hewan terbang tidak melayang */
   perch?: boolean;
+  /** pose Akrab sahabat besar: 'pillow' = berbaring (Beruang Es), 'side' = berdiri di samping pet, lampu menyala lembut */
+  pose?: 'pillow' | 'side' | null;
 }
 
 /**
@@ -205,11 +330,15 @@ export interface BuddyOpts {
 export function buddyMarkup(sp: SahabatSp, o: BuddyOpts = {}) {
   const d = cached(sp, o.variant);
   const fly = o.perch ? 0 : SAHABAT_INFO[sp].fly ?? 0;
-  const col = (o.lvl ?? 0) >= 2 ? collar(d.collar) : '';
-  const frames = `<g class="b-n">${d.n}</g>` + (d.t ? `<g class="b-t" display="none">${d.t}</g>` : '') + (d.f ? `<g class="b-f" display="none">${d.f}</g>` : '');
-  const body = `<g class="bud-bob">${frames}${col}</g>`;
-  // buntelan oleh-oleh ikut dibalik bersama sahabat (selalu di belakangnya)
-  return `<g class="bud-hop">${o.perch ? '' : shadow(d.shadow * (fly ? 0.6 : 1))}<g class="bud-face"${o.flip ? ' transform="scale(-1 1)"' : ''}>${o.gift && !o.perch ? BUNTEL : ''}${fly ? `<g transform="translate(0 -${fly})">${body}</g>` : body}</g></g>`;
+  const pillow = o.pose === 'pillow' && !!d.l;
+  const col = (o.lvl ?? 0) >= 2 ? collar(pillow ? d.lcollar ?? d.collar : d.collar, d.ck) : '';
+  const frames = `<g class="b-n">${pillow ? d.l : d.n}</g>` + (d.t && !pillow ? `<g class="b-t" display="none">${d.t}</g>` : '') + (d.f ? `<g class="b-f" display="none">${d.f}</g>` : '');
+  const body = `<g class="bud-bob">${frames}${col}${o.pose === 'side' && d.glow ? d.glow : ''}</g>`;
+  // efek Edisi Natal: jejak & bintang trik di belakang badan, salju di depan (tidak ikut bergoyang)
+  const inner = (d.back ?? '') + body + (d.fx ?? '');
+  // buntelan oleh-oleh ikut dibalik bersama sahabat (selalu di belakangnya; sahabat besar: sedikit lebih jauh)
+  const gift = o.gift && !o.perch ? (buddyScale(sp) > 1 ? `<g transform="translate(-14 0)">${BUNTEL}</g>` : BUNTEL) : '';
+  return `<g class="bud-hop">${o.perch ? '' : shadow(d.shadow * (fly ? 0.6 : 1))}<g class="bud-face"${o.flip ? ' transform="scale(-1 1)"' : ''}>${gift}${fly ? `<g transform="translate(0 -${fly})">${inner}</g>` : inner}</g></g>`;
 }
 /** tinggi kepala sahabat (untuk letak gelembung) */
 export const buddyHead = (sp: SahabatSp) => cached(sp).head + (SAHABAT_INFO[sp].fly ?? 0);
@@ -218,11 +347,16 @@ export const buddyHead = (sp: SahabatSp) => cached(sp).head + (SAHABAT_INFO[sp].
 export function buddyIcon(sp: SahabatSp, o: { variant?: string | null; lvl?: number; sil?: boolean; trick?: boolean } = {}) {
   const d = cached(sp, o.variant);
   const base = o.trick && d.t ? d.t : d.n;
-  const inner = (o.sil ? base.replace(/<g class="b-glow">[\s\S]*?<\/g>/, '') : base) + ((o.lvl ?? 0) >= 2 && !o.sil ? collar(d.collar) : '');
+  // siluet: tanpa cahaya & kilau yang tersembunyi (jadi tidak muncul sebagai bintik abu-abu)
+  const plain = o.sil ? base.replace(/<g class="b-glow">[\s\S]*?<\/g>/, '').replace(/<g transform="[^"]*"><g class="nt-(?:jingle|breath)"[^>]*>[\s\S]*?<\/g><\/g>/g, '') : base;
+  const inner = plain + ((o.lvl ?? 0) >= 2 && !o.sil ? collar(d.collar, d.ck) : '');
   const body = o.sil
-    ? `<g class="sil" fill="#B9BDCD" stroke="#9EA3B8">${inner.replace(/fill="[^"]*"/g, '').replace(/stroke="[^"]*"/g, '').replace(/opacity="[^"]*"/g, '')}</g>`
-    : inner;
-  return `<svg viewBox="-25 -45 50 49" aria-hidden="true">${o.sil ? '' : shadow(d.shadow)}${body}</svg>`;
+    ? `<g class="sil" fill="#B9BDCD" stroke="#9EA3B8">${inner.replace(/fill="[^"]*"/g, '').replace(/stroke="[^"]*"/g, '').replace(/opacity="[^"]*"/g, '').replace(/ class="nt-[\w-]+"( style="[^"]*")?/g, '')}</g>`
+    : inner + (d.fx ?? '');
+  // sahabat besar (Edisi Natal) digambar lebih besar: bingkainya ikut diperbesar supaya muat di kotak yang sama
+  const k = buddyScale(sp);
+  const vb = k > 1 ? `${f1(-25 * k)} ${f1(-45 * k)} ${f1(50 * k)} ${f1(49 * k)}` : '-25 -45 50 49';
+  return `<svg viewBox="${vb}" aria-hidden="true">${o.sil ? '' : shadow(d.shadow)}${body}</svg>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -232,7 +366,9 @@ export function buddyIcon(sp: SahabatSp, o: { variant?: string | null; lvl?: num
 const iconOf = (sp: SahabatSp, variant?: string) => (c: Record<string, string>) => {
   const v = sp === 'umang' ? (Object.entries(UMANG_COLORS).find(([, x]) => x.main.toLowerCase() === (c.main ?? '').toLowerCase())?.[0] ?? variant) : variant;
   const d = cached(sp, v);
-  return `<g transform="translate(31 47) scale(1.18)">${shadow(d.shadow)}${d.n}</g>`;
+  // sahabat besar: diperkecil supaya muat di ikon 64 × 52 (tanduk rusa & salju tidak terpotong)
+  const k = buddyScale(sp) > 1 ? Math.min(1.18 / buddyScale(sp), 44 / (d.head + 6)) : 1.18;
+  return `<g transform="translate(31 47) scale(${f1(k * 100) / 100})">${shadow(d.shadow)}${d.n}${d.fx ?? ''}</g>`;
 };
 const camilan: IconDef['draw'] = (c) =>
   `<ellipse cx="32" cy="46" rx="20" ry="4" fill="#000" opacity=".12"/>` +

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { SAHABAT_BELI, SAHABAT_BY_ITEM, SAHABAT_INFO, SAHABAT_NAME_MAX, UMANG_DEFAULT, WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
+import { SAHABAT_BELI, SAHABAT_BY_ITEM, SAHABAT_INFO, SAHABAT_NAME_MAX, UMANG_DEFAULT, edisiLabel, isEdisi, tanggalWIB, WEAR_SLOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, activityMessage, addXp, GAMES, applyNeedDelta, bundlePrice, fits, NEED_KEYS, rotOf, PET_COLORS, PET_PARTS, PREMIUM_SET_BY_KEY, partLevel, planProblem, type Needs } from '@kb/shared';
 
 const PART_LABEL = { ear: 'Telinga', pattern: 'Motif', eyes: 'Mata', tail: 'Ekor' } as const;
 /** Validasi bagian tubuh pet: harus dikenal dan sudah terbuka di level pet sekarang. */
@@ -430,7 +430,16 @@ export default async function gameRoutes(app: FastifyInstance, { db }: { db: Db 
     const currency = oneOf(req.body?.currency ?? 'coin', 'Mata uang', ['coin', 'pearl'] as const);
     const cat = await getCatalog(db);
     const item = cat.byId.get(itemId);
-    if (!purchasable(cat, item)) throw bad('not_for_sale', 'Barang ini sedang tidak dijual.');
+    if (!purchasable(cat, item)) {
+      // edisi terbatas di luar masa jualnya: sebut kapan berakhir / mulai (pemilik lama tetap menyimpan barangnya)
+      const now = Date.now();
+      if (item?.active && isEdisi(item)) {
+        const what = `${item.name} (${edisiLabel(item)})`;
+        if (item.available_to && new Date(item.available_to).getTime() <= now) throw bad('not_for_sale', `Masa jual ${what} sudah berakhir pada ${tanggalWIB(item.available_to, true)}. Nantikan edisi berikutnya, ya!`);
+        if (item.available_from && new Date(item.available_from).getTime() > now) throw bad('not_for_sale', `${what} baru dijual mulai ${tanggalWIB(item.available_from, true)}. Tunggu sebentar lagi, ya!`);
+      }
+      throw bad('not_for_sale', 'Barang ini sedang tidak dijual.');
+    }
     const price = currency === 'coin' ? item!.price_coin : item!.price_pearl;
     if (!price) throw bad('wrong_currency', currency === 'coin' ? 'Barang ini dibeli dengan Mutiara.' : 'Barang ini dibeli dengan koin.');
     // bibit kebun yang terkunci level pet (data.minLevel)
