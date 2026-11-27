@@ -313,7 +313,7 @@
         <dl class="kv">
           <dt>ID</dt><dd class="mono">{d.user.id}<Copy text={d.user.id} label="ID disalin" /></dd>
           <dt>Login</dt><dd>{d.identities.map((i: any) => (PROV[i.provider] ?? i.provider) + (i.email ? ` (${i.email})` : '')).join(', ') || 'Tamu (tanpa login)'}</dd>
-          <dt>Sesi aktif</dt><dd>{x?.sessions ?? 0} sesi{#if x?.lastSession} · terakhir masuk <Ago t={x.lastSession} />{/if}</dd>
+          <dt>Sesi aktif</dt><dd>{x?.sessions ?? 0} sesi{#if x?.lastSession}{' '}· terakhir masuk <Ago t={x.lastSession} />{/if}</dd>
           <dt>Privasi</dt><dd>Status online {x?.privacy.showOnline ? 'tampil' : 'disembunyikan'} · kunjungan live {x?.privacy.liveVisits === false ? 'mati' : 'aktif'} · ajakan berteman {x?.privacy.friendRequests ? 'aktif' : 'mati'}</dd>
           <dt>Ruangan</dt><dd>{d.rooms.length} ruangan</dd>
         </dl>
@@ -359,7 +359,7 @@
         <section class="card c">
           <h3>Obrolan & akun</h3>
           <dl class="kv">
-            <dt>Dilaporkan</dt><dd>{x?.reports30 ?? 0}× dalam 30 hari{#if x?.lastReport} · terakhir <Ago t={x.lastReport} />{/if}{#if x?.reports30}<a href="#/moderation?tab=laporan&q={encodeURIComponent(name)}">Lihat laporan</a>{/if}</dd>
+            <dt>Dilaporkan</dt><dd>{x?.reports30 ?? 0}× dalam 30 hari{#if x?.lastReport}{' '}· terakhir <Ago t={x.lastReport} />{/if}{#if x?.reports30}<a href="#/moderation?tab=laporan&q={encodeURIComponent(name)}">Lihat laporan</a>{/if}</dd>
             <dt>Diblokir pemain</dt><dd>{x?.blockedBy ?? 0} pemain memblokirnya</dd>
             <dt>Melaporkan</dt><dd>{x?.reportsMade30 ?? 0} laporan dalam 30 hari</dd>
             <dt>Obrolan</dt><dd>{#if muted}<span class="chip warn">Dibisukan sampai {dt(d.user.chat_muted_until)}</span>{:else}Normal{/if}</dd>

@@ -118,7 +118,7 @@
 </script>
 
 <PageHead title="Pembayaran" {updated} onrefresh={() => { load(); if (isZepay) loadZ(); }}>
-  Penyedia: <b>{A.me?.paymentProvider}</b>{#if z?.mode} · <span class="chip {z.mode === 'test' ? 'warn' : ''}">{z.mode === 'test' ? 'mode uji' : 'live'}</span>{/if}
+  Penyedia: <b>{A.me?.paymentProvider}</b>{#if z?.mode}{' '}· <span class="chip {z.mode === 'test' ? 'warn' : ''}">{z.mode === 'test' ? 'mode uji' : 'live'}</span>{/if}
   {#snippet actions()}<button class="btn" onclick={() => downloadCsv('/api/admin/export/payments.csv' + qs({ q, ...filterParams(FILTERS, vals) }))}>{@html I.download}Ekspor CSV</button>{/snippet}
 </PageHead>
 

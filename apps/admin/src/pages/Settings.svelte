@@ -165,7 +165,7 @@
                     <textarea class="mono" class:bad={jsonErr[sec + path]} disabled={!editable} oninput={(e) => setJson(sec, path, (e.target as HTMLTextAreaElement).value)}>{JSON.stringify(v, null, 1)}</textarea>
                     {#if jsonErr[sec + path]}<span class="help bad">{jsonErr[sec + path]}</span>{/if}
                   {/if}
-                  <span class="help">bawaan: {fmt(get(defaults[sec], path))}{#if ch && editable} · <button class="link" onclick={() => reset(sec, path)}>{@html I.undo}kembalikan</button>{/if}</span>
+                  <span class="help">bawaan: {fmt(get(defaults[sec], path))}{#if ch && editable}{' '}· <button class="link" onclick={() => reset(sec, path)}>{@html I.undo}kembalikan</button>{/if}</span>
                 {/if}
               </div>
             {/each}

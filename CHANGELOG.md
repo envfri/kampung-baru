@@ -4,6 +4,32 @@ Semua perubahan BUPI. Versi mengikuti [semver](https://semver.org/lang/id/): fit
 
 > Berkas ini dibuat dari `packages/shared/src/changelog.ts` dengan `npm run changelog`. Jangan diedit langsung.
 
+## 0.49.0 · 2026-11-27 · Cerdas Cermat Kampung
+
+_Asah otak bersama Pak Kancil: kuis harian 10 soal, cerdas cermat bareng teman dengan lonceng, dan tantang teman menjawab soal yang sama._
+
+### Baru
+
+- Cerdas Cermat Kampung bersama Pak Kancil: buka kartu Kuis di Balai Main. Ada 400 soal dari 8 kategori (Budaya Nusantara, Makanan Khas, Geografi Indonesia, Alam & Hewan, Sains, Bahasa & Peribahasa, Matematika, Sejarah & Pahlawan), dari mudah sampai sulit, dan semuanya sudah diperiksa kebenarannya. _(pemain)_
+- Kuis Harian: 10 soal sehari, 15 detik per soal. Bentuk soalnya beragam: pilihan ganda, benar atau salah, tebak gambar (hewan, rumah adat, alat musik Nusantara), urutkan, cocokkan pasangan, lengkapi peribahasa, dan berhitung. Setelah menjawab, Pak Kancil memberi penjelasan "Tahukah kamu?". _(pemain)_
+- Hadiah kuis: koin dan XP untuk tiap jawaban benar, bonus bila semua benar, dan bonus beruntun di hari ke-3 dan ke-7 (hari ke-7 dapat Mutiara). Ada papan peringkat mingguan bersama teman-temanmu. _(pemain)_
+- Cerdas Cermat Bareng untuk 2–4 pemain, di rumah teman (menu Main bareng) atau di Panggung alun-alun. Yang pertama menjawab benar membunyikan lonceng dan dapat 3 poin, jawaban benar lainnya 2 poin. Pemenang naik podium. _(pemain)_
+- Tantang Teman: kamu dan temanmu menjawab 5 soal yang sama. Yang lebih banyak benar menang; kalau seri, yang lebih cepat menang. Tantangan juga bisa dibuat dari menu Duel. _(pemain)_
+- Lencana baru Si Pintar untuk tiap kategori dan Juara Cerdas Cermat, serta tugas harian "Jawab Kuis Harian". Ada tombol "Laporkan soal" bila kamu menemukan soal yang keliru. _(pemain)_
+
+### Perubahan
+
+- Admin: menu baru Kuis untuk mencari dan menyaring soal, melihat statistik (berapa persen yang menjawab benar), soal yang ditandai otomatis (benar < 25 % setelah ≥ 30 jawaban, atau ≥ 3 laporan terbuka), menambah dan mengubah soal dengan pemeriksaan langsung dan pratinjau, serta kotak laporan pemain. Semua angka (jumlah soal, waktu, hadiah, poin, batas harian) diatur di Pengaturan › kuis.
+- Teknis: paket konten 25 (seed-kuis.ts, pack_kuis) dengan sinkron soal baru dari kuis-soal.json; migrasi 033_kuis.sql; game bareng "kuis"; Tantang Teman memakai tabel duel (game kuis). Uji baru: kuis.test.ts, e2e-kuis.
+
+### Perbaikan
+
+- Spasi sebelum tanda "·" di beberapa keterangan tidak lagi hilang, misalnya hadiah main bareng ("+30 koin · +6 XP") dan catatan energi di Kolam Pancing. _(pemain)_
+
+### Keamanan
+
+- Kunci jawaban kuis hanya ada di server. Waktu menjawab dihitung server (toleransi jaringan graceSec), tiap soal hanya bisa dijawab sekali, dan batas koin harian dijaga dalam satu transaksi.
+
 ## 0.48.0 · 2026-11-27 · Sahabat Edisi Natal
 
 _Sambut Natal bersama dua sahabat besar edisi terbatas: Beruang Es yang ditemani butiran salju dan Rusa Kutup dengan lampu kerlap-kerlip di tanduknya._
@@ -24,6 +50,8 @@ _Sambut Natal bersama dua sahabat besar edisi terbatas: Beruang Es yang ditemani
 ### Perbaikan
 
 - Trik sahabat kini selalu tampil sampai selesai, juga saat sahabat sedang berjalan. _(pemain)_
+
+Commit: [`7f8f304`](https://github.com/envfri/kampung-baru/commit/7f8f304)
 
 ## 0.47.1 · 2026-11-23 · Jalan setapak ke Pondok Sahabat
 

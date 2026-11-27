@@ -76,7 +76,7 @@
         <div class="rk" class:me={x.id === me}><b>{x.rank}</b><i>{@html ava(mine.players.find((p: any) => p.id === x.id) ?? {})}</i><span>{x.name}{x.id === me ? ' (kamu)' : ''}</span>
           <em>{mine.game === 'congklak' ? `${x.score ?? 0} biji` : mine.game === 'karung' ? (x.timeMs ? `${(x.timeMs / 1000).toFixed(2).replace('.', ',')} d` : 'tidak finis') : `kotak ${x.score ?? 36}`}</em></div>
       {/each}
-      {#if r}<p class="gain">{#if r.coins}+{r.coins} koin{/if}{#if r.xp} · +{r.xp} XP{/if}{#if r.capped} Jatah hari ini sudah habis, tanpa koin.{:else if !r.coins && !r.xp} Tanpa hadiah kali ini.{/if}</p>{/if}
+      {#if r}<p class="gain">{#if r.coins}+{r.coins} koin{/if}{#if r.xp}{' '}· +{r.xp} XP{/if}{#if r.capped}{' '}Jatah hari ini sudah habis, tanpa koin.{:else if !r.coins && !r.xp}{' '}Tanpa hadiah kali ini.{/if}</p>{/if}
       <div class="btns">
         <button class="btn" onclick={() => (BG.closed = [...BG.closed, mine.id])}>Tutup</button>
         <button class="btn hot" disabled={BG.busy} onclick={() => { BG.closed = [...BG.closed, mine.id]; startGame(mine.game); }}>Main lagi</button>

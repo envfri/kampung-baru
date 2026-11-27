@@ -39,7 +39,26 @@ export const REPO_URL = 'https://github.com/envfri/kampung-baru';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '0.49.0',
+    date: '2026-11-27',
+    title: 'Cerdas Cermat Kampung',
+    summary: 'Asah otak bersama Pak Kancil: kuis harian 10 soal, cerdas cermat bareng teman dengan lonceng, dan tantang teman menjawab soal yang sama.',
+    items: [
+      { kind: 'baru', text: 'Cerdas Cermat Kampung bersama Pak Kancil: buka kartu Kuis di Balai Main. Ada 400 soal dari 8 kategori (Budaya Nusantara, Makanan Khas, Geografi Indonesia, Alam & Hewan, Sains, Bahasa & Peribahasa, Matematika, Sejarah & Pahlawan), dari mudah sampai sulit, dan semuanya sudah diperiksa kebenarannya.', player: true },
+      { kind: 'baru', text: 'Kuis Harian: 10 soal sehari, 15 detik per soal. Bentuk soalnya beragam: pilihan ganda, benar atau salah, tebak gambar (hewan, rumah adat, alat musik Nusantara), urutkan, cocokkan pasangan, lengkapi peribahasa, dan berhitung. Setelah menjawab, Pak Kancil memberi penjelasan "Tahukah kamu?".', player: true },
+      { kind: 'baru', text: 'Hadiah kuis: koin dan XP untuk tiap jawaban benar, bonus bila semua benar, dan bonus beruntun di hari ke-3 dan ke-7 (hari ke-7 dapat Mutiara). Ada papan peringkat mingguan bersama teman-temanmu.', player: true },
+      { kind: 'baru', text: 'Cerdas Cermat Bareng untuk 2–4 pemain, di rumah teman (menu Main bareng) atau di Panggung alun-alun. Yang pertama menjawab benar membunyikan lonceng dan dapat 3 poin, jawaban benar lainnya 2 poin. Pemenang naik podium.', player: true },
+      { kind: 'baru', text: 'Tantang Teman: kamu dan temanmu menjawab 5 soal yang sama. Yang lebih banyak benar menang; kalau seri, yang lebih cepat menang. Tantangan juga bisa dibuat dari menu Duel.', player: true },
+      { kind: 'baru', text: 'Lencana baru Si Pintar untuk tiap kategori dan Juara Cerdas Cermat, serta tugas harian "Jawab Kuis Harian". Ada tombol "Laporkan soal" bila kamu menemukan soal yang keliru.', player: true },
+      { kind: 'perbaikan', text: 'Spasi sebelum tanda "·" di beberapa keterangan tidak lagi hilang, misalnya hadiah main bareng ("+30 koin · +6 XP") dan catatan energi di Kolam Pancing.', player: true },
+      { kind: 'ubah', text: 'Admin: menu baru Kuis untuk mencari dan menyaring soal, melihat statistik (berapa persen yang menjawab benar), soal yang ditandai otomatis (benar < 25 % setelah ≥ 30 jawaban, atau ≥ 3 laporan terbuka), menambah dan mengubah soal dengan pemeriksaan langsung dan pratinjau, serta kotak laporan pemain. Semua angka (jumlah soal, waktu, hadiah, poin, batas harian) diatur di Pengaturan › kuis.' },
+      { kind: 'keamanan', text: 'Kunci jawaban kuis hanya ada di server. Waktu menjawab dihitung server (toleransi jaringan graceSec), tiap soal hanya bisa dijawab sekali, dan batas koin harian dijaga dalam satu transaksi.' },
+      { kind: 'ubah', text: 'Teknis: paket konten 25 (seed-kuis.ts, pack_kuis) dengan sinkron soal baru dari kuis-soal.json; migrasi 033_kuis.sql; game bareng "kuis"; Tantang Teman memakai tabel duel (game kuis). Uji baru: kuis.test.ts, e2e-kuis.' },
+    ],
+  },
+  {
     version: '0.48.0',
+    commits: ['7f8f304'],
     date: '2026-11-27',
     title: 'Sahabat Edisi Natal',
     summary: 'Sambut Natal bersama dua sahabat besar edisi terbatas: Beruang Es yang ditemani butiran salju dan Rusa Kutup dengan lampu kerlap-kerlip di tanduknya.',

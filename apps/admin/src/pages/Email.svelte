@@ -139,7 +139,7 @@ MAIL_FROM=BUPI &lt;noreply@domainmu&gt;</pre><button class="btn sm" onclick={() 
       <label>Kirim email uji ke<input type="email" required bind:value={to} /></label>
       <div class="row">
         <button class="btn primary" aria-busy={testBusy ? 'true' : undefined}>{@html I.send}Kirim email uji</button>
-        <button type="button" class="btn" disabled={!d.stats.queued} aria-busy={retryBusy ? 'true' : undefined} onclick={retry}>{@html I.refresh}Kirim ulang tertunda{#if d.stats.queued} ({num(d.stats.queued)}){/if}</button>
+        <button type="button" class="btn" disabled={!d.stats.queued} aria-busy={retryBusy ? 'true' : undefined} onclick={retry}>{@html I.refresh}Kirim ulang tertunda{#if d.stats.queued}{' '}({num(d.stats.queued)}){/if}</button>
       </div>
     </form>
     <Section title="Webhook bounce" prefKey="email:hook">

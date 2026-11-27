@@ -156,7 +156,7 @@
         <fieldset class="modes">
           <legend>Cara cut-off</legend>
           <label class="ro" class:on={mode === 'progress'}><input type="radio" bind:group={mode} value="progress" /><span><b>Reset progres, akun tetap <em class="chip">disarankan</em></b><small>Pemain uji tetap bisa masuk dengan Google/email/akun tamunya, lalu membuat pet baru dari awal.</small></span></label>
-          <label class="ro" class:on={mode === 'all'} class:blocked={!!s.real.payments}><input type="radio" bind:group={mode} value="all" /><span><b>Hapus semua pemain</b><small>Semua akun hilang; semua orang daftar ulang.{#if s.real.payments} Tidak bisa dipakai karena sudah ada pembayaran sungguhan.{/if}</small></span></label>
+          <label class="ro" class:on={mode === 'all'} class:blocked={!!s.real.payments}><input type="radio" bind:group={mode} value="all" /><span><b>Hapus semua pemain</b><small>Semua akun hilang; semua orang daftar ulang.{#if s.real.payments}{' '}Tidak bisa dipakai karena sudah ada pembayaran sungguhan.{/if}</small></span></label>
         </fieldset>
         <div class="sws">
           {#if mode === 'progress'}<Switch bind:checked={keepFriends} label="Pertahankan daftar teman" />{/if}

@@ -23,7 +23,7 @@
 </script>
 
 <Sheet title="Rumahku">
-  <p class="muted">Semua ruangan menyambung jadi satu rumah; letaknya bisa kamu atur lewat Atur denah. Ketuk ruangan: {G.me.pet.name} berjalan ke sana lewat pintu. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek} Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
+  <p class="muted">Semua ruangan menyambung jadi satu rumah; letaknya bisa kamu atur lewat Atur denah. Ketuk ruangan: {G.me.pet.name} berjalan ke sana lewat pintu. Atur mebel tiap ruangan dengan tombol Atur.{#if G.me.likesWeek}{' '}Rumahmu disukai <b>{G.me.likesWeek}</b> kali minggu ini.{/if}</p>
   {#if rooms.length > 1}
     <div class="two">
       <button class="btn" onclick={() => { sfx.tap(); G.cam = 'house'; G.sheet = null; G.view = 'home'; }}>Lihat seluruh rumah</button>

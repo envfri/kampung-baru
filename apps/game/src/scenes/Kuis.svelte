@@ -201,7 +201,7 @@
         <section class="card score">
           {#if run.kind === 'harian'}
             <div class="big3"><div><b>{res.score}</b><span>poin</span></div><div><b>{res.correct}</b><span>benar</span></div><div><b>{sec(res.totalMs)}</b><span>detik</span></div></div>
-            <p class="earn">{@html COIN} +{res.coins} koin · +{res.xp} XP{#if res.bonus?.pearls} · {@html PEARL} +{res.bonus.pearls} Mutiara{/if}</p>
+            <p class="earn">{@html COIN} +{res.coins} koin · +{res.xp} XP{#if res.bonus?.pearls}{' '}· {@html PEARL} +{res.bonus.pearls} Mutiara{/if}</p>
             {#if res.bonus?.perfect}<p class="bonus">Sempurna! Bonus +{cfg.perfectCoins ?? ''} koin</p>{/if}
             {#if res.bonus?.streak7}<p class="bonus">Beruntun {res.bonus.streak7} hari! Bonus besar dari Pak Kancil</p>{:else if res.bonus?.streak3}<p class="bonus">Beruntun {res.bonus.streak3} hari! Bonus +{cfg.streak3Coins} koin</p>{/if}
             {#if res.bonus?.streak}<p class="muted">Beruntun sekarang: {res.bonus.streak} hari</p>{/if}
@@ -209,7 +209,7 @@
             <div class="big3"><div><b>{res.correct}/{res.total}</b><span>benar</span></div><div><b>{sec(res.totalMs)}</b><span>detik</span></div></div>
             {#if duelNow}
               {#if duelNow.status === 'done'}
-                <p class="vs res-{duelNow.result}"><b>{duelNow.result === 'menang' ? 'Kamu menang!' : duelNow.result === 'kalah' ? `${duelNow.them.name} menang` : 'Seri!'}</b> {duelNow.me.label} vs {duelNow.them.label}{#if duelNow.me.reward} · +{duelNow.me.reward} koin{/if}</p>
+                <p class="vs res-{duelNow.result}"><b>{duelNow.result === 'menang' ? 'Kamu menang!' : duelNow.result === 'kalah' ? `${duelNow.them.name} menang` : 'Seri!'}</b> {duelNow.me.label} vs {duelNow.them.label}{#if duelNow.me.reward}{' '}· +{duelNow.me.reward} koin{/if}</p>
               {:else}<p class="vs">Skormu tersimpan. Menunggu {duelNow.them.name} main soal yang sama.</p>{/if}
             {/if}
           {/if}

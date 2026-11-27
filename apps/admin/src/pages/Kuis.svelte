@@ -210,7 +210,7 @@
             <span><b>{pct(ed.row) ?? '—'}{pct(ed.row) !== null ? '%' : ''}</b> benar</span><span><b>{ed.row.open_reports}</b> laporan terbuka</span>
             {#if ed.row.flagged}<span class="chip warn">ditandai otomatis</span>{/if}
             {#if ed.row.deleted_at}<span class="chip mute">dihapus</span>{:else if !ed.row.active}<span class="chip mute">nonaktif</span>{/if}
-            <span class="muted">{ed.row.origin === 'bank' ? 'bank resmi' : 'buatan admin'}{#if ed.row.updated_by} · diubah {ed.row.updated_by}{/if}</span>
+            <span class="muted">{ed.row.origin === 'bank' ? 'bank resmi' : 'buatan admin'}{#if ed.row.updated_by}{' '}· diubah {ed.row.updated_by}{/if}</span>
           </div>
         {/if}
         <div class="g3">
@@ -265,7 +265,7 @@
             {#if f.type === 'gambar'}<div class="pic">{@html kuisImageSVG(f.image)}</div>{/if}
             <p class="pq">{#if f.type === 'peribahasa'}{@html esc(f.q || '…').replace('___', '<span class="blank">?</span>')}{:else}{f.q || '…'}{/if}</p>
             {#if built.options}
-              <div class="po" class:two={f.type !== 'benarsalah'}>{#each built.options as o, i}<span class:ok={i === built.answer}>{f.type !== 'benarsalah' ? `${LET[i]}. ` : ''}{o || '…'}{#if i === built.answer} ✓{/if}</span>{/each}</div>
+              <div class="po" class:two={f.type !== 'benarsalah'}>{#each built.options as o, i}<span class:ok={i === built.answer}>{f.type !== 'benarsalah' ? `${LET[i]}. ` : ''}{o || '…'}{#if i === built.answer}{' '}✓{/if}</span>{/each}</div>
             {:else if f.type === 'urutkan'}
               <ol class="pl">{#each f.order as o}<li>{o || '…'}</li>{/each}</ol><small class="muted">Pemain melihat butir dalam urutan acak.</small>
             {:else if f.type === 'cocokkan'}

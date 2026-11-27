@@ -137,7 +137,7 @@
     <div class="card">
       {#if phase === 'intro'}
         <h2>Panen Buah</h2>
-        <p>Geser keranjang untuk menangkap buah. Buah emas +3, kerikil −2.{#if decor} Benda event memberi poin event!{/if}</p>
+        <p>Geser keranjang untuk menangkap buah. Buah emas +3, kerikil −2.{#if decor}{' '}Benda event memberi poin event!{/if}</p>
         <p class="muted">Sisa main: <b>{left}</b> · {cfg.energiCost} energi · hadiah sampai {cfg.maxCoins} koin</p>
       {:else if result}
         <h2>{result.error ? 'Permainan selesai' : `Skor ${result.score}`}</h2>

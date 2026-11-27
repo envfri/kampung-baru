@@ -24,6 +24,18 @@ const Q = {};
 async function loadQ() { for (const r of (await (await adm.get('/api/admin/kuis/questions?status=')).json()).questions) Q[r.id] = r.data; }
 await loadQ();
 const settings0 = (await (await adm.get('/api/admin/settings')).json()).value;
+// aktif/nonaktifkan banyak soal: dibagi ke beberapa sesi admin (batas laju server per sesi) + ulangi bila 429
+const admPool = [adm];
+for (let i = 0; i < 2; i++) { const c = await request.newContext({ baseURL: BASE }); if ((await c.post('/api/admin/login', { data: ADMIN })).status() === 200) admPool.push(c); }
+let admTurn = 0;
+async function setActive(id, on) {
+  for (let tries = 0; tries < 40; tries++) {
+    const r = await admPool[admTurn++ % admPool.length].post(`/api/admin/kuis/questions/${id}/active`, { data: { active: on } });
+    if (r.status() !== 429) return r.status() === 200;
+    await W(Math.max(1000, Number(r.headers()['retry-after'] ?? 1) * 1000));
+  }
+  return false;
+}
 async function setKuis(patch) { const v = (await (await adm.get('/api/admin/settings')).json()).value; const r = await adm.put('/api/admin/settings', { data: { value: { ...v, kuis: { ...v.kuis, ...patch } } } }); return r.status(); }
 const TYPES = ['pilihan', 'benarsalah', 'gambar', 'urutkan', 'cocokkan', 'peribahasa', 'hitung'];
 const active = Object.values(Q).filter((q) => q);
@@ -98,9 +110,14 @@ async function openKuis(pl) {
 
 /* ================= 1. Kuis Harian: 7 tipe, HP 390 & 320 ================= */
 // kolam soal dibatasi satu soal per tipe (lewat admin) supaya kedua permainan pasti memuat ketujuh tipe
-const keep = TYPES.map((t) => active.filter((q) => q.type === t).sort((a, b) => a.level - b.level)[0].id);
+// satu soal per tipe, sebisa mungkin dari kategori berbeda (layar akhir menampilkan benar per kategori), level termudah dulu
+const usedCat = new Set();
+const keep = TYPES.map((t) => {
+  const c = active.filter((q) => q.type === t).sort((a, b) => Number(usedCat.has(a.cat)) - Number(usedCat.has(b.cat)) || a.level - b.level || (a.id < b.id ? -1 : 1))[0];
+  usedCat.add(c.cat); return c.id;
+});
 const disabled = [];
-for (const q of active) if (!keep.includes(q.id)) { await adm.post(`/api/admin/kuis/questions/${q.id}/active`, { data: { active: false } }); disabled.push(q.id); }
+for (const q of active) if (!keep.includes(q.id) && (await setActive(q.id, false))) disabled.push(q.id);
 check(disabled.length === active.length - 7, `kolam soal uji: 7 soal (satu per tipe), ${disabled.length} dinonaktifkan sementara`);
 await W(16_000); // cache bank soal server ±15 detik
 
@@ -210,7 +227,7 @@ for (let i = 0; i < 2; i++) {
 check((await noHScroll(D)) <= 1, 'desktop 1366 tanpa geser samping');
 
 // kolam soal kembali seperti semula
-for (const id of disabled) await adm.post(`/api/admin/kuis/questions/${id}/active`, { data: { active: true } });
+for (const id of disabled) await setActive(id, true);
 check((await (await adm.get('/api/admin/kuis/questions?status=active')).json()).questions.length === active.length, 'kolam soal dipulihkan');
 await W(16_000);
 

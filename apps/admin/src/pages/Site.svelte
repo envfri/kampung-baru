@@ -180,7 +180,7 @@
       {#if seoDirty}<span class="chip warn">belum disimpan</span>{/if}
     {/snippet}
     {#if !data.info.indexable}
-      <p class="alert warn"><span class="ic">{@html I.info}</span><span>Mesin pencari diminta tidak mengindeks situs ini: {data.info.why.join(' ')}{#if data.info.why.length === 1 && !f.seo.index} Nyalakan "Izinkan mesin pencari" bila sudah siap.{/if}</span></p>
+      <p class="alert warn"><span class="ic">{@html I.info}</span><span>Mesin pencari diminta tidak mengindeks situs ini: {data.info.why.join(' ')}{#if data.info.why.length === 1 && !f.seo.index}{' '}Nyalakan "Izinkan mesin pencari" bila sudah siap.{/if}</span></p>
     {/if}
     <div class="cols">
       <div class="form">

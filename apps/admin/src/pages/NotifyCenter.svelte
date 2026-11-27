@@ -232,7 +232,7 @@
 
   <div class="lh">
     <h2>Jenis notifikasi</h2>
-    {#if totals}<span class="muted small">{totals.all} jenis · {totals.on} aktif{#if totals.changed} · {totals.changed} diubah{/if}</span>{/if}
+    {#if totals}<span class="muted small">{totals.all} jenis · {totals.on} aktif{#if totals.changed}{' '}· {totals.changed} diubah{/if}</span>{/if}
   </div>
   <FilterBar bind:q bind:values={vals} filters={FILTERS} placeholder="Cari notifikasi, mis. kebun, Mutiara" count={shown} />
 

@@ -364,7 +364,7 @@
         <button class="btn hot big press-btn" disabled={left <= 0} onpointerdown={startAim} onpointerup={releaseAim} onpointercancel={releaseAim} onpointerleave={releaseAim} oncontextmenu={(e) => e.preventDefault()}>
           {left <= 0 ? 'Jatah hari ini habis' : phase === 'aim' ? `Lepas di ${DIST_LABEL[zoneAt(aim)]}!` : 'Tahan… lalu lepas!'}
         </button>
-        <p class="note">Energi per lempar: dekat {costs.dekat ?? '?'} · sedang {costs.sedang ?? '?'} · jauh {costs.jauh ?? '?'}{#if energi < (costs.dekat ?? 0)} · <b class="warn">energi {G.me?.pet?.name} kurang</b>{/if}</p>
+        <p class="note">Energi per lempar: dekat {costs.dekat ?? '?'} · sedang {costs.sedang ?? '?'} · jauh {costs.jauh ?? '?'}{#if energi < (costs.dekat ?? 0)}{' '}· <b class="warn">energi {G.me?.pet?.name} kurang</b>{/if}</p>
         <div class="row">
           {#if onexit}<button class="btn sm" onclick={onexit}>{@html I.back} {exitLabel}</button>{/if}
           {#if onbook}<button class="btn sm" onclick={onbook}>{@html I.book} Buku Ikan</button>{/if}
