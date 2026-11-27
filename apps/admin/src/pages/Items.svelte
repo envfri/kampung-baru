@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS, FISH_TIERS, FISH_TIER_KEYS, isEdisi, EDISI_SPESIAL } from '@kb/shared';
+  import { itemIcon, renderRoom, renderPet, ROOM_VIEWBOX, PREMIUM_SETS, PREMIUM_SET_BY_KEY, KEBUN_CROPS, FISH_TIERS, FISH_TIER_KEYS, isEdisi, EDISI_SPESIAL, edisiBadge, edisiLabel } from '@kb/shared';
   import { api } from '../lib/api';
   import { A, can, err, toast, ask, num, dt, toLocal, fromLocal, setQuery } from '../lib/store.svelte';
   import { type FDef, readFilters, isActive } from '../lib/filters';
@@ -81,7 +81,7 @@
     { key: 'price_pearl', label: 'Mutiara', num: true, sort: true, text: (r) => r.price_pearl, html: (r) => (r.price_pearl ? num(r.price_pearl) : '<span class="muted">—</span>') },
     { key: 'sell_coin', label: 'Harga jual', num: true, sort: true, off: true, text: (r) => r.sell_coin, html: (r) => (r.sell_coin ? num(r.sell_coin) : '<span class="muted">—</span>') },
     { key: 'event', label: 'Event', sort: true, text: (r) => eventName(r.event_id), html: (r) => (r.event_id ? `<span class="chip warn">${esc(eventName(r.event_id))}</span>` : '') },
-    { key: 'set', label: 'Set premium', sort: true, off: true, snip: true, text: (r) => setOf(r)?.name ?? (isEdisi(r) ? EDISI_SPESIAL.name : '') },
+    { key: 'set', label: 'Set premium', sort: true, off: true, snip: true, text: (r) => setOf(r)?.name ?? (isEdisi(r) ? edisiLabel(r) : '') },
     { key: 'owned', label: 'Dimiliki', num: true, sort: true, text: (r) => r.owned, html: (r) => num(r.owned) },
     { key: 'sort', label: 'Urutan', num: true, sort: true, off: true, text: (r) => r.sort },
     { key: 'avail', label: 'Jadwal jual', off: true, text: (r) => [r.available_from, r.available_to].filter(Boolean).join(' – '),
@@ -235,7 +235,7 @@
     {#if k === 'who'}
       <div class="who"><span class="thumb">{@html itemIcon(r)}</span><span class="nm"><b>{r.name}</b><small class="mono">{r.id}</small></span></div>
     {:else if k === 'set'}
-      {#if setOf(r)}<span class="setchip" style="--c:{setOf(r)?.color}">{setOf(r)?.name.replace(/^Set /, '')}</span>{:else if isEdisi(r)}<span class="setchip" style="--c:#2B3A6B">{EDISI_SPESIAL.badge}</span>{/if}
+      {#if setOf(r)}<span class="setchip" style="--c:{setOf(r)?.color}">{setOf(r)?.name.replace(/^Set /, '')}</span>{:else if isEdisi(r)}<span class="setchip" style="--c:#2B3A6B">{edisiBadge(r)}</span>{/if}
     {/if}
   {/snippet}
   {#snippet bulk(ids)}
@@ -255,7 +255,7 @@
             <span class="chip blue">{KIND[form.kind]}</span>
             {#if form.active}<span class="chip">Aktif</span>{:else}<span class="chip mute">Nonaktif</span>{/if}
             {#if setOf(form)}<span class="setchip" style="--c:{setOf(form)?.color}">{setOf(form)?.name}</span>{/if}
-            {#if form.data?.edisi}<span class="setchip" style="--c:#2B3A6B">{EDISI_SPESIAL.badge}</span>{/if}
+            {#if form.data?.edisi}<span class="setchip" style="--c:#2B3A6B">{edisiBadge(form)}</span>{/if}
             {#if form.event_id}<span class="chip warn">{eventName(form.event_id)}</span>{/if}
             {#if !creating}<span class="mono">{form.id}</span><Copy text={form.id} label="ID disalin" />{/if}
             {#if dirty}<span class="chip warn">Belum disimpan</span>{/if}
@@ -286,6 +286,8 @@
             <label>Set premium<select bind:value={form.data.set}><option value="">Bukan set</option>{#each PREMIUM_SETS as s}<option value={s.key}>{s.name}</option>{/each}</select><span class="help">3+ item set yang sama di satu ruangan memberi suasana khusus.</span></label>
           </div>
           <label class="inline"><input type="checkbox" bind:checked={form.data.edisi} />{EDISI_SPESIAL.badge}: tampil di tab khusus Toko Mutiara dengan lencana & pratinjau bergerak. Isi "Berhenti dijual" untuk hitung mundur (Sisa 3 hari) di kartunya.</label>
+          {#if form.data?.edisi}<label>Nama edisi<input bind:value={form.data.edisiNama} maxlength="24" placeholder={EDISI_SPESIAL.name} /><span class="help">Tampil di pita kartu, mis. "Edisi Natal". Kosong = {EDISI_SPESIAL.name}.</span></label>{/if}
+          {#if form.kind === 'sahabat' && form.data?.edisi}<span class="help">Sahabat edisi terbatas ({edisiLabel(form)}): masa jualnya diatur lewat Mulai dijual / Berhenti dijual di atas. Sesudah berhenti dijual, sahabat ini hilang dari Toko Mutiara, Pondok Sahabat, dan Album pemain yang belum punya; yang sudah punya tetap menyimpannya selamanya.</span>{/if}
           <span class="help">Item event hanya dijual selama event berjalan. Item Mutiara sebaiknya kosmetik saja.</span>
         </fieldset>
         <fieldset disabled={!editable}>

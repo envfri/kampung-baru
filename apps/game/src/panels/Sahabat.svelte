@@ -1,12 +1,13 @@
 <script lang="ts">
   // Sahabat Mungil: Sahabatku (ajak / istirahatkan, camilan, main, nama, warna kerang, oleh-oleh), Pondok Sahabat
-  // (adopsi dengan koin / Mutiara lewat jalur beli toko, Camilan Sahabat), Album (siluet + petunjuk untuk yang belum
-  // dimiliki), dan lembar beri nama sahabat baru (anak ayam di pintu, burung pipit, kunang-kunang).
+  // (adopsi dengan koin / Mutiara lewat jalur beli toko, Camilan Sahabat, sahabat Edisi Natal selama masa jualnya), Album
+  // (siluet + petunjuk untuk yang belum dimiliki; bagian Edisi Natal: siluet hanya selama masih dijual), dan lembar beri
+  // nama sahabat baru (anak ayam di pintu, burung pipit, kunang-kunang).
   import { onMount } from 'svelte';
   import Sheet from '../components/Sheet.svelte';
-  import { SAHABAT_INFO, SAHABAT_SPECIES, SAHABAT_LEVEL_SUB, SAHABAT_NAME_MAX, SAHABAT_CAMILAN, UMANG_COLORS, buddyIcon, itemIcon, type SahabatSp } from '@kb/shared';
-  import { G, canBuy, fmt, item, owned, post, run, toast } from '../lib/game.svelte';
-  import { SB, activeBuddy, adopt, claimAyam, claimKunang, claimPipit, feed, howText, markPondokSeen, myBuddies, play, rename, sahabatOn, setActive, setShell, spName, takeGift, type Buddy } from '../lib/sahabat.svelte';
+  import { SAHABAT_INFO, SAHABAT_SPECIES, SAHABAT_BIASA, SAHABAT_NAME_MAX, SAHABAT_CAMILAN, UMANG_COLORS, EDISI_NATAL, albumSections, buddyIcon, itemIcon, levelSub, sisaWaktu, type SahabatSp } from '@kb/shared';
+  import { G, canBuy, fmt, item, owned, post, run, serverNow, toast } from '../lib/game.svelte';
+  import { SB, activeBuddy, adopt, claimAyam, claimKunang, claimPipit, edisiOnSale, edisiUntil, feed, howText, markPondokSeen, myBuddies, play, rename, sahabatOn, setActive, setShell, spName, takeGift, type Buddy } from '../lib/sahabat.svelte';
   import { COIN, PEARL } from '../lib/icons';
   import { sfx } from '../lib/sfx';
 
@@ -52,7 +53,13 @@
   }
 
   /* ---------- Pondok ---------- */
-  const shopSp = $derived(SAHABAT_SPECIES.filter((sp) => { const it = item(SAHABAT_INFO[sp].item); return !!it && canBuy(it) && (SAHABAT_INFO[sp].how === 'koin' || SAHABAT_INFO[sp].how === 'mutiara'); }));
+  // sahabat yang dijual: Edisi Natal (selama masa jualnya) lebih dulu, lalu sahabat koin & Mutiara biasa
+  const shopSp = $derived(SAHABAT_SPECIES.filter((sp) => { const it = item(SAHABAT_INFO[sp].item); return !!it && canBuy(it) && ['koin', 'mutiara', 'edisi'].includes(SAHABAT_INFO[sp].how); })
+    .sort((a, b) => Number(!!SAHABAT_INFO[b].edisi) - Number(!!SAHABAT_INFO[a].edisi)));
+  const natalSale = $derived(shopSp.filter((sp) => SAHABAT_INFO[sp].edisi === 'natal'));
+  // jam kasar (per menit) untuk hitung mundur Edisi Natal
+  const nowMin = $derived(Math.floor(serverNow() / 60_000));
+  const sisa = (sp: SahabatSp) => sisaWaktu(item(SAHABAT_INFO[sp].item)?.available_to, nowMin * 60_000);
   const snackItem = $derived(item(SAHABAT_CAMILAN));
   let confirm = $state('');
   async function adoptSp(sp: SahabatSp, cur: 'coin' | 'pearl') {
@@ -64,6 +71,9 @@
     if (r) tab = 'saya';
   }
   const has = (sp: string) => list.some((b) => b.sp === sp);
+  /** Album: sahabat biasa + bagian Edisi Natal (yang belum dimiliki hanya tampil selama masih dijual) */
+  const album = $derived(albumSections((sp) => has(sp), edisiOnSale));
+  const albumTotal = $derived(SAHABAT_BIASA.length + album.natal.length);
 
   const title = $derived(naming ? 'Sahabat baru!' : tab === 'pondok' ? 'Pondok Sahabat' : tab === 'album' ? 'Album Sahabat' : 'Sahabat Mungil');
   const trk = (key: string) => SB.trick?.key === key;
@@ -89,7 +99,7 @@
     <div class="tabbar" role="tablist">
       <button role="tab" aria-selected={tab === 'saya'} class:on={tab === 'saya'} onclick={() => (tab = 'saya')}>Sahabatku · {list.length}</button>
       <button role="tab" aria-selected={tab === 'pondok'} class:on={tab === 'pondok'} onclick={() => (tab = 'pondok')}>Pondok</button>
-      <button role="tab" aria-selected={tab === 'album'} class:on={tab === 'album'} onclick={() => (tab = 'album')}>Album · {list.length}/{SAHABAT_SPECIES.length}</button>
+      <button role="tab" aria-selected={tab === 'album'} class:on={tab === 'album'} onclick={() => (tab = 'album')}>Album · {list.length}/{albumTotal}</button>
     </div>
     {#if !sahabatOn()}<p class="warn" role="status">Pondok Sahabat sedang tutup. Sahabatmu tetap menemani {pet}, kegiatan bisa lagi nanti.</p>{/if}
 
@@ -118,7 +128,7 @@
               {:else}
                 <b id="bn-{b.id}">{b.name}{#if b.lvl >= 2}<i class="gold" title="Kalung emas Sahabat Sejati">✦</i>{/if}</b>
               {/if}
-              <span>{spName(b.sp)} · {b.active ? `ikut ${pet}` : 'istirahat di rumah'}</span>
+              <span>{spName(b.sp)}{#if SAHABAT_INFO[b.sp].edisi} <i class="ednat">✦ {EDISI_NATAL.name}</i>{/if} · {b.active ? `ikut ${pet}` : 'istirahat di rumah'}</span>
             </div>
             <span class="lvl l{b.lvl}">{b.level}</span>
           </div>
@@ -126,7 +136,7 @@
             <div class="bar"><i style="width:{Math.round(b.pct * 100)}%"></i></div>
             <small>{#if b.next}{b.points} keakraban · {b.need} lagi menuju {b.next}{:else}{b.points} keakraban · Sahabat Sejati!{/if}</small>
           </div>
-          <p class="sub">{SAHABAT_LEVEL_SUB[b.lvl]}</p>
+          <p class="sub">{levelSub(b.sp, b.lvl)}</p>
           {#if b.sp === 'umang'}
             <div class="shells" role="radiogroup" aria-label="Warna rumah kerang {b.name}">
               {#each Object.entries(UMANG_COLORS) as [k, c]}
@@ -157,14 +167,23 @@
           </div>
         </div>
       {/if}
+      {#if natalSale.length}
+        <div class="natban" role="note">
+          <b>✦ {EDISI_NATAL.name}</b>
+          <p>{natalSale.map((sp) => spName(sp)).join(' & ')}: sahabat besar musim dingin, {item(SAHABAT_INFO[natalSale[0]].item)?.price_pearl ?? 25} Mutiara. Dijual terbatas{edisiUntil(natalSale[0]) ? ` sampai ${edisiUntil(natalSale[0])}` : ''}; yang sudah diadopsi menemanimu selamanya.</p>
+        </div>
+      {/if}
       <div class="grid">
         {#each shopSp as sp (sp)}
           {@const it = item(SAHABAT_INFO[sp].item)!}
-          <div class="card" class:own={has(sp)}>
+          {@const nat = SAHABAT_INFO[sp].edisi === 'natal'}
+          <div class="card" class:own={has(sp)} class:natal={nat}>
+            {#if nat}<span class="ribbon">✦ {EDISI_NATAL.name}</span>{/if}
             {#if has(sp)}<span class="badge">Punya</span>{/if}
-            <span class="ic">{@html buddyIcon(sp)}</span>
+            <span class="ic" class:edfx={nat}>{@html buddyIcon(sp)}</span>
             <b>{it.name}</b>
             <small>{SAHABAT_INFO[sp].sifat}</small>
+            {#if nat && sisa(sp)}<span class="cd" title="Edisi terbatas">⏳ {sisa(sp)}</span>{/if}
             {#if has(sp)}<button class="btn sm" onclick={() => (tab = 'saya')}>Lihat</button>
             {:else}
               {#if it.price_coin > 0}<button class="btn sm" class:hot={confirm === sp + 'coin'} disabled={G.busy || !sahabatOn() || G.me.wallet.coin < it.price_coin} onclick={() => adoptSp(sp, 'coin')}>{#if confirm === sp + 'coin'}Yakin?{:else}{@html COIN}{fmt(it.price_coin)}{/if}</button>{/if}
@@ -177,8 +196,8 @@
       <button class="btn block" onclick={() => (tab = 'album')}>Buka Album Sahabat</button>
 
     {:else}
-      <div class="album">
-        {#each SAHABAT_SPECIES as sp (sp)}
+      <div class="album biasa">
+        {#each album.biasa as { sp } (sp)}
           {@const b = list.find((x) => x.sp === sp)}
           <div class="cell" class:unk={!b}>
             <span class="ic">{@html buddyIcon(sp, b ? { variant: b.variant, lvl: b.lvl } : { sil: true })}</span>
@@ -187,6 +206,22 @@
           </div>
         {/each}
       </div>
+      {#if album.natal.length}
+        <!-- Edisi Natal: yang dimiliki selalu tampil; siluet hanya selama masih dijual -->
+        <section class="alnat" aria-labelledby="al-natal">
+          <h3 id="al-natal">✦ {EDISI_NATAL.name}</h3>
+          <div class="album natal">
+            {#each album.natal as { sp } (sp)}
+              {@const b = list.find((x) => x.sp === sp)}
+              <div class="cell" class:unk={!b}>
+                <span class="ic">{@html buddyIcon(sp, b ? { variant: b.variant, lvl: b.lvl } : { sil: true })}</span>
+                <b>{b ? b.name : spName(sp)}</b>
+                {#if b}<small>{spName(sp)} · {b.level}</small>{:else}<small class="hint">{howText(sp)}</small>{/if}
+              </div>
+            {/each}
+          </div>
+        </section>
+      {/if}
     {/if}
   {/if}
 </Sheet>
@@ -249,6 +284,22 @@
   .card small { font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.2; }
   .card .badge { position: absolute; top: -8px; right: -6px; background: #3FA06A; color: #fff; border: 2px solid var(--ink); border-radius: 10px; font-size: 11.5px; font-weight: 800; padding: 0 6px; }
   .album { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  /* Edisi Natal: spanduk Pondok, kartu berpita & bagian Album sendiri (hijau cemara, merah, emas, salju) */
+  .natban { display: flex; flex-direction: column; gap: 2px; border: 2.5px solid var(--ink); border-radius: 16px; padding: 8px 12px 10px; color: #FFFDF7; box-shadow: 0 3px 0 var(--ink);
+    background: radial-gradient(circle at 88% 22%, rgba(255, 255, 255, .55) 0 2px, transparent 3px), radial-gradient(circle at 72% 70%, rgba(255, 255, 255, .45) 0 1.6px, transparent 2.6px), radial-gradient(circle at 95% 78%, rgba(255, 255, 255, .5) 0 2px, transparent 3px), linear-gradient(120deg, #1F5A3D, #2E7A50 55%, #A8322A); }
+  .natban b { font-size: 16px; font-weight: 800; color: #FFE27A; }
+  .natban p { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+  .card.natal { background: linear-gradient(180deg, #EAF6EE, var(--card) 55%); box-shadow: inset 0 0 0 2px #F2C94C; padding-top: 12px; }
+  .card.natal .ic { background: radial-gradient(120% 90% at 50% 30%, #FFFFFF 0%, #E3F1F8 62%, #CFE4F0 100%); }
+  .card .ribbon { position: absolute; top: -9px; left: -6px; z-index: 1; background: #1F5A3D; color: #FFE27A; border: 2px solid var(--ink); border-radius: 10px; font-size: 10.5px; font-weight: 800; padding: 0 6px; line-height: 16px; white-space: nowrap; }
+  .cd { font-size: 12px; font-weight: 800; color: #8E2A1E; background: #FFE9D6; border: 1.5px solid #E0583F; border-radius: 999px; padding: 0 8px; }
+  .ednat { font-style: normal; font-weight: 800; font-size: 11.5px; color: #1F5A3D; white-space: nowrap; }
+  .alnat { display: flex; flex-direction: column; gap: 6px; border: 2.5px solid var(--ink); border-radius: 16px; padding: 8px; background: linear-gradient(180deg, #E4F2E9, #F6FBF7); }
+  .alnat h3 { margin: 0; font-size: 15px; font-weight: 800; color: #1F5A3D; }
+  .album.natal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .album.natal .cell { border-color: #1F5A3D; }
+  .album.natal .cell:not(.unk) { background: #FFFDF7; box-shadow: inset 0 0 0 2px #F2C94C; }
+  .album.natal .cell.unk { background: #EEF5F0; }
   .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; border: 2px solid var(--ink); border-radius: 14px; padding: 6px 4px 8px; background: var(--card); min-width: 0; }
   .cell.unk { background: #F1EEE6; border-style: dashed; }
   .cell .ic { width: 100%; height: 64px; display: grid; place-items: center; }

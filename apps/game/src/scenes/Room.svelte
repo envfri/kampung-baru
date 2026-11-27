@@ -2,7 +2,7 @@
   import { reducedMotion } from '../lib/motion';
   // Rumah tersambung: semua ruangan (kamar, ruang tamu, dapur, kamar mandi, halaman, ...) tampil sekaligus sebagai satu rumah.
   // Pet berjalan antarruangan lewat pintu; kamera mengikuti ruangan pet, bisa digeser/dicubit, atau melihat seluruh rumah.
-  import { onDestroy, onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, tick as svelteTick, untrack } from 'svelte';
   import { roomMood, premiumMoodSVG, HOUSE_WALL_H, fits, occupied, petSpot, footprint, ROOM_SPOTS, ACTIVITY_ANIMS, ACTIVITY_SPOTS, activityFits, isBedItem, mulberry32, photoScene, ALUN_ITEMS, ALUN_NIGHT_ITEMS, ALUN_LAYOUT, ALUN_ROOM, ALUN_W, ALUN_D, SQUARE_ACTS, SQUARE_SNACKS, squareShow, SQUARE_SHOWS, squareNight, pondSeats, paradeAt, paradePoint, PARADE, PARADE_LEN, PARADE_SPEED, PARADE_GAP, keretaAt, keretaCars, keretaSeat, KERETA, BIANGLALA, gondolaAngle, filmAt, FILMS, alunGroundSVG, alunIslandPoly, alunNightSVG, bianglalaBulbsSVG, keretaCarSVG, gondolaPos, BIANG_HUB, ondelSVG, festoonSVG, lampHead, speechSVG, swooshSVG, dustSVG, fireworkSVG, houseLayout, houseLayers, houseCrumbs, houseDraws, houseDrawOrder, houseBounds, houseIso, houseYardSVG, houseYardBounds, skyTime, petMarkup, HOUSE_PET_SCALE, HOUSE_T, BARENG_GAMES, RONDA_SEATS, RONDA_LIFT, rondaNightSVG, LUDO_JOIN_SEAT, LUDO_MAT_SPOTS, type RoomSpot, type HouseRoomArt, type HouseDraw, type HousePlan } from '@kb/shared';
   import { H, enterHouse, leaveHouse, bubble as hbubble, emote as hemote, ACT_SAY, SQUARE, takePhoto } from '../lib/house.svelte';
   import { startGame, inGameNow, BG } from '../lib/bareng.svelte';
@@ -13,7 +13,7 @@
   import { ALUN, PREVIEW, localNow, tzMin, type RideKind } from '../lib/alun.svelte';
   import { JP, type JepretSnap, type JepretPet } from '../lib/jepret.svelte';
   import { working, gajiWaiting, petFree } from '../lib/kerja.svelte';
-  import { buddyMarkup, SAHABAT_INFO, PIPIT_SPOTS, isSahabatSp, type SahabatSp } from '@kb/shared';
+  import { buddyMarkup, buddyRestPose, buddyScale, buddyHead, SAHABAT_INFO, PIPIT_SPOTS, isSahabatSp, type SahabatSp } from '@kb/shared';
   import { SB, myLook, myBuddies, activeBuddy, sahabatOn, ownsSp, kunangWaiting, openSahabat, play as playBud, takeGift } from '../lib/sahabat.svelte';
 
   let { mode = 'home' }: { mode?: 'home' | 'visit' | 'square' } = $props();
@@ -1083,18 +1083,29 @@
   // sangkar burung, kolam ikan, ...); anak ayam pertama, burung pipit & kunang-kunang menunggu diketuk. Posisi digeser
   // lewat transform hanya selama ada yang bergerak (rAF berhenti sendiri saat semua diam); gerakan diam (mematuk, ...)
   // berupa kelas sesaat, jadi rumah 12 ruangan tidak terbebani animasi terus-menerus.
+  // Sahabat besar Edisi Natal (Beruang Es, Rusa Kutup) tidak pernah naik ke kepala pet: saat Akrab, beruang berbaring jadi
+  // bantal di samping pet yang tidur (pose 'pillow'), rusa berdiri di samping pet yang duduk/tidur (pose 'side'). Wajah
+  // pet tidak pernah tertutup: selama sahabat besar setinggi wajah pet di depannya, ia digambar di belakang pet, dan bila
+  // berhenti tepat di depan pemiliknya ia bergeser ke samping.
   type Bud = {
     key: string; sp: SahabatSp; v: string | null; lvl: number; name: string; owner: string | null; kind: 'follow' | 'rest' | 'wait';
     live: [number, number]; trail: [number, number][]; flip: boolean; perch: boolean; moving: boolean; tile: string; gift: boolean;
     /** tinggi di atas lantai (px pet): bertengger di tempat minum burung, kunang-kunang melayang */
     lift: number; id?: string;
+    /** pose Akrab sahabat besar ('pillow' / 'side'), dan petak tujuan berjalan sendiri (berdiri di samping / bergeser) */
+    pose?: '' | 'pillow' | 'side'; goal?: [number, number] | null;
+    /** sahabat besar setinggi wajah pemilik di depannya: digambar di belakang pemilik (wajah pet tidak pernah tertutup) */
+    cover?: boolean; coverT?: any;
+    /** trik sedang dimainkan di sebelah pemilik sampai saat ini (ms): selama itu ikut digambar di belakang pemilik */
+    trickUntil?: number;
+    /** kelas trik yang sedang dimainkan ('trk' / 'hop1'): bagian dari kelas yang digambar, jadi tidak hilang saat
+     * sahabat digambar ulang di tengah trik (pindah petak, urutan gambar berubah) */
+    fx?: string; fxT?: any;
   };
   type BudWant = Pick<Bud, 'key' | 'sp' | 'v' | 'lvl' | 'name' | 'owner' | 'kind' | 'gift' | 'lift' | 'id'> & { at?: [number, number] };
   const buds = new Map<string, Bud>();
   let budVer = $state(0);
   let budRaf = 0, budLast = 0;
-  /** pose pemilik yang membuat sahabat Akrab duduk di kepalanya */
-  const HEAD_POSES = new Set(['tidur', 'duduk']);
 
   /** pemilik sahabat: posisi, arah, bergerak, pose, tinggi naik, transform wahana & kedalaman gambar */
   function ownerState(o: string | null) {
@@ -1107,12 +1118,79 @@
     return { at: c.live, flip: c.flip, moving: c.path.length > 0, pose: c.pose ?? null, lift: compLift(c), tf: c.rideTf ?? null, d: c.rideD ?? c.live[0] + c.live[1] + 0.005 };
   }
   type Owner = NonNullable<ReturnType<typeof ownerState>>;
-  /** duduk di kepala pemilik (px pet, relatif kaki pemilik): Akrab saat pemilik duduk/tidur, pipit saat pemilik diam */
-  function perchOf(b: Bud, o: Owner): { hx: number; hy: number } | null {
-    if (b.kind !== 'follow' || o.tf) return null;
-    if (o.pose && HEAD_POSES.has(o.pose) && b.lvl >= 1) return o.pose === 'tidur' ? { hx: (o.flip ? 1 : -1) * 15, hy: -60 } : { hx: 0, hy: -70 };
-    if (b.sp === 'pipit' && !o.moving && !o.pose) return { hx: 3, hy: -74 };
+  /** pose sahabat terhadap pemiliknya (aturan bersama @kb/shared buddyRestPose): kepala, bantal, samping, atau null */
+  const restOf = (b: Bud, o: Owner) => (b.kind !== 'follow' || o.tf ? null : buddyRestPose(b.sp, b.lvl, o.pose, o.moving));
+  /**
+   * Menempel pada pemilik (px pet, relatif kaki pemilik): duduk di kepala (Akrab saat pemilik duduk/tidur, pipit saat
+   * pemilik diam) atau bantal: Beruang Es berbaring di samping punggung pet yang tidur (sisi lain bila sisi itu sudah di
+   * luar ruangan), kepalanya menghadap ke luar, digambar di belakang pet — pet bersandar di punggungnya, wajah pet bebas.
+   * k = skala sahabat di lantai, face = arah hadap beruang.
+   */
+  function perchOf(b: Bud, o: Owner): { hx: number; hy: number; k?: number; pillow?: boolean; face?: boolean } | null {
+    const rp = restOf(b, o);
+    if (rp === 'head') return o.pose === 'tidur' ? { hx: (o.flip ? 1 : -1) * 15, hy: -60 } : o.pose === 'duduk' ? { hx: 0, hy: -70 } : { hx: 3, hy: -74 };
+    if (rp === 'pillow') {
+      const back = o.flip ? 1 : -1, t = (56 * HOUSE_PET_SCALE) / HOUSE_T / 2;
+      const s = roomAt([o.at[0] + back * t, o.at[1] - back * t]) ? back : -back;
+      return { hx: s * 56, hy: 2, k: 1.15, pillow: true, face: s < 0 };
+    }
     return null;
+  }
+  /**
+   * Petak di samping pemilik: bergeser ±2 lebar petak ke samping di layar (sisi punggungnya dulu) dan sedikit ke depan
+   * (lebih dekat ke kamera, jadi tidak tertutup kasur / pet), di ruangan yang sama, tidak tertutup mebel atau sahabat lain.
+   */
+  function besideOf(o: Owner, prefer?: number, self?: Bud): [number, number] | null {
+    const s = prefer ?? (o.flip ? 1 : -1), [x, y] = o.at, r = roomAt(o.at), here = tileOf(o.at);
+    const taken = new Set([...buds.values()].filter((q) => q !== self).map((q) => q.tile));
+    // (selisih x−y di layar, selisih x+y ke depan) → petak
+    for (const [wide, front] of [[2, 0.6], [2, 0.2], [2.6, 0.6], [1.6, 0.9], [2, 1.2], [2.6, 0], [1.6, 0.3]]) {
+      for (const side of [s, -s]) {
+        const c: [number, number] = [x + (side * wide + front) / 2, y + (front - side * wide) / 2];
+        const k = tileOf(c);
+        if (!blocked.has(k) && k !== here && !taken.has(k) && roomAt(c)?.id === r?.id) return c;
+      }
+    }
+    return null;
+  }
+  /**
+   * Sahabat besar yang berhenti di depan pemiliknya (lebih dekat ke kamera) dan setinggi wajahnya akan menutupi wajah pet:
+   * true bila begitu. Px layar: petak = 34 lebar / 17 tinggi, mulut pet ±34 px pet di atas kaki.
+   */
+  function coversFace(b: Bud, o: Owner) {
+    if (buddyScale(b.sp) <= 1) return false;
+    const dd = b.live[0] + b.live[1] - (o.at[0] + o.at[1]), dx = b.live[0] - b.live[1] - (o.at[0] - o.at[1]);
+    if (dd <= 0.05 || Math.abs(dx) * HOUSE_T >= 58) return false;
+    return buddyHead(b.sp) * BUD_K - dd * (HOUSE_T / 2) > 30 * HOUSE_PET_SCALE + liftPx(o.lift);
+  }
+  /** sahabat besar yang triknya melompat tinggi (Rusa Kutup), tepat di sebelah pemiliknya: lompatannya bisa setinggi wajah pet */
+  const LEAP = new Set<string>(['rusa']);
+  function nearOwner(b: Bud, o: Owner) {
+    const dd = b.live[0] + b.live[1] - (o.at[0] + o.at[1]), dx = b.live[0] - b.live[1] - (o.at[0] - o.at[1]);
+    return buddyScale(b.sp) > 1 && LEAP.has(b.sp) && b.lvl >= 1 && dd > -0.6 && Math.abs(dx) * HOUSE_T < 72;
+  }
+  /** sahabat besar berhenti tepat di depan badan pemiliknya (menghalangi pet): sebaiknya bergeser ke samping */
+  function blocksOwner(b: Bud, o: Owner) {
+    if (buddyScale(b.sp) <= 1) return false;
+    const dd = b.live[0] + b.live[1] - (o.at[0] + o.at[1]), dx = b.live[0] - b.live[1] - (o.at[0] - o.at[1]);
+    return dd > 0.05 && Math.abs(dx) * HOUSE_T < 46 && buddyHead(b.sp) * BUD_K - dd * (HOUSE_T / 2) > 16 + liftPx(o.lift);
+  }
+  /** berjalan lurus ke petak tujuan (berdiri di samping / bergeser); true = masih berjalan */
+  function budWalkTo(b: Bud, o: Owner, to: [number, number], dt: number) {
+    const dx = to[0] - b.live[0], dy = to[1] - b.live[1], d = Math.hypot(dx, dy);
+    if (d <= 0.02) {
+      if (b.moving) { b.moving = false; budEl(b.key)?.classList.remove('mv'); }
+      return false;
+    }
+    const step = Math.min(SAHABAT_INFO[b.sp].speed * dt, d);
+    b.live = [b.live[0] + (dx / d) * step, b.live[1] + (dy / d) * step];
+    const sx = dx - dy;
+    if (Math.abs(sx) > 0.002 && sx < 0 !== b.flip) { b.flip = sx < 0; budVer++; }
+    if (!b.moving) { b.moving = true; budEl(b.key)?.classList.add('mv'); }
+    placeBud(b, o, null);
+    const tk = tileOf(b.live);
+    if (tk !== b.tile) { b.tile = tk; budVer++; }
+    return true;
   }
   /** tempat di belakang pemilik (sisi layar berlawanan arah hadapnya), di ruangan yang sama & tidak tertutup mebel */
   function behindOf(o: Owner): [number, number] {
@@ -1125,8 +1203,8 @@
   }
   /** sahabat di lantai sedikit lebih besar dari skala pet (supaya mudah diketuk); di kepala pet memakai skala pet */
   const BUD_K = HOUSE_PET_SCALE * 1.15;
-  function budTf(b: Bud, o: Owner | null, pp: { hx: number; hy: number } | null) {
-    if (pp && o) return `${o.tf ?? tf(o.at, o.lift)} translate(${pp.hx} ${pp.hy})`;
+  function budTf(b: Bud, o: Owner | null, pp: { hx: number; hy: number; k?: number } | null) {
+    if (pp && o) return `${o.tf ?? tf(o.at, o.lift)} translate(${pp.hx} ${pp.hy})${pp.k ? ` scale(${pp.k})` : ''}`;
     const [x, y] = houseIso(b.live[0], b.live[1]);
     return `translate(${x.toFixed(1)} ${(y - liftPx(b.lift)).toFixed(1)}) scale(${BUD_K.toFixed(3)})`;
   }
@@ -1139,16 +1217,37 @@
     if (b.kind !== 'follow') return false;
     const o = ownerState(b.owner);
     if (!o) return false;
+    const more = budStep1(b, o, dt);
+    // urutan gambar ikut berubah begitu sahabat besar mulai / berhenti setinggi wajah pemilik di depannya
+    const cov = !b.perch && ((b.trickUntil ?? 0) > Date.now() || coversFace(b, o));
+    if (cov !== !!b.cover) { b.cover = cov; budVer++; }
+    return more;
+  }
+  function budStep1(b: Bud, o: Owner, dt: number): boolean {
     const pp = perchOf(b, o);
     if (pp) {
-      if (!b.perch || b.moving) { b.perch = true; b.moving = false; b.trail = []; budVer++; }
+      const pose = pp.pillow ? 'pillow' : '';
+      if (!b.perch || b.moving || (b.pose ?? '') !== pose || (pp.pillow && b.flip !== pp.face)) { b.perch = true; b.moving = false; b.trail = []; b.goal = null; b.pose = pose; if (pp.pillow) b.flip = !!pp.face; budVer++; }
       b.live = [o.at[0], o.at[1]];
       placeBud(b, o, pp);
       return o.moving;
     }
-    if (b.perch) { b.perch = false; b.live = behindOf(o); b.trail = []; b.tile = tileOf(b.live); budVer++; }
+    if (b.perch) { b.perch = false; b.pose = ''; b.live = behindOf(o); b.trail = []; b.tile = tileOf(b.live); budVer++; }
+    // Rusa Kutup Akrab: berjalan ke samping pemilik yang duduk/tidur, menghadapnya, lampu tanduk menyala lembut
+    if (restOf(b, o) === 'side') {
+      b.goal ??= besideOf(o, undefined, b);
+      if (b.goal) {
+        if (budWalkTo(b, o, b.goal, dt)) return true;
+        const face = o.at[0] - o.at[1] < b.live[0] - b.live[1];
+        if (b.pose !== 'side' || b.flip !== face) { b.pose = 'side'; b.flip = face; b.trail = []; budVer++; }
+        return o.moving;
+      }
+    } else if (b.pose === 'side') { b.pose = ''; b.goal = null; budVer++; }
     // naik wahana: sahabat menunggu di bawah
     if (o.tf) return false;
+    // sahabat besar bergeser ke samping supaya tidak menutupi wajah pemiliknya (hanya saat pemilik diam)
+    if (b.goal && !o.moving) { if (budWalkTo(b, o, b.goal, dt)) return true; b.goal = null; return false; }
+    if (o.moving) b.goal = null;
     const last = b.trail.length ? b.trail[b.trail.length - 1] : b.live;
     const jump = Math.hypot(o.at[0] - last[0], o.at[1] - last[1]);
     // pemilik pindah jauh sekaligus (ditempatkan ulang, sinkron tertinggal): sahabat ikut langsung
@@ -1160,6 +1259,10 @@
     const I = SAHABAT_INFO[b.sp];
     if (rem <= I.lag + 0.02) {
       if (b.moving) { b.moving = false; budEl(b.key)?.classList.remove('mv'); }
+      if (!o.moving && (coversFace(b, o) || blocksOwner(b, o))) {
+        b.goal = besideOf(o, b.live[0] - b.live[1] >= o.at[0] - o.at[1] ? 1 : -1, b);
+        if (b.goal) { b.trail = []; return true; }
+      }
       return o.moving;
     }
     // tertinggal jauh: menyusul lebih cepat (kura-kura tetap paling pelan)
@@ -1310,17 +1413,17 @@
   // denah berubah: sahabat pengikut langsung ke belakang pemiliknya (letak lama sudah tidak berlaku)
   $effect(() => {
     void planSig;
-    untrack(() => { for (const b of buds.values()) if (b.kind === 'follow') { const o = ownerState(b.owner); if (o) { b.live = behindOf(o); b.trail = []; b.tile = tileOf(b.live); } } budVer++; });
+    untrack(() => { for (const b of buds.values()) if (b.kind === 'follow') { const o = ownerState(b.owner); if (o) { b.live = behindOf(o); b.trail = []; b.goal = null; b.tile = tileOf(b.live); } } budVer++; });
   });
   // pemilik duduk / tidur / bangun / mulai beraktivitas: sahabat naik ke kepala atau turun
   $effect(() => { void pose; void asleep; void compVer; untrack(budKick); });
 
   const budCache = new Map<string, { k: string; h: string }>();
   function budMarkup(b: Bud) {
-    const k = `${b.sp}|${b.v}|${b.lvl}|${b.flip}|${b.perch}|${b.gift}`;
+    const k = `${b.sp}|${b.v}|${b.lvl}|${b.flip}|${b.perch}|${b.gift}|${b.pose ?? ''}`;
     const hit = budCache.get(b.key);
     if (hit && hit.k === k) return hit.h;
-    const h = buddyMarkup(b.sp, { variant: b.v, lvl: b.lvl, flip: b.flip, gift: b.gift, perch: b.perch });
+    const h = buddyMarkup(b.sp, { variant: b.v, lvl: b.lvl, flip: b.flip, gift: b.gift, perch: b.perch, pose: b.pose || null });
     budCache.set(b.key, { k, h });
     return h;
   }
@@ -1333,8 +1436,10 @@
     for (const b of buds.values()) {
       const o = b.kind === 'follow' ? untrack(() => ownerState(b.owner)) : null;
       const pp = o && b.perch ? perchOf(b, o) : null;
-      const cls = `bud sp-${b.sp} k-${b.kind}${b.moving ? ' mv' : ''}${b.perch ? ' perch' : ''}${budNight ? ' nite' : ''}`;
-      out.push({ key: 'b:' + b.key, d: pp && o ? o.d + 0.002 : b.live[0] + b.live[1] + 0.003 + (b.lift > 0 ? 0.012 : 0), h: budMarkup(b), pet: { cls, tf: budTf(b, o, pp), b: b.key } });
+      // .perch = di kepala pet; sahabat besar: .pillow (bantal, digambar di belakang pet) / .side (berdiri di samping)
+      const cls = `bud sp-${b.sp} k-${b.kind}${b.fx ? ` ${b.fx}` : ''}${b.moving ? ' mv' : ''}${b.perch ? (b.pose === 'pillow' ? ' pillow' : ' perch') : ''}${b.pose === 'side' ? ' side' : ''}${buddyScale(b.sp) > 1 ? ' big' : ''}${budNight ? ' nite' : ''}`;
+      const d = pp && o ? o.d + (pp.pillow ? -0.004 : 0.002) : b.cover && o ? o.d - 0.004 : b.live[0] + b.live[1] + 0.003 + (b.lift > 0 ? 0.012 : 0);
+      out.push({ key: 'b:' + b.key, d, h: budMarkup(b), pet: { cls, tf: budTf(b, o, pp), b: b.key } });
     }
     return out;
   });
@@ -1359,10 +1464,26 @@
       const el = budEl(t.key), b = buds.get(t.key);
       if (!el || !b) return;
       const c = b.lvl >= 1 ? 'trk' : 'hop1';
-      el.classList.remove('trk', 'hop1', 'idl');
-      void (el as any).getBBox?.();
-      el.classList.add(c);
-      setTimeout(() => el.classList.remove(c), 1300);
+      // sahabat besar di sebelah pemiliknya: selama trik digambar di belakang pemilik (lompatan rusa tidak menutupi wajah pet)
+      const o = b.kind === 'follow' && !b.perch ? ownerState(b.owner) : null;
+      if (o && nearOwner(b, o)) {
+        b.trickUntil = Date.now() + 1300;
+        b.cover = true;
+        clearTimeout(b.coverT);
+        b.coverT = setTimeout(budKick, 1350);
+      }
+      // kelas trik ikut kelas yang digambar (b.fx); sesudah digambar, dipasang ulang supaya trik mulai dari awal lagi
+      b.fx = c;
+      budVer++;
+      clearTimeout(b.fxT);
+      b.fxT = setTimeout(() => { if (b.fx === c) { b.fx = ''; budVer++; } }, 1300);
+      void svelteTick().then(() => {
+        const e = budEl(t.key);
+        if (!e) return;
+        e.classList.remove('trk', 'hop1', 'idl');
+        void (e as any).getBBox?.();
+        e.classList.add(c);
+      });
     });
   });
   // gerakan diam sesekali (mematuk, mengangguk, berkedip): kelas sesaat, tidak saat animasi dikurangi

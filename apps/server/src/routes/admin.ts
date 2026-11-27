@@ -106,6 +106,9 @@ function cleanItemData(kind: string, v: any) {
   const ed = v && typeof v === 'object' ? v.edisi : undefined;
   if (ed !== undefined && ed !== null && ed !== '' && ed !== false && ed !== 0 && ed !== '0') {
     out.edisi = ed === true || ed === 'true' ? 1 : int(Math.round(Number(ed)), 'Edisi Spesial', { min: 1, max: 99 });
+    // nama edisi di pita kartu (mis. "Edisi Natal"); kosong = "Edisi Spesial"
+    const nm = str(v.edisiNama, 'Nama edisi', { max: 24, optional: true });
+    if (nm && nm.trim()) out.edisiNama = nm.trim();
   }
   return out;
 }

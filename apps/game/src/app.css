@@ -256,6 +256,62 @@ button { font-family: var(--font); color: var(--ink); touch-action: manipulation
 /* Pengaturan › Kurangi animasi (pilihan di game) — paket 23 */
 :root.reduce-motion .bud :is(.bud-bob, .bud-hop, .b-pk, .b-glow) { animation: none !important; }
 
+/* ---------- Paket konten 24 (Sahabat Edisi Natal): Beruang Es & Rusa Kutup ----------
+   Gambar di art-sahabat.ts (digambar ±1,6× sahabat biasa). Efek kelas nt-*, hanya translate / scale / opacity, tanpa JS:
+   - terus-menerus (salju di sekitar beruang .nt-flake, lampu tanduk rusa .nt-light, cahaya lembut .nt-halo saat berdiri di
+     samping pet yang duduk/tidur): bergerak per langkah 0,2 dtk (steps) dan semua jeda kelipatan 0,2 dtk, jadi gambar
+     rumah paling banyak berubah ±5× per detik (bukan tiap frame) — rumah 12 ruangan tetap ringan;
+   - saat berjalan (.mv): kilau es di bekas pijakan (.nt-frost) & jejak kilau emas (.nt-trail);
+   - sesekali (.idl): napas dingin (.nt-breath), lonceng berayun & berdenting (.nt-bell, .nt-jingle);
+   - trik (.trk): beruang meluncur di perut mendorong bola salju; rusa melompat tinggi meninggalkan lengkung bintang (.nt-arc).
+   Juga berlaku di pratinjau kartu toko (.edfx). Diam dengan prefers-reduced-motion & Kurangi animasi: salju & lampu tetap
+   tampil di tempatnya (frame dasar), jejak tersembunyi; trik tampil sebagai gambar diam. */
+.bud :is(.nt-frost, .nt-trail, .nt-arc, .nt-jingle, .nt-breath) { transform-box: fill-box; transform-origin: center; }
+.bud .nt-bell { transform-box: fill-box; transform-origin: 50% 0; }
+.bud.mv.sp-beruang .bud-bob { animation: nt-plod .4s ease-in-out infinite alternate; }
+.bud.mv.sp-rusa .bud-bob { animation: nt-trot .24s ease-in-out infinite alternate; }
+.bud.trk:is(.sp-beruang, .sp-rusa):not(.pillow) .b-n { display: none; }
+.bud.trk.sp-beruang:not(.pillow) .bud-bob { animation: nt-slide 1.2s ease-in-out; }
+.bud.trk.pillow .bud-bob { animation: bd-puff .4s ease-in-out 2 alternate; }
+.bud.pillow .nt-breath { display: none; }
+.bud.trk.sp-rusa .bud-bob { animation: nt-leap 1.1s cubic-bezier(.3, .7, .4, 1); }
+.bud.trk.sp-rusa .nt-arc { animation: nt-star 1.1s ease-out backwards; }
+.bud.mv .nt-frost { animation: nt-frost .6s ease-out infinite; }
+.bud.mv .nt-trail { animation: nt-trail .48s ease-out infinite; }
+.bud.idl .nt-breath { animation: nt-breath 1s ease-out; }
+.bud:is(.idl, .trk) .nt-bell { animation: nt-bell .22s ease-in-out 4 alternate; }
+.bud:is(.idl, .trk) .nt-jingle { animation: nt-jingle .8s ease-out backwards; }
+:is(.bud, .edfx) .nt-flake { animation: nt-flake 4s infinite; }
+:is(.bud, .edfx) .nt-light { animation: nt-blink 1.6s steps(1, end) infinite; }
+.bud .nt-halo { animation: nt-halo 2.4s steps(6, end) infinite alternate; }
+@keyframes nt-flake {
+  0% { translate: 0 -8px; opacity: 0; animation-timing-function: steps(4, end); }
+  20% { translate: 2px -4px; opacity: .95; animation-timing-function: steps(12, end); }
+  80% { translate: -2px 8px; opacity: .95; animation-timing-function: steps(4, end); }
+  100% { translate: 0 12px; opacity: 0; }
+}
+@keyframes nt-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@keyframes nt-halo { from { opacity: .2; } to { opacity: .62; } }
+@keyframes nt-plod { from { transform: rotate(-5deg) translateY(0); } to { transform: rotate(5deg) translateY(-2.5px); } }
+@keyframes nt-trot { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-4px) rotate(2deg); } }
+@keyframes nt-slide { 0% { transform: translateX(-6px); } 45% { transform: translateX(16px); } 70% { transform: translateX(13px); } 100% { transform: translateX(0); } }
+@keyframes nt-leap { 0% { transform: translateY(0) scale(1.04, .94); } 12% { transform: translateY(2px) scale(1.06, .9); } 50% { transform: translate(6px, -46px) rotate(-8deg); } 82% { transform: translateY(0) rotate(0); } 90% { transform: scale(1.04, .95); } 100% { transform: none; } }
+@keyframes nt-star { 0% { opacity: 0; scale: .2; } 25% { opacity: 1; scale: 1.15; } 70% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .7; } }
+@keyframes nt-frost { 0% { opacity: 0; scale: .3; translate: 0 0; } 35% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .6; translate: -10px -3px; } }
+@keyframes nt-trail { 0% { opacity: 0; scale: .3; translate: 0 0; } 30% { opacity: 1; scale: 1.05; } 100% { opacity: 0; scale: .5; translate: -12px -4px; } }
+@keyframes nt-breath { 0% { opacity: 0; scale: .4; translate: 0 0; } 30% { opacity: .95; scale: 1; } 100% { opacity: 0; scale: 1.4; translate: 9px -5px; } }
+@keyframes nt-bell { from { rotate: -16deg; } to { rotate: 16deg; } }
+@keyframes nt-jingle { 0% { opacity: 0; scale: .3; } 35% { opacity: 1; scale: 1.2; } 100% { opacity: 0; scale: .8; translate: 0 -6px; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.bud, .edfx) :is(.nt-flake, .nt-light, .nt-halo, .nt-frost, .nt-trail, .nt-arc, .nt-jingle, .nt-breath, .nt-bell) { animation: none !important; }
+  .bud.trk.sp-rusa .nt-arc { opacity: .95; }
+  .bud.trk.sp-rusa .bud-bob { translate: 0 -16px; }
+}
+/* Pengaturan › Kurangi animasi (pilihan di game) — paket 24 */
+:root.reduce-motion :is(.bud, .edfx) :is(.nt-flake, .nt-light, .nt-halo, .nt-frost, .nt-trail, .nt-arc, .nt-jingle, .nt-breath, .nt-bell) { animation: none !important; }
+:root.reduce-motion .bud.trk.sp-rusa .nt-arc { opacity: .95; }
+:root.reduce-motion .bud.trk.sp-rusa .bud-bob { translate: 0 -16px; }
+
 /* ---------- Paket konten 20 (perabot dapur, kamar mandi, taman): pose aktivitas baru ayun, sikat, cuci ----------
    Selektor :is(.pet, .opet) supaya pet lain di ruangan (tamu / pet sendiri saat berkunjung) ikut berpose bila kelas
    pose-nya terpasang. Properti pet ada di art-perabot3.ts: p-ayun (penanda), p-sikat & p-busa, p-cuci.

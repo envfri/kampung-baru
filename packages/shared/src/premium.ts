@@ -130,6 +130,10 @@ export const EDISI_SPESIAL = {
   desc: 'Barang istimewa yang hidup di rumahmu: kelopak berguguran, ubur-ubur bercahaya, kincir berputar, dan lainnya. Dibeli satuan dengan Mutiara.',
 };
 export const isEdisi = (it?: { data?: any } | null) => Number(it?.data?.edisi) > 0;
+/** nama edisi untuk pita & teks (data.edisiNama, mis. "Edisi Natal"; bawaan "Edisi Spesial") */
+export const edisiLabel = (it?: { data?: any } | null) => (typeof it?.data?.edisiNama === 'string' && it.data.edisiNama.trim() ? it.data.edisiNama.trim().slice(0, 24) : EDISI_SPESIAL.name);
+/** pita kartu toko: "✦ Edisi Spesial" / "✦ Edisi Natal" */
+export const edisiBadge = (it?: { data?: any } | null) => `✦ ${edisiLabel(it)}`;
 /** efek tiap bentuk Edisi Spesial (kunci art), untuk kartu toko */
 export const EDISI_EFEK: Record<string, string> = {
   tabebuya: 'Kelopak berguguran',
@@ -142,6 +146,9 @@ export const EDISI_EFEK: Record<string, string> = {
   wayanggolek: 'Wayang menari',
   aurora: 'Aurora berganti warna',
   kolamkaca: 'Ikan berenang',
+  // Edisi Natal (paket konten 24): sahabat besar
+  sahabatberuang: 'Salju menari',
+  sahabatrusa: 'Lampu kerlap-kerlip',
 };
 /** Sisa waktu dijual, teks pendek ("Sisa 3 hari", "Sisa 5 jam", "Sisa 12 mnt"); '' bila tanpa batas atau sudah lewat. */
 export function sisaWaktu(until: string | number | Date | null | undefined, now = Date.now()) {

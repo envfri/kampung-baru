@@ -10,12 +10,12 @@
 // - Tugas harian "Beri makan sahabat", lencana Kawan Satwa I–III (3 / 6 / 9 sahabat) & Sahabat Sejati.
 // Item, lokasi, tugas, dan ubahan admin yang sudah ada tidak ditimpa (on conflict do nothing).
 import type { Db } from './index';
-import { SAHABAT_INFO, SAHABAT_SPECIES, SAHABAT_CAMILAN, SAHABAT_LOC, UMANG_COLORS, UMANG_DEFAULT, type SahabatSp } from '@kb/shared';
+import { SAHABAT_INFO, SAHABAT_BIASA, SAHABAT_CAMILAN, SAHABAT_LOC, UMANG_COLORS, UMANG_DEFAULT, type SahabatSp } from '@kb/shared';
 import { invalidateQuests } from '../lib/quests';
 
 type SeedItem = { id: string; kind: 'sahabat' | 'material'; name: string; description: string; price_coin: number; price_pearl: number; sell_coin: number; shop: string | null; art: any; data: Record<string, unknown> };
 
-const DESC: Record<SahabatSp, string> = {
+const DESC: Partial<Record<SahabatSp, string>> = {
   ayam: 'Anak ayam kuning yang suka mematuk-matuk lantai. Sahabat pertama, gratis: cari di depan pintu rumahmu.',
   umang: 'Umang-umang mungil dengan rumah kerang yang bisa kamu ganti warnanya. Suka bersembunyi kalau diketuk.',
   bebek: 'Anak bebek yang berjalan megal-megol di belakang pet-mu. Kwek!',
@@ -29,11 +29,12 @@ const DESC: Record<SahabatSp, string> = {
 /** harga bawaan: koin di Pondok Sahabat, Mutiara di Toko Mutiara */
 const PRICE: Partial<Record<SahabatSp, { coin?: number; pearl?: number }>> = { umang: { coin: 250 }, bebek: { coin: 400 }, kelinci: { pearl: 12 }, hamster: { pearl: 12 }, landak: { pearl: 15 } };
 
+// sahabat biasa saja: sahabat Edisi Natal ditambahkan paket konten 24 (seed-natal.ts)
 export const SAHABAT_ITEMS: SeedItem[] = [
-  ...SAHABAT_SPECIES.map((sp): SeedItem => {
+  ...SAHABAT_BIASA.map((sp): SeedItem => {
     const p = PRICE[sp];
     return {
-      id: SAHABAT_INFO[sp].item, kind: 'sahabat', name: SAHABAT_INFO[sp].name, description: DESC[sp],
+      id: SAHABAT_INFO[sp].item, kind: 'sahabat', name: SAHABAT_INFO[sp].name, description: DESC[sp] ?? SAHABAT_INFO[sp].sifat,
       price_coin: p?.coin ?? 0, price_pearl: p?.pearl ?? 0, sell_coin: 0,
       shop: p?.coin ? SAHABAT_LOC : p?.pearl ? 'mutiara' : null,
       art: { type: 'builtin', key: `sahabat${sp}`, ...(sp === 'umang' ? { colors: { main: UMANG_COLORS[UMANG_DEFAULT].main } } : {}) },
@@ -52,7 +53,7 @@ export const SAHABAT_QUESTS: Q[] = [
   { id: 'h-sahabat', kind: 'daily', title: 'Beri makan sahabat', description: 'Beri Camilan Sahabat ke salah satu sahabatmu.', event: 'sahabat_makan', filter: {}, target: 1, coin: 15, pearl: 0, xp: 4, sort: 170 },
   { id: 'b-sahabat-3', kind: 'badge', title: 'Kawan Satwa I', description: 'Punya 3 sahabat mungil.', event: 'sahabat_baru', filter: {}, target: 3, coin: 60, pearl: 0, xp: 10, sort: 750 },
   { id: 'b-sahabat-6', kind: 'badge', title: 'Kawan Satwa II', description: 'Punya 6 sahabat mungil.', event: 'sahabat_baru', filter: {}, target: 6, coin: 0, pearl: 2, xp: 20, sort: 751 },
-  { id: 'b-sahabat-9', kind: 'badge', title: 'Kawan Satwa III', description: 'Punya kesembilan sahabat mungil.', event: 'sahabat_baru', filter: {}, target: 9, coin: 0, pearl: 5, xp: 30, sort: 752 },
+  { id: 'b-sahabat-9', kind: 'badge', title: 'Kawan Satwa III', description: 'Punya 9 sahabat mungil.', event: 'sahabat_baru', filter: {}, target: 9, coin: 0, pearl: 5, xp: 30, sort: 752 },
   { id: 'b-sahabat-sejati', kind: 'badge', title: 'Sahabat Sejati', description: 'Satu sahabat naik ke Sahabat Sejati.', event: 'sahabat_sejati', filter: {}, target: 1, coin: 0, pearl: 3, xp: 25, sort: 753 },
 ];
 

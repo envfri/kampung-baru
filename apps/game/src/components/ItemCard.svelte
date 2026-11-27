@@ -1,13 +1,15 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { itemIcon, isEdisi, EDISI_SPESIAL } from '@kb/shared';
+  import { itemIcon, isEdisi, edisiBadge } from '@kb/shared';
   let { it, sub = '', badge = '', tried = false, children }: { it: any; sub?: string; badge?: string; tried?: boolean; children?: Snippet } = $props();
-  // Edisi Spesial: pita khusus & pratinjau bergerak (kelas .edfx menyalakan animasi ed-* di app.css)
+  // Edisi Spesial: pita khusus & pratinjau bergerak (kelas .edfx menyalakan animasi ed-* / nt-* di app.css);
+  // edisi 2 = Edisi Natal (sahabat besar): pita hijau cemara & panggung salju
   const ed = $derived(isEdisi(it));
+  const winter = $derived(ed && Number(it?.data?.edisi) === 2);
 </script>
 
-<div class="card" class:tried class:edisi={ed}>
-  {#if ed}<span class="ribbon">{EDISI_SPESIAL.badge}</span>{/if}
+<div class="card" class:tried class:edisi={ed} class:winter>
+  {#if ed}<span class="ribbon">{edisiBadge(it)}</span>{/if}
   {#if badge}<span class="badge">{badge}</span>{/if}
   <div class="ic" class:edfx={ed}>{@html itemIcon(it)}</div>
   <div class="name">{it.name}</div>
@@ -28,5 +30,8 @@
   .card.edisi { background: linear-gradient(180deg, #FFF6DC, var(--card) 55%); box-shadow: inset 0 0 0 2px #F2C94C; padding-top: 12px; }
   .card.edisi .ic { height: 88px; background: radial-gradient(120% 90% at 50% 30%, #FFFFFF 0%, #ECE5FB 62%, #DCD3F5 100%); box-shadow: inset 0 0 0 1.5px #CBBDF0; }
   .card.edisi .ic :global(svg) { height: 82px; }
+  .card.winter { background: linear-gradient(180deg, #EAF6EE, var(--card) 55%); }
+  .card.winter .ic { background: radial-gradient(120% 90% at 50% 30%, #FFFFFF 0%, #E3F1F8 62%, #CFE4F0 100%); box-shadow: inset 0 0 0 1.5px #A9CDE6; }
+  .card.winter .ribbon { background: #1F5A3D; }
   .ribbon { position: absolute; top: -9px; left: -6px; z-index: 1; background: #2B3A6B; color: #FFE27A; border: 2px solid var(--ink); border-radius: 10px; font-size: 10.5px; font-weight: 800; padding: 0 6px; line-height: 16px; white-space: nowrap; }
 </style>

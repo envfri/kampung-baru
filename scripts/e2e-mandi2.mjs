@@ -88,9 +88,17 @@ const cardNames = (p) => p.evaluate(() => [...document.querySelectorAll('.shop .
 const card = (p, name) => p.locator(`.shop .panel .card:has(.name:text-is("${name}"))`);
 /** cek toko: semua barang baru tampil, kartu & tombol tidak keluar layar, ikon tergambar */
 async function checkShop(pl, shop, tag, shot) {
-  // toko terbuka di tab Semua (bukan Edisi Spesial yang lebih lama) dan barang terbaru di urutan atas
+  // toko terbuka di tab Semua (bukan Edisi Spesial yang lebih lama) dan barang terbaru di urutan atas. Bila barang
+  // terbaru di toko ini justru barang Edisi Spesial (mis. sahabat Edisi Natal paket 24), tab Edisi yang terbuka (sesuai
+  // rancangan): pastikan itu, lalu pindah ke tab Semua sebelum memeriksa barang paket ini.
   const tabOn = await pl.p.locator('.shop .tabbar:not(.slots) button.on').first().innerText().catch(() => '');
-  check(/^Semua/.test(tabOn.trim()), `${tag}: ${shop} terbuka di tab Semua ("${tabOn.trim()}")`);
+  const newest = (edi) => Math.max(0, ...cat.items.filter((i) => i.shop === shop && Number(i.data?.edisi) > 0 === edi && Number(i.new_until ?? 0) > Date.now() && (!i.available_to || new Date(i.available_to).getTime() > Date.now())).map((i) => Number(i.new_until)));
+  if (newest(true) > 0 && newest(true) >= newest(false)) {
+    check(/Edisi/.test(tabOn), `${tag}: ${shop} terbuka di tab Edisi Spesial (barang edisi paling baru) ("${tabOn.trim()}")`);
+    await pl.p.locator('.shop .tabbar:not(.slots) button', { hasText: /^\s*Semua\s*$/ }).first().click(); await W(400);
+    const now = await pl.p.locator('.shop .tabbar:not(.slots) button.on').first().innerText().catch(() => '');
+    check(/^Semua/.test(now.trim()), `${tag}: ${shop} pindah ke tab Semua ("${now.trim()}")`);
+  } else check(/^Semua/.test(tabOn.trim()), `${tag}: ${shop} terbuka di tab Semua ("${tabOn.trim()}")`);
   // barang dari paket konten yang lebih baru (mis. sahabat Mutiara paket 23) boleh tampil lebih dulu
   const mine = cat.items.filter((i) => NEW[shop].includes(i.name));
   const since = Math.max(0, ...mine.map((i) => Number(i.new_until ?? 0)));

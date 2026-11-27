@@ -41,6 +41,7 @@
     "test:e2e:kasur": "node scripts/e2e-kasur.mjs",
     "test:e2e:mandi2": "node scripts/e2e-mandi2.mjs",
     "test:e2e:sahabat": "node scripts/e2e-sahabat.mjs",
+    "test:e2e:natal": "node scripts/e2e-natal.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "icons": "node --import tsx scripts/make-icons.mjs",
     "sahabat-sheet": "node --import tsx scripts/sahabat-sheet.mjs",
